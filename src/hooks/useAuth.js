@@ -12,7 +12,9 @@ export const useAuth = () => {
         setUser(currentUser);
         setIsAuthReady(true);
       } else {
-        const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // const token = process.env.REACT_APP_INITIAL_AUTH_TOKEN || null;
+        const token = process.env.REACT_APP_INITIAL_AUTH_TOKEN || null;
         try {
           if (token) {
               await signInWithCustomToken(auth, token);

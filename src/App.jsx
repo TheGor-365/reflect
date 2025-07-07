@@ -25,7 +25,7 @@ export default function App() {
   const { data: goals, loading: goalsLoading } = useFirestore('goals', userId);
   const { data: moods, loading: moodsLoading } = useFirestore('moods', userId);
   const { data: diaryNotes, loading: notesLoading } = useFirestore('diaryNotes', userId);
-
+  
   // --- Profile State ---
   const [profile, setProfile] = useState(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
@@ -87,7 +87,7 @@ export default function App() {
     const isGoal = !!reflectionGoal;
     const collectionName = isGoal ? 'goals' : 'diaryNotes';
     const fieldToUpdate = isGoal ? 'reflections' : 'entries';
-
+    
     const entryId = targetEntry.id || targetEntry.data.id;
     if (!entryId) {
       console.error("Cannot save reflection, entry ID is missing.");
@@ -96,7 +96,7 @@ export default function App() {
 
     const entryRef = doc(db, `artifacts/${appId}/users/${userId}/${collectionName}`, entryId);
     const newSubEntry = { text, createdAt: Timestamp.now() };
-
+    
     const updatePayload = { [fieldToUpdate]: arrayUnion(newSubEntry) };
     if (isGoal) {
       updatePayload.completed = true;
@@ -107,7 +107,7 @@ export default function App() {
     setReflectionGoal(null);
     setEditingNote(null);
   };
-
+  
   const handleSaveFeedback = async (feedback) => {
     if (!feedbackGoal) return;
     await updateDoc(doc(db, `artifacts/${appId}/users/${userId}/goals`, feedbackGoal.id), { checklistFeedback: { ...feedback, createdAt: Timestamp.now() } });
@@ -139,49 +139,49 @@ export default function App() {
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'diary':
-        return <Diary
-          sessions={sessions}
-          goals={goals}
-          moods={moods}
-          diaryNotes={diaryNotes}
-          userId={userId}
-          onAppend={handleAppendToEntry}
-          isLoading={isLoadingData}
-        />;
+          return <Diary 
+              sessions={sessions} 
+              goals={goals} 
+              moods={moods} 
+              diaryNotes={diaryNotes} 
+              userId={userId}
+              onAppend={handleAppendToEntry}
+              isLoading={isLoadingData}
+          />;
       case 'goals':
-        return <Goals
-          goals={goals}
-          userId={userId}
+        return <Goals 
+          goals={goals} 
+          userId={userId} 
           onAppend={handleAppendToEntry}
           onFeedback={setFeedbackGoal}
         />;
       case 'sessionSchema':
-        return <SessionSchema
-          sessions={sessions}
-          goals={goals}
+        return <SessionSchema 
+          sessions={sessions} 
+          goals={goals} 
           onViewContent={setViewingContent}
         />;
       case 'sessions':
-        return <Sessions
-          sessions={sessions}
+        return <Sessions 
+          sessions={sessions} 
           profile={profile}
           userId={userId}
           currentSessionId={currentSessionId}
           setCurrentSessionId={setCurrentSessionId}
         />;
       default:
-        return <Diary />;
+          return <Diary />;
     }
   };
 
   return (
-    <div className="relative min-h-screen lg:flex font-sans bg-stone-50 text-stone-900">
+    <div className="min-h-screen bg-stone-50 font-sans text-stone-900">
       {/* Modals */}
       {feedbackGoal && <ChecklistFeedbackModal goal={feedbackGoal} onSave={handleSaveFeedback} onCancel={() => setFeedbackGoal(null)} />}
       {(reflectionGoal || editingNote) && <ReflectionModal entry={reflectionGoal || editingNote} onSave={handleSaveReflection} onCancel={() => {setReflectionGoal(null); setEditingNote(null);}} />}
       {viewingContent && <ContentModal content={viewingContent} onClose={() => setViewingContent(null)} />}
 
-      <Sidebar
+      <Sidebar 
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         activeTab={activeTab}
@@ -195,12 +195,12 @@ export default function App() {
         onProfileClick={() => setShowProfileModal(true)}
       />
 
-      <main className="flex-1 flex flex-col h-screen">
+      <div className="lg:ml-80">
         <Header onMenuClick={() => setIsSidebarOpen(true)} activeTab={activeTab} />
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-24">
+        <main className="p-4 md:p-6">
           {renderActiveTab()}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
