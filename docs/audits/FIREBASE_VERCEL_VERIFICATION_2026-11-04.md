@@ -6,7 +6,7 @@ Purpose: stage-00 read-only verification, with owner screenshots and authenticat
 Source: owner console screenshots, 2026-11-04.
 - Firebase project display name: `reflect`; project ID `reflect-8fdc8`. Billing plan: Spark (no-cost).
 - Firestore database: `(default)`.
-- In Firestore Data, `artifacts` collection has a document identified as `reflect-8fdc8` with `users` subcollection shown. The intermediate document is reported as nonexistent in console. This is valid for an ancestor with nested subcollections and **does not prove user data is absent**. Content, collection totals and individual accounts are unverified.
+- In Firestore Data, `artifacts` collection has a document identified as `reflect-8fdc8` with `users` subcollection shown. The intermediate document is reported as nonexistent in console. This is valid for an ancestor with nested subcollections and **does not prove user data is absent**. Content, Firestore document totals and individual account-to-document mappings are unverified.
 - Firestore Rules screenshot shows active rule version selected 2025-07-07 9:17 PM; do not interpret this UI timestamp as an independently verified CLI rule release ID.
 - Rule text transcribed:
 ```text
@@ -22,6 +22,14 @@ service cloud.firestore {
 - Meaning: Authenticated Firebase clients are restricted by their UID when accessing matching user-scoped document paths. Anonymous Firebase Auth users are included. Nonmatching paths are implicitly denied unless another rule exists (the screenshot shows none).
 - Weaknesses: no write-schema checks, document size/field constraints or operation-specific permissions. Nested wildcard is intentionally broad. Rules logic NOT tested against distinct real user accounts in this review.
 - Caution: rules apply to Firebase client SDK access; privileged backend/admin SDK requests bypass Firestore Security Rules and require server IAM controls.
+
+## Authentication inventory (owner screenshots, 2026-11-04)
+- Authentication > Users showed **11 entries** (table footer: 1–11 of 11), each identified as **(anonymous)**.
+- Authentication > Sign-in method showed **Anonymous: Enabled** as the only listed sign-in provider; Google sign-in was suggested by the UI but NOT enabled.
+- 11 auth records do **not** establish 11 unique humans, 11 active users, or 11 Firestore user documents. Created dates span 2025–2026; some may be older browser installations.
+- Do NOT delete anonymous accounts, clear browser storage, sign out from existing Reflect client, disable the Anonymous provider, or change authentication settings before verifying a safe identity-linking pathway and backup. Do NOT publish identifiers or personal journal data.
+- Upgrade plan: enable an approved permanent sign-in provider only later, link the authenticated anonymous account to the permanent credential without changing its UID where supported; validate in isolated tests first. Official guidance: https://firebase.google.com/docs/auth/web/anonymous-auth
+- Account count verified visually; Firestore user documents and content remain unverified. The next read-only check is to click the `users` subcollection in the right-hand Firestore Data pane, then report only collection names and approximate non-sensitive counts.
 
 ## Backup feasibility
 - Official documentation: Firestore managed export/import and managed backups require billing enabled, Firebase Blaze plan. Source URLs:
@@ -50,7 +58,8 @@ Owner referred to Firebase Hosting, but Firebase Console project/Firestore scree
 
 ## Stage-00 remain open
 [ ] Inspect user collection names and record counts without disclosing UIDs, emails or journal text.
-[ ] Inspect Firebase Auth providers/user count and Firebase Hosting site, read-only.
+[x] Inspect Firebase Auth provider inventory/user count by owner screenshot (11 anonymous accounts; Anonymous provider only).
+[ ] Inspect Firebase Hosting site and release history, read-only.
 [ ] Define and execute a secure private backup including nested Firestore collections.
 [ ] Verify isolated restore/readback and user identity mapping.
 [ ] Evaluate rules via emulator (owner and non-owner access paths).
