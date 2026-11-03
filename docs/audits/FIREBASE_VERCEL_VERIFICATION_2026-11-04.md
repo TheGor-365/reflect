@@ -57,12 +57,30 @@ Source: authenticated Vercel connector after owner approved access, 2026-11-04.
 Owner referred to Firebase Hosting, but Firebase Console project/Firestore screenshots by themselves do not identify an active Firebase Hosting site. Vercel production IS confirmed. To establish dual hosting, inspect Firebase Console > Hosting & Serverless > Hosting, sites, release history and domains, read-only.
 
 ## Stage-00 remain open
-[ ] Inspect user collection names and record counts without disclosing UIDs, emails or journal text.
+[~] Inspect user collection names and record counts without disclosing UIDs, emails or journal text (7 visible UID paths; sample nested collections; total reads pending).
 [x] Inspect Firebase Auth provider inventory/user count by owner screenshot (11 anonymous accounts; Anonymous provider only).
-[ ] Inspect Firebase Hosting site and release history, read-only.
+[x] Inspect Firebase Hosting console: onboarding/Get started screen, no deployment shown.
 [ ] Define and execute a secure private backup including nested Firestore collections.
 [ ] Verify isolated restore/readback and user identity mapping.
 [ ] Evaluate rules via emulator (owner and non-owner access paths).
 [ ] Verify release/rollback for each active hosting target.
 
 Evidence quality: screenshots + connector metadata; tests/backup are pending. No security penetration test claimed.
+
+
+## Follow-up evidence: user collections, Hosting and repeated onboarding (owner screenshots, 2026-11-04)
+- Firestore path: `artifacts/reflect-8fdc8/users`. The console displays **seven visible UID paths** under this collection. Some ancestor document snapshots may not exist while their subcollections do; **do not interpret seven visible paths as seven existing parent documents**.
+- One historical UID path visibly has subcollections `diaryNotes`, `moods`, `profiles`; real records were displayed under all three (from 2025). Session/goal content and full-document counts for all UIDs remain **unverified**.
+- Profile sample contains personally provided profile fields; never copy the displayed profile name, age, exact UID, or journal content into public GitHub or a shared/AI-indexed Drive folder.
+- The Firebase Hosting console shows the `Get started` onboarding view with no release history or existing deployment dashboard. This is strong evidence that Firebase Hosting was **not set up** for this Firebase project at inspection time; Vercel remains the verified frontend host.
+- Owner reports the UI asks for profile/registration on each visit. Source `src/hooks/useAuth.js` signs in anonymously whenever it sees no user, potentially creating a new UID if previous browser auth state is lost. `src/App.jsx` shows the profile-creation modal both when the profile document does not exist **and when Firestore `getDoc` fails**. Thus transient read failure is misrepresented as registration. Actual browser failure cause (auth persistence vs changed UID vs Firestore error vs race) is NOT established.
+- Product acceptance requirement: persisted auth identity on a browser restart, distinguish transient profile load failure from new-account onboarding, preserve anonymous UID by supported credential linking, test same browser / another browser / deleted local storage / offline / two independent accounts. Do not disable anonymous auth or clear browser storage until backup and linking are validated.
+- Firebase web auth defaults to local persistence: https://firebase.google.com/docs/auth/web/auth-state-persistence
+- Firebase anonymous-link flow: https://firebase.google.com/docs/auth/web/anonymous-auth
+
+## Stage 00 backup implementation status
+- A separate draft PR #2 prepares a read-only Firestore REST inventory/archive tool: https://github.com/TheGor-365/reflect/pull/2
+- The utility traverses missing ancestor documents via REST `showMissing=true` and `listCollectionIds`, uses local ADC and produces a private typed-JSONL archive plus hash manifest. This is NOT Firebase managed export, an Auth export, a point-in-time snapshot, or a tested restore.
+- The first offline mocked CI run for PR #2 returned success, 2026-11-04. **No production data exported.**
+- Separately, `firebase auth:export` can export user-account metadata, to be stored privately after review: https://firebase.google.com/docs/cli/auth
+- To close the checkpoint: real private Firestore+Auth export with verified counts/sha256, isolated Firestore restore/readback and identity preservation tests, plus rollback decisions.
