@@ -1,7 +1,7 @@
 name: Reflect Vite foundation CI (temporary unlocked install)
 on:
   push:
-    branches: ["work/reflect-auth-stability-2026-11-04"]
+    branches: ["work/reflect-vite-foundation-2026-11-04"]
     paths:
       - "src/**"
       - "package*.json"
