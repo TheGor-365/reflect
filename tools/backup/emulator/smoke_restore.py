@@ -29,7 +29,7 @@ def main():
         "fields": {
             "title": {"stringValue": "synthetic smoke test, no real users"},
             "intensity": {"integerValue": "2"},
-            "createdAt": {"timestampValue": "2026-11-04T00:00:00.123456789Z"},
+            "createdAt": {"timestampValue": "2026-11-04T00:00:00.123456000Z"},
             "nested": {"mapValue": {"fields": {"ok": {"booleanValue": True}}}}
         }
     }
