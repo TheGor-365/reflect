@@ -16,7 +16,7 @@ export const appId = process.env.REACT_APP_APP_ID || 'default-app-id';
 
 // Инициализируем приложение
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+export const analytics = getAnalytics(app);
 
 // Экспортируем сервисы для использования в других частях приложения
 export const auth = getAuth(app);

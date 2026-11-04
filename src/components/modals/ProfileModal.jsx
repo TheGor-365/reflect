@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const ProfileModal = ({ onSave, existingProfile }) => {
+const ProfileModal = ({ onSave, existingProfile, saving = false, saveError = null }) => {
   const [profileData, setProfileData] = useState({
     name: existingProfile?.name || '',
     age: existingProfile?.age || '',
@@ -60,11 +60,11 @@ const ProfileModal = ({ onSave, existingProfile }) => {
           </div>
         </div>
 
-        {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+        {(error || saveError) && <p role="alert" className="text-red-600 text-sm mt-4">{error || saveError}</p>}
 
         <div className="mt-8">
-          <button onClick={handleSave} className="w-full px-6 py-3 text-white bg-teal-600 rounded-lg hover:bg-teal-700 font-semibold transition-colors">
-            Сохранить и продолжить
+          <button onClick={handleSave} disabled={saving} className="w-full px-6 py-3 text-white bg-teal-600 rounded-lg hover:bg-teal-700 font-semibold transition-colors disabled:opacity-60">
+            {saving ? 'Сохранение…' : 'Сохранить и продолжить'}
           </button>
         </div>
       </div>

@@ -46,7 +46,6 @@ export default function App() {
   const [profileState, setProfileState] = useState({
     uid: null, status: 'idle', data: null, error: null
   });
-  const [profileRetry, setProfileRetry] = useState(0);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -103,7 +102,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthReady, userId, profileRetry]);
+  }, [isAuthReady, userId]);
 
   // --- Handlers ---
   const handleSaveProfile = async (profileData) => {
