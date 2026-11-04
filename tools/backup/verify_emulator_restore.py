@@ -123,14 +123,11 @@ def restore_to_emulator(session, docs):
     session.headers.update({"Authorization": "Bearer owner"})
     paths = [(url_for(relative), relocate_references(rec.get("fields", {})))
              for relative, rec in docs]
-    probe = session.get(url_for("artifacts/reflect-8fdc8/users/__probe__"), timeout=6)
-    if probe.status_code != 404:
-        raise RuntimeError(
-            f"Local emulator probe HTTP {probe.status_code}, expected 404. "
-            "Verify localhost demo project, running emulator and admin auth; "
-            "no restore writes made."
-        )
-    # All preconditions checked before any write. Never treat 403 as empty.
+    # There is deliberately no separate '__probe__' document:
+    # Firestore reserves document IDs matching __.*__, so that former
+    # preflight request was invalid (HTTP 400) even against an empty emulator.
+    # Preflight every REAL archive path. Refuse ANY non-404 before first write.
+    # This checks whether restoration paths are vacant, not all emulator data.
     for url, _ in paths:
         preflight = session.get(url, timeout=10)
         if preflight.status_code != 404:
