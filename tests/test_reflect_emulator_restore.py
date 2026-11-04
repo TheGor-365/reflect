@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 from tools.backup.verify_emulator_restore import (
-    DEMO_PROJECT, SOURCE_PREFIX, load_and_validate, path_in_archive,
+    DEMO_PROJECT, SOURCE_PREFIX, canonical_firestore_fields, load_and_validate, path_in_archive,
     relocate_references, restore_to_emulator,
 )
 
@@ -75,6 +75,16 @@ class FakeEmulatorSession:
 
 
 class RestoreOfflineTests(unittest.TestCase):
+    def test_timestamp_formats_equivalent_only_if_no_precision_is_lost(self):
+        self.assertEqual(
+            canonical_firestore_fields({"timestampValue": "2026-11-04T00:00:00.123456000Z"}),
+            canonical_firestore_fields({"timestampValue": "2026-11-04T00:00:00.123456Z"})
+        )
+        self.assertNotEqual(
+            canonical_firestore_fields({"timestampValue": "2026-11-04T00:00:00.123456789Z"}),
+            canonical_firestore_fields({"timestampValue": "2026-11-04T00:00:00.123456Z"})
+        )
+
     def test_reference_relocation_preserves_other_values(self):
         replaced = relocate_references(SAMPLE["fields"])
         self.assertIn("demo-reflect-restore", replaced["parent"]["referenceValue"])
