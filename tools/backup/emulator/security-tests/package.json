@@ -1,0 +1,13 @@
+{
+  "name": "reflect-local-firestore-rules",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Synthetic owner-isolation tests against local demo Firestore Emulator only",
+  "scripts": {
+    "test": "node test-rules.cjs"
+  },
+  "dependencies": {
+    "@firebase/rules-unit-testing": "3.0.4",
+    "firebase": "10.12.2"
+  }
+}
