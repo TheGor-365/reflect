@@ -119,9 +119,10 @@ Evidence quality: screenshots + connector metadata; tests/backup are pending. No
 - This confirms the local emulator infrastructure only. **Owner has not yet provided evidence that the 26-document archive was restored or verified through field readback.** Do not close stage 00 on emulator startup alone.
 - Next: run `verify_emulator_restore.py --check-only` and then `--restore` against the local emulator; verify 26 documents and exact typed-field readback. No real user data is to be uploaded to GitHub/chat.
 
-## Emulator REST authorization correction — 2026-11-04
-- Owner verified a private archive of 26 documents with SHA-256 MATCH, but local restore attempt failed before writes with `Emulator not empty/ready at fixed local demo endpoint`. Emulator UI showed an empty database.
-- Root cause supported by Firestore REST auth behavior: with owner-only Firestore Rules loaded in the emulator, an unauthenticated REST `GET` can return 403 instead of the 404 that the preflight code expected. Prior code conflated all non-404 responses into a generic error.
-- Patch in PR #2 uses `Authorization: Bearer owner` **only on the fixed localhost, demo-project endpoint** and reports non-404 status precisely, never writing on unexpected preflight results. Tests include permission-denied preflight/probe behavior.
-- Latest patch commit `bd74f263abad5cf1bb4e21166eac367f96050e96`, GitHub Actions offline suite successful (15 tests). This is **not** evidence of a real restored archive.
-- Remaining gate: owner should run updated `verify_emulator_restore.py --restore` with emulator running and confirm `restored_documents=26`, `field_readback=MATCH`. Do not treat read-only archive integrity as a completed restoration.
+## Emulator restore regression analysis and correction — 2026-11-04
+- Owner's first local restore attempt failed before writes with a generic `Emulator not empty/ready` message. The UI showed empty; the previous code incorrectly grouped all non-404 errors under that message. A hypothesis of unauthenticated HTTP 403 was NOT established as the specific cause.
+- After adding an emulator-only `Authorization: Bearer owner` header, the owner observed exact **HTTP 400** on the preliminary probe. The probe used `__probe__`, which violates Firestore's documented document-ID restriction `__.*__`: https://firebase.google.com/docs/firestore/quotas#collections_documents_and_fields.
+- PR #2 removes that artificial probe and checks each real archived document path for 404 before any write, refusing 400/403/200. No live Firebase data is modified.
+- Real Firestore Emulator integration tests using **synthetic, non-user data** subsequently exposed canonical timestamp formatting at microsecond precision. The verifier now accepts equivalent fractional-second formats only when extra digits are all zero; nonzero lost precision remains a fatal mismatch.
+- Both GitHub workflows passed on latest PR #2 commit `54a10d1101057d484c5f29d5d738a0ff58dec885`: offline tests and a real-emulator synthetic restore/readback plus no-overwrite check. CI source: https://github.com/TheGor-365/reflect/actions/runs/41820203954.
+- IMPORTANT: No owner evidence of actual 26-document restore/readback has been provided yet. Stage 00 restore gate remains OPEN. Do not treat a successful synthetic CI run as a restoration of the private archive.
