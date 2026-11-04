@@ -43,6 +43,13 @@ function protectBrowser(context) {
     const allowedPort = LOCAL_PORTS.has(address.port);
     if (local && allowedPort && ["http:", "ws:"].includes(address.protocol)) {
       await route.continue();
+    } else if (
+      address.protocol === "https:" &&
+      ["fonts.googleapis.com", "fonts.gstatic.com"].includes(address.hostname)
+    ) {
+      // Existing index.html loads Google Fonts. In private QA, cancel the
+      // fetch entirely and fall back to system fonts; never touch the web.
+      await route.abort("blockedbyclient");
     } else {
       await route.abort("blockedbyclient");
       // Synthetic CI only: origin is safe to log; never print path/query or tokens.
