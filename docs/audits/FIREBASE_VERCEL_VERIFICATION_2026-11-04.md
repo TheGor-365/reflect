@@ -135,3 +135,12 @@ Evidence quality: screenshots + connector metadata; tests/backup are pending. No
 - Production Firestore, Firebase Auth, Vercel and GitHub `main` were not modified by the described local commands.
 - Stage 00: **Firestore recovery gate PASS**; complete private Auth↔Firestore UID mapping, encrypted off-device copy, local Security Rules tests and auth continuity plan before auth/schema production migrations.
 - PR #2 now includes offline aggregate-only Auth↔Firestore UID checker and encryption runbook `tools/backup/IDENTITY_AND_OFFSITE.md`. Identity mapping against owner's private files has not yet been run.
+
+## Firestore ↔ Auth UID association — owner terminal evidence, 2026-11-04
+- Local, offline tool `python -m tools.backup.check_identity_links` completed successfully on exports already stored in a private Linux folder. It did **not** contact Firebase or change production.
+- Firestore archive: 26 documents under **7 distinct UID scopes**. Firebase Auth export: **11 accounts**.
+- Exact UID intersection: **7 matched**; **0 Firestore scopes without an exported Auth account**; **4 exported Auth accounts without matching Firestore documents**.
+- Per-collection totals: `diaryNotes=3`, `goals=6`, `moods=7`, `profiles=7`, `sessions=3`. Do not publish original UIDs or private profile/diary fields.
+- `all_firestore_scopes_have_auth_records=true` confirms the exported identities are referentially aligned **at backup time**. This is **not** a successful Auth import, browser-session restore, identity linking, or account recovery.
+- GnuPG 2.4.4 is installed with AES256 support. **No encrypted off-device copy or decryption test reported yet**; that remains the next operator action.
+- Status: Firestore archive integrity PASS; isolated Firestore restore/readback PASS; Auth metadata export PASS; UID association PASS; encrypted off-device copy PENDING; Auth login continuity/security tests PENDING.
