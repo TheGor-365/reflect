@@ -70,10 +70,15 @@ async function profile(page, name) {
 }
 
 async function uidInSidebar(page) {
-  const sidebar = await page.locator("aside").innerText();
-  const match = sidebar.match(/ID:\s*([A-Za-z0-9_-]+)/);
-  if (!match) throw new Error("Could not find synthetic UID in sidebar");
-  return match[1];
+  // Stage 02A keeps the UID in an explicit disclosure to avoid visual noise.
+  // Exercise the accessible UI rather than relying on an always-visible ID.
+  const account = page.locator("aside details.reflect-account-details");
+  await account.locator("summary").click();
+  const uid = (await account.locator("code").innerText()).trim();
+  if (!/^[A-Za-z0-9_-]+$/.test(uid)) {
+    throw new Error("Could not find synthetic UID in account disclosure");
+  }
+  return uid;
 }
 
 async function runBrowserSuite() {
