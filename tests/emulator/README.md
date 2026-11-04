@@ -2,10 +2,10 @@
 
 Only run this with the dedicated `demo-reflect-auth-qa` project. There are NO live Firebase resources for a `demo-` project. Ports: Auth 127.0.0.1:9099; Firestore 127.0.0.1:18081; React 127.0.0.1:3100. These intentionally differ from the restored-private-data Firestore Emulator at port 18080. All browser test data are synthetic.
 
-The React app opts into emulators **only** when `REACT_APP_USE_FIREBASE_EMULATORS=true`, the browser is on localhost, and `REACT_APP_FIREBASE_CONFIG.projectId` is exactly `demo-reflect-auth-qa`. Otherwise, startup throws before any request to prevent an accidental live-project connection. This flag is **never** configured for Vercel Preview or Production.
+The React app opts into emulators **only** when `VITE_USE_FIREBASE_EMULATORS=true`, the browser is on localhost, and `VITE_FIREBASE_CONFIG.projectId` is exactly `demo-reflect-auth-qa`. Otherwise, startup throws before any request to prevent an accidental live-project connection. This flag is **never** configured for Vercel Preview or Production.
 
 ## Automated QA
-GitHub Actions runs `firebase emulators:exec --project demo-reflect-auth-qa --only auth,firestore` and starts the CRA dev server with an explicit, dummy web config. Playwright verifies:
+GitHub Actions runs `firebase emulators:exec --project demo-reflect-auth-qa --only auth,firestore` and starts the Vite dev server with an explicit, dummy web config. Playwright verifies:
 1. An anonymous user can create a profile and a journal note on the demo project;
 2. Reloading **the same origin and browser context** preserves the UID, profile, and note;
 3. A fresh isolated browser context has a different anonymous UID and cannot see the first user's note;
@@ -26,9 +26,9 @@ Terminal B:
 ```bash
 cd ~/reflect-auth-qa
 npm ci
-export REACT_APP_FIREBASE_CONFIG='{"apiKey":"demo-only-key","authDomain":"demo-reflect-auth-qa.firebaseapp.com","projectId":"demo-reflect-auth-qa","appId":"1:12345:web:demo"}'
-export REACT_APP_APP_ID=reflect-8fdc8
-export REACT_APP_USE_FIREBASE_EMULATORS=true
+export VITE_FIREBASE_CONFIG='{"apiKey":"demo-only-key","authDomain":"demo-reflect-auth-qa.firebaseapp.com","projectId":"demo-reflect-auth-qa","appId":"1:12345:web:demo"}'
+export VITE_APP_ID=reflect-8fdc8
+export VITE_USE_FIREBASE_EMULATORS=true
 HOST=127.0.0.1 PORT=3100 BROWSER=none npm start
 ```
 Open only `http://127.0.0.1:3100`. Create a **synthetic** profile and journal note, reload and confirm the UID and note persist. Never use real journal content in demo QA. No `firebase deploy` or production database access is involved.

@@ -1,4 +1,4 @@
-name: Reflect isolated Auth browser QA
+name: Reflect Vite isolated Auth browser QA
 on:
   pull_request:
     paths:
@@ -9,7 +9,7 @@ on:
       - "tests/emulator/**"
       - ".github/workflows/reflect-auth-emulator-e2e.yml"
   push:
-    branches: ["work/reflect-auth-stability-2026-11-04"]
+    branches: ["work/reflect-vite-foundation-2026-11-04"]
     paths:
       - "src/firebase/config.js"
       - "src/hooks/useAuth.js"
@@ -39,7 +39,7 @@ jobs:
           java-version: "21"
       - name: Install pinned app and test dependencies
         run: |
-          npm ci
+          npm ci --no-audit --no-fund
           npm install --prefix tests/emulator --no-package-lock --ignore-scripts --no-audit --no-fund
           npm install --global firebase-tools@15.34.2
       - name: Install isolated browser

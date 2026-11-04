@@ -3,10 +3,10 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { useAuth } from './useAuth';
 
-jest.mock('../firebase/config', () => ({ auth: {} }));
-jest.mock('firebase/auth', () => ({
-  onAuthStateChanged: jest.fn(),
-  signInAnonymously: jest.fn()
+vi.mock('../firebase/config', () => ({ auth: {} }));
+vi.mock('firebase/auth', () => ({
+  onAuthStateChanged: vi.fn(),
+  signInAnonymously: vi.fn()
 }));
 
 function AuthHarness() {
@@ -23,11 +23,11 @@ function AuthHarness() {
 let onChange;
 let onError;
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   onAuthStateChanged.mockImplementation((_auth, callback, errorCallback) => {
     onChange = callback;
     onError = errorCallback;
-    return jest.fn();
+    return vi.fn();
   });
 });
 
