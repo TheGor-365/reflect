@@ -1,11 +1,36 @@
 import React from 'react';
-import { Menu } from 'lucide-react';
+import { Menu, Moon, Sun } from 'lucide-react';
 
-const Header = ({ onMenuClick, activeTab }) => (
-  <header className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-stone-200 sticky top-0 z-10">
-    <button onClick={onMenuClick} className="p-2"><Menu className="w-6 h-6 text-stone-600" /></button>
-    <h2 className="text-lg font-bold truncate text-stone-800 capitalize">{activeTab}</h2>
-    <div className="w-8"></div>
+export const SECTION_TITLES = Object.freeze({
+  diary: 'Дневник',
+  sessions: 'Сеансы',
+  goals: 'Цели',
+  sessionSchema: 'Схема сеансов'
+});
+
+const Header = ({ onMenuClick, activeTab, theme, onToggleTheme }) => (
+  <header className="reflect-topbar">
+    <div className="reflect-topbar-inner">
+      <div className="reflect-topbar-heading">
+        <button type="button" className="reflect-icon-button reflect-menu-trigger"
+          aria-label="Открыть меню" onClick={onMenuClick}>
+          <Menu size={21} aria-hidden="true" />
+        </button>
+        <div>
+          <p className="reflect-overline">Личное пространство</p>
+          <p className="reflect-topbar-title">{SECTION_TITLES[activeTab] || 'Reflect'}</p>
+        </div>
+      </div>
+      <div className="reflect-topbar-actions">
+        <span className="reflect-topbar-caption">Reflect 2.0</span>
+        <button type="button" className="reflect-icon-button"
+          aria-label={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}
+          title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+          onClick={onToggleTheme}>
+          {theme === 'dark' ? <Sun size={19} aria-hidden="true" /> : <Moon size={19} aria-hidden="true" />}
+        </button>
+      </div>
+    </div>
   </header>
 );
 

@@ -70,10 +70,15 @@ async function profile(page, name) {
 }
 
 async function uidInSidebar(page) {
-  const sidebar = await page.locator("aside").innerText();
-  const match = sidebar.match(/ID:\s*([A-Za-z0-9_-]+)/);
-  if (!match) throw new Error("Could not find synthetic UID in sidebar");
-  return match[1];
+  // Stage 02A keeps the UID in an explicit disclosure to avoid visual noise.
+  // Exercise the accessible UI rather than relying on an always-visible ID.
+  const account = page.locator("aside details.reflect-account-details");
+  await account.locator("summary").click();
+  const uid = (await account.locator("code").innerText()).trim();
+  if (!/^[A-Za-z0-9_-]+$/.test(uid)) {
+    throw new Error("Could not find synthetic UID in account disclosure");
+  }
+  return uid;
 }
 
 async function runBrowserSuite() {
@@ -121,11 +126,50 @@ async function runBrowserSuite() {
       throw new Error("Synthetic Beta can see Synthetic Alpha's journal");
     }
 
+    // Real mobile UI behavior, entirely against synthetic Firebase emulators.
+    await first.setViewportSize({ width: 390, height: 844 });
+    const dock = first.getByRole("navigation", { name: "Нижняя навигация" });
+    await dock.getByRole("button", { name: "Цели" }).click();
+    await first.getByRole("heading", { name: "Ваши цели" }).waitFor();
+    await dock.getByRole("button", { name: "Дневник" }).click();
+    await first.getByRole("heading", { name: "Дневник" }).waitFor();
+
+    await first.getByRole("button", { name: "Открыть меню" }).click();
+    const drawer = first.locator(".reflect-sidebar");
+    await drawer.waitFor({ state: "visible" });
+    await first.keyboard.press("Escape");
+    if (await drawer.evaluate((element) => element.classList.contains("reflect-sidebar--open"))) {
+      throw new Error("Mobile drawer did not close on Escape");
+    }
+
+    await first.getByRole("button", { name: "Включить светлую тему" }).click();
+    if (await first.locator(".reflect-app").getAttribute("data-theme") !== "light") {
+      throw new Error("Theme toggle did not activate light mode");
+    }
+    await first.reload({ waitUntil: "domcontentloaded" });
+    await first.getByRole("button", { name: "Включить тёмную тему" }).waitFor();
+    if (await first.locator(".reflect-app").getAttribute("data-theme") !== "light") {
+      throw new Error("Local theme preference was lost after reload");
+    }
+    const horizontalOverflow = await first.evaluate(() =>
+      document.documentElement.scrollWidth - document.documentElement.clientWidth
+    );
+    if (horizontalOverflow > 2) {
+      throw new Error("390px mobile viewport has horizontal page overflow: " + horizontalOverflow);
+    }
+    // Continue legacy UID/profile persistence assertions on desktop, where
+    // sidebar controls are intentionally visible without opening the drawer.
+    await first.setViewportSize({ width: 1280, height: 720 });
+    await first.getByText("Synthetic alpha journal entry", { exact: true })
+      .waitFor({ timeout: 30000 });
+
+
     await secondContext.close();
     await firstContext.close();
     console.log("PASS: synthetic anonymous UID persists across reload");
     console.log("PASS: synthetic profile and journal survive reload");
     console.log("PASS: second browser has independent UID and no first-user records");
+    console.log("PASS: mobile 390px nav, drawer Escape and persisted theme");
     console.log("PASS: browser network confined to localhost demo ports");
   } finally {
     await browser.close();
