@@ -84,3 +84,13 @@ Evidence quality: screenshots + connector metadata; tests/backup are pending. No
 - The first offline mocked CI run for PR #2 returned success, 2026-11-04. **No production data exported.**
 - Separately, `firebase auth:export` can export user-account metadata, to be stored privately after review: https://firebase.google.com/docs/cli/auth
 - To close the checkpoint: real private Firestore+Auth export with verified counts/sha256, isolated Firestore restore/readback and identity preservation tests, plus rollback decisions.
+
+## Live Firestore read-only inventory — owner terminal output, 2026-11-04
+- Environment: Linux Mint, Python 3.12.3, Google Cloud CLI and Firebase CLI installed, isolated Python venv; no credentials or private records supplied.
+- Source: actual `python tools/backup/reflect_firestore_backup.py --project reflect-8fdc8 --inventory-only` run in cloned backup-tool branch, not a mock.
+- Run completed without REST error; reported `documents=26`, `missing_ancestors=8`, `paths_checked=34`.
+- Collection counts: `diaryNotes=3`, `moods=7`, `profiles=7`, `goals=6`, `sessions=3`. Sum 26.
+- Six offline unit tests also passed locally (6/6), in addition to successful GitHub Actions offline tests. These tests do **not** validate production restore.
+- ADC emitted a warning: no quota project specified. It did not stop this read-only inventory. Do not change IAM or billing merely to suppress a warning.
+- This is **inventory only**; no .jsonl archive, checksum evidence, separate Firebase Auth export, or restore confirmation has been received. The 11 anonymous Auth users remain intact as far as shown by previous console screenshots, but no independent new Auth count was read here.
+- Next acceptance: owner runs private local Firestore JSONL archive outside Git repo, validates hash/doc count, independently exports Auth metadata to a private JSON file, then tests isolated restore; never share archive contents or token values.
