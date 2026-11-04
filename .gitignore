@@ -26,3 +26,9 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Vite generated output (never commit builds or secrets)
+/dist
+/tests/emulator/node_modules
+/tests/emulator/firestore-debug.log
+/tests/emulator/firebase-debug.log

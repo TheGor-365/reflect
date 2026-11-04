@@ -1,4 +1,4 @@
-name: Reflect auth stability checks
+name: Reflect Vite foundation CI (temporary unlocked install)
 on:
   push:
     branches: ["work/reflect-auth-stability-2026-11-04"]
@@ -21,8 +21,8 @@ jobs:
     timeout-minutes: 15
     env:
       CI: "true"
-      REACT_APP_FIREBASE_CONFIG: '{"apiKey":"test-only-key","authDomain":"demo-reflect-auth.firebaseapp.com","projectId":"demo-reflect-auth","appId":"1:123:web:demo"}'
-      REACT_APP_APP_ID: "reflect-8fdc8"
+      VITE_FIREBASE_CONFIG: '{"apiKey":"test-only-key","authDomain":"demo-reflect-auth.firebaseapp.com","projectId":"demo-reflect-auth","appId":"1:123:web:demo"}'
+      VITE_APP_ID: "reflect-8fdc8"
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -32,8 +32,8 @@ jobs:
           node-version: "22"
           cache: npm
       - name: Install pinned dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
       - name: Test auth, profile, Firestore state behavior
-        run: npm test -- --watch=false --runInBand
+        run: npm test
       - name: Production-mode build without deployment
         run: npm run build
