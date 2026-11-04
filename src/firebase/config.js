@@ -1,27 +1,35 @@
 import { initializeApp } from 'firebase/app';
-import { getAnalytics } from 'firebase/analytics';
+import { getAnalytics, isSupported } from 'firebase/analytics';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 
-const firebaseConfig = process.env.REACT_APP_FIREBASE_CONFIG
-  ? JSON.parse(process.env.REACT_APP_FIREBASE_CONFIG)
-  : {};
+// Explicit Vite-only public config. NEVER inherit Vercel's existing REACT_APP_*
+// Preview variables: they currently point at the real Firebase project.
+const rawConfig = import.meta.env.VITE_FIREBASE_CONFIG || '';
+const appNamespace = import.meta.env.VITE_APP_ID || '';
+const emulatorMode = import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true';
 
-export const appId = process.env.REACT_APP_APP_ID || 'default-app-id';
+if (!rawConfig || !appNamespace) {
+  throw new Error('Vite Firebase configuration missing. Production/Preview fallback is forbidden.');
+}
 
-// Opt-in LOCAL ONLY. Preview and production MUST NOT run with this switch.
-// Demo projects have no live Firebase resources; fail closed if misconfigured.
-const emulatorMode = process.env.REACT_APP_USE_FIREBASE_EMULATORS === 'true';
+let firebaseConfig;
+try {
+  firebaseConfig = JSON.parse(rawConfig);
+} catch {
+  throw new Error('Vite Firebase configuration is not valid JSON.');
+}
+
 if (emulatorMode) {
   const host = typeof window !== 'undefined' ? window.location.hostname : '';
-  if (host !== 'localhost' && host !== '127.0.0.1') {
-    throw new Error('Firebase emulator mode requires a localhost browser.');
-  }
-  if (firebaseConfig.projectId !== 'demo-reflect-auth-qa' || appId !== 'reflect-8fdc8') {
-    throw new Error('Firebase emulator mode requires the fixed demo project and Reflect namespace.');
+  if (!['localhost', '127.0.0.1'].includes(host) ||
+      firebaseConfig.projectId !== 'demo-reflect-auth-qa' ||
+      appNamespace !== 'reflect-8fdc8') {
+    throw new Error('Vite emulator mode requires localhost and the dedicated demo project.');
   }
 }
 
+export const appId = appNamespace;
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
@@ -31,5 +39,7 @@ if (emulatorMode) {
   connectFirestoreEmulator(db, '127.0.0.1', 18081);
 }
 
-// Keep analytics in production, but never emit analytics from synthetic tests.
-export const analytics = emulatorMode ? null : getAnalytics(app);
+// Analytics is optional and never emitted by the private QA emulators.
+export const analytics = emulatorMode ? null : isSupported().then(supported =>
+  supported ? getAnalytics(app) : null
+);
