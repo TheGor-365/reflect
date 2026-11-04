@@ -228,3 +228,11 @@ Evidence quality: screenshots + connector metadata; tests/backup are pending. No
 - Small localization debt observed: mobile header reads `Diary` while page heading reads `Дневник` (RU). This is UI phase 02 work, not evidence of a data migration bug.
 - **Mobile hamburger open/close and touch navigation have not been evidenced by a screenshot**; leave that check open before full 01A UX acceptance.
 - `main` and Vercel production remain untouched by QA; PR #4 is still draft and its AI path is intentionally disabled pending a protected backend.
+
+## Stage 01B TypeScript groundwork — DRAFT PR #5, 2026-11-04
+- Owner desktop and Chrome DevTools iPhone 14 Pro Max **430 px** screenshots of Vite app on `127.0.0.1:3100` show preserved synthetic profile and two entries, layout fits mobile width without visible horizontal scrolling. Mobile hamburger opening is NOT yet independently verified.
+- Created stacked DRAFT PR #5 https://github.com/TheGor-365/reflect/pull/5, branch `work/reflect-typescript-foundation-2026-11-04`, based on PR #4 head `19721ad4508b4147cccd8275e6251ce53bb8fb42`. It does NOT change `main`, Firebase projects, real user data or Vercel production.
+- Initial TypeScript foundation changes: strict `tsconfig.json` with JS allow/no global JS check, minimal legacy journal/mood read types, pure `formatDate.js` converted to `formatDate.ts` with identical `ru-RU` behavior and 3 new regression tests (total now 14).
+- Explicit `npm run typecheck` script added. Interim CI uses an exact TypeScript 5.9.3 `npx --package` compiler, because `package.json` and `package-lock.json` do not yet include locked TypeScript dependency. Do NOT claim reproducible TS compiler install until owner pins it and commits both files together.
+- Initial PR #5 head `af7ac99909b60f50c488d1ba9ababb100b6abdea`: GitHub unit/build and temporary strict typecheck PASS (GitHub Actions runs `41910804384`, `41910804562`). No E2E Chromium rerun for this TS helper yet; existing PR #4 Chromium E2E passed previously.
+- Remaining gate: owner creates separate `~/reflect-ts-qa` checkout, installs exact `typescript@5.9.3` as devDependency, runs `npm run typecheck && npm test && npm run build`, commits `package.json` and `package-lock.json` only, pushes branch. Then switch CI from on-demand npx to locked `npm run typecheck` and rerun E2E. No release approval or production merge.
