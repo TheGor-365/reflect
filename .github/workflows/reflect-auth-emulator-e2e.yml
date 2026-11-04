@@ -2,19 +2,17 @@ name: Reflect Vite isolated Auth browser QA
 on:
   pull_request:
     paths:
-      - "src/firebase/config.js"
-      - "src/hooks/useAuth.js"
-      - "src/hooks/useFirestore.js"
-      - "src/App.jsx"
+      - "src/**"
+      - "package*.json"
+      - "tsconfig.json"
       - "tests/emulator/**"
       - ".github/workflows/reflect-auth-emulator-e2e.yml"
   push:
-    branches: ["work/reflect-vite-foundation-2026-11-04"]
+    branches: ["work/reflect-vite-foundation-2026-11-04", "work/reflect-typescript-foundation-2026-11-04"]
     paths:
-      - "src/firebase/config.js"
-      - "src/hooks/useAuth.js"
-      - "src/hooks/useFirestore.js"
-      - "src/App.jsx"
+      - "src/**"
+      - "package*.json"
+      - "tsconfig.json"
       - "tests/emulator/**"
       - ".github/workflows/reflect-auth-emulator-e2e.yml"
 
