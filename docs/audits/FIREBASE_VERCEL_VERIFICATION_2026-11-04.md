@@ -110,3 +110,11 @@ Evidence quality: screenshots + connector metadata; tests/backup are pending. No
 - Offline tests initially 12/13 on owner's machine because `test_rejects_nonprivate_directory` created a directory with `mode=755` but shell `umask 077` masked permissions; test setup was corrected to explicitly `chmod(0o755)`, commit `953883e6e0056e221f1214103ab8f39279ec6145` in PR #2. Both subsequent GitHub Actions runs succeeded on that SHA. A fresh local test run is still pending.
 - The local integrity `--check-only` passed for 26 docs and matching SHA-256. **Isolated restore remains UNVERIFIED.**
 - Next owner action: install OpenJDK 21 headless, pull PR #2 working branch, rerun 13 offline tests, start Firebase emulator and verify listening on 127.0.0.1:18080 before attempting restore again.
+
+## Local emulator startup — owner terminal evidence, 2026-11-04
+- OpenJDK 21.0.12.1 successfully installed on Linux Mint.
+- The owner's checkout of PR #2 fast-forwarded to commit `953883e6e0056e221f1214103ab8f39279ec6145`.
+- The entire offline suite passed on the owner's workstation: **13 tests; OK**.
+- Firebase CLI started the Firestore Emulator for fixed `demo-reflect-restore` project, with Firestore bound to `127.0.0.1:18080` and Emulator UI to `127.0.0.1:14000`. Console displayed “All emulators ready.”
+- This confirms the local emulator infrastructure only. **Owner has not yet provided evidence that the 26-document archive was restored or verified through field readback.** Do not close stage 00 on emulator startup alone.
+- Next: run `verify_emulator_restore.py --check-only` and then `--restore` against the local emulator; verify 26 documents and exact typed-field readback. No real user data is to be uploaded to GitHub/chat.
