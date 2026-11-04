@@ -16,23 +16,26 @@ Stacked DRAFT PR based on `work/reflect-vite-foundation-2026-11-04` (PR #4); not
 5. No React, Firebase SDK or Tailwind upgrades; no UI/theme redesign or AI work
    in this narrow PR. No production release.
 
-## Required reproducibility gate (NOT YET DONE)
+## Locked TypeScript verification
 
-Vite transpiles TS but **does not type-check**. A TS compiler and locked
-dependency must be installed before this PR is ready for review:
+Vite transpiles TS but **does not type-check**. The owner pinned
+`typescript@5.9.3` as an exact development dependency and committed both
+`package.json` and `package-lock.json` together in `0e0762c`.
+The CI workflow has been switched from temporary `npx --package` to
+the project's locked TypeScript compiler:
 
 ```bash
 cd ~/reflect-ts-qa
-npm install --save-dev --save-exact typescript@5.9.3
-# Later, after the "typecheck" script is committed:
+git pull --ff-only
+npm ci --no-audit --no-fund
 npm run typecheck
 npm test
 npm run build
 ```
 
-Commit `package.json` and `package-lock.json` together and switch CI back
-to `npm ci` with `npm run typecheck` gate. Never merge solely because Vite
-build succeeds.
+The owner's initial pre-push run reported `typecheck` PASS, 14/14 Vitest
+and Vite build PASS. GitHub CI is rechecking the pushed and locked graph.
+Do not merge solely because Vite build succeeds.
 
 ## Isolation and safety
 
@@ -52,3 +55,9 @@ untouched. Preserve PR #4's AI-release blocker pending protected server API.
 - Vite build PASS.
 - Chromium E2E on demo Auth/Firestore PASS.
 - Existing desktop/mobile behavior unchanged; no production merge.
+
+## Mobile and safety evidence — 2026-11-05
+- Owner provided Chrome iPhone 14 Pro Max (430px) screenshot: sidebar opened correctly, dimmed backdrop, close X, navigation and profile visible. Closing/menu navigation not yet independently demonstrated.
+- Owner locally reported 23 npm audit findings (11 moderate, 10 high, 2 critical) while installing TypeScript. This is an advisory count, not verified exploitable vulnerabilities in browser production; triage dependency paths and direct/runtime reachability separately before release. Do not run `npm audit fix --force`.
+- CI strict TypeScript workflow was changed to `npm ci` → `npm run typecheck` → `npm test` → `npm run build`; demo-only E2E is configured to trigger on this TypeScript branch. Await green run results before claiming browser smoke after push.
+- Existing AI API is not production-safe in Vite migration until it moves server-side, and Vercel Preview is not a safe Firebase test environment. PR #5 remains DRAFT and stacked; no production data writes.
