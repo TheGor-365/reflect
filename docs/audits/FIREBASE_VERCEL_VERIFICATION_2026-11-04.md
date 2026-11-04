@@ -103,3 +103,10 @@ Evidence quality: screenshots + connector metadata; tests/backup are pending. No
 - The Google ADC quota-project warning was nonfatal; read/export succeeded. Do not change billing just to silence the warning.
 - Stage 00 gate now **BACKUP CREATED / LOCAL INTEGRITY VERIFIED; RESTORE TEST PENDING**. Production data and authorization remain unchanged by the export scripts.
 - Draft PR #2 now additionally contains a strictly localhost/demo-project restore verifier and local-emulator instructions. No real restore has yet been confirmed; do not mark stage 00 completed.
+
+## Java emulator blocker and CI portability — owner log, 2026-11-04
+- On Linux Mint, `java -version` returned `command not found`; therefore `firebase emulators:start --project demo-reflect-restore --only firestore` failed before starting any local server.
+- The subsequent `verify_emulator_restore.py --restore` failed with `Connection refused` to fixed local `127.0.0.1:18080`. It did **not** connect to the production project or write restored documents.
+- Offline tests initially 12/13 on owner's machine because `test_rejects_nonprivate_directory` created a directory with `mode=755` but shell `umask 077` masked permissions; test setup was corrected to explicitly `chmod(0o755)`, commit `953883e6e0056e221f1214103ab8f39279ec6145` in PR #2. Both subsequent GitHub Actions runs succeeded on that SHA. A fresh local test run is still pending.
+- The local integrity `--check-only` passed for 26 docs and matching SHA-256. **Isolated restore remains UNVERIFIED.**
+- Next owner action: install OpenJDK 21 headless, pull PR #2 working branch, rerun 13 offline tests, start Firebase emulator and verify listening on 127.0.0.1:18080 before attempting restore again.
