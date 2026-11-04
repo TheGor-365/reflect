@@ -49,3 +49,14 @@ Only after lockfile and tests pass, commit `package-lock.json` and any necessary
 - Vercel Preview has Firebase environment overlap with production; do not write demo users to Preview.
 - Safe permanent Auth account linking and rollback planning are not completed.
 - The three preceding PRs (#3, #4, #5) are still DRAFT, unmerged. This security experiment does not authorize their merge or a production release.
+
+## Owner's resolved graph + remaining development advisories — 2026-11-05
+- Owner independently executed `npm install --package-lock-only --no-audit --ignore-scripts` and then `npm ci --no-audit --no-fund` in the separate `~/reflect-security-qa` checkout. Both PASS.
+- Exact local `npm ls @grpc/grpc-js protobufjs websocket-driver undici --all` shows **only** `@grpc/grpc-js@1.14.5`, `protobufjs@7.6.6`, `websocket-driver@0.7.5`, and `undici@6.29.1` for those four packages, with no vulnerable nested copies, under unchanged `firebase@10.14.1`.
+- Owner `npm audit --omit=dev` says `found 0 vulnerabilities`. This is npm's current report on locally installed runtime-classified dependencies, NOT a guarantee of runtime compatibility or all security flaws.
+- Owner `npm run typecheck` PASS, Vitest **14/14** PASS, `npm run build` Vite 7.3.7 PASS. Pre-existing React act warnings, mock permission errors and 531.55 KB chunk-size warning are non-blocking.
+- Owner committed **only** `package-lock.json` as `d296c21eb0010fc4427187c090844bf2b9cece56` and successfully pushed to PR #6. Local `.tool-versions` remains untracked.
+- Full `npm audit --json` still reports **9 development-inclusive advisories: 8 high, 1 moderate, 0 critical**. Their package names and dependency paths are **not yet identified**; this needs a separate read-only audit triage.
+- GitHub workflows `reflect-ts-foundation-ci.yml` and `reflect-auth-ci.yml` on commit `d296c21` both PASS (runs `41920025779`, `41920025846`). Chromium demo E2E run `41920025770` remained in progress at recording time; its completion must be checked.
+- Added a dedicated CI security gate `.github/workflows/reflect-runtime-audit.yml` in commit `c186ba59826df503ffe5ad79f0d00d3d855838a2`. It runs `npm ci` then `npm audit --omit=dev --audit-level=moderate`; must inspect run before claiming PASS.
+- Remaining release blockers: potential Firebase gRPC API incompatibility outside declared Firestore semver range, detailed 9-advisory dev audit, Preview Firebase isolation, AI server-backed API, anonymous account upgrade/rollback. No production merge/deploy; PR #6 DRAFT, stacked on #5.
