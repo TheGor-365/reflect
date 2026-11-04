@@ -14,7 +14,7 @@ import tempfile
 # Run as a direct script from tools/backup/emulator (Firebase project cwd).
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from tools.backup.verify_emulator_restore import (  # noqa: E402
-    DEMO_PROJECT, SOURCE_PREFIX, load_and_validate, restore_to_emulator
+    DEMO_PROJECT, SOURCE_PREFIX, load_and_validate, restore_to_emulator, url_for
 )
 
 import requests
@@ -54,7 +54,16 @@ def main():
         mf.chmod(0o600)
         docs, _ = load_and_validate(file)
         session = requests.Session()
-        restored = restore_to_emulator(session, docs)
+        try:
+            restored = restore_to_emulator(session, docs)
+        except RuntimeError:
+            # This fixture contains ONLY synthetic values; NEVER emit fields
+            # of any real user archive when debugging restore discrepancies.
+            resp = session.get(url_for("artifacts/reflect-8fdc8/users/FAKE_01/diaryNotes/FAKE_NOTE"), timeout=10)
+            if resp.status_code == 200:
+                print("SYNTHETIC_EXPECTED_FIELDS=" + json.dumps(doc["fields"], sort_keys=True))
+                print("SYNTHETIC_READBACK_FIELDS=" + json.dumps(resp.json().get("fields", {}), sort_keys=True))
+            raise
         if restored != 1:
             raise AssertionError("Expected one synthetic document restored")
         try:
