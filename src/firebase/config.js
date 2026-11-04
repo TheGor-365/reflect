@@ -17,7 +17,7 @@ if (emulatorMode) {
   if (host !== 'localhost' && host !== '127.0.0.1') {
     throw new Error('Firebase emulator mode requires a localhost browser.');
   }
-  if (firebaseConfig.projectId !== 'demo-reflect-restore' || appId !== 'reflect-8fdc8') {
+  if (firebaseConfig.projectId !== 'demo-reflect-auth-qa' || appId !== 'reflect-8fdc8') {
     throw new Error('Firebase emulator mode requires the fixed demo project and Reflect namespace.');
   }
 }
@@ -28,7 +28,7 @@ export const db = getFirestore(app);
 
 if (emulatorMode) {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
-  connectFirestoreEmulator(db, '127.0.0.1', 18080);
+  connectFirestoreEmulator(db, '127.0.0.1', 18081);
 }
 
 // Keep analytics in production, but never emit analytics from synthetic tests.
