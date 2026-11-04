@@ -79,6 +79,7 @@ class ReadOnlyBackupTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             folder = Path(tmp) / "public"
             folder.mkdir(mode=0o755)
+            folder.chmod(0o755)  # explicit: umask 077 otherwise masks the requested 755
             with self.assertRaises(PermissionError):
                 archive(self.session, folder / "backup.jsonl")
 
