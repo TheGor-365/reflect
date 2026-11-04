@@ -26,6 +26,13 @@ firebase emulators:start --project demo-reflect-restore --only firestore
 ```
 The emulator listens on `127.0.0.1:18080`. The optional UI listens on `127.0.0.1:14000`.
 
+## Emulator REST authorization
+The Firestore emulator enforces Firestore Security Rules for requests without authentication. The restoration tool now sends the emulator-only `Authorization: Bearer owner` header to its **fixed** `http://127.0.0.1:18080/v1/projects/demo-reflect-restore/...` endpoint. This is a local admin marker, **not** a cloud credential or production API key. It bypasses rules **only** inside the isolated emulator for restoration; run a separate client-SDK rules test later.
+
+Prior version failed with `Emulator not empty/ready` even though UI showed an empty database: unauthenticated GET could return **HTTP 403**, which was incorrectly handled as "not ready/empty". The code now reports the real HTTP status, fails closed before writing, and has regression tests. An empty target document should produce HTTP 404 with local admin authorization. If it reports 200, stop and examine existing emulator contents; do **not** clear or overwrite automatically.
+
+After updating the branch, the **emulator already running in the first terminal can remain running**; only the Python script needs to be refreshed. Do not restart the emulator after a partial write without reviewing the state first.
+
 ## Commands — second terminal (restore, only AFTER emulator is ready)
 ```bash
 cd "$HOME/reflect-backup-work/backup-tools"
