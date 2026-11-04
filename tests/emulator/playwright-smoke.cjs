@@ -39,13 +39,17 @@ async function awaitReactServer(server, timeoutMs = 120000) {
 function protectBrowser(context) {
   return context.route("**/*", async (route) => {
     const address = new URL(route.request().url());
-    const local = ["127.0.0.1", "localhost"].includes(address.hostname);
+    const local = ["127.0.0.1", "localhost", "[::1]"].includes(address.hostname);
     const allowedPort = LOCAL_PORTS.has(address.port);
     if (local && allowedPort && ["http:", "ws:"].includes(address.protocol)) {
       await route.continue();
     } else {
       await route.abort("blockedbyclient");
-      throw new Error("E2E attempted a request outside localhost demo emulators");
+      // Synthetic CI only: origin is safe to log; never print path/query or tokens.
+      throw new Error(
+        "E2E blocked non-demo network origin: " +
+        address.protocol + "//" + address.host
+      );
     }
   });
 }
