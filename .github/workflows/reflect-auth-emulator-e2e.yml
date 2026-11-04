@@ -1,0 +1,53 @@
+name: Reflect isolated Auth browser QA
+on:
+  pull_request:
+    paths:
+      - "src/firebase/config.js"
+      - "src/hooks/useAuth.js"
+      - "src/hooks/useFirestore.js"
+      - "src/App.jsx"
+      - "tests/emulator/**"
+      - ".github/workflows/reflect-auth-emulator-e2e.yml"
+  push:
+    branches: ["work/reflect-auth-stability-2026-11-04"]
+    paths:
+      - "src/firebase/config.js"
+      - "src/hooks/useAuth.js"
+      - "src/hooks/useFirestore.js"
+      - "src/App.jsx"
+      - "tests/emulator/**"
+      - ".github/workflows/reflect-auth-emulator-e2e.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  demo-only-chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Install pinned app and test dependencies
+        run: |
+          npm ci
+          npm install --no-save --no-package-lock --ignore-scripts playwright@1.56.1
+          npm install --global firebase-tools@15.34.2
+      - name: Install isolated browser
+        run: npx playwright install --with-deps chromium
+      - name: Test real browser and demo Firebase emulators
+        working-directory: tests/emulator
+        run: |
+          firebase emulators:exec \
+            --project demo-reflect-auth-qa \
+            --only auth,firestore \
+            "node playwright-smoke.cjs"
