@@ -60,3 +60,18 @@ Only after lockfile and tests pass, commit `package-lock.json` and any necessary
 - GitHub workflows `reflect-ts-foundation-ci.yml` and `reflect-auth-ci.yml` on commit `d296c21` both PASS (runs `41920025779`, `41920025846`). Chromium demo E2E run `41920025770` remained in progress at recording time; its completion must be checked.
 - Added a dedicated CI security gate `.github/workflows/reflect-runtime-audit.yml` in commit `c186ba59826df503ffe5ad79f0d00d3d855838a2`. It runs `npm ci` then `npm audit --omit=dev --audit-level=moderate`; must inspect run before claiming PASS.
 - Remaining release blockers: potential Firebase gRPC API incompatibility outside declared Firestore semver range, detailed 9-advisory dev audit, Preview Firebase isolation, AI server-backed API, anonymous account upgrade/rollback. No production merge/deploy; PR #6 DRAFT, stacked on #5.
+
+## Development dependency findings — owner full npm audit (2026-11-05)
+- Owner executed `npm audit --json` on isolated `~/reflect-security-qa`; remaining **9 findings**: HIGH `brace-expansion`, `browserslist`, `glob`, `minimatch`, `nanoid`, `picomatch`, `postcss`, `source-map-js`; MODERATE `postcss-selector-parser`. All `fixAvailable: true`, only `postcss` is an `isDirect: true` dependency, classified as dev in the project. Production audit still 0.
+- Verified exact locked instances and parents from GitHub `package-lock.json`:
+  - `brace-expansion@2.0.2` <- `sucrase/node_modules/minimatch@9.0.5`;
+  - `browserslist@4.25.1` <- `autoprefixer@10.4.21`, `@babel/helper-compilation-targets`;
+  - `glob@10.4.5` <- `sucrase@3.35.0`; `minimatch@9.0.5` <- nested glob;
+  - `nanoid@3.3.11` and `source-map-js@1.2.1` <- `postcss@8.5.6`;
+  - `picomatch@2.3.1` in three nested 2.x packages (`anymatch`, `micromatch`, `readdirp`) and `picomatch@4.0.7` at root; investigate the 2.x copies, not blindly override 4.x;
+  - `postcss@8.5.6` is a direct devDependency and consumed by Vite/Tailwind;
+  - `postcss-selector-parser@6.1.2` <- Tailwind CSS 3.4.17 / postcss-nested 6.2.0.
+- Public maintainer release notes identify compatible patches within existing major lines for several packages: `postcss-selector-parser@6.1.5` (backported security fix for Tailwind 3), `picomatch@2.3.2` (security patches), `nanoid@3.3.12`, `source-map-js@1.2.2`, `brace-expansion@2.0.3`. These are candidate baselines, **not yet verified against all npm advisories**. Updated PostCSS `8.5.x` versions exist. Always verify actual npm audit advisory `via[].range` and resolved `npm ls`.
+- Do **not** add unconditional root overrides for multiple major lines of `picomatch`, `brace-expansion`, or `minimatch`; those can break other tooling. Prefer existing allowed semver resolution first.
+- Next owner action: gather per-package advisory ranges and `npm audit fix --dry-run` candidate to determine whether patch updates are enough, then run a single scoped fix in the already isolated security PR #6 branch (not a separate production branch). No updates applied yet.
+- CI on security branch HEAD `f32d5d`: locked TypeScript, Vitest 14 and Vite build PASS; standalone runtime audit PASS; synthetic Chromium Firebase Auth/Firestore E2E PASS (run 41920385644). Does not prove postcss tooling advisories resolved.
