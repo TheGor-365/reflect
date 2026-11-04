@@ -2,6 +2,18 @@ import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { auth } from '../firebase/config';
 
+// React StrictMode can mount/unmount effects twice during development.
+// Deduplicate one in-flight anonymous sign-in across those subscriptions.
+let pendingAnonymousSignIn = null;
+const ensureAnonymousSignIn = () => {
+  if (!pendingAnonymousSignIn) {
+    pendingAnonymousSignIn = signInAnonymously(auth).finally(() => {
+      pendingAnonymousSignIn = null;
+    });
+  }
+  return pendingAnonymousSignIn;
+};
+
 // Never sign out or replace a restored anonymous user automatically.
 // Firebase Web Auth already persists existing sessions by default.
 export const useAuth = () => {
@@ -33,7 +45,7 @@ export const useAuth = () => {
         if (signInPending) return;
         signInPending = true;
 
-        signInAnonymously(auth)
+        ensureAnonymousSignIn()
           .then(({ user: anonymousUser }) => {
             if (!mounted) return;
             setUser(anonymousUser);
