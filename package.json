@@ -7,7 +7,8 @@
     "start": "vite --host 127.0.0.1 --port 3100",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port 3101",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit --project tsconfig.json"
   },
   "dependencies": {
     "@testing-library/react": "^13.4.0",
