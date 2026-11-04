@@ -220,3 +220,11 @@ Evidence quality: screenshots + connector metadata; tests/backup are pending. No
 - Owner screenshot of the Vite app at `127.0.0.1:3100` showed the existing synthetic QA profile and both existing test diary/mood entries intact, with the **same displayed UID** as on the earlier CRA screenshot. Desktop layout has no obvious visible regression. This is evidence for cross-bundler/origin state continuity, not yet for an additional post-Vite `Ctrl+R`.
 - Previous synthetic Chromium E2E under Vite already passed full reload, persistence and cross-browser isolation in isolated demo Auth/Firestore Emulators. Current manual remaining gate: perform `Ctrl+R` on Vite and verify viewport ~390 px including mobile navigation. Do not change production Auth, Firestore, Vercel deployment or Firebase provider.
 - PR #4 remains draft; no merge. The AI-session frontend is deliberately nonfunctional until protected backend exists; production release remains blocked.
+
+## Vite visual QA — desktop and 430 px mobile, owner screenshots 2026-11-04
+- After initial local Vite smoke, owner supplied new screenshots from `127.0.0.1:3100` (desktop and Chrome DevTools iPhone 14 Pro Max viewport 430x932).
+- Profile `gor` and **both synthetic mood/diary cards** still visible on desktop and mobile after Vite app startup. The desktop UID matched earlier CRA QA screenshots. Owner had previously confirmed reload persistence in CRA; latest screenshot is not independent proof of another full reload on Vite unless user explicitly states so.
+- At 430px, title, emoji row, form fields, Save action and grouped entries fit within the narrow column without visible horizontal page overflow. The second card is partly below viewport fold, as expected.
+- Small localization debt observed: mobile header reads `Diary` while page heading reads `Дневник` (RU). This is UI phase 02 work, not evidence of a data migration bug.
+- **Mobile hamburger open/close and touch navigation have not been evidenced by a screenshot**; leave that check open before full 01A UX acceptance.
+- `main` and Vercel production remain untouched by QA; PR #4 is still draft and its AI path is intentionally disabled pending a protected backend.
