@@ -21,12 +21,12 @@ git clone --single-branch --branch work/reflect-vite-foundation-2026-11-04 \
   https://github.com/TheGor-365/reflect.git ~/reflect-vite-qa
 cd ~/reflect-vite-qa
 asdf set nodejs 22.23.4
-npm install
+npm ci --no-audit --no-fund
 npm test
 npm run build
 ```
 
-**IMPORTANT:** The checked-in `package-lock.json` is still from CRA until regenerated and reviewed. The initial CI temporarily uses `npm install`, NOT a reproducible `npm ci`. Do not merge until lockfile is updated, committed and CI changed back to `npm ci`. Never run `npm audit fix --force` to disguise dependency warnings.
+**Lockfile now regenerated on Linux Mint with Node 22.23.4.** The owner verified `npm ci`, all 11 Vitest tests and `vite build`; CI is configured to repeat `npm ci`. Never run `npm audit fix --force` to disguise dependency warnings. No production environment was changed.
 
 ## Local demo Auth/Firestore only
 Do not run the app using existing production Firebase or Vercel Preview settings. Use the independent demo environment on ports 9099 and 18081; it is separate from the personal-data restoration emulator at 18080.
@@ -55,3 +55,9 @@ Visit only `http://127.0.0.1:3100`. Use invented names and journal content. Do n
 - Confirm no credential, live Firebase project config, private Firestore data, Auth JSON, journal content or token enters repo or CI.
 - Actual Vercel Preview is **not** a safe Firebase test environment until its env variables are isolated. Do not trust a Preview build as permission to create test profiles there.
 - No production deployment/merge until owner reviews screenshot and rollback plan.
+
+## Vercel Preview diagnosis — 2026-11-04
+- Vite build itself succeeds. Vercel was retaining the old CRA output-directory setting (`build/`), while Vite emitted `dist/`. Build failed with `[STATIC_BUILD_NO_OUT_DIR]`; source: authenticated Vercel deployment events for `ffa1e17`.
+- A branch-owned `vercel.json` now sets the Vite framework, `dist` output directory, `npm run build`, and `npm ci`, without modifying the Vercel project-wide settings used by Production.
+- The former `engines.node >=22.12.0` caused Vercel to select Node 26. Restrict `node` to `22.x` in package and lock metadata to match locally tested Node 22.23.4.
+- A Vercel Preview deployment becoming READY is **not** safe to browse for test writes. It has no authorized isolated Vite Firebase config and must fail closed, while existing `REACT_APP_*` Preview variables still target production. Test real app behavior at `127.0.0.1:3100` with separate demo emulators instead. Never add production Firebase config or Gemini secrets to Vite browser env.

@@ -39,7 +39,7 @@ jobs:
           java-version: "21"
       - name: Install pinned app and test dependencies
         run: |
-          npm install --no-audit --no-fund
+          npm ci --no-audit --no-fund
           npm install --prefix tests/emulator --no-package-lock --ignore-scripts --no-audit --no-fund
           npm install --global firebase-tools@15.34.2
       - name: Install isolated browser

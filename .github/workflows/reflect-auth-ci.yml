@@ -1,4 +1,4 @@
-name: Reflect Vite foundation CI (temporary unlocked install)
+name: Reflect Vite foundation CI (locked npm ci)
 on:
   push:
     branches: ["work/reflect-vite-foundation-2026-11-04"]
@@ -32,7 +32,7 @@ jobs:
           node-version: "22"
           cache: npm
       - name: Install pinned dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Test auth, profile, Firestore state behavior
         run: npm test
       - name: Production-mode build without deployment
