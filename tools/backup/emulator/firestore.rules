@@ -1,0 +1,11 @@
+// Snapshot of the user-scoped Reflect rules shown in Firebase Console 2026-11-04.
+// FOR LOCAL DEMO EMULATOR ONLY. Do not deploy this file to production.
+// This does not constitute a rules evaluation test.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /artifacts/{appId}/users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
