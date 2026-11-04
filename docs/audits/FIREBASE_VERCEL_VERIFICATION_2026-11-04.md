@@ -144,3 +144,11 @@ Evidence quality: screenshots + connector metadata; tests/backup are pending. No
 - `all_firestore_scopes_have_auth_records=true` confirms the exported identities are referentially aligned **at backup time**. This is **not** a successful Auth import, browser-session restore, identity linking, or account recovery.
 - GnuPG 2.4.4 is installed with AES256 support. **No encrypted off-device copy or decryption test reported yet**; that remains the next operator action.
 - Status: Firestore archive integrity PASS; isolated Firestore restore/readback PASS; Auth metadata export PASS; UID association PASS; encrypted off-device copy PENDING; Auth login continuity/security tests PENDING.
+
+## AES-256 private archive validated — owner terminal evidence, 2026-11-04
+- Owner produced a locally stored encrypted bundle named `reflect-private-retry1.tar.gpg` containing three private files: Firestore JSONL, its integrity manifest, and Firebase Auth JSON. **None of the private files or the encrypted bundle were shared into this repository or chat.**
+- Verified via `test -s`, `stat`, `sha256sum` and `gpg --decrypt | tar -tf -`.
+- Encrypted file size: **6217 bytes**, permissions **0600**, ciphertext SHA-256 `27eec4e1c214d2feb1a78217c0f639c0b2b5bea9038a893edadf8c5cc8c1ccb4`.
+- GnuPG reported **AES256.CFB** and one passphrase; all three intended filenames were listed; pipeline exited successfully with **DECRYPT + TAR: PASS**.
+- This validates local encrypted-bundle readability, **not** recovery from a second physical/cloud location. Off-device copy with restricted access and hash readback remains pending. Do not store or publish passphrase; keep it in a password manager.
+- Stage 00 evidence summary: 26 Firestore docs backed up and recovered locally with typed-field readback MATCH; 11 Auth records backed up; all 7 Firestore UID scopes map to exported Auth records, with 4 Auth entries having no Firestore data; encrypted bundle readable. Auth sign-in persistence/credential linking tests and Firestore Security Rules emulator checks have not been executed.
