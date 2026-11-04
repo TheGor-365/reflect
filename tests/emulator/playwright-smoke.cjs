@@ -94,6 +94,38 @@ async function runBrowserSuite() {
     await profile(first, "Synthetic Alpha");
     const firstUid = await uidInSidebar(first);
 
+    // Real mobile UI behavior, entirely against synthetic Firebase emulators.
+    await first.setViewportSize({ width: 390, height: 844 });
+    const dock = first.getByRole("navigation", { name: "Нижняя навигация" });
+    await dock.getByRole("button", { name: "Цели" }).click();
+    await first.getByRole("heading", { name: "Ваши цели" }).waitFor();
+    await dock.getByRole("button", { name: "Дневник" }).click();
+    await first.getByRole("heading", { name: "Дневник" }).waitFor();
+
+    await first.getByRole("button", { name: "Открыть меню" }).click();
+    const drawer = first.locator(".reflect-sidebar");
+    await drawer.waitFor({ state: "visible" });
+    await first.keyboard.press("Escape");
+    if (await drawer.evaluate((element) => element.classList.contains("reflect-sidebar--open"))) {
+      throw new Error("Mobile drawer did not close on Escape");
+    }
+
+    await first.getByRole("button", { name: "Включить светлую тему" }).click();
+    if (await first.locator(".reflect-app").getAttribute("data-theme") !== "light") {
+      throw new Error("Theme toggle did not activate light mode");
+    }
+    await first.reload({ waitUntil: "domcontentloaded" });
+    await first.getByRole("button", { name: "Включить тёмную тему" }).waitFor();
+    if (await first.locator(".reflect-app").getAttribute("data-theme") !== "light") {
+      throw new Error("Local theme preference was lost after reload");
+    }
+    const horizontalOverflow = await first.evaluate(() =>
+      document.documentElement.scrollWidth - document.documentElement.clientWidth
+    );
+    if (horizontalOverflow > 2) {
+      throw new Error("390px mobile viewport has horizontal page overflow: " + horizontalOverflow);
+    }
+
     await first.getByPlaceholder("Что нового? Добавьте заметку...").fill("Synthetic alpha journal entry");
     await first.getByRole("button", { name: "Сохранить заметку" }).click();
     await first.getByText("Synthetic alpha journal entry", { exact: true })
@@ -131,6 +163,7 @@ async function runBrowserSuite() {
     console.log("PASS: synthetic anonymous UID persists across reload");
     console.log("PASS: synthetic profile and journal survive reload");
     console.log("PASS: second browser has independent UID and no first-user records");
+    console.log("PASS: mobile 390px nav, drawer Escape and persisted theme");
     console.log("PASS: browser network confined to localhost demo ports");
   } finally {
     await browser.close();
