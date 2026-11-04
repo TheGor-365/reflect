@@ -9,7 +9,7 @@ on:
     branches: ["work/reflect-readonly-backup-2026-11-04"]
     paths:
       - "tools/backup/**"
-      - "tests/test_reflect_firestore_backup.py"
+      - "tests/test_reflect_*.py"
       - ".github/workflows/reflect-backup-tests.yml"
 
 permissions:

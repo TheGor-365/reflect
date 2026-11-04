@@ -58,3 +58,9 @@ Only post the count and the `field_readback` / `firestore_restore_verified` bool
 - https://firebase.google.com/docs/emulator-suite/connect_firestore
 - https://firebase.google.com/docs/emulator-suite/connect_auth
 - https://firebase.google.com/docs/firestore/reference/rest/v1/projects.databases.documents/patch
+
+## Real-emulator regression QA (2026-11-04)
+- A reserved test document ID `__probe__` caused HTTP 400 even when the local emulator was empty; this unnecessary probe was removed. Firestore reserves IDs matching `__.*__`.
+- A synthetic real-emulator test then identified timestamp normalization: `2026-11-04T00:00:00.123456789Z` was stored as `2026-11-04T00:00:00.123456Z` (loss of nonzero nanoseconds). The verifier now accepts only equivalent fractional-second formatting (e.g. `.123456000Z` vs `.123456Z`), never nonzero precision loss.
+- Real Firestore Emulator integration on synthetic data passed, including typed-field readback and rejection of a second overwrite attempt: https://github.com/TheGor-365/reflect/actions/runs/41819830841 . This does NOT prove the owner's private 26-document archive has been restored.
+- The owner should pull the branch, run offline tests and perform a single local restore against the running demo emulator. On partial restore, stop; do not automatically delete/retry.
