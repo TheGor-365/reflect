@@ -94,3 +94,12 @@ Evidence quality: screenshots + connector metadata; tests/backup are pending. No
 - ADC emitted a warning: no quota project specified. It did not stop this read-only inventory. Do not change IAM or billing merely to suppress a warning.
 - This is **inventory only**; no .jsonl archive, checksum evidence, separate Firebase Auth export, or restore confirmation has been received. The 11 anonymous Auth users remain intact as far as shown by previous console screenshots, but no independent new Auth count was read here.
 - Next acceptance: owner runs private local Firestore JSONL archive outside Git repo, validates hash/doc count, independently exports Auth metadata to a private JSON file, then tests isolated restore; never share archive contents or token values.
+
+## Private archive evidence — owner terminal output, 2026-11-04
+- Owner executed `reflect_firestore_backup.py --project reflect-8fdc8 --output <private local archive>` successfully on Linux Mint. Firestore archive contains **26 documents**.
+- Owner independently calculated SHA-256 and checked against manifest: **MATCH**. Counts: **MATCH**. Unique Firestore document paths: **MATCH**. Do not publish, transmit or commit the raw archive.
+- Owner executed `firebase auth:export` into a separately protected local JSON archive: **11 Auth accounts exported successfully**; independently re-counted 11.
+- Firestore typed archive and Auth metadata are **present and integrity-checked**, but not independently encrypted/off-machine or recovered. Firebase Auth anonymous browser sessions cannot be restored from Auth JSON alone.
+- The Google ADC quota-project warning was nonfatal; read/export succeeded. Do not change billing just to silence the warning.
+- Stage 00 gate now **BACKUP CREATED / LOCAL INTEGRITY VERIFIED; RESTORE TEST PENDING**. Production data and authorization remain unchanged by the export scripts.
+- Draft PR #2 now additionally contains a strictly localhost/demo-project restore verifier and local-emulator instructions. No real restore has yet been confirmed; do not mark stage 00 completed.
