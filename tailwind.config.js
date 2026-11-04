@@ -4,7 +4,7 @@ module.exports = {
   // Это позволяет Tailwind удалять неиспользуемые стили в продакшн-сборке.
   content: [
     "./src/**/*.{js,jsx,ts,tsx}",
-    "./public/index.html"
+    "./index.html"
   ],
   theme: {
     extend: {

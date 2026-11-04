@@ -3,11 +3,11 @@ import { act, render, screen } from '@testing-library/react';
 import { collection, query, onSnapshot } from 'firebase/firestore';
 import { useFirestore } from './useFirestore';
 
-jest.mock('../firebase/config', () => ({ db: {}, appId: 'reflect-8fdc8' }));
-jest.mock('firebase/firestore', () => ({
-  collection: jest.fn(),
-  query: jest.fn(),
-  onSnapshot: jest.fn()
+vi.mock('../firebase/config', () => ({ db: {}, appId: 'reflect-8fdc8' }));
+vi.mock('firebase/firestore', () => ({
+  collection: vi.fn(),
+  query: vi.fn(),
+  onSnapshot: vi.fn()
 }));
 
 let handlers;
@@ -24,11 +24,11 @@ function FirestoreHarness({ userId }) {
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   collection.mockReturnValue({});
   query.mockReturnValue({});
   handlers = [];
-  unsubscribe = jest.fn();
+  unsubscribe = vi.fn();
   onSnapshot.mockImplementation((_q, onNext, onError) => {
     handlers.push({ onNext, onError });
     return unsubscribe;

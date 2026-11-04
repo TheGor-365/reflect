@@ -5,34 +5,37 @@ import { useAuth } from './hooks/useAuth';
 import { useFirestore } from './hooks/useFirestore';
 import App from './App';
 
-jest.mock('./firebase/config', () => ({ db: {}, appId: 'reflect-8fdc8' }));
-jest.mock('firebase/firestore', () => ({
-  doc: jest.fn(() => ({})),
-  getDoc: jest.fn(),
-  setDoc: jest.fn(),
-  updateDoc: jest.fn(),
-  arrayUnion: jest.fn(),
-  Timestamp: { now: jest.fn() }
+vi.mock('./firebase/config', () => ({ db: {}, appId: 'reflect-8fdc8' }));
+vi.mock('firebase/firestore', () => ({
+  doc: vi.fn(() => ({})),
+  getDoc: vi.fn(),
+  setDoc: vi.fn(),
+  updateDoc: vi.fn(),
+  arrayUnion: vi.fn(),
+  Timestamp: { now: vi.fn() }
 }));
-jest.mock('./hooks/useAuth', () => ({ useAuth: jest.fn() }));
-jest.mock('./hooks/useFirestore', () => ({ useFirestore: jest.fn() }));
-jest.mock('./components/layout/Sidebar', () => () => null);
-jest.mock('./components/layout/Header', () => () => null);
-jest.mock('./features/Diary/Diary', () => () =>
-  require('react').createElement('div', { 'data-testid': 'diary-content' }, 'Diary'));
-jest.mock('./features/Goals/Goals', () => () => null);
-jest.mock('./features/Sessions/Sessions', () => () => null);
-jest.mock('./features/SessionSchema/SessionSchema', () => () => null);
-jest.mock('./components/common/Loader', () => () =>
-  require('react').createElement('div', { 'data-testid': 'loading' }));
-jest.mock('./components/modals/ProfileModal', () => () =>
-  require('react').createElement('div', { 'data-testid': 'profile-modal' }, 'Profile'));
-jest.mock('./components/modals/ContentModal', () => () => null);
-jest.mock('./components/modals/ReflectionModal', () => () => null);
-jest.mock('./components/modals/ChecklistFeedbackModal', () => () => null);
+vi.mock('./hooks/useAuth', () => ({ useAuth: vi.fn() }));
+vi.mock('./hooks/useFirestore', () => ({ useFirestore: vi.fn() }));
+vi.mock('./components/layout/Sidebar', () => ({ default: () => null }));
+vi.mock('./components/layout/Header', () => ({ default: () => null }));
+vi.mock('./features/Diary/Diary', () => ({
+  default: () => <div data-testid="diary-content">Diary</div>
+}));
+vi.mock('./features/Goals/Goals', () => ({ default: () => null }));
+vi.mock('./features/Sessions/Sessions', () => ({ default: () => null }));
+vi.mock('./features/SessionSchema/SessionSchema', () => ({ default: () => null }));
+vi.mock('./components/common/Loader', () => ({
+  default: () => <div data-testid="loading" />
+}));
+vi.mock('./components/modals/ProfileModal', () => ({
+  default: () => <div data-testid="profile-modal">Profile</div>
+}));
+vi.mock('./components/modals/ContentModal', () => ({ default: () => null }));
+vi.mock('./components/modals/ReflectionModal', () => ({ default: () => null }));
+vi.mock('./components/modals/ChecklistFeedbackModal', () => ({ default: () => null }));
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   useAuth.mockReturnValue({ user: { uid: 'existing-account' }, isAuthReady: true, authError: null });
   useFirestore.mockReturnValue({ data: [], loading: false, error: null });
 });

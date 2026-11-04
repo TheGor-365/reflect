@@ -22,7 +22,7 @@ function verifyEmulatorProcess() {
 async function awaitReactServer(server, timeoutMs = 120000) {
   const end = Date.now() + timeoutMs;
   while (Date.now() < end) {
-    if (server.exitCode !== null) throw new Error("CRA server exited before ready");
+    if (server.exitCode !== null) throw new Error("Vite server exited before ready");
     try {
       const response = await fetch(BASE + "/", {
         signal: AbortSignal.timeout(1500)
@@ -33,7 +33,7 @@ async function awaitReactServer(server, timeoutMs = 120000) {
     }
     await delay(1000);
   }
-  throw new Error("CRA dev server did not start on the fixed localhost port");
+  throw new Error("Vite dev server did not start on the fixed localhost port");
 }
 
 function protectBrowser(context) {
@@ -142,9 +142,9 @@ async function main() {
   };
   const env = {
     ...process.env,
-    REACT_APP_FIREBASE_CONFIG: JSON.stringify(config),
-    REACT_APP_APP_ID: "reflect-8fdc8",
-    REACT_APP_USE_FIREBASE_EMULATORS: "true",
+    VITE_FIREBASE_CONFIG: JSON.stringify(config),
+    VITE_APP_ID: "reflect-8fdc8",
+    VITE_USE_FIREBASE_EMULATORS: "true",
     HOST: "127.0.0.1",
     PORT: "3100",
     BROWSER: "none",
@@ -169,7 +169,7 @@ async function main() {
   } catch (error) {
     console.error("Demo E2E failed:", error.message);
     // Contains build diagnostics for dummy demo config only.
-    console.error("CRA output (synthetic environment):", lastOutput);
+    console.error("Vite output (synthetic environment):", lastOutput);
     throw error;
   } finally {
     try { process.kill(-server.pid, "SIGTERM"); } catch (error) { /* already stopped */ }
