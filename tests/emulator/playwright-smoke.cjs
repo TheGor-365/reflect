@@ -125,6 +125,9 @@ async function runBrowserSuite() {
     if (horizontalOverflow > 2) {
       throw new Error("390px mobile viewport has horizontal page overflow: " + horizontalOverflow);
     }
+    // Continue legacy UID/profile persistence assertions on desktop, where
+    // sidebar controls are intentionally visible without opening the drawer.
+    await first.setViewportSize({ width: 1280, height: 720 });
 
     await first.getByPlaceholder("Что нового? Добавьте заметку...").fill("Synthetic alpha journal entry");
     await first.getByRole("button", { name: "Сохранить заметку" }).click();
