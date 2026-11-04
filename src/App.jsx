@@ -6,6 +6,7 @@ import { useFirestore } from './hooks/useFirestore';
 
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
+import MobileDock from './components/layout/MobileDock';
 import Diary from './features/Diary/Diary';
 import Goals from './features/Goals/Goals';
 import Sessions from './features/Sessions/Sessions';
@@ -54,6 +55,24 @@ export default function App() {
   // --- UI State ---
   const [activeTab, setActiveTab] = useState('diary');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    try { return window.localStorage.getItem('reflect-theme') === 'light' ? 'light' : 'dark'; }
+    catch { return 'dark'; }
+  });
+
+  useEffect(() => {
+    try { window.localStorage.setItem('reflect-theme', theme); }
+    catch { /* Browser storage is optional; never block journal access. */ }
+  }, [theme]);
+
+  useEffect(() => {
+    if (!isSidebarOpen) return undefined;
+    const onEscape = (event) => {
+      if (event.key === 'Escape') setIsSidebarOpen(false);
+    };
+    window.addEventListener('keydown', onEscape);
+    return () => window.removeEventListener('keydown', onEscape);
+  }, [isSidebarOpen]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
 
   // --- Modal State ---
@@ -237,13 +256,14 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 font-sans text-stone-900">
-      {/* Modals */}
+    <div className="reflect-app min-h-screen font-sans" data-theme={theme}>
+      <a className="reflect-skip-link" href="#reflect-main">Перейти к содержимому</a>
+
       {feedbackGoal && <ChecklistFeedbackModal goal={feedbackGoal} onSave={handleSaveFeedback} onCancel={() => setFeedbackGoal(null)} />}
       {(reflectionGoal || editingNote) && <ReflectionModal entry={reflectionGoal || editingNote} onSave={handleSaveReflection} onCancel={() => {setReflectionGoal(null); setEditingNote(null);}} />}
       {viewingContent && <ContentModal content={viewingContent} onClose={() => setViewingContent(null)} />}
 
-      <Sidebar 
+      <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         activeTab={activeTab}
@@ -257,12 +277,24 @@ export default function App() {
         onProfileClick={() => { setProfileSaveError(null); setShowProfileModal(true); }}
       />
 
-      <div className="lg:ml-80">
-        <Header onMenuClick={() => setIsSidebarOpen(true)} activeTab={activeTab} />
-        <main className="p-4 md:p-6">
+      <div className="reflect-layout">
+        <Header
+          activeTab={activeTab}
+          onMenuClick={() => setIsSidebarOpen(true)}
+          theme={theme}
+          onToggleTheme={() => setTheme(current => current === 'dark' ? 'light' : 'dark')}
+        />
+        <main className="reflect-main reflect-workspace" id="reflect-main" tabIndex={-1}>
           {renderActiveTab()}
         </main>
       </div>
+
+      <MobileDock
+        activeTab={activeTab}
+        currentSessionId={currentSessionId}
+        changeTab={changeTab}
+        handleNewSession={handleNewSession}
+      />
     </div>
   );
 }
