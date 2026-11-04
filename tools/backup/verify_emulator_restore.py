@@ -110,8 +110,8 @@ def relocate_references(node):
 # If a source value has nonzero nanoseconds past 6 digits and the emulator
 # truncates it, the strict read-back comparison must FAIL.
 _TIMESTAMP = re.compile(
-    r"^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})"
-    r"(?:\\.(\\d{1,9}))?(Z|[+-]\\d{2}:\\d{2})$"
+    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})"
+    r"(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})$"
 )
 
 
