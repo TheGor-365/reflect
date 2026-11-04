@@ -1,0 +1,10 @@
+// Snapshot of existing user-scoped rules; demo emulator only.
+// No production rule deployment or owner data access in this test.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /artifacts/{appId}/users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

@@ -46,7 +46,6 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
       setLocalMessages(prev => [...prev, userMessage]);
     }
     
-    const textToSend = userInput;
     setUserInput('');
     setIsLoading(true);
     

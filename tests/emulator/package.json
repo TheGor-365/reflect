@@ -1,0 +1,9 @@
+{
+  "name": "reflect-isolated-browser-qa",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Browser smoke test dependencies only; not the Reflect app",
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}
