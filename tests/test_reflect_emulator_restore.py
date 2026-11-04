@@ -37,6 +37,7 @@ class FakeEmulatorSession:
         self.storage = {REL: {"fields": {}}} if seeded else {}
         self.requests = []
         self.trust_env = True
+        self.headers = {}
 
     def _key(self, url):
         marker = "/documents/"
@@ -48,6 +49,8 @@ class FakeEmulatorSession:
 
     def get(self, url, timeout):
         self.requests.append(("GET", url))
+        if self.headers.get("Authorization") != "Bearer owner":
+            return FakeResponse(403)
         relative = self._key(url)
         return (FakeResponse(200, {"name": "projects/" + DEMO_PROJECT +
                              "/databases/(default)/documents/" + relative,
@@ -56,6 +59,8 @@ class FakeEmulatorSession:
 
     def patch(self, url, params, json, timeout):
         self.requests.append(("PATCH", url))
+        if self.headers.get("Authorization") != "Bearer owner":
+            return FakeResponse(403)
         if params != {"currentDocument.exists": "false"}:
             raise AssertionError("Missing no-overwrite precondition")
         relative = self._key(url)
@@ -76,6 +81,7 @@ class RestoreOfflineTests(unittest.TestCase):
         session = FakeEmulatorSession()
         self.assertEqual(restore_to_emulator(session, [(REL, SAMPLE)]), 1)
         self.assertFalse(session.trust_env)
+        self.assertEqual(session.headers.get("Authorization"), "Bearer owner")
         self.assertEqual(len(session.storage), 1)
         self.assertEqual(session.requests[-1][0], "GET")
         self.assertEqual(len([x for x in session.requests if x[0] == "PATCH"]), 1)
@@ -83,6 +89,29 @@ class RestoreOfflineTests(unittest.TestCase):
     def test_preflight_rejects_existing_document_without_write(self):
         session = FakeEmulatorSession(seeded=True)
         with self.assertRaises(RuntimeError):
+            restore_to_emulator(session, [(REL, SAMPLE)])
+        self.assertFalse(any(op == "PATCH" for op, _ in session.requests))
+
+    def test_probe_403_stops_before_any_write(self):
+        class DeniedSession(FakeEmulatorSession):
+            def get(self, url, timeout):
+                self.requests.append(("GET", url))
+                return FakeResponse(403)
+        session = DeniedSession()
+        with self.assertRaisesRegex(RuntimeError, "probe HTTP 403"):
+            restore_to_emulator(session, [(REL, SAMPLE)])
+        self.assertEqual(session.headers.get("Authorization"), "Bearer owner")
+        self.assertFalse(any(op == "PATCH" for op, _ in session.requests))
+
+    def test_preflight_403_stops_before_any_write(self):
+        class DeniedPreflightSession(FakeEmulatorSession):
+            def get(self, url, timeout):
+                if "__probe__" in url:
+                    return FakeResponse(404)
+                self.requests.append(("GET", url))
+                return FakeResponse(403)
+        session = DeniedPreflightSession()
+        with self.assertRaisesRegex(RuntimeError, "preflight HTTP 403"):
             restore_to_emulator(session, [(REL, SAMPLE)])
         self.assertFalse(any(op == "PATCH" for op, _ in session.requests))
 
