@@ -44,3 +44,13 @@ jobs:
             --project demo-reflect-restore \
             --only firestore \
             "python smoke_restore.py"
+      - name: Install pinned rules-test dependencies (demo only)
+        working-directory: tools/backup/emulator/security-tests
+        run: npm install --no-package-lock --ignore-scripts --no-audit --no-fund
+      - name: Validate SYNTHETIC multi-user Firestore rules
+        working-directory: tools/backup/emulator
+        run: |
+          firebase emulators:exec \
+            --project demo-reflect-restore \
+            --only firestore \
+            "npm run test --prefix security-tests"
