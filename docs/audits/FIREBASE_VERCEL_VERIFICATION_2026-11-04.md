@@ -126,3 +126,12 @@ Evidence quality: screenshots + connector metadata; tests/backup are pending. No
 - Real Firestore Emulator integration tests using **synthetic, non-user data** subsequently exposed canonical timestamp formatting at microsecond precision. The verifier now accepts equivalent fractional-second formats only when extra digits are all zero; nonzero lost precision remains a fatal mismatch.
 - Both GitHub workflows passed on latest PR #2 commit `54a10d1101057d484c5f29d5d738a0ff58dec885`: offline tests and a real-emulator synthetic restore/readback plus no-overwrite check. CI source: https://github.com/TheGor-365/reflect/actions/runs/41820203954.
 - IMPORTANT: No owner evidence of actual 26-document restore/readback has been provided yet. Stage 00 restore gate remains OPEN. Do not treat a successful synthetic CI run as a restoration of the private archive.
+
+## Owner-verified local Firestore recovery — 2026-11-04
+- User terminal output confirms checkout `54a10d1101057d484c5f29d5d738a0ff58dec885` of backup tools and **16/16 offline tests passing**.
+- Local restore command `verify_emulator_restore.py --archive <private firestore JSONL> --restore` completed SUCCESSFULLY against the fixed `demo-reflect-restore` emulator at `127.0.0.1:18080`.
+- Returned `restored_documents: 26`, `field_readback: MATCH`, `firestore_restore_verified: true`, `auth_identity_restore_verified: false`. The original source archive SHA256/checksum had also been independently verified prior to restore.
+- Scope: relative Firestore document paths and typed user fields confirmed in a **local isolated emulator**. Original server-owned `createTime/updateTime` metadata is NOT preserved. Google-managed point-in-time backup, Auth account sessions and recovery are NOT claimed.
+- Production Firestore, Firebase Auth, Vercel and GitHub `main` were not modified by the described local commands.
+- Stage 00: **Firestore recovery gate PASS**; complete private Auth↔Firestore UID mapping, encrypted off-device copy, local Security Rules tests and auth continuity plan before auth/schema production migrations.
+- PR #2 now includes offline aggregate-only Auth↔Firestore UID checker and encryption runbook `tools/backup/IDENTITY_AND_OFFSITE.md`. Identity mapping against owner's private files has not yet been run.
