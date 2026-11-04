@@ -94,6 +94,38 @@ async function runBrowserSuite() {
     await profile(first, "Synthetic Alpha");
     const firstUid = await uidInSidebar(first);
 
+    await first.getByPlaceholder("Что нового? Добавьте заметку...").fill("Synthetic alpha journal entry");
+    await first.getByRole("button", { name: "Сохранить заметку" }).click();
+    await first.getByText("Synthetic alpha journal entry", { exact: true })
+      .waitFor({ timeout: 30000 });
+
+    await first.reload({ waitUntil: "domcontentloaded" });
+    await first.getByRole("button", { name: "Synthetic Alpha" })
+      .waitFor({ timeout: 30000 });
+    const afterReloadUid = await uidInSidebar(first);
+    if (firstUid !== afterReloadUid) {
+      throw new Error("UID changed after reload of the same browser context");
+    }
+    await first.getByText("Synthetic alpha journal entry", { exact: true })
+      .waitFor({ timeout: 30000 });
+    if (await first.getByText("Добро пожаловать!").count()) {
+      throw new Error("Existing synthetic profile unexpectedly triggered onboarding");
+    }
+
+    const secondContext = await browser.newContext();
+    await protectBrowser(secondContext);
+    const second = await secondContext.newPage();
+    await second.goto(BASE, { waitUntil: "domcontentloaded" });
+    await profile(second, "Synthetic Beta");
+    const secondUid = await uidInSidebar(second);
+    if (secondUid === firstUid) {
+      throw new Error("Different browser contexts shared an anonymous Auth UID");
+    }
+    await second.getByText("Записей пока нет.").waitFor({ timeout: 30000 });
+    if (await second.getByText("Synthetic alpha journal entry", { exact: true }).count()) {
+      throw new Error("Synthetic Beta can see Synthetic Alpha's journal");
+    }
+
     // Real mobile UI behavior, entirely against synthetic Firebase emulators.
     await first.setViewportSize({ width: 390, height: 844 });
     const dock = first.getByRole("navigation", { name: "Нижняя навигация" });
@@ -128,38 +160,9 @@ async function runBrowserSuite() {
     // Continue legacy UID/profile persistence assertions on desktop, where
     // sidebar controls are intentionally visible without opening the drawer.
     await first.setViewportSize({ width: 1280, height: 720 });
-
-    await first.getByPlaceholder("Что нового? Добавьте заметку...").fill("Synthetic alpha journal entry");
-    await first.getByRole("button", { name: "Сохранить заметку" }).click();
     await first.getByText("Synthetic alpha journal entry", { exact: true })
       .waitFor({ timeout: 30000 });
 
-    await first.reload({ waitUntil: "domcontentloaded" });
-    await first.getByRole("button", { name: "Synthetic Alpha" })
-      .waitFor({ timeout: 30000 });
-    const afterReloadUid = await uidInSidebar(first);
-    if (firstUid !== afterReloadUid) {
-      throw new Error("UID changed after reload of the same browser context");
-    }
-    await first.getByText("Synthetic alpha journal entry", { exact: true })
-      .waitFor({ timeout: 30000 });
-    if (await first.getByText("Добро пожаловать!").count()) {
-      throw new Error("Existing synthetic profile unexpectedly triggered onboarding");
-    }
-
-    const secondContext = await browser.newContext();
-    await protectBrowser(secondContext);
-    const second = await secondContext.newPage();
-    await second.goto(BASE, { waitUntil: "domcontentloaded" });
-    await profile(second, "Synthetic Beta");
-    const secondUid = await uidInSidebar(second);
-    if (secondUid === firstUid) {
-      throw new Error("Different browser contexts shared an anonymous Auth UID");
-    }
-    await second.getByText("Записей пока нет.").waitFor({ timeout: 30000 });
-    if (await second.getByText("Synthetic alpha journal entry", { exact: true }).count()) {
-      throw new Error("Synthetic Beta can see Synthetic Alpha's journal");
-    }
 
     await secondContext.close();
     await firstContext.close();
