@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import stat
 from urllib.parse import quote
@@ -104,6 +105,35 @@ def relocate_references(node):
     return node
 
 
+# REST responses can format the SAME microsecond timestamp as .123456Z
+# or .123456000Z. Only ignore trailing zeroes, never nonzero precision.
+# If a source value has nonzero nanoseconds past 6 digits and the emulator
+# truncates it, the strict read-back comparison must FAIL.
+_TIMESTAMP = re.compile(
+    r"^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})"
+    r"(?:\\.(\\d{1,9}))?(Z|[+-]\\d{2}:\\d{2})$"
+)
+
+
+def canonical_firestore_fields(value):
+    if isinstance(value, list):
+        return [canonical_firestore_fields(part) for part in value]
+    if isinstance(value, dict):
+        if set(value) == {"timestampValue"} and isinstance(value["timestampValue"], str):
+            text = value["timestampValue"]
+            match = _TIMESTAMP.fullmatch(text)
+            if match:
+                base, fraction, zone = match.groups()
+                fraction = fraction or ""
+                if any(digit != "0" for digit in fraction[6:]):
+                    # Preserve unrepresentable extra precision: report mismatch.
+                    return value
+                fractional = fraction[:6].rstrip("0")
+                return {"timestampValue": base + ("." + fractional if fractional else "") + zone}
+        return {key: canonical_firestore_fields(part) for key, part in value.items()}
+    return value
+
+
 def url_for(relative):
     # Both project and URL are constant; only validated relative document paths vary.
     return EMULATOR_BASE + quote(relative, safe="/")
@@ -146,8 +176,11 @@ def restore_to_emulator(session, docs):
     # Read back each restored document, compare typed fields and path.
     for url, fields in paths:
         got = response_ok(session.get(url, timeout=10), 200)
-        if got.get("fields", {}) != fields:
-            raise RuntimeError("Restored document fields differ; restore NOT verified")
+        if canonical_firestore_fields(got.get("fields", {})) != canonical_firestore_fields(fields):
+            raise RuntimeError(
+                "Restored document fields differ (including possible timestamp precision "
+                "loss); restore NOT verified. No private field values printed."
+            )
         if got.get("name", "").split("/documents/", 1)[-1] != (
             url.split("/documents/", 1)[-1]
         ):
