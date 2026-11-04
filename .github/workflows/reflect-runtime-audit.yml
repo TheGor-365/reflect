@@ -1,4 +1,4 @@
-name: Reflect runtime dependency security audit
+name: Reflect complete dependency security audit
 
 on:
   push:
@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 jobs:
-  audit-production-dependencies:
+  audit-all-dependencies:
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
@@ -30,5 +30,5 @@ jobs:
           cache: npm
       - name: Install exact locked dependency graph
         run: npm ci --no-audit --no-fund
-      - name: Fail on reported runtime package advisories
-        run: npm audit --omit=dev --audit-level=moderate
+      - name: Fail on moderate-or-higher advisories in all locked dependencies
+        run: npm audit --audit-level=moderate
