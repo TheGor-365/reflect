@@ -159,3 +159,12 @@ Evidence quality: screenshots + connector metadata; tests/backup are pending. No
 - A checksum command for presumed Drive-downloaded `reflect-private-retry1.tar.gpg` failed because there was **no file** at the guessed `$HOME/Загрузки/reflect-private-retry1.tar.gpg` path. This is **NOT a hash mismatch**, and no downloaded copy was compared.
 - Read-only search of accessible connected Google Drive found neither exact `REFLECT_PRIVATE_BACKUPS` folder nor exact `reflect-private-retry1.tar.gpg` filename. This is a limited search result (may reflect another account or indexing lag), not proof of absence in every Drive account.
 - Keep off-device backup marked **UNVERIFIED**. User must confirm file upload in private restricted folder, download to a known location, and validate SHA-256 against `27eec4e1c214d2feb1a78217c0f639c0b2b5bea9038a893edadf8c5cc8c1ccb4` before marking complete. Never upload plaintext, passphrase or secrets.
+
+## Off-device SHA-256 VERIFIED / private Drive permissions — 2026-11-04
+- Owner screenshot shows `reflect-private-retry1.tar.gpg` uploaded into Google Drive folder `REFLECT_PRIVATE_BACKUPS`, under `My Drive / Reflect idea`. Do NOT publish raw backup or decryption passphrase.
+- Owner independently downloaded the encrypted file again to `~/Загрузки/reflect-private-retry1.tar.gpg`; terminal `sha256sum` printed `27eec4e1c214d2feb1a78217c0f639c0b2b5bea9038a893edadf8c5cc8c1ccb4`, EXACTLY matching local source encrypted archive hash.
+- Connected Google Drive `get_file_metadata` on `REFLECT_PRIVATE_BACKUPS` (folder ID `10xuY5SSYEQqXi0jKgynNVJBPCicKMhU1`) returned `shared: false`, permissions with only one `user` role `owner`, `source_visibility_status: permission_metadata_available`, and the parent `Reflect idea` was previously observed as `shared:false`. Screenshot and hash verification supplement connector search, which did not enumerate the encrypted file itself.
+- **Backup off-device recoverability gate PASS**, scoped to encrypted ciphertext transport integrity and earlier local passphrase decryption test; not a fresh full restore from downloaded ciphertext.
+- No plaintext archive, Auth JSON, passphrase, UID, API token or user content was placed in GitHub, shared Drive, or the chat.
+- Stage 00 remaining: current production Firestore Security Rules client-isolation tests, Auth persistence/upgrade QA, rollback plan. Do not claim old anonymous browser sign-in can be recovered via an Auth JSON export.
+- P0 auth/profile fixes are being prepared in separate draft PR #3. They are NOT merged or deployed.
