@@ -116,17 +116,29 @@ def response_ok(resp, expected):
 
 
 def restore_to_emulator(session, docs):
-    session.trust_env = False  # no corporate HTTP proxy / inherited credentials
+    session.trust_env = False  # never inherit proxy or ADC credentials
+    # The Firestore Emulator enforces client Security Rules on unauthenticated
+    # REST requests. "owner" is its LOCAL-ONLY admin token (not a cloud secret).
+    # It must never be used against any host other than our fixed loopback demo.
+    session.headers.update({"Authorization": "Bearer owner"})
     paths = [(url_for(relative), relocate_references(rec.get("fields", {})))
              for relative, rec in docs]
     probe = session.get(url_for("artifacts/reflect-8fdc8/users/__probe__"), timeout=6)
     if probe.status_code != 404:
-        raise RuntimeError("Emulator not empty/ready at fixed local demo endpoint")
-    # All preconditions checked before any write.
+        raise RuntimeError(
+            f"Local emulator probe HTTP {probe.status_code}, expected 404. "
+            "Verify localhost demo project, running emulator and admin auth; "
+            "no restore writes made."
+        )
+    # All preconditions checked before any write. Never treat 403 as empty.
     for url, _ in paths:
         preflight = session.get(url, timeout=10)
         if preflight.status_code != 404:
-            raise RuntimeError("Target emulator already contains source paths: restart it cleanly")
+            raise RuntimeError(
+                f"Local emulator preflight HTTP {preflight.status_code}, "
+                "expected 404 (missing document); no restore writes made. "
+                "If 200, target is not empty; use a clean demo emulator."
+            )
     for url, fields in paths:
         # A write is permitted only under a 127.0.0.1 demo project URL.
         response_ok(
