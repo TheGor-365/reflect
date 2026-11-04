@@ -1,4 +1,4 @@
-name: Reflect TypeScript 01B (pre-lock verification)
+name: Reflect TypeScript 01B (locked compiler)
 on:
   push:
     branches: ["work/reflect-typescript-foundation-2026-11-04"]
@@ -35,8 +35,8 @@ jobs:
           cache: npm
       - name: Install locked application dependencies
         run: npm ci --no-audit --no-fund
-      - name: Preliminary strict TypeScript check (temporary, untracked tool)
-        run: npx --yes --package=typescript@5.9.3 tsc --noEmit --project tsconfig.json
+      - name: Strict TypeScript check from locked dependencies
+        run: npm run typecheck
       - name: Run all regression tests
         run: npm test
       - name: Build Vite application without deployment
