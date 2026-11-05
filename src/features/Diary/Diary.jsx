@@ -88,7 +88,8 @@ const Diary = ({ sessions, goals, moods, diaryNotes, userId, onAppend, isLoading
     e.preventDefault();
     const content = newDiaryNote.text.trim();
     if (!content) return;
-    const title = newDiaryNote.title.trim() || content.split(/\s+/u).slice(0, 3).join(' ') + '…';
+    // Do not expose an excerpt of a sensitive journal entry as an automatic heading.
+    const title = newDiaryNote.title.trim() || noteTitlePlaceholder || 'Заметка';
     const didSave = await noteSave.save({
       title,
       entries: [{ text: content, createdAt: Timestamp.now() }]
@@ -140,6 +141,7 @@ const Diary = ({ sessions, goals, moods, diaryNotes, userId, onAppend, isLoading
         </div>
       </form>
       <SaveFeedback status={noteSave.status} />
+      <p className="reflect-journal-draft-notice">До подтверждения сохранения Firestore текст остаётся только в открытой форме. Автоматическое восстановление после перезагрузки пока не включено.</p>
     </div>
 
     <div className="mt-8">
