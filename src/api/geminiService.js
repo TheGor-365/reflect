@@ -6,6 +6,10 @@
  * Until the server-side function and rate limits ship, fail visibly without
  * issuing external calls or losing users to an accidental key exposure.
  */
+// Explicit capability guard: do not suggest that chat is operational until
+// the authenticated backend, quotas, and secret rotation are verified.
+export const AI_SESSION_ENABLED = false;
+
 export const getAnalysisFromAI = async () => ({
   error: 'ИИ-сеансы временно недоступны до подключения защищённого серверного API.'
 });
