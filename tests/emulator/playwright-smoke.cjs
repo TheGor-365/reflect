@@ -304,13 +304,14 @@ async function runBrowserSuite() {
     await goalCard.getByRole("button", { name: "Добавить подзадачу" }).click();
     await goalCard.getByRole("checkbox", { name: "Synthetic task for progress" })
       .waitFor({ timeout: 30000 });
-    await goalCard.getByRole("checkbox", { name: "Synthetic task for progress" }).check();
-    await goalCard.getByRole("progressbar")
+    // No false optimistic checkbox state: click then await the Firestore
+    // snapshot/transaction acknowledgment before claiming completion.
+    await goalCard.getByRole("checkbox", { name: "Synthetic task for progress" }).click();
+    await goalCard.locator('[role="progressbar"][aria-valuenow="100"]')
       .waitFor({ timeout: 30000 });
-    if (await goalCard.getByRole("progressbar").getAttribute("aria-valuenow") !== "100") {
-      throw new Error("Subtask progress was not persisted");
-    }
     await goalCard.getByRole("button", { name: "На паузе" }).click();
+    await goalCard.getByRole("button", { name: "На паузе", pressed: true })
+      .waitFor({ timeout: 30000 });
     await first.reload({ waitUntil: "domcontentloaded" });
     await first.locator(".reflect-side-nav")
       .getByRole("button", { name: "Цели" }).click();
