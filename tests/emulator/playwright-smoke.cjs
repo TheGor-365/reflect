@@ -36,6 +36,7 @@ async function awaitReactServer(server, timeoutMs = 120000) {
   throw new Error("Vite dev server did not start on the fixed localhost port");
 }
 
+const unexpectedAppOrigins = new Set();
 function protectBrowser(context) {
   return context.route("**/*", async (route) => {
     const address = new URL(route.request().url());
@@ -52,11 +53,20 @@ function protectBrowser(context) {
       await route.abort("blockedbyclient");
     } else {
       await route.abort("blockedbyclient");
-      // Synthetic CI only: origin is safe to log; never print path/query or tokens.
-      throw new Error(
-        "E2E blocked non-demo network origin: " +
-        address.protocol + "//" + address.host
-      );
+      // The browser itself may probe external origins without an application
+      // initiator. Always block it, but fail only if the Reflect page initiated
+      // the attempt. Never log paths, query parameters, token or journal text.
+      let sourceOrigin = null;
+      try { sourceOrigin = new URL(route.request().frame().url()).origin; }
+      catch { /* Browser-level request without a page frame. */ }
+      const attemptedOrigin = address.protocol + "//" + address.host;
+      if (sourceOrigin === new URL(BASE).origin) {
+        unexpectedAppOrigins.add(attemptedOrigin);
+      }
+      console.log("E2E blocked external request:", JSON.stringify({
+        origin: attemptedOrigin, source: sourceOrigin,
+        type: route.request().resourceType()
+      }));
     }
   });
 }
@@ -265,6 +275,10 @@ async function runBrowserSuite() {
     console.log("PASS: synthetic profile and journal survive reload");
     console.log("PASS: second browser has independent UID and no first-user records");
     console.log("PASS: mobile 390px nav, drawer Escape and persisted theme");
+    if (unexpectedAppOrigins.size > 0) {
+      throw new Error("Reflect page attempted external origins: " +
+        Array.from(unexpectedAppOrigins).join(", "));
+    }
     console.log("PASS: browser network confined to localhost demo ports");
   } finally {
     await browser.close();
