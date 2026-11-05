@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { ArrowRight, KeyRound, LockKeyhole, Mail, ShieldCheck, UserRound, X } from 'lucide-react';
 import {
-  accountErrorMessage, registerCurrentAnonymous, signInExisting, signOutRegistered
+  accountErrorMessage, registerCurrentAnonymous, signInExisting, signOutRegistered,
+  requestPasswordReset, requestEmailVerification, refreshVerificationStatus
 } from '../../hooks/accountAccess';
 
 /**
@@ -17,14 +18,17 @@ export default function AccountAccess({
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const busyRef = useRef(false);
   const linked = Boolean(user && !user.isAnonymous);
 
   const changeMode = nextMode => {
     if (busyRef.current) return;
     setMode(nextMode);
+    if (nextMode === 'recover' && user?.email) setEmail(user.email);
     setPassword('');
     setError('');
+    setNotice('');
   };
 
   const handleSubmit = async (event) => {
@@ -33,6 +37,7 @@ export default function AccountAccess({
     busyRef.current = true;
     setBusy(true);
     setError('');
+    setNotice('');
     try {
       const account = mode === 'register'
         ? await registerCurrentAnonymous(email, password)
@@ -43,6 +48,68 @@ export default function AccountAccess({
     } catch (failure) {
       setError(accountErrorMessage(failure));
       setPassword('');
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  };
+
+  const handleResetRequest = async event => {
+    event.preventDefault();
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      await requestPasswordReset(email);
+      // Never disclose existence of an email account to other visitors.
+      setNotice('Если адрес зарегистрирован, инструкция для восстановления будет отправлена. Проверьте почту, включая спам.');
+    } catch (failure) {
+      // Explicit network/config/rate-limit failures may still be shown.
+      const authCode = failure?.code;
+      if (authCode === 'auth/user-not-found' || authCode === 'auth/invalid-email') {
+        setNotice('Если адрес зарегистрирован, инструкция для восстановления будет отправлена. Проверьте почту, включая спам.');
+      } else {
+        setError(accountErrorMessage(failure));
+      }
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  };
+
+  const handleVerificationRequest = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      await requestEmailVerification();
+      setNotice('Запрос подтверждения создан. Проверьте почту. В Firebase Emulator ссылка появляется в терминале, а не в почтовом ящике.');
+    } catch (failure) {
+      setError(accountErrorMessage(failure));
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  };
+
+  const handleVerificationRefresh = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const current = await refreshVerificationStatus();
+      onAccountChanged?.(current);
+      setNotice(current.emailVerified
+        ? 'Email подтверждён.'
+        : 'Подтверждение пока не обнаружено. Откройте ссылку из письма и повторите проверку.');
+    } catch (failure) {
+      setError(accountErrorMessage(failure));
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -84,7 +151,31 @@ export default function AccountAccess({
             : 'Сохраните доступ к своим записям на разных устройствах. Регистрация привяжет текущий гостевой UID, не создавая новую историю.'}
         </p>
 
-        {linked ? (
+        {mode === 'recover' ? (
+          <form className="reflect-auth-form" onSubmit={handleResetRequest}>
+            <label htmlFor="reflect-recovery-email">Email для восстановления
+              <span className="reflect-auth-field"><Mail size={19} aria-hidden="true" />
+                <input id="reflect-recovery-email" type="email" autoComplete="email"
+                  required maxLength={254} value={email} disabled={busy}
+                  onChange={event => setEmail(event.target.value)}
+                  placeholder="name@example.com" />
+              </span>
+            </label>
+            <button className="reflect-auth-primary" disabled={busy} type="submit">
+              {busy ? 'Отправляем запрос…' : 'Запросить восстановление'}
+            </button>
+            <button type="button" disabled={busy} className="reflect-auth-secondary"
+              onClick={() => changeMode(linked ? 'register' : 'login')}>
+              {linked ? 'Вернуться к аккаунту' : 'Вернуться ко входу'}
+            </button>
+            <p className="reflect-auth-notice">
+              В локальном Firebase Emulator настоящие письма не отправляются:
+              тестовые ссылки появляются в терминале Auth Emulator.
+              Для реального восстановления нужен доступ к подтверждённому email
+              в постоянной Firebase-среде.
+            </p>
+          </form>
+        ) : linked ? (
           <div className="reflect-auth-form">
             <div className="reflect-auth-identity">
               <ShieldCheck size={20} aria-hidden="true" />
@@ -97,6 +188,19 @@ export default function AccountAccess({
                 <ArrowRight size={19} aria-hidden="true" />
               </button>
             )}
+            <p className="reflect-auth-identity-state">
+              {user.emailVerified ? 'Email подтверждён' : 'Email ещё не подтверждён'}
+            </p>
+            {!user.emailVerified && (
+              <div className="reflect-auth-action-row">
+                <button type="button" className="reflect-auth-secondary" disabled={busy}
+                  onClick={handleVerificationRequest}>Отправить подтверждение email</button>
+                <button type="button" className="reflect-auth-secondary" disabled={busy}
+                  onClick={handleVerificationRefresh}>Проверить подтверждение</button>
+              </div>
+            )}
+            <button type="button" className="reflect-auth-secondary" disabled={busy}
+              onClick={() => changeMode('recover')}>Восстановить пароль</button>
             <button type="button" className="reflect-auth-secondary" disabled={busy}
               onClick={handleSignOut}>Выйти из аккаунта</button>
             <p className="reflect-auth-notice">При выходе ваши записи не удаляются. Для следующего входа понадобится пароль.</p>
@@ -140,6 +244,10 @@ export default function AccountAccess({
                 {busy ? 'Проверяем…' : mode === 'register' ? 'Создать аккаунт' : 'Войти'}
                 {!busy && <ArrowRight size={19} aria-hidden="true" />}
               </button>
+              {mode === 'login' && (
+                <button type="button" className="reflect-auth-textbutton" disabled={busy}
+                  onClick={() => changeMode('recover')}>Забыли пароль?</button>
+              )}
               <p className="reflect-auth-notice">
                 {mode === 'register'
                   ? 'Мы привяжем email к текущему UID. Пароль обрабатывает Firebase Authentication — в дневнике он не хранится.'
@@ -149,7 +257,11 @@ export default function AccountAccess({
           </>
         )}
 
-        {welcome && !linked && (
+        {error && mode === 'recover' && (
+          <p className="reflect-auth-error" role="alert">{error}</p>
+        )}
+        {notice && <p className="reflect-auth-notice" role="status">{notice}</p>}
+        {welcome && !linked && mode !== 'recover' && (
           <button type="button" className="reflect-auth-guest" disabled={busy}
             onClick={onGuest}><UserRound size={17} aria-hidden="true" />
             Продолжить без регистрации
