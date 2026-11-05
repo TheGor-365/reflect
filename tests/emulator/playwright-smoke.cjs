@@ -115,6 +115,26 @@ async function runBrowserSuite() {
     if (await uidInSidebar(first) !== firstUid) {
       throw new Error("Email linking changed the existing anonymous UID");
     }
+    const linkedInfo = await first.evaluate(async () => {
+      const { auth } = await import("/src/firebase/config.js");
+      return {
+        hasEmail: Boolean(auth.currentUser?.email),
+        isAnonymous: auth.currentUser?.isAnonymous,
+        providerIds: (auth.currentUser?.providerData || []).map(p => p.providerId)
+      };
+    });
+    const listUsers = await fetch(
+      "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/projects/demo-reflect-auth-qa/accounts:batchGet?maxResults=100"
+    );
+    const userList = await listUsers.json();
+    const serverUser = Array.isArray(userList.users)
+      ? userList.users.find(item => item.localId === firstUid) : null;
+    console.log("SYNTHETIC_LINK_DIAGNOSTICS:", JSON.stringify({
+      client: linkedInfo,
+      server: { responseOk: listUsers.ok, found: Boolean(serverUser),
+        hasEmail: Boolean(serverUser?.email), hasPasswordHash: Boolean(serverUser?.passwordHash),
+        providers: (serverUser?.providerUserInfo || []).map(p => p.providerId) }
+    }));
     console.log("PASS: email registration links the existing UID and journal");
 
     await first.reload({ waitUntil: "domcontentloaded" });
