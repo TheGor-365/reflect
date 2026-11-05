@@ -66,7 +66,7 @@ const Sidebar = ({
             <span className="reflect-profile-subtitle">Настройки профиля</span>
           </span>
         </button>
-        <button type="button" onClick={onAccountClick} className="reflect-account-link">
+        <button type="button" onClick={onAccountClick} className="reflect-account-link" aria-label="Аккаунт и вход">
           <ShieldCheck size={17} aria-hidden="true" />
           <span>Аккаунт и вход</span>
           <span className="reflect-account-state">{accountLabel}</span>
