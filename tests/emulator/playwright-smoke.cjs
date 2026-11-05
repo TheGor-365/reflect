@@ -111,47 +111,23 @@ async function runBrowserSuite() {
     await first.getByLabel("Email").fill("reflect-synthetic-alpha@example.test");
     await first.getByLabel("Пароль").fill("Synthetic-E2E-password-2026!");
     await first.getByRole("button", { name: "Создать аккаунт" }).click();
-    await first.waitForTimeout(1200);
-    const registrationAlerts = await first.getByRole("alert").allTextContents();
-    console.log("SYNTHETIC_REGISTER_ALERTS:", JSON.stringify(registrationAlerts));
-    const registeringUser = await first.evaluate(async () => {
+    // Never mistake a sidebar button visible UNDER a dialog for successful auth.
+    await first.getByRole("dialog").waitFor({ state: "hidden", timeout: 30000 });
+    const linkedUser = await first.evaluate(async () => {
       const { auth } = await import("/src/firebase/config.js");
-      return { isAnonymous: auth.currentUser?.isAnonymous,
-        hasEmail: Boolean(auth.currentUser?.email) };
-    });
-    if (registeringUser.isAnonymous || !registeringUser.hasEmail) {
-      throw new Error("Synthetic account linking not confirmed: " + registrationAlerts.join("; "));
-    }
-    await first.getByRole("dialog").waitFor({ state: "hidden" });
-    if (await uidInSidebar(first) !== firstUid) {
-      throw new Error("Email linking changed the existing anonymous UID");
-    }
-    const linkedInfo = await first.evaluate(async () => {
-      const { auth } = await import("/src/firebase/config.js");
-      return {
+      return { uid: auth.currentUser?.uid,
         hasEmail: Boolean(auth.currentUser?.email),
-        isAnonymous: auth.currentUser?.isAnonymous,
-        providerIds: (auth.currentUser?.providerData || []).map(p => p.providerId)
-      };
+        isAnonymous: auth.currentUser?.isAnonymous };
     });
-    const listUsers = await fetch(
-      "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/projects/demo-reflect-auth-qa/accounts:batchGet?maxResults=100"
-    );
-    const userList = await listUsers.json();
-    const serverUser = Array.isArray(userList.users)
-      ? userList.users.find(item => item.localId === firstUid) : null;
-    console.log("SYNTHETIC_LINK_DIAGNOSTICS:", JSON.stringify({
-      client: linkedInfo,
-      server: { responseOk: listUsers.ok, found: Boolean(serverUser),
-        hasEmail: Boolean(serverUser?.email), hasPasswordHash: Boolean(serverUser?.passwordHash),
-        providers: (serverUser?.providerUserInfo || []).map(p => p.providerId) }
-    }));
+    if (linkedUser.uid !== firstUid || linkedUser.isAnonymous || !linkedUser.hasEmail) {
+      throw new Error("Email registration did not preserve and upgrade the original UID");
+    }
     console.log("PASS: email registration links the existing UID and journal");
 
     await first.reload({ waitUntil: "domcontentloaded" });
     await first.getByRole("button", { name: "Synthetic Alpha" })
       .waitFor({ timeout: 30000 });
-    console.log("CHECKPOINT: first browser restored linked profile after reload");
+
     const afterReloadUid = await uidInSidebar(first);
     if (firstUid !== afterReloadUid) {
       throw new Error("UID changed after reload of the same browser context");
@@ -188,14 +164,7 @@ async function runBrowserSuite() {
     await third.getByLabel("Email").fill("reflect-synthetic-alpha@example.test");
     await third.getByLabel("Пароль").fill("Synthetic-E2E-password-2026!");
     await third.getByRole("button", { name: "Войти" }).click();
-    await third.waitForTimeout(1200);
-    const authDiagnostics = await third.evaluate(() => ({
-      dialogs: Array.from(document.querySelectorAll('[role="dialog"] h1')).map(x => x.textContent),
-      alerts: Array.from(document.querySelectorAll('[role="alert"]')).map(x => x.textContent),
-      name: document.querySelector('.reflect-profile-name')?.textContent || null,
-      onboarding: Boolean(document.querySelector('#name'))
-    }));
-    console.log("SYNTHETIC_AUTH_DIAGNOSTICS:", JSON.stringify(authDiagnostics));
+    await third.getByRole("dialog").waitFor({ state: "hidden", timeout: 30000 });
     await third.getByRole("button", { name: "Synthetic Alpha" })
       .waitFor({ timeout: 30000 });
     if (await uidInSidebar(third) !== firstUid) {
