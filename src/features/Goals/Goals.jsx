@@ -181,14 +181,18 @@ function GoalCard({ goal, userId, onAppend, onFeedback }) {
             <details>
               <summary>Размышления ({reflections.length})</summary>
               {reflections.map((reflection, index) => (
-                <p key={index} className="reflect-goal-reflection">{reflection.text}</p>
+                <p key={index} className="reflect-goal-reflection">{typeof reflection?.text === 'string' ? reflection.text : 'Запись без текста'}</p>
               ))}
             </details>
           )}
         </div>
       ) : (
         <div className="reflect-goal-subtasks">
-          {subItems.map((item, index) => (
+          {subItems.map((item, index) => (!item || typeof item !== 'object' || typeof item.text !== 'string') ? (
+            <p key={`malformed-${index}`} className="reflect-goal-error">
+              Не удалось прочитать подзадачу. Исходные данные не изменены.
+            </p>
+          ) : (
             <div key={item.id || `legacy-${index}`} className="reflect-goal-subtask">
               {editSub === (item.id || `legacy-${index}`) ? (
                 <form className="reflect-goal-subedit" onSubmit={event => {
