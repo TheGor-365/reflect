@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, signOut
+  EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, signOut,
+  sendPasswordResetEmail, sendEmailVerification, reload, confirmPasswordReset
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
 import {
   accountErrorMessage, normalizeEmail, registerCurrentAnonymous,
-  signInExisting, signOutRegistered
+  signInExisting, signOutRegistered, requestPasswordReset, requestEmailVerification,
+  refreshVerificationStatus, completePasswordReset
 } from './accountAccess';
 
 vi.mock('../firebase/config', () => ({ auth: { currentUser: null } }));
@@ -13,7 +15,9 @@ vi.mock('firebase/auth', () => ({
   EmailAuthProvider: { credential: vi.fn((email, password) => ({ email, password })) },
   linkWithCredential: vi.fn(),
   signInWithEmailAndPassword: vi.fn(),
-  signOut: vi.fn()
+  signOut: vi.fn(),
+  sendPasswordResetEmail: vi.fn(), sendEmailVerification: vi.fn(),
+  reload: vi.fn(), confirmPasswordReset: vi.fn()
 }));
 
 beforeEach(() => {
@@ -100,5 +104,55 @@ describe('Firebase account linking and sign-in safeguards', () => {
     expect(accountErrorMessage({ code: 'auth/internal-error', message: 'Firebase: opaque' }))
       .toContain('Не удалось');
     expect(accountErrorMessage(new Error('Введите пароль.'))).toBe('Введите пароль.');
+  });
+});
+
+
+describe('email verification and password recovery boundaries', () => {
+  it('requests recovery via Firebase without signing out, changing UID or saving a password', async () => {
+    const guest = auth.currentUser;
+    sendPasswordResetEmail.mockResolvedValue(undefined);
+    await requestPasswordReset('  QA@Example.TEST ');
+    expect(sendPasswordResetEmail).toHaveBeenCalledWith(auth, 'qa@example.test');
+    expect(auth.currentUser).toBe(guest);
+    expect(signOut).not.toHaveBeenCalled();
+    expect(signInWithEmailAndPassword).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed recovery email before sending', async () => {
+    await expect(requestPasswordReset('invalid-email')).rejects.toThrow('корректный email');
+    expect(sendPasswordResetEmail).not.toHaveBeenCalled();
+  });
+
+  it('allows verification only for registered, unverified users', async () => {
+    await expect(requestEmailVerification()).rejects.toThrow('зарегистрированный');
+    auth.currentUser = { uid: 'linked', email: 'qa@example.test',
+      isAnonymous: false, emailVerified: false };
+    sendEmailVerification.mockResolvedValue(undefined);
+    await requestEmailVerification();
+    expect(sendEmailVerification).toHaveBeenCalledWith(auth.currentUser);
+    auth.currentUser.emailVerified = true;
+    await requestEmailVerification();
+    expect(sendEmailVerification).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes verified state only for the same Firebase UID', async () => {
+    auth.currentUser = { uid: 'linked', email: 'qa@example.test',
+      isAnonymous: false, emailVerified: false };
+    reload.mockImplementationOnce(async () => { auth.currentUser.emailVerified = true; });
+    expect((await refreshVerificationStatus()).emailVerified).toBe(true);
+    expect(auth.currentUser.uid).toBe('linked');
+    reload.mockImplementationOnce(async () => { auth.currentUser = { uid: 'changed' }; });
+    await expect(refreshVerificationStatus()).rejects.toThrow('Изменился идентификатор');
+  });
+
+  it('confirms a reset code only with strong replacement password', async () => {
+    await expect(completePasswordReset('local-test-code', 'short'))
+      .rejects.toThrow('10 символов');
+    expect(confirmPasswordReset).not.toHaveBeenCalled();
+    confirmPasswordReset.mockResolvedValue(undefined);
+    await completePasswordReset('local-test-code', 'synthetic-new-strong-password');
+    expect(confirmPasswordReset).toHaveBeenCalledWith(
+      auth, 'local-test-code', 'synthetic-new-strong-password');
   });
 });
