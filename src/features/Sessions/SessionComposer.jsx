@@ -1,16 +1,18 @@
 import React, { useLayoutEffect, useRef } from 'react';
-import { ArrowUp, Mic, MicOff } from 'lucide-react';
+import { ArrowUp, BookOpenCheck, Mic, MicOff } from 'lucide-react';
+import SaveFeedback from '../../components/common/SaveFeedback';
 
 /**
- * Composes long, multi-paragraph reflections without collapsing the input
- * into a single line. This component never writes to Firestore on its own.
- * The parent controls whether AI-backed sending is actually available.
+ * A bottom-of-chat multiline composer. All content remains controlled by the
+ * parent; no hidden browser storage, external AI call, or Firestore write.
  */
 const SessionComposer = ({
   value,
   onChange,
   onSubmit,
   onToggleRecording,
+  onSaveToDiary,
+  diarySaveStatus = 'idle',
   isLoading = false,
   isRecording = false,
   error = '',
@@ -18,14 +20,15 @@ const SessionComposer = ({
 }) => {
   const textareaRef = useRef(null);
   const sendButtonRef = useRef(null);
-  const canSend = aiAvailable && !isLoading && Boolean(value.trim());
+  const canSend = aiAvailable && !isLoading && diarySaveStatus !== 'saving' && Boolean(value.trim());
+  const canSave = Boolean(onSaveToDiary) && Boolean(value.trim()) && diarySaveStatus !== 'saving' && !isLoading;
 
   useLayoutEffect(() => {
     const field = textareaRef.current;
     if (!field) return;
     field.style.height = 'auto';
     const contentHeight = field.scrollHeight;
-    field.style.height = `${Math.min(280, Math.max(112, contentHeight))}px`;
+    field.style.height = `${Math.min(280, Math.max(72, contentHeight))}px`;
     field.style.overflowY = contentHeight > 280 ? 'auto' : 'hidden';
   }, [value]);
 
@@ -38,15 +41,6 @@ const SessionComposer = ({
 
   return (
     <section className="reflect-session-composer" aria-label="Поле ввода для сеанса">
-      <div className="reflect-session-composer-heading">
-        <div>
-          <p className="reflect-session-composer-label">Ваша история</p>
-          <p className="reflect-session-composer-subtitle">Пишите свободно, в несколько абзацев</p>
-        </div>
-        <span className={`reflect-session-composer-status ${aiAvailable ? 'reflect-session-composer-status--available' : ''}`}>
-          {aiAvailable ? 'Готов к отправке' : 'ИИ пока недоступен'}
-        </span>
-      </div>
       {error && <p className="reflect-session-error" role="alert">{error}</p>}
       <form className="reflect-session-composer-form" onSubmit={onSubmit}>
         <label className="sr-only" htmlFor="reflect-session-message">Сообщение для сеанса</label>
@@ -57,34 +51,44 @@ const SessionComposer = ({
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={handleKeyDown}
           aria-describedby="reflect-session-message-hint"
-          placeholder="Что произошло? Какие мысли или чувства хочется обсудить? Можно написать подробно…"
-          rows={4}
+          placeholder="Опишите ситуацию, мысль или чувство…"
+          rows={2}
           className="reflect-session-textarea"
           spellCheck={true}
-          disabled={isLoading}
+          disabled={isLoading || diarySaveStatus === 'saving'}
         />
         <div className="reflect-session-composer-footer">
           <p id="reflect-session-message-hint" className="reflect-session-composer-hint">
             {aiAvailable
-              ? 'Enter — перенос строки · Ctrl+Enter — отправить'
-              : 'ИИ-сеансы отключены до подключения защищённого API. Введённый текст пока не сохраняется автоматически.'}
+              ? 'Enter — новая строка · Ctrl+Enter — отправить'
+              : 'ИИ временно отключён. Текст не сохраняется автоматически — используйте кнопку «В дневник».'}
           </p>
           <div className="reflect-session-composer-controls">
+            {onSaveToDiary && (
+              <button type="button" onClick={onSaveToDiary} disabled={!canSave}
+                className="reflect-session-save-note"
+                aria-label="Сохранить текст в дневник">
+                <BookOpenCheck size={18} aria-hidden="true" />
+                <span>{diarySaveStatus === 'saving' ? 'Сохраняется…' : 'В дневник'}</span>
+              </button>
+            )}
             <button type="button" onClick={onToggleRecording}
               className={`reflect-session-control reflect-session-record ${isRecording ? 'reflect-session-record--on' : ''}`}
               aria-label={isRecording ? 'Остановить диктовку' : 'Начать диктовку'}
               title={isRecording ? 'Остановить диктовку' : 'Начать диктовку'}
+              disabled={diarySaveStatus === 'saving'}
             >
               {isRecording ? <MicOff size={20} aria-hidden="true" /> : <Mic size={20} aria-hidden="true" />}
             </button>
             <button type="submit" ref={sendButtonRef} disabled={!canSend}
               className="reflect-session-control reflect-session-send"
-              aria-label="Отправить сообщение" title="Отправить сообщение">
+              aria-label="Отправить сообщение" title={aiAvailable ? 'Отправить сообщение' : 'ИИ пока недоступен'}>
               <ArrowUp size={22} aria-hidden="true" />
             </button>
           </div>
         </div>
       </form>
+      <SaveFeedback status={diarySaveStatus} />
     </section>
   );
 };

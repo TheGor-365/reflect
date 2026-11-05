@@ -157,6 +157,50 @@ async function runBrowserSuite() {
     if (horizontalOverflow > 2) {
       throw new Error("390px mobile viewport has horizontal page overflow: " + horizontalOverflow);
     }
+    // Stage 02B3: mobile chat composer must sit above the dock and grow
+    // while preserving line breaks; use synthetic text only.
+    await dock.getByRole("button", { name: "Новый сеанс" }).click();
+    await first.getByRole("heading", { name: "Новый сеанс" }).waitFor();
+    const composer = first.getByRole("textbox", { name: "Сообщение для сеанса" });
+    if (await composer.evaluate(el => el.tagName) !== "TEXTAREA") {
+      throw new Error("Session composer is not a multiline textarea");
+    }
+    const syntheticReflection = "Synthetic session reflection " +
+      "expanded text ".repeat(85) + "\nSecond synthetic paragraph";
+    await composer.fill(syntheticReflection);
+    const chatGeometry = await first.evaluate(() => {
+      const input = document.querySelector(".reflect-session-textarea");
+      const panel = document.querySelector(".reflect-session-compose-dock");
+      const dockElement = document.querySelector(".reflect-mobile-dock");
+      return {
+        inputHeight: input.getBoundingClientRect().height,
+        composerBottom: panel.getBoundingClientRect().bottom,
+        dockTop: dockElement.getBoundingClientRect().top,
+        inputScrollHeight: input.scrollHeight,
+        inputClientHeight: input.clientHeight
+      };
+    });
+    if (chatGeometry.inputHeight <= 72 || chatGeometry.inputHeight > 281) {
+      throw new Error("Session textarea did not grow/cap at 280px");
+    }
+    if (chatGeometry.composerBottom > chatGeometry.dockTop + 3) {
+      throw new Error("Session composer overlaps mobile bottom navigation");
+    }
+    if (await first.getByRole("button", { name: "Отправить сообщение" }).isEnabled()) {
+      throw new Error("AI send is unexpectedly enabled without secure backend");
+    }
+    await first.getByRole("button", { name: "Сохранить текст в дневник" }).click();
+    await first.getByRole("status").getByText("Сохранено").waitFor({ timeout: 30000 });
+    await dock.getByRole("button", { name: "Дневник" }).click();
+    await first.getByText("Synthetic session reflection", { exact: false }).first()
+      .waitFor({ timeout: 30000 });
+    await second.reload({ waitUntil: "domcontentloaded" });
+    await second.getByRole("button", { name: "Synthetic Beta" }).waitFor({ timeout: 30000 });
+    if (await second.getByText("Synthetic session reflection", { exact: false }).count()) {
+      throw new Error("A second browser can see the first user's saved chat note");
+    }
+    console.log("PASS: 390px bottom chat textarea grows, stays above dock, and saves only to owner's journal");
+
     // Continue legacy UID/profile persistence assertions on desktop, where
     // sidebar controls are intentionally visible without opening the drawer.
     await first.setViewportSize({ width: 1280, height: 720 });

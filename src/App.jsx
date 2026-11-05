@@ -250,6 +250,7 @@ export default function App() {
           userId={userId}
           currentSessionId={currentSessionId}
           setCurrentSessionId={setCurrentSessionId}
+          onStartNewSession={handleNewSession}
         />;
       default:
           return <Diary />;
@@ -285,7 +286,7 @@ export default function App() {
           theme={theme}
           onToggleTheme={() => setTheme(current => current === 'dark' ? 'light' : 'dark')}
         />
-        <main className="reflect-main reflect-workspace" id="reflect-main" tabIndex={-1}>
+        <main className={`reflect-main reflect-workspace ${activeTab === 'sessions' ? 'reflect-main--sessions' : ''}`} id="reflect-main" tabIndex={-1}>
           {renderActiveTab()}
         </main>
       </div>
