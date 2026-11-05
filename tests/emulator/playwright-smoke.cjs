@@ -62,6 +62,10 @@ function protectBrowser(context) {
 }
 
 async function profile(page, name) {
+  // A first-time guest explicitly chooses whether to link an email.
+  await page.getByRole("button", { name: "Продолжить без регистрации" })
+    .waitFor({ timeout: 30000 });
+  await page.getByRole("button", { name: "Продолжить без регистрации" }).click();
   await page.getByText("Добро пожаловать!").waitFor({ timeout: 30000 });
   await page.locator("#name").fill(name);
   await page.locator("#age").fill("30");
@@ -100,6 +104,17 @@ async function runBrowserSuite() {
       .filter({ hasText: "Synthetic alpha journal entry" }).first()
       .waitFor({ timeout: 30000 });
 
+    // Upgrade the EXISTING user instead of creating a different UID.
+    await first.getByRole("button", { name: "Аккаунт и вход" }).click();
+    await first.getByLabel("Email").fill("reflect-synthetic-alpha@example.test");
+    await first.getByLabel("Пароль").fill("Synthetic-E2E-password-2026!");
+    await first.getByRole("button", { name: "Создать аккаунт" }).click();
+    await first.getByRole("button", { name: "Synthetic Alpha" }).waitFor();
+    if (await uidInSidebar(first) !== firstUid) {
+      throw new Error("Email linking changed the existing anonymous UID");
+    }
+    console.log("PASS: email registration links the existing UID and journal");
+
     await first.reload({ waitUntil: "domcontentloaded" });
     await first.getByRole("button", { name: "Synthetic Alpha" })
       .waitFor({ timeout: 30000 });
@@ -127,6 +142,28 @@ async function runBrowserSuite() {
     if (await second.getByText("Synthetic alpha journal entry", { exact: true }).count()) {
       throw new Error("Synthetic Beta can see Synthetic Alpha's journal");
     }
+
+    // A distinct browser signs in to the linked account and reads its
+    // previous profile/diary, without merging into or seeing Beta's data.
+    const thirdContext = await browser.newContext();
+    await protectBrowser(thirdContext);
+    const third = await thirdContext.newPage();
+    await third.goto(BASE, { waitUntil: "domcontentloaded" });
+    await third.getByRole("button", { name: "Вход" }).waitFor({ timeout: 30000 });
+    await third.getByRole("button", { name: "Вход" }).click();
+    await third.getByLabel("Email").fill("reflect-synthetic-alpha@example.test");
+    await third.getByLabel("Пароль").fill("Synthetic-E2E-password-2026!");
+    await third.getByRole("button", { name: "Войти" }).click();
+    await third.getByRole("button", { name: "Synthetic Alpha" })
+      .waitFor({ timeout: 30000 });
+    if (await uidInSidebar(third) !== firstUid) {
+      throw new Error("Second browser email sign-in did not restore the same UID");
+    }
+    await third.locator(".reflect-journal-card p.whitespace-pre-wrap")
+      .filter({ hasText: "Synthetic alpha journal entry" }).first()
+      .waitFor({ timeout: 30000 });
+    await thirdContext.close();
+    console.log("PASS: linked account signs in from another browser and restores journal");
 
     // Real mobile UI behavior, entirely against synthetic Firebase emulators.
     await first.setViewportSize({ width: 390, height: 844 });
