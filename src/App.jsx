@@ -171,11 +171,9 @@ export default function App() {
     const entryRef = doc(db, `artifacts/${appId}/users/${userId}/${collectionName}`, entryId);
     const newSubEntry = { text, createdAt: Timestamp.now() };
     
+    // Writing a reflection is NOT evidence that the entire goal was
+    // completed. Completion is an explicit action on the Goals board.
     const updatePayload = { [fieldToUpdate]: arrayUnion(newSubEntry) };
-    if (isGoal) {
-      updatePayload.completed = true;
-    }
-
     await updateDoc(entryRef, updatePayload);
 
     setReflectionGoal(null);

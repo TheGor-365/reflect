@@ -194,3 +194,36 @@ A blocked external `https://www.google.com` image attempt occurred intermittentl
 3. Once PR #12 exact-head CI and owner QA pass: resume Stage 02C Goals (immutable nested steps, status, date handling, write feedback); do not deploy production. Create a separate staging Firebase project and email verification/recovery before any release.
 
 **Hard limits:** No production Firebase Auth, real user data, provider settings, Vercel, main, billing or private encrypted backup modifications. Current QA emulator state is ephemeral unless explicitly exported and restored to a private local directory.
+
+## 11. Continuation checkpoint — Stage 02C goals and onboarding fix (2026-11-06)
+
+**Owner-reported bug, verified against screenshots:** after successfully registering with synthetic local Firebase Auth, the first-time Welcome AccountAccess remained as a linked-account card with neither close control nor an obvious continuation. The owner should NOT sign out just to escape this screen. The original registration flow omitted `onClose` on first-time onboarding and hid the close button when `welcome === true`. This was not a Firebase persistence failure.
+
+**Fixed on stacked PR #12:** https://github.com/TheGor-365/reflect/pull/12, HEAD `91adb4aafc7712442fab0e3b177ac2c51da08d5c`.
+- On successful same-UID `linkWithCredential`, App advances to the profile form immediately without awaiting another auth-state event.
+- Linked account welcome has visible **Продолжить к профилю** and **Закрыть** controls.
+- Added component/App regression tests and isolated Chromium E2E for first-time email registration → profile → saved profile → journal. All three workflows SUCCESS on `91adb4a`.
+- Owner has NOT yet visually accepted this updated flow locally. The screenshot of linked account without close control predates this fix.
+
+**Next stacked Draft PR #13:** https://github.com/TheGor-365/reflect/pull/13
+Branch `work/reflect-goals-workspace-2026-11-06`, base PR #12 branch `work/reflect-account-access-2026-11-06`. **Functional QA HEAD before docs:** `36e75d1e1ddf40cc66766acdc8525b9894db480e`.
+- Status board (in work / paused / completed) and real x/y subtask progress. No inferred mental-health metrics.
+- New goal requires title only; description, deadline, checklist are optional. New deadline is stored as explicit date-only `dueDay` and legacy-compatible local-noon Firestore Timestamp. Existing legacy `dueDate`, `date`, `completed` and `sessionTitle` records render unchanged; sessionId stays linked. No bulk Firestore migration.
+- Create, edit, delete goals and nested subtask add/edit/toggle/delete. Explicit delete confirmation; all changes limited to current UID. New goals use stable document IDs to avoid duplicates after ambiguous writes; subtask writes and field edits are transactional, immutable and check for stale concurrent edits. No optimistic false save success. UI shows pending/saved/error and retains failed form contents.
+- Reflections in diary no longer silently mark goals complete; completion requires explicit user action.
+- Responsive Midnight Aurora goal cards and typed synthetic tests.
+- On functional HEAD `36e75d1`: **97/97 Vitest tests** across 16 files, strict TypeScript, Vite build, locked Vite CI and demo-only Chromium Auth/Firestore QA all PASS.
+  - TypeScript / 97 tests / build: https://github.com/TheGor-365/reflect/actions/runs/42124654757
+  - Locked Vite foundation: https://github.com/TheGor-365/reflect/actions/runs/42124654882
+  - Demo-only Chromium: https://github.com/TheGor-365/reflect/actions/runs/42124654850
+- Chromium verified login/linking, first-time onboarding, deadline-free goal creation, subtask completion, paused status and reload persistence, Beta's inability to see Alpha's goal, 390px mobile navigation and session composer. **No real production Firestore records were modified.**
+- A third-party `www.google.com` image request intermittently occurs during synthetic Auth. QA aborts all such requests and flags a privacy/release warning; source/provenance remains unresolved. No whitelist or release waiver.
+- Goal release QA still pending: owner screenshots at desktop 1440 / mobile 390 / 320 in both themes; manual edit/delete, concurrency UX and screen-reader focus. Date crossing time zones, recovery, verification/password reset, privacy export/delete and isolated staging not complete.
+- Goal subtask reorder is optional and not implemented; no claim of Stage 02C fully signed off.
+
+**Recommended next owner actions (without repeating setup):**
+1. Leave local Firebase Emulator restore 18080 and QA 9099/18081 running. Stop only Vite on 3100 (`Ctrl+C` in its own terminal tab), NOT unrelated Node processes.
+2. In existing `~/reflect-chat-qa` (local untracked `.tool-versions` must be preserved), explicitly fetch `+refs/heads/work/reflect-goals-workspace-2026-11-06:refs/remotes/origin/work/reflect-goals-workspace-2026-11-06`, then create a local tracking branch from that ref and verify exact HEAD. Never use plain `git fetch origin <branch>` then assume `origin/<branch>` exists: that failed before.
+3. Restart Vite only with local `demo-reflect-auth-qa` `VITE_FIREBASE_CONFIG`, `VITE_APP_ID=reflect-8fdc8` and `VITE_USE_FIREBASE_EMULATORS=true`. Check linked-account modal can continue to profile, open Goals board, create a synthetic goal and save a subtask. Send desktop/mobile screenshots. No production or live-user acceptance implied.
+
+**Release invariants:** all PRs remain Draft, main stays `b3a72c240bd193e89346a0a5655861cc726f4d61`, Vercel/Firebase production unchanged. PR #13 depends on #12→#11→#10…; never merge out of order. Email verification, account recovery, Firestore Rules hardening, export/delete, staging and third-party request privacy remain release blockers.

@@ -286,6 +286,55 @@ async function runBrowserSuite() {
       .waitFor({ timeout: 30000 });
 
 
+    // Stage 02C: create a goal without a deadline, add a task, persist
+    // progress/status, reload and prove it is invisible to another UID.
+    await first.locator(".reflect-side-nav")
+      .getByRole("button", { name: "Цели" }).click();
+    await first.getByRole("heading", { name: "Ваши цели" }).waitFor();
+    await first.getByLabel("Название цели").fill("Synthetic goal without deadline");
+    await first.getByRole("button", { name: "Создать цель" }).click();
+    const goalCard = first.locator(".reflect-goal-card")
+      .filter({ hasText: "Synthetic goal without deadline" });
+    await goalCard.waitFor({ timeout: 30000 });
+    if (!await goalCard.getByText("Без срока").count()) {
+      throw new Error("Deadline-free goal did not render without fake date");
+    }
+    await goalCard.getByRole("textbox", { name: "Новая подзадача" })
+      .fill("Synthetic task for progress");
+    await goalCard.getByRole("button", { name: "Добавить подзадачу" }).click();
+    await goalCard.getByRole("checkbox", { name: "Synthetic task for progress" })
+      .waitFor({ timeout: 30000 });
+    // No false optimistic checkbox state: click then await the Firestore
+    // snapshot/transaction acknowledgment before claiming completion.
+    await goalCard.getByRole("checkbox", { name: "Synthetic task for progress" }).click();
+    await goalCard.locator('[role="progressbar"][aria-valuenow="100"]')
+      .waitFor({ timeout: 30000 });
+    await goalCard.getByRole("button", { name: "На паузе" }).click();
+    await goalCard.getByRole("button", { name: "На паузе", pressed: true })
+      .waitFor({ timeout: 30000 });
+    await first.reload({ waitUntil: "domcontentloaded" });
+    await first.locator(".reflect-side-nav")
+      .getByRole("button", { name: "Цели" }).click();
+    const restoredGoal = first.locator(".reflect-goal-card")
+      .filter({ hasText: "Synthetic goal without deadline" });
+    await restoredGoal.waitFor({ timeout: 30000 });
+    await restoredGoal.getByRole("checkbox", { name: "Synthetic task for progress" })
+      .waitFor({ timeout: 30000 });
+    if (!await restoredGoal.getByRole("checkbox", { name: "Synthetic task for progress" }).isChecked()) {
+      throw new Error("Goal step completion vanished on reload");
+    }
+    if (await restoredGoal.getByRole("button", { name: "На паузе" })
+      .getAttribute("aria-pressed") !== "true") {
+      throw new Error("Goal pause status was not restored");
+    }
+    await second.locator(".reflect-side-nav")
+      .getByRole("button", { name: "Цели" }).click();
+    await second.getByRole("heading", { name: "Ваши цели" }).waitFor();
+    if (await second.getByText("Synthetic goal without deadline").count()) {
+      throw new Error("Beta saw Alpha's private goal");
+    }
+    console.log("PASS: deadline-free goal, task progress, paused status and UID isolation survive reload");
+
     // Registration before the profile exists must hand off to profile
     // onboarding; no fixed "Your account" dialog can intercept the flow.
     const freshContext = await browser.newContext();
