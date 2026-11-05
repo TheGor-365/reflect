@@ -14,7 +14,7 @@ describe('schema-preserving diary event timeline', () => {
     const events = buildDiaryTimeline({
       moods: [{ id: 'm1', mood: 'content', createdAt: ts('2026-11-04T21:00:00Z') }]
     });
-    expect(groupDiaryTimeline(events, 'Asia/Yerevan')[0].key).toBe('2026-11-05');
+    expect(groupDiaryTimeline(events, 'Asia/Yerevan')[0]!.key).toBe('2026-11-05');
   });
 
   it('uses timezone-aware calendar components through DST transitions', () => {
@@ -30,7 +30,7 @@ describe('schema-preserving diary event timeline', () => {
       goals: [{ id: 'g1', sessionId: 's1', text: 'Цель', createdAt: ts('2026-11-04T09:00:00Z') }]
     });
     expect(events.map(e => e.eventKey)).toEqual(['goal:g1', 'session:s1']);
-    expect(events[0].parentSessionId).toBe('s1');
+    expect(events[0]!.parentSessionId).toBe('s1');
     expect(groupDiaryTimeline(events, 'Asia/Yerevan').map(g => g.key))
       .toEqual(['2026-11-04', '2026-11-01']);
   });
@@ -46,9 +46,9 @@ describe('schema-preserving diary event timeline', () => {
     const events = buildDiaryTimeline({ diaryNotes: [note] });
     expect(events.map(e => e.eventKey))
       .toEqual(['note:n1:entry:1', 'note:n1:entry:0']);
-    expect(events[0].data.entries).toEqual([entries[1]]);
-    expect(events[0].isAppend).toBe(true);
-    expect(events[0].sourceId).toBe('n1');
+    expect(events[0]!.data.entries).toEqual([entries[1]]);
+    expect(events[0]!.isAppend).toBe(true);
+    expect(events[0]!.sourceId).toBe('n1');
     expect(JSON.stringify(note)).toBe(source);
   });
 
@@ -60,9 +60,9 @@ describe('schema-preserving diary event timeline', () => {
       }]
     });
     expect(events).toHaveLength(2);
-    expect(events[0].eventKey).toBe('goal:g1:reflection:0');
-    expect(events[0].data.reflections).toHaveLength(1);
-    expect(events[1].data.reflections).toHaveLength(0);
+    expect(events[0]!.eventKey).toBe('goal:g1:reflection:0');
+    expect(events[0]!.data.reflections).toHaveLength(1);
+    expect(events[1]!.data.reflections).toHaveLength(0);
   });
 
   it('retains undated and pending events in an explicit last group', () => {
@@ -72,9 +72,9 @@ describe('schema-preserving diary event timeline', () => {
     });
     const groups = groupDiaryTimeline(events, 'Asia/Yerevan');
     expect(groups).toHaveLength(2);
-    expect(groups[1].key).toBe('undated');
-    expect(groups[1].entries[0].isPending).toBe(true);
-    expect(groups[1].title).toContain('Без даты');
+    expect(groups[1]!.key).toBe('undated');
+    expect(groups[1]!.entries[0]!.isPending).toBe(true);
+    expect(groups[1]!.title).toContain('Без даты');
   });
 
   it('orders timestamp ties deterministically by stable event key', () => {
@@ -123,7 +123,7 @@ describe('schema-preserving diary event timeline', () => {
       diaryNotes: [{ id: 'n', entries: [null, { text: 'Без даты' }] }]
     });
     expect(events).toHaveLength(3);
-    expect(groupDiaryTimeline(events)[0].key).toBe('undated');
+    expect(groupDiaryTimeline(events)[0]!.key).toBe('undated');
   });
 
   it('preserves read-only input objects, including frozen nested arrays', () => {
@@ -133,7 +133,7 @@ describe('schema-preserving diary event timeline', () => {
     const items = Object.freeze([first]);
     const note = Object.freeze({ id: 'n1', entries: items, title: 'Заголовок' });
     const events = buildDiaryTimeline({ diaryNotes: [note] });
-    expect(events[0].data.entries).toEqual([first]);
+    expect(events[0]!.data.entries).toEqual([first]);
     expect(note.entries).toBe(items);
   });
 });
