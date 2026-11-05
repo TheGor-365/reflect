@@ -111,7 +111,18 @@ async function runBrowserSuite() {
     await first.getByLabel("Email").fill("reflect-synthetic-alpha@example.test");
     await first.getByLabel("Пароль").fill("Synthetic-E2E-password-2026!");
     await first.getByRole("button", { name: "Создать аккаунт" }).click();
-    await first.getByRole("button", { name: "Synthetic Alpha" }).waitFor();
+    await first.waitForTimeout(1200);
+    const registrationAlerts = await first.getByRole("alert").allTextContents();
+    console.log("SYNTHETIC_REGISTER_ALERTS:", JSON.stringify(registrationAlerts));
+    const registeringUser = await first.evaluate(async () => {
+      const { auth } = await import("/src/firebase/config.js");
+      return { isAnonymous: auth.currentUser?.isAnonymous,
+        hasEmail: Boolean(auth.currentUser?.email) };
+    });
+    if (registeringUser.isAnonymous || !registeringUser.hasEmail) {
+      throw new Error("Synthetic account linking not confirmed: " + registrationAlerts.join("; "));
+    }
+    await first.getByRole("dialog").waitFor({ state: "hidden" });
     if (await uidInSidebar(first) !== firstUid) {
       throw new Error("Email linking changed the existing anonymous UID");
     }
