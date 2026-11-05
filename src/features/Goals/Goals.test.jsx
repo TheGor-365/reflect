@@ -53,7 +53,7 @@ test('checked subtask uses absolute transaction update and only backend-verified
   const checkbox = screen.getByRole('checkbox', { name: 'Второй шаг' });
   fireEvent.click(checkbox);
   await waitFor(() => expect(updateGoal).toHaveBeenCalledWith('synthetic-uid', 'g1', {
-    kind: 'toggleSubtask', target: { id: 'b' }, completed: true
+    kind: 'toggleSubtask', target: { id: 'b', text: 'Второй шаг' }, completed: true
   }));
   expect(onFeedback).not.toHaveBeenCalled();
   expect(checkbox).not.toBeChecked();
@@ -86,4 +86,14 @@ test('goal delete requires explicit confirmation', async () => {
   } finally {
     window.confirm = oldConfirm;
   }
+});
+
+test('malformed legacy subtask is visible as a warning without UI crash', () => {
+  render(<Goals userId="synthetic-uid" goals={[{
+    ...goal, id: 'malformed', subItems: [null, { text: 'Сохранившийся шаг', completed: false }]
+  }]} />);
+  expect(screen.getByText('Не удалось прочитать подзадачу. Исходные данные не изменены.'))
+    .toBeInTheDocument();
+  expect(screen.getByRole('checkbox', { name: 'Сохранившийся шаг' }))
+    .not.toBeChecked();
 });
