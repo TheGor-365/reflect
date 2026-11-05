@@ -14,7 +14,9 @@ vi.mock('firebase/firestore', () => {
     Timestamp: { now: vi.fn(() => ({ kind: 'clientTime' })) }
   };
 });
-vi.mock('./DiaryNarrativeCard', () => ({ default: () => null }));
+vi.mock('./DiaryNarrativeCard', () => ({
+  default: ({ entry }) => <div data-testid="diary-timeline-event">{entry.eventKey}</div>
+}));
 
 const renderDiary = () => render(
   <Diary userId="synthetic-owner" sessions={[]} goals={[]} moods={[]} diaryNotes={[]}
@@ -106,4 +108,45 @@ test('mood error preserves rating and comment; retry keeps one document', async 
   expect(setDoc.mock.calls[1][1]).toEqual(expect.objectContaining({
     mood: 'happy', intensity: 4, comment: 'Спокойный тестовый день'
   }));
+});
+
+
+test('in-memory timeline filters events without sending a search request', () => {
+  const createdAt = { toDate: () => new Date('2026-11-05T09:00:00Z') };
+  render(
+    <Diary userId="synthetic-owner" sessions={[]} goals={[]}
+      moods={[{ id: 'mood-1', comment: 'Нейтрально', createdAt }]}
+      diaryNotes={[{ id: 'note-1', title: 'Личные мысли',
+        entries: [{ text: 'Утреннее размышление', createdAt }] }]}
+      isLoading={false} onAppend={vi.fn()} />
+  );
+  expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(2);
+  fireEvent.click(screen.getByRole('button', { name: 'Заметки' }));
+  expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(1);
+  expect(screen.getByTestId('diary-timeline-event')).toHaveTextContent('note:note-1:entry:0');
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Поиск по дневнику' }), {
+    target: { value: 'не найдено' }
+  });
+  expect(screen.queryByTestId('diary-timeline-event')).not.toBeInTheDocument();
+  expect(screen.getByText('По выбранным фильтрам ничего не найдено.')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Сбросить фильтры' }));
+  expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(2);
+});
+
+test('appended note text creates two timeline events on distinct dates', () => {
+  const ts = value => ({ toDate: () => new Date(value) });
+  render(
+    <Diary userId="synthetic-owner" sessions={[]} goals={[]} moods={[]}
+      diaryNotes={[{ id: 'note-long', title: 'Продолжение',
+        entries: [
+          { text: 'Первая часть', createdAt: ts('2026-11-01T08:00:00Z') },
+          { text: 'Продолжение позже', createdAt: ts('2026-11-05T08:00:00Z') }
+        ] }]}
+      isLoading={false} onAppend={vi.fn()} />
+  );
+  expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(2);
+  expect(screen.getAllByTestId('diary-timeline-event')[0])
+    .toHaveTextContent('note:note-long:entry:1');
+  expect(screen.getAllByTestId('diary-timeline-event')[1])
+    .toHaveTextContent('note:note-long:entry:0');
 });

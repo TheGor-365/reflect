@@ -3,7 +3,8 @@ import { Timestamp } from 'firebase/firestore';
 import { useEntrySave } from '../../hooks/useEntrySave';
 import SaveFeedback from '../../components/common/SaveFeedback';
 import DiaryNarrativeCard from './DiaryNarrativeCard';
-import { MessageSquare, Calendar } from 'lucide-react';
+import { Calendar, Search } from 'lucide-react';
+import { buildDiaryTimeline, filterDiaryTimeline, groupDiaryTimeline } from './diaryTimeline';
 
 const MOOD_OPTIONS = { happy: '😊', content: '😌', neutral: '😐', sad: '😟', anxious: '😰' };
 
@@ -12,6 +13,12 @@ const Diary = ({ sessions, goals, moods, diaryNotes, userId, onAppend, isLoading
   const [moodComment, setMoodComment] = useState('');
   const [newDiaryNote, setNewDiaryNote] = useState({ title: '', text: '' });
   const [noteTitlePlaceholder, setNoteTitlePlaceholder] = useState('');
+  // All filters run in memory on the current UID's already authorized snapshots.
+  // Search text is never persisted or sent to an external indexing provider.
+  const [entryKind, setEntryKind] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const moodSave = useEntrySave('moods', userId);
   const noteSave = useEntrySave('diaryNotes', userId);
 
@@ -26,49 +33,18 @@ const Diary = ({ sessions, goals, moods, diaryNotes, userId, onAppend, isLoading
     return () => clearInterval(interval);
   }, []);
 
-  const diaryGroups = useMemo(() => {
-    const goalMap = new Map();
-    goals.forEach(goal => {
-      const key = goal.sessionId || 'unassigned';
-      if (!goalMap.has(key)) goalMap.set(key, []);
-      goalMap.get(key).push({ id: goal.id, type: 'goal', createdAt: goal.createdAt, data: goal });
-    });
+  const timelineEvents = useMemo(
+    () => buildDiaryTimeline({ sessions, goals, moods, diaryNotes }),
+    [sessions, goals, moods, diaryNotes]
+  );
+  const visibleEvents = useMemo(
+    () => filterDiaryTimeline(timelineEvents, {
+      kind: entryKind, query: searchQuery, from: fromDate, to: toDate
+    }),
+    [timelineEvents, entryKind, searchQuery, fromDate, toDate]
+  );
+  const diaryGroups = useMemo(() => groupDiaryTimeline(visibleEvents), [visibleEvents]);
 
-    const sessionGroups = sessions.map(session => {
-      const sessionEntries = [
-        { id: session.id, type: 'session', createdAt: session.createdAt, data: session },
-        ...(goalMap.get(session.id) || [])
-      ];
-      sessionEntries.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
-      return { title: session.title, date: session.createdAt, entries: sessionEntries, isSessionGroup: true };
-    });
-
-    const unassignedEntries = [
-      ...(goalMap.get('unassigned') || []),
-      ...moods.map(m => ({ id: m.id, type: 'mood', createdAt: m.createdAt, data: m })),
-      ...diaryNotes.map(n => ({ id: n.id, type: 'note', createdAt: n.createdAt, data: n }))
-    ];
-
-    const unassignedGroupsMap = unassignedEntries.reduce((acc, entry) => {
-      if (!entry.createdAt?.toDate) return acc;
-      const dateKey = entry.createdAt.toDate().toISOString().split('T')[0];
-      if (!acc[dateKey]) {
-        const formattedDate = new Date(dateKey + 'T00:00:00Z').toLocaleDateString('ru-RU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
-        acc[dateKey] = { title: formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1), date: entry.createdAt, entries: [], isSessionGroup: false };
-      }
-      acc[dateKey].entries.push(entry);
-      return acc;
-    }, {});
-
-    const unassignedGroups = Object.values(unassignedGroupsMap).map(group => {
-      group.entries.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
-      return group;
-    });
-
-    const allGroups = [...sessionGroups, ...unassignedGroups];
-    allGroups.sort((a, b) => (b.date?.toMillis() || 0) - (a.date?.toMillis() || 0));
-    return allGroups;
-  }, [sessions, goals, moods, diaryNotes]);
 
   const handleSaveMood = async (e) => {
     e.preventDefault();
@@ -101,7 +77,7 @@ const Diary = ({ sessions, goals, moods, diaryNotes, userId, onAppend, isLoading
     <div>
       <h2 className="text-3xl font-bold text-stone-800 mb-6">Дневник</h2>
       <div className="bg-white p-6 rounded-xl shadow-md border border-stone-100 mb-8">
-        <h3 className="text-lg font-semibold text-stone-800 mb-4">Быстрая запись</h3>
+        <h3 className="text-lg font-semibold text-stone-800 mb-4">Сегодня</h3>
         <form onSubmit={handleSaveMood} className="mb-4">
             <div className="flex justify-around flex-wrap gap-2">
                 {Object.entries(MOOD_OPTIONS).map(([mood, emoji]) => (
@@ -116,7 +92,7 @@ const Diary = ({ sessions, goals, moods, diaryNotes, userId, onAppend, isLoading
                     <div className="flex justify-center items-center gap-2 mb-4">
                         {[1, 2, 3, 4, 5].map(intensity => (
                             <button type="button" key={intensity} onClick={() => { moodSave.clearFeedback(); setSelectedMood({...selectedMood, intensity: intensity}); }} disabled={moodSave.status === 'saving'} aria-label={`Интенсивность ${intensity} из 5`} aria-pressed={selectedMood.intensity === intensity} className={`p-1 rounded-full transition-all text-3xl ${selectedMood.intensity >= intensity ? 'opacity-100' : 'opacity-30'}`}>
-                                {MOOD_OPTIONS[selectedMood.type]}
+                                {intensity}
                             </button>
                         ))}
                     </div>
@@ -145,21 +121,59 @@ const Diary = ({ sessions, goals, moods, diaryNotes, userId, onAppend, isLoading
     </div>
 
     <div className="mt-8">
-        {diaryGroups.length === 0 && !isLoading && <p className="text-center text-stone-500 py-8">Записей пока нет.</p>}
+        <section className="reflect-journal-filters" aria-label="Фильтры дневника">
+          <label className="reflect-journal-search">
+            <Search size={18} aria-hidden="true" />
+            <span className="sr-only">Поиск по дневнику</span>
+            <input type="search" value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Поиск по своим записям" aria-label="Поиск по дневнику" />
+          </label>
+          <div className="reflect-journal-kind-list" role="group" aria-label="Тип записи">
+            {[
+              ['all', 'Все'], ['note', 'Заметки'], ['mood', 'Настроение'],
+              ['goal', 'Цели'], ['session', 'Сеансы']
+            ].map(([kind, title]) => (
+              <button type="button" key={kind} aria-pressed={entryKind === kind}
+                onClick={() => setEntryKind(kind)}
+                className="reflect-journal-kind">{title}</button>
+            ))}
+          </div>
+          <div className="reflect-journal-date-range">
+            <label>С даты
+              <input type="date" value={fromDate} max={toDate || undefined}
+                onChange={e => setFromDate(e.target.value)} />
+            </label>
+            <label>По дату
+              <input type="date" value={toDate} min={fromDate || undefined}
+                onChange={e => setToDate(e.target.value)} />
+            </label>
+            {(searchQuery || entryKind !== 'all' || fromDate || toDate) && (
+              <button type="button" className="reflect-journal-reset"
+                onClick={() => { setSearchQuery(''); setEntryKind('all'); setFromDate(''); setToDate(''); }}>
+                Сбросить фильтры
+              </button>
+            )}
+          </div>
+        </section>
+        {!isLoading && timelineEvents.length === 0 &&
+          <p className="text-center text-stone-500 py-8">Записей пока нет.</p>}
+        {!isLoading && timelineEvents.length > 0 && diaryGroups.length === 0 &&
+          <p className="text-center text-stone-500 py-8">По выбранным фильтрам ничего не найдено.</p>}
         <div className="space-y-10">
-          {diaryGroups.map((group, index) => (
-            <div key={group.title + index} className="relative animate-fade-in-up">
+          {diaryGroups.map(group => (
+            <div key={group.key} className="relative animate-fade-in-up">
               <div className="absolute top-3 left-4 -ml-px h-full w-0.5 bg-stone-200" aria-hidden="true"></div>
               <div className="relative pl-10">
                 <div className="absolute left-0 top-0">
                   <span className="h-8 w-8 rounded-full bg-teal-500 flex items-center justify-center ring-8 ring-stone-50">
-                    {group.isSessionGroup ? <MessageSquare className="w-4 h-4 text-white" /> : <Calendar className="w-4 h-4 text-white" />}
+                    <Calendar className="w-4 h-4 text-white" />
                   </span>
                 </div>
                 <h3 className="text-2xl font-bold text-stone-800 mb-6 pt-1 capitalize">{group.title}</h3>
                 <div className="space-y-6">
                   {group.entries.map(entry => (
-                    <DiaryNarrativeCard key={`${entry.type}-${entry.id}`} entry={entry} onAppend={onAppend} />
+                    <DiaryNarrativeCard key={entry.eventKey} entry={entry} onAppend={onAppend} />
                   ))}
                 </div>
               </div>
