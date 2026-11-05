@@ -60,12 +60,18 @@ function protectBrowser(context) {
       try { sourceOrigin = new URL(route.request().frame().url()).origin; }
       catch { /* Browser-level request without a page frame. */ }
       const attemptedOrigin = address.protocol + "//" + address.host;
+      // Diagnostic classification uses only fixed categories, never URL
+      // paths/queries (which might carry sensitive tokens in other contexts).
+      const category = address.pathname.startsWith("/recaptcha/") ? "recaptcha"
+        : address.pathname === "/favicon.ico" ? "favicon"
+        : address.pathname.startsWith("/gen_204") ? "browser-probe"
+        : "other";
       if (sourceOrigin === new URL(BASE).origin) {
-        unexpectedAppOrigins.add(attemptedOrigin);
+        unexpectedAppOrigins.add(attemptedOrigin + " [" + category + "]");
       }
       console.log("E2E blocked external request:", JSON.stringify({
         origin: attemptedOrigin, source: sourceOrigin,
-        type: route.request().resourceType()
+        category, type: route.request().resourceType()
       }));
     }
   });
