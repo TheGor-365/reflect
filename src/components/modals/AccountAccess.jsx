@@ -143,10 +143,12 @@ export default function AccountAccess({
         <div className="reflect-auth-mark" aria-hidden="true"><span>R</span></div>
         <p className="reflect-auth-eyebrow">REFLECT · ЛИЧНОЕ ПРОСТРАНСТВО</p>
         <h1 id="reflect-auth-title">
-          {linked ? 'Ваш аккаунт' : welcome ? 'Ваше пространство начинается здесь' : 'Защитите свой дневник'}
+          {mode === 'recover' ? 'Восстановление доступа' : linked ? 'Ваш аккаунт' : welcome ? 'Ваше пространство начинается здесь' : 'Защитите свой дневник'}
         </h1>
         <p id="reflect-auth-intro" className="reflect-auth-intro">
-          {linked
+          {mode === 'recover'
+            ? 'Запросите ссылку для смены пароля. Мы не будем переключать текущий аккаунт или изменять записи дневника.'
+            : linked
             ? 'Вход привязан к email. История дневника остаётся связанной с вашим UID.'
             : 'Сохраните доступ к своим записям на разных устройствах. Регистрация привяжет текущий гостевой UID, не создавая новую историю.'}
         </p>
