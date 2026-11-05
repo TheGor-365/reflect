@@ -1130,3 +1130,16 @@
   .reflect-goals-heading { gap: 11px; }
   .reflect-goals-icon { width: 44px; height: 44px; border-radius: 14px; }
 }
+
+/* Stage 03B — email recovery and verification, consistent with Midnight Aurora. */
+.reflect-auth-identity-state { color: var(--reflect-muted); font-size: 12px; line-height: 1.5; margin: 0; }
+.reflect-auth-action-row { display: grid; gap: 9px; }
+.reflect-auth-action-row .reflect-auth-secondary { text-align: center; }
+.reflect-auth-textbutton {
+  width: max-content; max-width: 100%; color: var(--reflect-accent);
+  font-weight: 700; font-size: 12px; padding: 8px 2px;
+  text-align: left; border-radius: 6px;
+}
+.reflect-auth-textbutton:hover { text-decoration: underline; }
+.reflect-auth-textbutton:focus-visible,
+.reflect-auth-secondary:focus-visible { outline: 2px solid var(--reflect-accent); outline-offset: 3px; }

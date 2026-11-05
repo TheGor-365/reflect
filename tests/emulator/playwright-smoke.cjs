@@ -357,6 +357,91 @@ async function runBrowserSuite() {
     await freshContext.close();
     console.log("PASS: new user can register before profile and reach journal");
 
+    // Recovery uses ONLY the local Auth Emulator OOB endpoint. Neither reset
+    // codes nor passwords are printed, persisted or sent to a live endpoint.
+    const recoveryContext = await browser.newContext();
+    await protectBrowser(recoveryContext);
+    const recoveryPage = await recoveryContext.newPage();
+    await recoveryPage.goto(BASE, { waitUntil: "domcontentloaded" });
+    await recoveryPage.getByRole("button", { name: "Вход" }).waitFor({ timeout: 30000 });
+    await recoveryPage.getByRole("button", { name: "Вход" }).click();
+    await recoveryPage.getByRole("button", { name: "Забыли пароль?" }).click();
+    await recoveryPage.getByLabel("Email для восстановления")
+      .fill("reflect-synthetic-alpha@example.test");
+    await recoveryPage.getByRole("button", { name: "Запросить восстановление" }).click();
+    await recoveryPage.getByRole("status")
+      .getByText("Если адрес зарегистрирован", { exact: false })
+      .waitFor({ timeout: 30000 });
+    const codesEndpoint =
+      "http://127.0.0.1:9099/emulator/v1/projects/demo-reflect-auth-qa/oobCodes";
+    const codesResponse = await fetch(codesEndpoint);
+    if (!codesResponse.ok) throw new Error("Auth Emulator OOB codes unavailable");
+    const codes = await codesResponse.json();
+    const resetCode = (codes.oobCodes || []).find(item =>
+      item.email === "reflect-synthetic-alpha@example.test" &&
+      item.requestType === "PASSWORD_RESET"
+    )?.oobCode;
+    if (!resetCode) throw new Error("Auth Emulator did not produce a password reset code");
+    await recoveryPage.evaluate(async code => {
+      const { completePasswordReset } = await import("/src/hooks/accountAccess.js");
+      await completePasswordReset(code, "Synthetic-Recovered-Password-2026!");
+    }, resetCode);
+
+    const recoveredContext = await browser.newContext();
+    await protectBrowser(recoveredContext);
+    const recovered = await recoveredContext.newPage();
+    await recovered.goto(BASE, { waitUntil: "domcontentloaded" });
+    await recovered.getByRole("button", { name: "Вход" }).waitFor({ timeout: 30000 });
+    await recovered.getByRole("button", { name: "Вход" }).click();
+    await recovered.getByLabel("Email").fill("reflect-synthetic-alpha@example.test");
+    await recovered.getByLabel("Пароль").fill("Synthetic-Recovered-Password-2026!");
+    await recovered.getByRole("button", { name: "Войти" }).click();
+    await recovered.getByRole("dialog").waitFor({ state: "hidden", timeout: 30000 });
+    await recovered.getByRole("button", { name: "Synthetic Alpha" })
+      .waitFor({ timeout: 30000 });
+    if (await uidInSidebar(recovered) !== firstUid) {
+      throw new Error("Password reset did not recover the original UID");
+    }
+    await recovered.locator(".reflect-journal-card p.whitespace-pre-wrap")
+      .filter({ hasText: "Synthetic alpha journal entry" }).first()
+      .waitFor({ timeout: 30000 });
+    console.log("PASS: password reset via local Auth Emulator restored same UID and journal");
+
+    await recovered.getByRole("button", { name: "Аккаунт и вход" }).click();
+    await recovered.getByRole("dialog").waitFor({ state: "visible", timeout: 30000 });
+    // The Auth Emulator can mark email as verified during password recovery.
+    // Both states are valid: skip redundant mail if Firebase already verified.
+    const verifyRequest = recovered.getByRole("button", {
+      name: "Отправить подтверждение email"
+    });
+    if (await verifyRequest.count()) {
+      await verifyRequest.click();
+      await recovered.getByRole("status")
+        .getByText("Запрос подтверждения создан", { exact: false })
+        .waitFor({ timeout: 30000 });
+      const verifyResponse = await fetch(codesEndpoint);
+      if (!verifyResponse.ok) throw new Error("Auth Emulator verification codes unavailable");
+      const verifyCodes = await verifyResponse.json();
+      const verificationCode = (verifyCodes.oobCodes || []).find(item =>
+        item.email === "reflect-synthetic-alpha@example.test" &&
+        item.requestType === "VERIFY_EMAIL"
+      )?.oobCode;
+      if (!verificationCode) throw new Error("Auth Emulator did not produce verification code");
+      await recovered.evaluate(async code => {
+        const { completeEmailVerification } = await import("/src/hooks/accountAccess.js");
+        await completeEmailVerification(code);
+      }, verificationCode);
+      await recovered.getByRole("button", { name: "Проверить подтверждение" }).click();
+    }
+    await recovered.getByText("Email подтверждён", { exact: true })
+      .waitFor({ timeout: 30000 });
+    if (await uidInSidebar(recovered) !== firstUid) {
+      throw new Error("Email verification changed original UID");
+    }
+    await recoveredContext.close();
+    await recoveryContext.close();
+    console.log("PASS: verified email status refreshed without UID change");
+
     await secondContext.close();
     await firstContext.close();
     console.log("PASS: synthetic anonymous UID persists across reload");
