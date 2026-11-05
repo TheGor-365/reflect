@@ -72,6 +72,13 @@ describe('backward-compatible goals domain', () => {
     expect(items).toHaveLength(2);
   });
 
+
+  it('rejects stable-ID edits if the task was renamed in another tab', () => {
+    expect(() => nextSubtasks([{ id: 'a', text: 'New from another tab' }],
+      { id: 'a', text: 'Old on this tab' }, { kind: 'edit', text: 'Mine' }))
+      .toThrow('Подзадача изменилась');
+  });
+
   it('rejects stale index edits instead of corrupting another item', () => {
     expect(() => nextSubtasks([{ text: 'Другой' }], { index: 0, text: 'Старый' },
       { kind: 'toggle', completed: true })).toThrow('Подзадача изменилась');
