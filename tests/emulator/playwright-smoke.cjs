@@ -286,6 +286,28 @@ async function runBrowserSuite() {
       .waitFor({ timeout: 30000 });
 
 
+    // Registration before the profile exists must hand off to profile
+    // onboarding; no fixed "Your account" dialog can intercept the flow.
+    const freshContext = await browser.newContext();
+    await protectBrowser(freshContext);
+    const fresh = await freshContext.newPage();
+    await fresh.goto(BASE, { waitUntil: "domcontentloaded" });
+    await fresh.getByRole("button", { name: "Создать аккаунт" })
+      .waitFor({ timeout: 30000 });
+    await fresh.getByLabel("Email").fill("reflect-synthetic-fresh@example.test");
+    await fresh.getByLabel("Пароль").fill("Synthetic-E2E-fresh-password-2026!");
+    await fresh.getByRole("button", { name: "Создать аккаунт" }).click();
+    await fresh.getByText("Добро пожаловать!", { exact: true })
+      .waitFor({ timeout: 30000 });
+    if (await fresh.getByRole("heading", { name: "Ваш аккаунт" }).count()) {
+      throw new Error("Registered new user stuck in account modal instead of profile");
+    }
+    await fresh.locator("#name").fill("Synthetic Fresh");
+    await fresh.getByRole("button", { name: "Сохранить и продолжить" }).click();
+    await fresh.getByRole("button", { name: "Synthetic Fresh" }).waitFor({ timeout: 30000 });
+    await freshContext.close();
+    console.log("PASS: new user can register before profile and reach journal");
+
     await secondContext.close();
     await firstContext.close();
     console.log("PASS: synthetic anonymous UID persists across reload");
