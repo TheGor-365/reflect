@@ -10,7 +10,7 @@ import {
  * Neither the password nor auth error details enter Firestore or localStorage.
  */
 export default function AccountAccess({
-  user, hasLocalData = false, welcome = false, onGuest, onClose
+  user, hasLocalData = false, welcome = false, onGuest, onClose, onAccountChanged
 }) {
   const [mode, setMode] = useState('register');
   const [email, setEmail] = useState('');
@@ -34,11 +34,10 @@ export default function AccountAccess({
     setBusy(true);
     setError('');
     try {
-      if (mode === 'register') {
-        await registerCurrentAnonymous(email, password);
-      } else {
-        await signInExisting(email, password, { hasLocalData });
-      }
+      const account = mode === 'register'
+        ? await registerCurrentAnonymous(email, password)
+        : await signInExisting(email, password, { hasLocalData });
+      onAccountChanged?.(account);
       setPassword('');
       onClose?.();
     } catch (failure) {
