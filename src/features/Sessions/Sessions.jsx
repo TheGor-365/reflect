@@ -36,7 +36,7 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
   }, [currentSessionId]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    chatEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
   }, [sessions, currentSessionId, isLoading, localMessages]);
 
   const handleSendMessage = async (e) => {
@@ -214,7 +214,7 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
         <div className="reflect-session-compose-dock">
           <SessionComposer
             value={userInput}
-            onChange={(value) => { noteSave.clearFeedback(); setUserInput(value); }}
+            onChange={(value) => { noteSave.clearFeedback(); setSendError(''); setUserInput(value); }}
             onSubmit={handleSendMessage}
             onToggleRecording={handleToggleUserRecording}
             onSaveToDiary={handleSaveToDiary}
