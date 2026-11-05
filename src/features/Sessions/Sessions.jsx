@@ -5,12 +5,14 @@ import { AI_SESSION_ENABLED, getAnalysisFromAI } from '../../api/geminiService';
 import ChatMessage from './ChatMessage';
 import SessionComposer from './SessionComposer';
 import InfoCard from '../../components/common/InfoCard';
-import { BookOpen, BarChart2 } from 'lucide-react';
+import { useEntrySave } from '../../hooks/useEntrySave';
+import { BookOpen, BarChart2, MessageSquareText, PenLine, ShieldCheck, Sparkles } from 'lucide-react';
 
-const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessionId }) => {
+const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession }) => {
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sendError, setSendError] = useState('');
+  const noteSave = useEntrySave('diaryNotes', userId);
   const [isUserRecording, setIsUserRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentlySpeakingId, setCurrentlySpeakingId] = useState(null);
@@ -61,14 +63,13 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
         throw new Error(aiResponse.error);
       }
       
-      const score = parseInt(aiResponse.score, 10) || 50;
-      const assistantMessage = { role: 'assistant', content: aiResponse.response, score: score, id: `asst-${Date.now()}`, timestamp: Timestamp.now() };
+      // No fabricated emotional health score: AI scores are not validated diagnostics.
+      const assistantMessage = { role: 'assistant', content: aiResponse.response, id: `asst-${Date.now()}`, timestamp: Timestamp.now() };
       
       const newChatHistory = [...chatHistory, assistantMessage];
       const sessionPayload = { 
         title: aiResponse.sessionTitle || `Сеанс от ${new Date().toLocaleString('ru-RU')}`, 
         chatHistory: newChatHistory, 
-        score: score, 
         recommendations: aiResponse.recommendations || [], 
         exercises: aiResponse.exercises || [] 
       };
@@ -83,14 +84,7 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
         await setDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId), sessionPayload, { merge: true });
       }
 
-      if (aiResponse.exercises && aiResponse.exercises.length > 0) {
-        for (const [index, ex] of aiResponse.exercises.entries()) {
-          const dueDate = new Date();
-          dueDate.setDate(dueDate.getDate() + 3);
-          const newGoalPayload = { text: `Цель ${index + 1}: ${ex.title}`, purpose: ex.description, type: 'reflection', subItems: [], reflections: [], completed: false, sessionId: sessionId, sessionTitle: sessionPayload.title, dueDate: Timestamp.fromDate(dueDate), postponeCount: 0, createdAt: serverTimestamp() };
-          await addDoc(collection(db, `artifacts/${appId}/users/${userId}/goals`), newGoalPayload);
-        }
-      }
+      // AI suggestions are advisory only: never auto-create user goals.
       setUserInput('');
     } catch (error) {
         console.error("Send Message Error:", error);
@@ -100,6 +94,16 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
     } finally {
         setIsLoading(false);
     }
+  };
+
+  const handleSaveToDiary = async () => {
+    const text = userInput.trim();
+    if (!text || isLoading) return;
+    const saved = await noteSave.save({
+      title: `Запись из размышления · ${new Date().toLocaleDateString('ru-RU')}`,
+      entries: [{ text, createdAt: Timestamp.now() }]
+    });
+    if (saved) setUserInput('');
   };
 
   const handlePlayAudio = (id, text) => {
@@ -153,43 +157,89 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
   };
   
   // --- ИСПРАВЛЕНИЕ: Выбираем, какой массив сообщений отображать ---
-  const messagesToDisplay = activeSession ? activeSession.chatHistory : localMessages;
+  const messagesToDisplay = activeSession ? (activeSession.chatHistory || []) : localMessages;
+  const realRecommendations = activeSession?.recommendations || [];
+  const realExercises = activeSession?.exercises || [];
+  const hasContext = Boolean(activeSession && (realRecommendations.length || realExercises.length));
 
   if (!activeSession && !isNewSessionView) {
     return (
-      <div className="flex items-center justify-center h-full text-stone-500">
-        <p>Выберите сеанс из списка или начните новый.</p>
-      </div>
+      <section className="reflect-session-empty" aria-label="Выбор сеанса">
+        <span className="reflect-session-empty-icon"><MessageSquareText size={30} aria-hidden="true" /></span>
+        <p className="reflect-session-kicker">Пространство для размышлений</p>
+        <h2>Ваш следующий сеанс начинается здесь</h2>
+        <p>Выберите существующий сеанс или начните новый. Предыдущие записи сохраняются отдельно в дневнике.</p>
+        <button type="button" onClick={onStartNewSession} className="reflect-session-start">
+          <PenLine size={19} aria-hidden="true" /> Начать новый сеанс
+        </button>
+      </section>
     );
   }
 
   return (
-    <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
-      <div className="flex flex-col bg-transparent rounded-xl h-full">
-        <div className="p-1 md:p-2 flex-1 overflow-y-auto">
-          {isNewSessionView && messagesToDisplay.length === 0 && <ChatMessage message={{role: 'assistant', content: `Здравствуйте, ${profile?.name || 'пользователь'}! Что вас беспокоит сегодня?`, id: 'initial-message'}} onPlayAudio={handlePlayAudio} isSpeaking={isSpeaking} currentlySpeakingId={currentlySpeakingId} />}
-          
-          {messagesToDisplay.map((msg, index) => <ChatMessage key={msg.id || index} message={msg} onPlayAudio={handlePlayAudio} isSpeaking={isSpeaking} currentlySpeakingId={currentlySpeakingId} />)}
-          
-          {isLoading && <ChatMessage message={{role: 'assistant', content: 'Ассистент печатает...'}} onPlayAudio={() => {}} isSpeaking={false} />}
-          <div ref={chatEndRef} />
+    <section className={`reflect-session-screen ${hasContext ? 'reflect-session-screen--context' : ''}`} aria-label="Рабочее пространство сеанса">
+      <div className="reflect-session-chat">
+        <div className="reflect-session-conversation-bar">
+          <div>
+            <p className="reflect-session-kicker">Личное пространство</p>
+            <h2>{isNewSessionView ? 'Новый сеанс' : (activeSession?.title || 'Сеанс')}</h2>
+          </div>
+          <span className="reflect-session-privacy"><ShieldCheck size={16} aria-hidden="true" /> Личные записи</span>
         </div>
-        <SessionComposer
-          value={userInput}
-          onChange={setUserInput}
-          onSubmit={handleSendMessage}
-          onToggleRecording={handleToggleUserRecording}
-          isLoading={isLoading}
-          isRecording={isUserRecording}
-          aiAvailable={AI_SESSION_ENABLED}
-          error={sendError}
-        />
+
+        <div className="reflect-session-messages" role="log" aria-label="История сообщений" aria-live="polite">
+          <div className="reflect-session-messages-inner">
+            {isNewSessionView && messagesToDisplay.length === 0 && (
+              <div className="reflect-session-welcome">
+                <span className="reflect-session-welcome-icon"><Sparkles size={27} aria-hidden="true" /></span>
+                <h3>О чём хотите поразмышлять?</h3>
+                <p>Расскажите о ситуации своими словами. Текст может быть длинным — поле внизу расширится автоматически.</p>
+                {!AI_SESSION_ENABLED && (
+                  <p className="reflect-session-disabled-note">ИИ-диалог временно недоступен. Пока вы можете сохранить написанное как запись дневника.</p>
+                )}
+              </div>
+            )}
+
+            {messagesToDisplay.map((msg, index) => (
+              <ChatMessage key={msg.id || index} message={msg}
+                onPlayAudio={handlePlayAudio} isSpeaking={isSpeaking}
+                currentlySpeakingId={currentlySpeakingId} />
+            ))}
+
+            {isLoading && <div className="reflect-session-typing" role="status">Сеанс обрабатывается…</div>}
+            <div ref={chatEndRef} />
+          </div>
+        </div>
+
+        <div className="reflect-session-compose-dock">
+          <SessionComposer
+            value={userInput}
+            onChange={(value) => { noteSave.clearFeedback(); setUserInput(value); }}
+            onSubmit={handleSendMessage}
+            onToggleRecording={handleToggleUserRecording}
+            onSaveToDiary={handleSaveToDiary}
+            diarySaveStatus={noteSave.status}
+            isLoading={isLoading}
+            isRecording={isUserRecording}
+            aiAvailable={AI_SESSION_ENABLED}
+            error={sendError}
+          />
+        </div>
       </div>
-      <div className="mt-6 lg:mt-0 lg:overflow-y-auto lg:pr-2">
-        <InfoCard title="Рекомендации" content={activeSession?.recommendations || (isNewSessionView ? ["Начните диалог..."] : [])} icon={<BookOpen className="text-green-500" />} />
-        { (activeSession?.exercises || (isNewSessionView ? [{title: "Как это работает?", description: "Опишите свои чувства..."}] : [])).map((ex, i) => ( <InfoCard key={i} title={ex.title} content={ex.description} icon={<BarChart2 className="text-purple-500" />} /> ))}
-      </div>
-    </div>
+
+      {hasContext && (
+        <aside className="reflect-session-context" aria-label="Результаты сеанса">
+          {realRecommendations.length > 0 && (
+            <InfoCard title="Рекомендации" content={realRecommendations}
+              icon={<BookOpen className="text-teal-500" />} />
+          )}
+          {realExercises.map((ex, index) => (
+            <InfoCard key={ex.id || index} title={ex.title} content={ex.description}
+              icon={<BarChart2 className="text-violet-500" />} />
+          ))}
+        </aside>
+      )}
+    </section>
   );
 };
 
