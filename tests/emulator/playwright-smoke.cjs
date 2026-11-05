@@ -408,23 +408,31 @@ async function runBrowserSuite() {
     console.log("PASS: password reset via local Auth Emulator restored same UID and journal");
 
     await recovered.getByRole("button", { name: "Аккаунт и вход" }).click();
-    await recovered.getByRole("button", { name: "Отправить подтверждение email" }).click();
-    await recovered.getByRole("status")
-      .getByText("Запрос подтверждения создан", { exact: false })
-      .waitFor({ timeout: 30000 });
-    const verifyResponse = await fetch(codesEndpoint);
-    if (!verifyResponse.ok) throw new Error("Auth Emulator verification codes unavailable");
-    const verifyCodes = await verifyResponse.json();
-    const verificationCode = (verifyCodes.oobCodes || []).find(item =>
-      item.email === "reflect-synthetic-alpha@example.test" &&
-      item.requestType === "VERIFY_EMAIL"
-    )?.oobCode;
-    if (!verificationCode) throw new Error("Auth Emulator did not produce verification code");
-    await recovered.evaluate(async code => {
-      const { completeEmailVerification } = await import("/src/hooks/accountAccess.js");
-      await completeEmailVerification(code);
-    }, verificationCode);
-    await recovered.getByRole("button", { name: "Проверить подтверждение" }).click();
+    await recovered.getByRole("dialog").waitFor({ state: "visible", timeout: 30000 });
+    // The Auth Emulator can mark email as verified during password recovery.
+    // Both states are valid: skip redundant mail if Firebase already verified.
+    const verifyRequest = recovered.getByRole("button", {
+      name: "Отправить подтверждение email"
+    });
+    if (await verifyRequest.count()) {
+      await verifyRequest.click();
+      await recovered.getByRole("status")
+        .getByText("Запрос подтверждения создан", { exact: false })
+        .waitFor({ timeout: 30000 });
+      const verifyResponse = await fetch(codesEndpoint);
+      if (!verifyResponse.ok) throw new Error("Auth Emulator verification codes unavailable");
+      const verifyCodes = await verifyResponse.json();
+      const verificationCode = (verifyCodes.oobCodes || []).find(item =>
+        item.email === "reflect-synthetic-alpha@example.test" &&
+        item.requestType === "VERIFY_EMAIL"
+      )?.oobCode;
+      if (!verificationCode) throw new Error("Auth Emulator did not produce verification code");
+      await recovered.evaluate(async code => {
+        const { completeEmailVerification } = await import("/src/hooks/accountAccess.js");
+        await completeEmailVerification(code);
+      }, verificationCode);
+      await recovered.getByRole("button", { name: "Проверить подтверждение" }).click();
+    }
     await recovered.getByText("Email подтверждён", { exact: true })
       .waitFor({ timeout: 30000 });
     if (await uidInSidebar(recovered) !== firstUid) {
