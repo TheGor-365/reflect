@@ -12,12 +12,12 @@ export function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
 
-export function validateCredentials(email, password) {
+export function validateCredentials(email, password, { creating = true } = {}) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(email))) {
     throw new Error('Введите корректный email.');
   }
-  if (typeof password !== 'string' || password.length < 10) {
-    throw new Error('Пароль должен содержать не менее 10 символов.');
+  if (typeof password !== 'string' || (creating ? password.length < 10 : password.length === 0)) {
+    throw new Error(creating ? 'Пароль должен содержать не менее 10 символов.' : 'Введите пароль.');
   }
 }
 
@@ -58,7 +58,7 @@ export async function registerCurrentAnonymous(email, password) {
 }
 
 export async function signInExisting(email, password, { hasLocalData = false } = {}) {
-  validateCredentials(email, password);
+  validateCredentials(email, password, { creating: false });
   if (hasLocalData) {
     throw new Error('В этом гостевом аккаунте уже есть записи. Сначала привяжите к нему email: вход в другой UID может сделать эти данные недоступными.');
   }
