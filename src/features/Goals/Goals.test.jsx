@@ -44,7 +44,7 @@ test('status board shows exact progress without auto-completing parent goal', ()
   expect(screen.getByText('1 из 2 подзадач')).toBeInTheDocument();
   expect(screen.getByRole('progressbar', { name: 'Выполнено подзадач' }))
     .toHaveAttribute('aria-valuenow', '50');
-  expect(screen.getByText('В работе')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'В работе' })).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('checked subtask uses absolute transaction update and only backend-verified feedback', async () => {
