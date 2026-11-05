@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { db, appId } from '../../firebase/config';
+import { Timestamp } from 'firebase/firestore';
+import { useEntrySave } from '../../hooks/useEntrySave';
+import SaveFeedback from '../../components/common/SaveFeedback';
 import DiaryNarrativeCard from './DiaryNarrativeCard';
 import { MessageSquare, Calendar } from 'lucide-react';
 
@@ -11,6 +12,8 @@ const Diary = ({ sessions, goals, moods, diaryNotes, userId, onAppend, isLoading
   const [moodComment, setMoodComment] = useState('');
   const [newDiaryNote, setNewDiaryNote] = useState({ title: '', text: '' });
   const [noteTitlePlaceholder, setNoteTitlePlaceholder] = useState('');
+  const moodSave = useEntrySave('moods', userId);
+  const noteSave = useEntrySave('diaryNotes', userId);
 
   useEffect(() => {
     const updatePlaceholder = () => {
@@ -69,23 +72,28 @@ const Diary = ({ sessions, goals, moods, diaryNotes, userId, onAppend, isLoading
 
   const handleSaveMood = async (e) => {
     e.preventDefault();
-    if (!selectedMood.type || !db || !userId) return;
-    const moodData = { mood: selectedMood.type, intensity: selectedMood.intensity, comment: moodComment.trim() };
-    await addDoc(collection(db, `artifacts/${appId}/users/${userId}/moods`), { ...moodData, createdAt: serverTimestamp() });
-    setSelectedMood({type: null, intensity: 1});
-    setMoodComment('');
+    if (!selectedMood.type) return;
+    const didSave = await moodSave.save({
+      mood: selectedMood.type,
+      intensity: selectedMood.intensity,
+      comment: moodComment.trim()
+    });
+    if (didSave) {
+      setSelectedMood({ type: null, intensity: 1 });
+      setMoodComment('');
+    }
   };
 
   const handleAddDiaryNote = async (e) => {
     e.preventDefault();
-    if (!newDiaryNote.text.trim()) return;
-    let title = newDiaryNote.title.trim() || newDiaryNote.text.trim().split(' ').slice(0, 3).join(' ') + '...';
-    await addDoc(collection(db, `artifacts/${appId}/users/${userId}/diaryNotes`), {
-      title: title,
-      entries: [{ text: newDiaryNote.text.trim(), createdAt: Timestamp.now() }],
-      createdAt: serverTimestamp()
+    const content = newDiaryNote.text.trim();
+    if (!content) return;
+    const title = newDiaryNote.title.trim() || content.split(/\s+/u).slice(0, 3).join(' ') + '…';
+    const didSave = await noteSave.save({
+      title,
+      entries: [{ text: content, createdAt: Timestamp.now() }]
     });
-    setNewDiaryNote({ title: '', text: '' });
+    if (didSave) setNewDiaryNote({ title: '', text: '' });
   };
 
   return (
@@ -96,7 +104,7 @@ const Diary = ({ sessions, goals, moods, diaryNotes, userId, onAppend, isLoading
         <form onSubmit={handleSaveMood} className="mb-4">
             <div className="flex justify-around flex-wrap gap-2">
                 {Object.entries(MOOD_OPTIONS).map(([mood, emoji]) => (
-                    <button type="button" key={mood} onClick={() => setSelectedMood({type: mood, intensity: selectedMood.type === mood ? selectedMood.intensity : 1})} className={`text-4xl p-2 rounded-full transition-all duration-200 ${selectedMood.type === mood ? 'transform scale-125 bg-teal-100' : 'hover:scale-110'}`}>
+                    <button type="button" key={mood} onClick={() => { moodSave.clearFeedback(); setSelectedMood({type: mood, intensity: selectedMood.type === mood ? selectedMood.intensity : 1}); }} disabled={moodSave.status === 'saving'} aria-label={`Настроение: ${{happy:'Радость', content:'Спокойствие', neutral:'Нейтрально', sad:'Грусть', anxious:'Тревога'}[mood]}`} aria-pressed={selectedMood.type === mood} className={`text-4xl p-2 rounded-full transition-all duration-200 ${selectedMood.type === mood ? 'transform scale-125 bg-teal-100' : 'hover:scale-110'}`}>
                         {emoji}
                     </button>
                 ))}
@@ -106,30 +114,32 @@ const Diary = ({ sessions, goals, moods, diaryNotes, userId, onAppend, isLoading
                     <label className="block text-sm font-medium text-stone-700 mb-2">Насколько сильна эта эмоция?</label>
                     <div className="flex justify-center items-center gap-2 mb-4">
                         {[1, 2, 3, 4, 5].map(intensity => (
-                            <button type="button" key={intensity} onClick={() => setSelectedMood({...selectedMood, intensity: intensity})} className={`p-1 rounded-full transition-all text-3xl ${selectedMood.intensity >= intensity ? 'opacity-100' : 'opacity-30'}`}>
+                            <button type="button" key={intensity} onClick={() => { moodSave.clearFeedback(); setSelectedMood({...selectedMood, intensity: intensity}); }} disabled={moodSave.status === 'saving'} aria-label={`Интенсивность ${intensity} из 5`} aria-pressed={selectedMood.intensity === intensity} className={`p-1 rounded-full transition-all text-3xl ${selectedMood.intensity >= intensity ? 'opacity-100' : 'opacity-30'}`}>
                                 {MOOD_OPTIONS[selectedMood.type]}
                             </button>
                         ))}
                     </div>
-                    <textarea value={moodComment} onChange={e => setMoodComment(e.target.value)} placeholder="Добавьте комментарий (необязательно)..." className="w-full px-4 py-3 bg-stone-50 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 mb-2" rows="2"></textarea>
+                    <textarea value={moodComment} onChange={e => {moodSave.clearFeedback(); setMoodComment(e.target.value);}} disabled={moodSave.status === 'saving'} placeholder="Добавьте комментарий (необязательно)..." className="w-full px-4 py-3 bg-stone-50 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 mb-2" rows="2"></textarea>
                     <div className="flex justify-end gap-4">
-                        <button type="button" onClick={() => {setSelectedMood({type: null, intensity: 1}); setMoodComment('');}} className="px-4 py-2 text-sm text-stone-600 bg-stone-200 rounded-lg hover:bg-stone-300 font-semibold">Отмена</button>
-                        <button type="submit" className="px-4 py-2 text-sm text-white bg-teal-600 rounded-lg hover:bg-teal-700 font-semibold">Сохранить настроение</button>
+                        <button type="button" onClick={() => {moodSave.discardAttempt(); setSelectedMood({type: null, intensity: 1}); setMoodComment('');}} disabled={moodSave.status === 'saving'} className="px-4 py-2 text-sm text-stone-600 bg-stone-200 rounded-lg hover:bg-stone-300 font-semibold">Отмена</button>
+                        <button type="submit" disabled={moodSave.status === 'saving'} className="px-4 py-2 text-sm text-white bg-teal-600 rounded-lg hover:bg-teal-700 font-semibold disabled:opacity-50">{moodSave.status === 'saving' ? 'Сохраняется…' : 'Сохранить настроение'}</button>
                     </div>
                 </div>
             )}
         </form>
+        <SaveFeedback status={moodSave.status} />
       <hr className="my-4"/>
       <form onSubmit={handleAddDiaryNote} className="space-y-3">
         <div>
           <label className="block text-sm font-medium text-stone-700 mb-1">Заголовок (необязательно)</label>
-          <input type="text" value={newDiaryNote.title} onChange={e => setNewDiaryNote({...newDiaryNote, title: e.target.value})} placeholder={noteTitlePlaceholder} className="w-full px-4 py-2 bg-stone-50 border border-stone-300 rounded-lg"/>
+          <input type="text" value={newDiaryNote.title} onChange={e => {noteSave.clearFeedback(); setNewDiaryNote(prev => ({...prev, title: e.target.value}));}} disabled={noteSave.status === 'saving'} placeholder={noteTitlePlaceholder} className="w-full px-4 py-2 bg-stone-50 border border-stone-300 rounded-lg"/>
         </div>
-        <textarea value={newDiaryNote.text} onChange={e => setNewDiaryNote({...newDiaryNote, text: e.target.value})} placeholder="Что нового? Добавьте заметку..." className="w-full p-3 border border-stone-300 rounded-lg" rows="3"></textarea>
+        <textarea value={newDiaryNote.text} onChange={e => {noteSave.clearFeedback(); setNewDiaryNote(prev => ({...prev, text: e.target.value}));}} disabled={noteSave.status === 'saving'} placeholder="Что нового? Добавьте заметку..." className="w-full p-3 border border-stone-300 rounded-lg" rows="3"></textarea>
         <div className="flex justify-end mt-2">
-          <button type="submit" className="px-6 py-2 text-white bg-teal-600 rounded-lg hover:bg-teal-700 font-semibold">Сохранить заметку</button>
+          <button type="submit" disabled={noteSave.status === 'saving' || !newDiaryNote.text.trim()} className="px-6 py-2 text-white bg-teal-600 rounded-lg hover:bg-teal-700 font-semibold disabled:opacity-50">{noteSave.status === 'saving' ? 'Сохраняется…' : 'Сохранить заметку'}</button>
         </div>
       </form>
+      <SaveFeedback status={noteSave.status} />
     </div>
 
     <div className="mt-8">
