@@ -25,7 +25,7 @@ test('never sends while server AI is disabled and explains lack of autosave', ()
   const props = makeProps({ value: 'Большая личная история' });
   render(<SessionComposer {...props} />);
   expect(screen.getByRole('button', { name: 'Отправить сообщение' })).toBeDisabled();
-  expect(screen.getByText(/ИИ-сеансы отключены/)).toBeInTheDocument();
+  expect(screen.getByText(/ИИ временно отключён/)).toBeInTheDocument();
   const field = screen.getByRole('textbox', { name: 'Сообщение для сеанса' });
   fireEvent.keyDown(field, { key: 'Enter', ctrlKey: true });
   expect(props.onSubmit).not.toHaveBeenCalled();
