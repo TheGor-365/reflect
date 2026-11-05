@@ -227,3 +227,33 @@ Branch `work/reflect-goals-workspace-2026-11-06`, base PR #12 branch `work/refle
 3. Restart Vite only with local `demo-reflect-auth-qa` `VITE_FIREBASE_CONFIG`, `VITE_APP_ID=reflect-8fdc8` and `VITE_USE_FIREBASE_EMULATORS=true`. Check linked-account modal can continue to profile, open Goals board, create a synthetic goal and save a subtask. Send desktop/mobile screenshots. No production or live-user acceptance implied.
 
 **Release invariants:** all PRs remain Draft, main stays `b3a72c240bd193e89346a0a5655861cc726f4d61`, Vercel/Firebase production unchanged. PR #13 depends on #12→#11→#10…; never merge out of order. Email verification, account recovery, Firestore Rules hardening, export/delete, staging and third-party request privacy remain release blockers.
+
+## 12. Continuation checkpoint — account recovery and session behavior (2026-11-06)
+
+**Owner visual QA:** local `127.0.0.1:3100` renders Midnight Aurora and a connected email account ("Аккаунт и вход — Email подключён"). This is already a registered Auth user, so a fresh registration form is not shown during a signed-in session. The same screenshot shows a disabled send arrow and "ИИ-диалог временно недоступен", with "В дневник" as the deliberate local save-to-Firestore action, not an AI reply. `src/api/geminiService.js` explicitly sets `AI_SESSION_ENABLED=false`, returns an unavailable error and must not expose third-party AI credentials in client JS.
+
+**New stacked Draft PR #14:** https://github.com/TheGor-365/reflect/pull/14
+Branch `work/reflect-auth-recovery-2026-11-06`, base PR #13 `work/reflect-goals-workspace-2026-11-06`. No PR merge or deployment. Functional HEAD (before this documentation commit): `08371b680ea726faffb362b2e87ff3e80e8a6943`.
+
+**Implemented:**
+- Password reset using Firebase Auth SDK `sendPasswordResetEmail` from guest-login "Забыли пароль?" or linked account "Восстановить пароль", with generic success message, never disclosing whether the email is registered.
+- Linked account "Отправить подтверждение email" and "Проверить подтверждение" using `sendEmailVerification` and `reload`; same-UID post-condition; visible verified/unverified status; no forced sign-out.
+- Local-only testable boundaries for `confirmPasswordReset` and `applyActionCode`, without recording sensitive OOB codes or passwords in app storage/logs.
+- Midnight Aurora layout reused, responsive. No Firestore migration, unverified email is NOT yet a reason to lose access to prior records.
+- The dedicated Firebase Emulator does not deliver real email; verification and recovery links appear in Auth Emulator output/localhost OOB endpoint. A synthetic `example.test` email is NOT a recoverable production mailbox.
+
+**CI evidence on functional HEAD `08371b6`:** 107/107 Vitest tests across 16 suites, strict TypeScript, Vite build, locked Vite foundation and isolated Chromium Auth/Firestore E2E all SUCCESS:
+- https://github.com/TheGor-365/reflect/actions/runs/42128225588
+- https://github.com/TheGor-365/reflect/actions/runs/42128225747
+- https://github.com/TheGor-365/reflect/actions/runs/42128225700
+
+Browser QA proved local synthetic password recovery -> new password -> re-login to exact same UID and original diary, plus email verification state without UID switch; also preceding onboarding, goals, isolation and mobile QA. The CI classifies or bypasses sending verification email if the synthetic account is already verified, so it does not prove real-world email delivery. All external requests were blocked. A sporadic blocked `www.google.com` image request persists during Auth; origin audit remains a mandatory privacy/release gate.
+
+**Not implemented / not verified:** production email provider configuration and email templates, authenticated staging mail delivery and authorized domains, account recovery after losing both password and email, second-factor auth/recovery, durable private encrypted backup for user records, official data export/delete workflows, server-side AI sessions with explicit consent/quotas/log redaction. The local emulator remains ephemeral unless the owner explicitly exports data to a secure, private directory and imports on restart. No true long-term production account restoration can be claimed.
+
+**Next owner 1–3 actions:**
+1. Keep Auth/Firestore emulator tabs 9099/18081 and restore-only 18080 running, stop only local Vite (3100), preserve `~/reflect-chat-qa` and untracked `.tool-versions`.
+2. Use explicit remote tracking ref fetch for `work/reflect-auth-recovery-2026-11-06`, switch existing checkout to it without recloning, verify exact commit, restart Vite with `demo-reflect-auth-qa` environment variables.
+3. On local UI open "Аккаунт и вход" to inspect verification/recovery in demo mode. Do NOT log out of an emulator account with irreplaceable test records, do NOT share a real password or OOB link, and do NOT interpret `example.test` as deliverable mail. Send only screenshot of account UI and the result.
+
+**Release invariants:** PR #14 depends on #13→#12→#11 and previous Draft PRs. No `main`, production Firebase, Vercel deployment, secrets, payment resources or private backups touched. Production release requires separate staging and privacy/security acceptance.
