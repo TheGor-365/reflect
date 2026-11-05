@@ -132,6 +132,18 @@ describe('transactional goal persistence', () => {
     expect(record.dueDay).toEqual({ __delete: true });
   });
 
+
+  it('rejects stale concurrent goal text edits rather than losing the newer write', async () => {
+    wasCreated = true;
+    record = { text: 'Edited elsewhere', purpose: 'Original', dueDay: '2026-11-06' };
+    await expect(updateGoal('synthetic-uid', 'g', {
+      kind: 'edit', text: 'Local change', purpose: 'Original', dueDay: '2026-11-06',
+      expected: { text: 'Original', purpose: 'Original', dueDay: '2026-11-06' }
+    })).rejects.toThrow('Цель изменилась в другой вкладке');
+    expect(record.text).toBe('Edited elsewhere');
+    expect(patches).toHaveLength(0);
+  });
+
   it('rejects updates when the goal was concurrently deleted', async () => {
     await expect(updateGoal('synthetic-uid', 'g', {
       kind: 'status', status: 'paused'
