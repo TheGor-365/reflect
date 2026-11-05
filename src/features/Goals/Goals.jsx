@@ -18,7 +18,7 @@ const todayLocalDay = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 };
 const targetFor = (item, index) => item?.id
-  ? { id: item.id }
+  ? { id: item.id, text: item.text }
   : { index, text: item?.text };
 
 function GoalCard({ goal, userId, onAppend, onFeedback }) {
@@ -76,7 +76,7 @@ function GoalCard({ goal, userId, onAppend, onFeedback }) {
     if (!editDraft) return;
     await execute({
       kind: 'edit', text: editDraft.text, purpose: editDraft.purpose,
-      dueDay: editDraft.dueDay
+      dueDay: editDraft.dueDay, expected: editDraft.expected
     }, () => { setEditing(false); setEditDraft(null); });
   };
 
@@ -111,7 +111,9 @@ function GoalCard({ goal, userId, onAppend, onFeedback }) {
         <div className="reflect-goal-card-actions">
           <button type="button" disabled={busy} aria-label="Редактировать цель"
             onClick={() => { setEditing(true); setEditDraft({
-              text: goal.text || '', purpose: goal.purpose || '', dueDay: dueDay || ''
+              text: goal.text || '', purpose: goal.purpose || '', dueDay: dueDay || '',
+              expected: { text: goal.text || '', purpose: goal.purpose || '',
+                dueDay: dueDay || '' }
             }); }}>
             <Pencil size={17} aria-hidden="true" />
           </button>
