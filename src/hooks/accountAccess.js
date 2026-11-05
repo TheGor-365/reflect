@@ -1,6 +1,7 @@
 import {
   EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, signOut,
-  sendPasswordResetEmail, sendEmailVerification, reload, confirmPasswordReset
+  sendPasswordResetEmail, sendEmailVerification, reload, confirmPasswordReset,
+  applyActionCode
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
 
@@ -121,4 +122,11 @@ export async function completePasswordReset(code, nextPassword) {
     throw new Error('Новый пароль должен содержать не менее 10 символов.');
   }
   await confirmPasswordReset(auth, code, nextPassword);
+}
+
+
+/** Used by a future verified action handler and synthetic emulator E2E. */
+export async function completeEmailVerification(code) {
+  if (typeof code !== 'string' || !code) throw new Error('Код подтверждения отсутствует.');
+  await applyActionCode(auth, code);
 }
