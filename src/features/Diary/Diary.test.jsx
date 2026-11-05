@@ -37,6 +37,7 @@ test('successful new note uses one Firestore ID and shows confirmed save status'
   expect(doc).toHaveBeenCalledTimes(1);
   expect(setDoc).toHaveBeenCalledTimes(1);
   expect(setDoc.mock.calls[0][1].entries[0].text).toBe('Длинная синтетическая запись\nВторая строка');
+  expect(setDoc.mock.calls[0][1].title).not.toContain('Длинная синтетическая');
 });
 
 test('ambiguous write error retains text and retry reuses original document ID', async () => {
@@ -53,6 +54,19 @@ test('ambiguous write error retains text and retry reuses original document ID',
   expect(doc).toHaveBeenCalledTimes(1);
   expect(await screen.findByText('Сохранено')).toBeInTheDocument();
   expect(noteInput()).toHaveValue('');
+});
+
+test('second new note after confirmation gets a different Firestore ID', async () => {
+  renderDiary();
+  fireEvent.change(noteInput(), { target: { value: 'Первая синтетическая заметка' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить заметку' }));
+  await screen.findByText('Сохранено');
+  const firstId = setDoc.mock.calls[0][0].id;
+
+  fireEvent.change(noteInput(), { target: { value: 'Вторая синтетическая заметка' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить заметку' }));
+  await waitFor(() => expect(setDoc).toHaveBeenCalledTimes(2));
+  expect(setDoc.mock.calls[1][0].id).not.toBe(firstId);
 });
 
 test('pending promise disables repeat submission rather than creating duplicate IDs', async () => {
