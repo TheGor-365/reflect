@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { collection, addDoc, setDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db, appId } from '../../firebase/config';
-import { getAnalysisFromAI } from '../../api/geminiService';
+import { AI_SESSION_ENABLED, getAnalysisFromAI } from '../../api/geminiService';
 import ChatMessage from './ChatMessage';
+import SessionComposer from './SessionComposer';
 import InfoCard from '../../components/common/InfoCard';
-import { BookOpen, BarChart2, ArrowRight, Mic, MicOff } from 'lucide-react';
+import { BookOpen, BarChart2 } from 'lucide-react';
 
 const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessionId }) => {
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [sendError, setSendError] = useState('');
   const [isUserRecording, setIsUserRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentlySpeakingId, setCurrentlySpeakingId] = useState(null);
@@ -37,7 +39,8 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!userInput.trim() || isLoading || !db || !userId) return;
+    if (!AI_SESSION_ENABLED || !userInput.trim() || isLoading || !db || !userId) return;
+    setSendError('');
 
     const userMessage = { role: 'user', content: userInput.trim(), id: `user-${Date.now()}`, timestamp: Timestamp.now() };
     
@@ -46,7 +49,7 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
       setLocalMessages(prev => [...prev, userMessage]);
     }
     
-    setUserInput('');
+    // Do not destroy a long personal reflection before AI + Firestore succeed.
     setIsLoading(true);
     
     // История для AI теперь включает и временные локальные сообщения
@@ -88,14 +91,14 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
           await addDoc(collection(db, `artifacts/${appId}/users/${userId}/goals`), newGoalPayload);
         }
       }
-    } catch (error) { 
+      setUserInput('');
+    } catch (error) {
         console.error("Send Message Error:", error);
-        const errorMessage = { role: 'assistant', content: 'К сожалению, не удалось получить ответ. Пожалуйста, проверьте ваше интернет-соединение и попробуйте еще раз.', id: 'error-' + Date.now() };
-        if (isNewSessionView) {
-             setLocalMessages(prev => [...prev, errorMessage]);
-        }
-    } finally { 
-        setIsLoading(false); 
+        // Keep unsent message editable and do not present a failed write as sent.
+        setLocalMessages(prev => prev.filter(message => message.id !== userMessage.id));
+        setSendError('Не удалось отправить сообщение. Ваш текст сохранён в поле ввода — можно повторить попытку.');
+    } finally {
+        setIsLoading(false);
     }
   };
 
@@ -171,15 +174,16 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
           {isLoading && <ChatMessage message={{role: 'assistant', content: 'Ассистент печатает...'}} onPlayAudio={() => {}} isSpeaking={false} />}
           <div ref={chatEndRef} />
         </div>
-        <div className="p-4 bg-stone-100/80 backdrop-blur-sm border-t border-stone-200 mt-auto sticky bottom-0">
-          <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-            <input type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} placeholder="Опишите свою ситуацию..." className="flex-1 w-full px-4 py-3 bg-white border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" disabled={isLoading} />
-            <button type="button" onClick={handleToggleUserRecording} className={`p-3 text-white rounded-full transition-colors ${isUserRecording ? 'bg-red-500' : 'bg-blue-500 hover:bg-blue-600'}`}>
-              {isUserRecording ? <MicOff className="w-6 h-6"/> : <Mic className="w-6 h-6"/>}
-            </button>
-            <button type="submit" className="p-3 text-white bg-teal-600 rounded-full hover:bg-teal-700 disabled:bg-stone-400" disabled={isLoading || !userInput.trim()}><ArrowRight className="w-6 h-6" /></button>
-          </form>
-        </div>
+        <SessionComposer
+          value={userInput}
+          onChange={setUserInput}
+          onSubmit={handleSendMessage}
+          onToggleRecording={handleToggleUserRecording}
+          isLoading={isLoading}
+          isRecording={isUserRecording}
+          aiAvailable={AI_SESSION_ENABLED}
+          error={sendError}
+        />
       </div>
       <div className="mt-6 lg:mt-0 lg:overflow-y-auto lg:pr-2">
         <InfoCard title="Рекомендации" content={activeSession?.recommendations || (isNewSessionView ? ["Начните диалог..."] : [])} icon={<BookOpen className="text-green-500" />} />
