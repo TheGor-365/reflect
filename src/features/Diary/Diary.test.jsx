@@ -61,7 +61,7 @@ test('pending promise disables repeat submission rather than creating duplicate 
   renderDiary();
   fireEvent.change(noteInput(), { target: { value: 'Черновик без повторной записи' } });
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить заметку' }));
-  expect(await screen.findByText('Сохраняется…')).toBeInTheDocument();
+  expect(await screen.findByRole('status')).toHaveTextContent('Сохраняется…');
   expect(screen.getByRole('button', { name: 'Сохраняется…' })).toBeDisabled();
   fireEvent.submit(noteInput().closest('form'));
   expect(setDoc).toHaveBeenCalledTimes(1);
