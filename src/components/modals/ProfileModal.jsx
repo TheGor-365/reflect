@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
+import { ArrowRight, Heart, Sparkles, UserRound, X } from 'lucide-react';
 
-const ProfileModal = ({ onSave, existingProfile, saving = false, saveError = null }) => {
+const ProfileModal = ({
+  onSave, existingProfile, saving = false, saveError = null, onCancel
+}) => {
   const [profileData, setProfileData] = useState({
     name: existingProfile?.name || '',
     age: existingProfile?.age || '',
@@ -8,66 +11,71 @@ const ProfileModal = ({ onSave, existingProfile, saving = false, saveError = nul
   });
   const [error, setError] = useState('');
 
-  const handleSave = () => {
-    if (!profileData.name.trim() || !profileData.age) {
-      setError('Пожалуйста, заполните имя и возраст.');
+  const handleSave = event => {
+    event.preventDefault();
+    if (!profileData.name.trim()) {
+      setError('Укажите имя или псевдоним.');
       return;
     }
-    onSave(profileData);
+    const age = profileData.age === '' ? '' : Number(profileData.age);
+    if (age !== '' && (!Number.isInteger(age) || age < 1 || age > 120)) {
+      setError('Укажите корректный возраст или оставьте поле пустым.');
+      return;
+    }
+    onSave({
+      ...profileData,
+      name: profileData.name.trim(),
+      ...(age === '' ? {} : { age })
+    });
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[70] p-4">
-      <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md animate-fade-in">
-        <h2 className="text-2xl font-bold text-stone-800 mb-2">{existingProfile ? 'Редактировать профиль' : 'Добро пожаловать!'}</h2>
-        <p className="text-stone-600 mb-6">Пожалуйста, представьтесь, чтобы ассистент мог лучше вас понимать.</p>
-
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-stone-700 mb-1">Имя или псевдоним</label>
-            <input
-              type="text"
-              id="name"
-              value={profileData.name}
-              onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-              className="w-full px-4 py-2 bg-stone-50 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-              placeholder="Как к вам обращаться?"
-            />
-          </div>
-          <div>
-            <label htmlFor="age" className="block text-sm font-medium text-stone-700 mb-1">Возраст</label>
-            <input
-              type="number"
-              id="age"
-              value={profileData.age}
-              onChange={(e) => setProfileData({ ...profileData, age: e.target.value })}
-              className="w-full px-4 py-2 bg-stone-50 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-              placeholder="Полных лет"
-            />
-          </div>
-          <div>
-            <label htmlFor="gender" className="block text-sm font-medium text-stone-700 mb-1">Пол</label>
-            <select
-              id="gender"
-              value={profileData.gender}
-              onChange={(e) => setProfileData({ ...profileData, gender: e.target.value })}
-              className="w-full px-4 py-2 bg-stone-50 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-            >
-              <option value="не указан">Не указан</option>
-              <option value="мужской">Мужской</option>
-              <option value="женский">Женский</option>
-            </select>
-          </div>
-        </div>
-
-        {(error || saveError) && <p role="alert" className="text-red-600 text-sm mt-4">{error || saveError}</p>}
-
-        <div className="mt-8">
-          <button onClick={handleSave} disabled={saving} className="w-full px-6 py-3 text-white bg-teal-600 rounded-lg hover:bg-teal-700 font-semibold transition-colors disabled:opacity-60">
+    <div className="reflect-auth-overlay">
+      <section className="reflect-auth-card" role="dialog" aria-modal="true"
+        aria-labelledby="reflect-profile-title" aria-describedby="reflect-profile-intro">
+        {onCancel && <button type="button" className="reflect-auth-close"
+          aria-label="Закрыть профиль" onClick={onCancel} disabled={saving}><X size={19} /></button>}
+        <div className="reflect-auth-mark" aria-hidden="true"><UserRound size={26} /></div>
+        <p className="reflect-auth-eyebrow">REFLECT · ПРОФИЛЬ</p>
+        <h1 id="reflect-profile-title">{existingProfile ? 'Настройки профиля' : 'Добро пожаловать!'}</h1>
+        <p id="reflect-profile-intro" className="reflect-auth-intro">
+          Выберите имя, под которым хотите вести дневник. Возраст и пол необязательны.
+          Здесь нет оценок или обязательных личных вопросов.
+        </p>
+        <form className="reflect-auth-form" onSubmit={handleSave}>
+          <label htmlFor="name">Имя или псевдоним
+            <span className="reflect-auth-field"><Sparkles size={18} aria-hidden="true" />
+              <input id="name" type="text" autoComplete="nickname"
+                value={profileData.name} maxLength={80}
+                onChange={e => { setError(''); setProfileData(prev => ({ ...prev, name: e.target.value })); }}
+                placeholder="Как к вам обращаться?" disabled={saving} required />
+            </span>
+          </label>
+          <label htmlFor="age">Возраст <span className="reflect-auth-optional">необязательно</span>
+            <span className="reflect-auth-field"><Heart size={18} aria-hidden="true" />
+              <input id="age" type="number" min="1" max="120" inputMode="numeric"
+                value={profileData.age} onChange={e => setProfileData(prev => ({ ...prev, age: e.target.value }))}
+                placeholder="Полных лет" disabled={saving} />
+            </span>
+          </label>
+          <label htmlFor="gender">Пол <span className="reflect-auth-optional">необязательно</span>
+            <span className="reflect-auth-field">
+              <select id="gender" value={profileData.gender} disabled={saving}
+                onChange={e => setProfileData(prev => ({ ...prev, gender: e.target.value }))}>
+                <option value="не указан">Не указан</option>
+                <option value="мужской">Мужской</option>
+                <option value="женский">Женский</option>
+              </select>
+            </span>
+          </label>
+          {(error || saveError) && <p className="reflect-auth-error" role="alert">{error || saveError}</p>}
+          <button type="submit" className="reflect-auth-primary" disabled={saving}>
             {saving ? 'Сохранение…' : 'Сохранить и продолжить'}
+            {!saving && <ArrowRight size={19} aria-hidden="true" />}
           </button>
-        </div>
-      </div>
+        </form>
+        <p className="reflect-auth-footer">Ваши мысли принадлежат вам.</p>
+      </section>
     </div>
   );
 };
