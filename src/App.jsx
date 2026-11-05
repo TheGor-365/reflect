@@ -220,7 +220,8 @@ export default function App() {
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'diary':
-          return <Diary 
+          return <Diary
+              key={userId}
               sessions={sessions} 
               goals={goals} 
               moods={moods} 
