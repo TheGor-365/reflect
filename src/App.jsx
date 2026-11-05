@@ -35,7 +35,7 @@ function LoadErrorView({ message }) {
 
 export default function App() {
   // --- Auth & Core Data ---
-  const { user, isAuthReady, authError } = useAuth();
+  const { user, isAuthReady, authError, refreshUser } = useAuth();
   const userId = user?.uid;
 
   const { data: sessions, loading: sessionsLoading, error: sessionsError } = useFirestore('sessions', userId);
@@ -222,7 +222,8 @@ export default function App() {
     return (
       <div className="reflect-app" data-theme={theme}>
         <AccountAccess user={user} hasLocalData={hasLocalData} welcome
-          onGuest={() => setAllowGuestProfile(true)} />
+          onGuest={() => setAllowGuestProfile(true)}
+          onAccountChanged={account => refreshUser?.(account)} />
       </div>
     );
   }
@@ -285,7 +286,8 @@ export default function App() {
     <div className="reflect-app min-h-screen font-sans" data-theme={theme}>
       {showAccountModal && (
         <AccountAccess user={user} hasLocalData={hasLocalData}
-          onClose={() => setShowAccountModal(false)} />
+          onClose={() => setShowAccountModal(false)}
+          onAccountChanged={account => refreshUser?.(account)} />
       )}
       <a className="reflect-skip-link" href="#reflect-main">Перейти к содержимому</a>
 
