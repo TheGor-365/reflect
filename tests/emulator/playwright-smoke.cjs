@@ -120,6 +120,7 @@ async function runBrowserSuite() {
     await first.reload({ waitUntil: "domcontentloaded" });
     await first.getByRole("button", { name: "Synthetic Alpha" })
       .waitFor({ timeout: 30000 });
+    console.log("CHECKPOINT: first browser restored linked profile after reload");
     const afterReloadUid = await uidInSidebar(first);
     if (firstUid !== afterReloadUid) {
       throw new Error("UID changed after reload of the same browser context");
@@ -156,6 +157,14 @@ async function runBrowserSuite() {
     await third.getByLabel("Email").fill("reflect-synthetic-alpha@example.test");
     await third.getByLabel("Пароль").fill("Synthetic-E2E-password-2026!");
     await third.getByRole("button", { name: "Войти" }).click();
+    await third.waitForTimeout(1200);
+    const authDiagnostics = await third.evaluate(() => ({
+      dialogs: Array.from(document.querySelectorAll('[role="dialog"] h1')).map(x => x.textContent),
+      alerts: Array.from(document.querySelectorAll('[role="alert"]')).map(x => x.textContent),
+      name: document.querySelector('.reflect-profile-name')?.textContent || null,
+      onboarding: Boolean(document.querySelector('#name'))
+    }));
+    console.log("SYNTHETIC_AUTH_DIAGNOSTICS:", JSON.stringify(authDiagnostics));
     await third.getByRole("button", { name: "Synthetic Alpha" })
       .waitFor({ timeout: 30000 });
     if (await uidInSidebar(third) !== firstUid) {
