@@ -369,3 +369,29 @@
   .reflect-session-composer-footer { align-items: center; }
   .reflect-session-composer-hint { flex: 1 1 160px; }
 }
+
+
+/* Stage 02B2: visible, accessible save acknowledgement for journal/mood. */
+.reflect-save-feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-top: 13px;
+  padding: 13px 15px;
+  border: 1px solid var(--reflect-border);
+  border-radius: 13px;
+  color: var(--reflect-ink);
+  background: rgba(98, 122, 169, .08);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.reflect-save-feedback svg { flex: none; margin-top: 1px; }
+.reflect-save-feedback strong { font-size: 13px; font-weight: 750; }
+.reflect-save-feedback p { margin: 3px 0 0; color: var(--reflect-muted); }
+.reflect-save-feedback--saving { border-color: rgba(116, 153, 229, .35); }
+.reflect-save-feedback--saving svg { color: #8faefa; }
+.reflect-save-feedback--saved { border-color: rgba(111, 225, 192, .36); }
+.reflect-save-feedback--saved svg { color: #66dfc5; }
+.reflect-save-feedback--error { border-color: rgba(248, 124, 139, .52); background: rgba(209, 65, 86, .11); }
+.reflect-save-feedback--error svg { color: #ff9bad; }
+.reflect-app[data-theme="light"] .reflect-save-feedback--error svg { color: #b52f49; }
