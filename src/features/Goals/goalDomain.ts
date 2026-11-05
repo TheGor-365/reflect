@@ -34,13 +34,13 @@ export function isDateOnly(value: unknown): value is string {
 export function localNoonForDueDay(day: string): Date | null {
   if (!isDateOnly(day)) return null;
   const [year, month, date] = day.split('-').map(Number);
-  return new Date(year, month - 1, date, 12, 0, 0, 0);
+  return new Date(year!, month! - 1, date!, 12, 0, 0, 0);
 }
 
 export function moveDueDay(day: string, days: number): string | null {
   if (!isDateOnly(day) || !Number.isSafeInteger(days)) return null;
   const [year, month, date] = day.split('-').map(Number);
-  const result = new Date(Date.UTC(year, month - 1, date));
+  const result = new Date(Date.UTC(year!, month! - 1, date!));
   result.setUTCDate(result.getUTCDate() + days);
   return result.toISOString().slice(0, 10);
 }
@@ -80,7 +80,7 @@ export function dateLabel(day: string | null): string {
   const [y, m, d] = day.split('-').map(Number);
   return new Intl.DateTimeFormat('ru-RU', {
     day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'
-  }).format(new Date(Date.UTC(y, m - 1, d)));
+  }).format(new Date(Date.UTC(y!, m! - 1, d!)));
 }
 
 /** The index+text guard is for legacy subtasks without IDs. */
@@ -105,11 +105,11 @@ export function nextSubtasks(items: unknown[], target: { id?: string; index?: nu
   if (index < 0) throw new Error('Подзадача изменилась в другом окне. Обновите список и повторите.');
   const list = items.map(value => ({ ...(value as Legacy) }));
   if (action.kind === 'delete') return list.filter((_, i) => i !== index);
-  if (action.kind === 'toggle') list[index] = { ...list[index], completed: action.completed };
+  if (action.kind === 'toggle') list[index] = { ...list[index]!, completed: action.completed };
   if (action.kind === 'edit') {
     const text = action.text.trim();
     if (!text) throw new Error('Текст подзадачи не может быть пустым.');
-    list[index] = { ...list[index], text };
+    list[index] = { ...list[index]!, text };
   }
   return list;
 }
