@@ -20,7 +20,7 @@ const SessionComposer = ({
 }) => {
   const textareaRef = useRef(null);
   const sendButtonRef = useRef(null);
-  const canSend = aiAvailable && !isLoading && Boolean(value.trim());
+  const canSend = aiAvailable && !isLoading && diarySaveStatus !== 'saving' && Boolean(value.trim());
   const canSave = Boolean(onSaveToDiary) && Boolean(value.trim()) && diarySaveStatus !== 'saving' && !isLoading;
 
   useLayoutEffect(() => {
