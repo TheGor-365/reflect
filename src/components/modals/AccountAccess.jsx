@@ -10,7 +10,7 @@ import {
  * Neither the password nor auth error details enter Firestore or localStorage.
  */
 export default function AccountAccess({
-  user, hasLocalData = false, welcome = false, onGuest, onClose, onAccountChanged
+    user, hasLocalData = false, welcome = false, onGuest, onClose, onContinue, onAccountChanged
 }) {
   const [mode, setMode] = useState('register');
   const [email, setEmail] = useState('');
@@ -69,9 +69,9 @@ export default function AccountAccess({
     <div className="reflect-auth-overlay">
       <section className="reflect-auth-card" role="dialog" aria-modal="true"
         aria-labelledby="reflect-auth-title" aria-describedby="reflect-auth-intro">
-        {!welcome && (
+        {(!welcome || linked) && (
           <button type="button" className="reflect-auth-close" aria-label="Закрыть"
-            disabled={busy} onClick={onClose}><X size={19} /></button>
+            disabled={busy} onClick={welcome ? onContinue : onClose}><X size={19} /></button>
         )}
         <div className="reflect-auth-mark" aria-hidden="true"><span>R</span></div>
         <p className="reflect-auth-eyebrow">REFLECT · ЛИЧНОЕ ПРОСТРАНСТВО</p>
@@ -91,6 +91,12 @@ export default function AccountAccess({
               <div><strong>Аккаунт подключён</strong>
                 <span>{user.email || 'Email не указан'}</span></div>
             </div>
+            {welcome && (
+              <button type="button" className="reflect-auth-primary" disabled={busy}
+                onClick={onContinue}>Продолжить к профилю
+                <ArrowRight size={19} aria-hidden="true" />
+              </button>
+            )}
             <button type="button" className="reflect-auth-secondary" disabled={busy}
               onClick={handleSignOut}>Выйти из аккаунта</button>
             <p className="reflect-auth-notice">При выходе ваши записи не удаляются. Для следующего входа понадобится пароль.</p>
