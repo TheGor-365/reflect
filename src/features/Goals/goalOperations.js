@@ -3,7 +3,7 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { db, appId } from '../../firebase/config';
-import { isDateOnly, localNoonForDueDay, nextSubtasks } from './goalDomain';
+import { isDateOnly, localNoonForDueDay, nextSubtasks, statusOf } from './goalDomain';
 
 const root = userId => {
   if (typeof userId !== 'string' || !userId) {
@@ -84,6 +84,10 @@ export async function updateGoal(userId, goalId, action) {
         if (!['active', 'paused', 'completed'].includes(action.status)) {
           throw new Error('Неизвестный статус цели.');
         }
+        // Stable, idempotent explicit status commands: retries must never
+        // replace an already confirmed completedAt timestamp.
+        if (statusOf(original) === action.status &&
+            original.completed === (action.status === 'completed')) return;
         patch = {
           status: action.status,
           completed: action.status === 'completed',
@@ -95,9 +99,9 @@ export async function updateGoal(userId, goalId, action) {
         patch = {
           text: validatedText(action.text, 'Название', 240),
           purpose: typeof action.purpose === 'string' ? action.purpose.trim().slice(0, 1000) : '',
-          ...action.dueDay
-            ? dateFields(action.dueDay)
-            : { dueDay: deleteField(), date: deleteField(), dueDate: deleteField() }
+          ...(action.dueDay ? dateFields(action.dueDay) : {
+            dueDay: deleteField(), date: deleteField(), dueDate: deleteField()
+          })
         };
         break;
       }
