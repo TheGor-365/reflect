@@ -21,7 +21,7 @@ test('profile rejects invalid age without writes', () => {
   fireEvent.change(screen.getByLabelText('Имя или псевдоним'), {
     target: { value: 'Synthetic Alpha' }
   });
-  fireEvent.change(screen.getByLabelText('Возраст'), { target: { value: '130' } });
+  fireEvent.change(screen.getByLabelText(/^Возраст/), { target: { value: '130' } });
   fireEvent.submit(screen.getByRole('button', { name: 'Сохранить и продолжить' }).closest('form'));
   expect(screen.getByRole('alert')).toHaveTextContent('корректный возраст');
   expect(onSave).not.toHaveBeenCalled();
