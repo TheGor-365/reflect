@@ -28,7 +28,7 @@ describe('Firebase account linking and sign-in safeguards', () => {
 
   it('links credentials to existing anonymous UID, preserving Firestore ownership', async () => {
     linkWithCredential.mockResolvedValue({
-      user: { uid: 'synthetic-legacy-uid', isAnonymous: false }
+      user: { uid: 'synthetic-legacy-uid', isAnonymous: false, email: 'qa@example.test' }
     });
     const result = await registerCurrentAnonymous('  QA@EXAMPLE.TEST ', 'very-strong-qa-password!');
     expect(EmailAuthProvider.credential).toHaveBeenCalledWith('qa@example.test', 'very-strong-qa-password!');
@@ -43,6 +43,14 @@ describe('Firebase account linking and sign-in safeguards', () => {
       .rejects.toThrow('сохранение UID');
   });
 
+
+  it('never acknowledges a partial link that remains anonymous', async () => {
+    linkWithCredential.mockResolvedValue({
+      user: { uid: 'synthetic-legacy-uid', isAnonymous: true, email: null }
+    });
+    await expect(registerCurrentAnonymous('qa@example.test', 'very-strong-qa-password!'))
+      .rejects.toThrow('Привязка email не подтверждена');
+  });
   it('preserves guest identity on duplicate email failures', async () => {
     linkWithCredential.mockRejectedValue({ code: 'auth/email-already-in-use' });
     await expect(registerCurrentAnonymous('used@example.test', 'very-strong-qa-password!'))
