@@ -223,7 +223,13 @@ export default function App() {
       <div className="reflect-app" data-theme={theme}>
         <AccountAccess user={user} hasLocalData={hasLocalData} welcome
           onGuest={() => setAllowGuestProfile(true)}
-          onAccountChanged={account => refreshUser?.(account)} />
+          onContinue={() => setAllowGuestProfile(true)}
+          onAccountChanged={account => {
+            // The UID may remain unchanged on link. Never wait for a separate
+            // Auth listener emission to advance the first-time onboarding.
+            setAllowGuestProfile(true);
+            refreshUser?.(account);
+          }} />
       </div>
     );
   }
