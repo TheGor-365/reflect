@@ -54,6 +54,11 @@ export async function registerCurrentAnonymous(email, password) {
   if (result.user.uid !== originalUid) {
     throw new Error('Не удалось подтвердить сохранение UID. Не продолжайте работу до проверки аккаунта.');
   }
+  // Some auth backends can acknowledge linking without exposing the new
+  // password provider yet; do not show a false "account created" state.
+  if (result.user.isAnonymous || normalizeEmail(result.user.email) !== normalizeEmail(email)) {
+    throw new Error('Привязка email не подтверждена. Не выходите из гостевого аккаунта; повторите проверку доступа.');
+  }
   return result.user;
 }
 
