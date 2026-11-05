@@ -77,7 +77,9 @@ async function uidInSidebar(page) {
   // Stage 02A keeps the UID in an explicit disclosure to avoid visual noise.
   // Exercise the accessible UI rather than relying on an always-visible ID.
   const account = page.locator("aside details.reflect-account-details");
-  await account.locator("summary").click();
+  if (await account.getAttribute("open") === null) {
+    await account.locator("summary").click();
+  }
   const uid = (await account.locator("code").innerText()).trim();
   if (!/^[A-Za-z0-9_-]+$/.test(uid)) {
     throw new Error("Could not find synthetic UID in account disclosure");
