@@ -13,6 +13,7 @@ const SessionComposer = ({
   onToggleRecording,
   isLoading = false,
   isRecording = false,
+  error = '',
   aiAvailable = false
 }) => {
   const textareaRef = useRef(null);
@@ -46,6 +47,7 @@ const SessionComposer = ({
           {aiAvailable ? 'Готов к отправке' : 'ИИ пока недоступен'}
         </span>
       </div>
+      {error && <p className="reflect-session-error" role="alert">{error}</p>}
       <form className="reflect-session-composer-form" onSubmit={onSubmit}>
         <label className="sr-only" htmlFor="reflect-session-message">Сообщение для сеанса</label>
         <textarea
