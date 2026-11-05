@@ -166,7 +166,7 @@ async function runBrowserSuite() {
       throw new Error("Session composer is not a multiline textarea");
     }
     const syntheticReflection = "Synthetic session reflection " +
-      "expanded text ".repeat(85) + "\\nSecond synthetic paragraph";
+      "expanded text ".repeat(85) + "\nSecond synthetic paragraph";
     await composer.fill(syntheticReflection);
     const chatGeometry = await first.evaluate(() => {
       const input = document.querySelector(".reflect-session-textarea");
