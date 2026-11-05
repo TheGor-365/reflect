@@ -2,13 +2,16 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import AccountAccess from './AccountAccess';
 import {
-  registerCurrentAnonymous, signInExisting, signOutRegistered
+  registerCurrentAnonymous, signInExisting, signOutRegistered,
+  requestPasswordReset, requestEmailVerification, refreshVerificationStatus
 } from '../../hooks/accountAccess';
 
 vi.mock('../../hooks/accountAccess', () => ({
   registerCurrentAnonymous: vi.fn(),
   signInExisting: vi.fn(),
   signOutRegistered: vi.fn(),
+  requestPasswordReset: vi.fn(), requestEmailVerification: vi.fn(),
+  refreshVerificationStatus: vi.fn(),
   accountErrorMessage: vi.fn(e => e.message || 'Ошибка авторизации')
 }));
 
@@ -87,4 +90,66 @@ test('newly linked anonymous identity advances first-time onboarding', async () 
   await waitFor(() => expect(onAccountChanged).toHaveBeenCalledWith(
     expect.objectContaining({ uid: 'same-uid', isAnonymous: false })
   ));
+});
+
+
+test('guest can request forgotten password without switching UID', async () => {
+  requestPasswordReset.mockResolvedValue(undefined);
+  render(<AccountAccess user={{ uid: 'guest', isAnonymous: true }}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Вход' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Забыли пароль?' }));
+  expect(screen.getByRole('heading', { name: 'Восстановление доступа' })).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Email для восстановления'), {
+    target: { value: 'qa@example.test' }
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Запросить восстановление' }));
+  await waitFor(() => expect(requestPasswordReset).toHaveBeenCalledWith('qa@example.test'));
+  expect(screen.getByRole('status')).toHaveTextContent('Если адрес зарегистрирован');
+  expect(signInExisting).not.toHaveBeenCalled();
+  expect(signOutRegistered).not.toHaveBeenCalled();
+});
+
+test('recovery gives identical response for unknown email without revealing existence', async () => {
+  requestPasswordReset.mockRejectedValue({ code: 'auth/user-not-found' });
+  render(<AccountAccess user={{ uid: 'guest', isAnonymous: true }}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Вход' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Забыли пароль?' }));
+  fireEvent.change(screen.getByLabelText('Email для восстановления'), {
+    target: { value: 'unknown@example.test' }
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Запросить восстановление' }));
+  expect(await screen.findByRole('status')).toHaveTextContent('Если адрес зарегистрирован');
+  expect(screen.queryByRole('alert')).toBeNull();
+});
+
+test('linked account can verify email, then refresh verified status on same UID', async () => {
+  const onAccountChanged = vi.fn();
+  requestEmailVerification.mockResolvedValue(undefined);
+  refreshVerificationStatus.mockResolvedValue({
+    uid: 'linked', email: 'qa@example.test', isAnonymous: false, emailVerified: true
+  });
+  const { rerender } = render(<AccountAccess user={{
+    uid: 'linked', email: 'qa@example.test', isAnonymous: false, emailVerified: false
+  }} onAccountChanged={onAccountChanged} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Отправить подтверждение email' }));
+  await waitFor(() => expect(requestEmailVerification).toHaveBeenCalledOnce());
+  fireEvent.click(screen.getByRole('button', { name: 'Проверить подтверждение' }));
+  await waitFor(() => expect(onAccountChanged).toHaveBeenCalledWith(
+    expect.objectContaining({ uid: 'linked', emailVerified: true })
+  ));
+  rerender(<AccountAccess user={{
+    uid: 'linked', email: 'qa@example.test', isAnonymous: false, emailVerified: true
+  }} onAccountChanged={onAccountChanged} />);
+  expect(screen.getByText('Email подтверждён')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Отправить подтверждение email' })).toBeNull();
+});
+
+test('linked user may open password recovery without signing out', () => {
+  render(<AccountAccess user={{ uid: 'linked', isAnonymous: false,
+    email: 'qa@example.test', emailVerified: true }}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Восстановить пароль' }));
+  expect(screen.getByLabelText('Email для восстановления')).toHaveValue('qa@example.test');
+  fireEvent.click(screen.getByRole('button', { name: 'Вернуться к аккаунту' }));
+  expect(screen.getByText('Аккаунт подключён')).toBeInTheDocument();
+  expect(signOutRegistered).not.toHaveBeenCalled();
 });
