@@ -87,7 +87,8 @@ export function dateLabel(day: string | null): string {
 export function locateSubtask(items: unknown[], target: { id?: string; index?: number; text?: string }): number {
   if (typeof target.id === 'string' && target.id.length) {
     return items.findIndex(item => item && typeof item === 'object' &&
-      (item as Legacy).id === target.id);
+      (item as Legacy).id === target.id &&
+      (typeof target.text !== 'string' || (item as Legacy).text === target.text));
   }
   const index = target.index;
   if (typeof index !== 'number' || !Number.isSafeInteger(index) ||
