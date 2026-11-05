@@ -13,6 +13,7 @@ import Sessions from './features/Sessions/Sessions';
 import SessionSchema from './features/SessionSchema/SessionSchema';
 import Loader from './components/common/Loader';
 import ProfileModal from './components/modals/ProfileModal';
+import AccountAccess from './components/modals/AccountAccess';
 import ContentModal from './components/modals/ContentModal';
 import ReflectionModal from './components/modals/ReflectionModal';
 import ChecklistFeedbackModal from './components/modals/ChecklistFeedbackModal';
@@ -50,7 +51,15 @@ export default function App() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [allowGuestProfile, setAllowGuestProfile] = useState(false);
   const profile = profileState.uid === userId ? profileState.data : null;
+
+  useEffect(() => {
+    // Never inherit account portal choices from the previous signed-in UID.
+    setAllowGuestProfile(false);
+    setShowAccountModal(false);
+  }, [userId]);
 
   // --- UI State ---
   const [activeTab, setActiveTab] = useState('diary');
@@ -206,14 +215,29 @@ export default function App() {
 
   if (readError) return <LoadErrorView message={readError} />;
 
+  const hasLocalData = Boolean(profile) ||
+    sessions.length > 0 || goals.length > 0 || moods.length > 0 || diaryNotes.length > 0;
+
+  if (showProfileModal && user.isAnonymous && !profile && !allowGuestProfile) {
+    return (
+      <div className="reflect-app" data-theme={theme}>
+        <AccountAccess user={user} hasLocalData={hasLocalData} welcome
+          onGuest={() => setAllowGuestProfile(true)} />
+      </div>
+    );
+  }
+
   if (showProfileModal) {
     return (
+      <div className="reflect-app" data-theme={theme}>
       <ProfileModal
         onSave={handleSaveProfile}
         existingProfile={profile}
         saving={profileSaving}
         saveError={profileSaveError}
+        onCancel={profile ? () => setShowProfileModal(false) : undefined}
       />
+      </div>
     );
   }
 
@@ -259,6 +283,10 @@ export default function App() {
 
   return (
     <div className="reflect-app min-h-screen font-sans" data-theme={theme}>
+      {showAccountModal && (
+        <AccountAccess user={user} hasLocalData={hasLocalData}
+          onClose={() => setShowAccountModal(false)} />
+      )}
       <a className="reflect-skip-link" href="#reflect-main">Перейти к содержимому</a>
 
       {feedbackGoal && <ChecklistFeedbackModal goal={feedbackGoal} onSave={handleSaveFeedback} onCancel={() => setFeedbackGoal(null)} />}
@@ -277,6 +305,8 @@ export default function App() {
         profile={profile}
         userId={userId}
         onProfileClick={() => { setProfileSaveError(null); setShowProfileModal(true); }}
+        onAccountClick={() => { setIsSidebarOpen(false); setShowAccountModal(true); }}
+        accountLabel={user.isAnonymous ? 'Гостевой доступ' : 'Email подключён'}
       />
 
       <div className="reflect-layout">
