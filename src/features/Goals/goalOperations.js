@@ -3,7 +3,7 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { db, appId } from '../../firebase/config';
-import { isDateOnly, localNoonForDueDay, nextSubtasks, statusOf } from './goalDomain';
+import { dueDayOf, isDateOnly, localNoonForDueDay, nextSubtasks, statusOf } from './goalDomain';
 
 const root = userId => {
   if (typeof userId !== 'string' || !userId) {
@@ -96,6 +96,13 @@ export async function updateGoal(userId, goalId, action) {
         break;
       }
       case 'edit': {
+        if (action.expected && (
+          (original.text || '') !== action.expected.text ||
+          (original.purpose || '') !== action.expected.purpose ||
+          (dueDayOf(original) || '') !== action.expected.dueDay
+        )) {
+          throw new Error('Цель изменилась в другой вкладке. Обновите данные перед повторным сохранением.');
+        }
         patch = {
           text: validatedText(action.text, 'Название', 240),
           purpose: typeof action.purpose === 'string' ? action.purpose.trim().slice(0, 1000) : '',
