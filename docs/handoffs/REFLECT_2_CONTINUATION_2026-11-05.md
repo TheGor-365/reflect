@@ -165,3 +165,32 @@ An E2E assertion was then narrowed to the persisted timeline card (rather than s
 **Release blockers unchanged:** account linking/recovery, protected sensitive drafts, export/delete, Firestore Rules and backup operations, isolated Vercel Preview/staging, server-side optional AI, secret rotation and reversible production release. No writes to production Firebase, no merge/main/Vercel release performed this continuation.
 
 **Next 1–3 actions:** (1) confirm exact latest PR #11 CI status; (2) owner inspect local `ss -ltnp '( sport = :3100 )'` and send result before targeted process stop; (3) visually inspect PR #10 and #11 in local synthetic emulators at 390px and desktop, report actual screenshot before approving design.
+
+## 10. Continuation checkpoint — Account Access / Profile UX (2026-11-06)
+
+**New stacked Draft PR #12:** https://github.com/TheGor-365/reflect/pull/12
+Branch `work/reflect-account-access-2026-11-06` based on PR #11 (`work/reflect-diary-timeline-2026-11-05`). All preceding PRs stay Draft; main/production untouched.
+
+**Direct owner QA evidence 2026-11-06:** In Linux Mint, two separate emulators successfully started: isolated private restore Firestore 18080 (read-only environment), synthetic Authentication 9099 + Firestore 18081. Vite was serving 127.0.0.1:3100, but the local checkout was PR #10 (`7006fe5`) because `git fetch origin <branch>` downloaded `FETCH_HEAD` without creating a local tracking ref. The extra untracked `.tool-versions` belongs to the local workstation; do not delete or hard-reset it. User saw the white legacy onboarding modal, NOT the new PR #12 UI.
+
+**Root cause:** The original product had browser-bound anonymous Auth and a separate profile form, not real registration/login. Firebase's browser Auth persistence remembers an anonymous UID within the same origin, but an Emulator restart without export/import resets its server-side users and documents. This is not production account recovery.
+
+**Implemented in Draft PR #12:**
+- Email/password account creation links to the current anonymous Firebase Auth user using `linkWithCredential`; guards exact UID and confirmed email so no new identity silently replaces existing Firestore ownership.
+- Explicit sign-in to an existing email account is only allowed from a guest identity with zero loaded profile, sessions, goals, moods and diary notes. A guest with data must first link email; no automatic merge or orphaned anonymous data.
+- Registered users have explicit sign-out; guest sign-out is blocked. New-account onboarding offers registration, login, or continue as guest. Sidebar includes an account entry.
+- Midnight Aurora responsive dark/light panels for Account Access and Profile; name required, age/gender optional. Password is never written to browser storage, Firestore, logs or shared Docs.
+- SDK-mocked regressions (account linking, duplicate email, wrong UID, partial link, protected switching, login/logout, modal behavior), and isolated Chromium E2E using *synthetic* identities and notes.
+- User has not yet viewed or approved the new modal; real Firebase email verification, password reset, recovery, app-specific account deletion and rules hardening remain separate release gates.
+
+**Integration evidence to date:** A strict isolated Chromium run at `77c7c455456ee1fe8540984c30789617a8d14ea6` verified guest save → email linked with same UID → first browser reload → second browser email sign-in restoring the same diary → distinct Beta UID isolation. Three CI workflows SUCCESS on that exact SHA. Subsequent cleanup added fail-closed linked-provider checks and stricter third-party request detection. Exact latest SHA and all current CI must be checked after this doc update. No claim of production-ready authentication.
+A blocked external `https://www.google.com` image attempt occurred intermittently in CI, initiated by the app frame after Firebase auth linking. All external requests were blocked, and none transmitted journal content. The browser test is classifying the request safely without logging paths, query values or tokens; do not whitelist it blindly or claim network isolation acceptance if an unknown app-origin request is attempted.
+
+**Next owner operations:**
+1. Stop only the local Vite tab on 3100, leave Firebase emulators untouched. Explicitly fetch the remote tracking ref (ordinary one-branch `git fetch` previously left only `FETCH_HEAD`):
+   `git fetch origin '+refs/heads/work/reflect-account-access-2026-11-06:refs/remotes/origin/work/reflect-account-access-2026-11-06'`
+   then `git switch -c work/reflect-account-access-2026-11-06 --track origin/work/reflect-account-access-2026-11-06` from `~/reflect-chat-qa`; never delete `.tool-versions`.
+2. Run Vite only with the dedicated demo `VITE_FIREBASE_CONFIG`, `VITE_APP_ID=reflect-8fdc8`, `VITE_USE_FIREBASE_EMULATORS=true`. Inspect both Midnight Aurora modals desktop/mobile and make a *synthetic* email QA account (no credentials shared in chat/GitHub).
+3. Once PR #12 exact-head CI and owner QA pass: resume Stage 02C Goals (immutable nested steps, status, date handling, write feedback); do not deploy production. Create a separate staging Firebase project and email verification/recovery before any release.
+
+**Hard limits:** No production Firebase Auth, real user data, provider settings, Vercel, main, billing or private encrypted backup modifications. Current QA emulator state is ephemeral unless explicitly exported and restored to a private local directory.
