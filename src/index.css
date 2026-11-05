@@ -395,3 +395,10 @@
 .reflect-save-feedback--error { border-color: rgba(248, 124, 139, .52); background: rgba(209, 65, 86, .11); }
 .reflect-save-feedback--error svg { color: #ff9bad; }
 .reflect-app[data-theme="light"] .reflect-save-feedback--error svg { color: #b52f49; }
+
+.reflect-journal-draft-notice {
+  color: var(--reflect-muted);
+  font-size: 11px;
+  line-height: 1.55;
+  margin: 12px 0 0;
+}
