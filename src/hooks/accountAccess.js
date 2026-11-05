@@ -1,5 +1,6 @@
 import {
-  EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, signOut
+  EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, signOut,
+  sendPasswordResetEmail, sendEmailVerification, reload, confirmPasswordReset
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
 
@@ -75,4 +76,49 @@ export async function signOutRegistered() {
     throw new Error('Гостевой аккаунт нельзя отключать: его данные могут стать недоступны.');
   }
   await signOut(auth);
+}
+
+
+/**
+ * Recovery sends an Auth-provider email, never changes the active UID.
+ * Keep the same generic UI response for registered/unregistered addresses;
+ * the Auth service may apply its own enumeration protection/rate limits.
+ */
+export async function requestPasswordReset(email) {
+  const normalized = normalizeEmail(email);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+    throw new Error('Введите корректный email.');
+  }
+  await sendPasswordResetEmail(auth, normalized);
+}
+
+export async function requestEmailVerification() {
+  const current = auth.currentUser;
+  if (!current || current.isAnonymous || !current.email) {
+    throw new Error('Сначала войдите в зарегистрированный аккаунт.');
+  }
+  if (current.emailVerified) return;
+  await sendEmailVerification(current);
+}
+
+export async function refreshVerificationStatus() {
+  const current = auth.currentUser;
+  if (!current || current.isAnonymous || !current.email) {
+    throw new Error('Сначала войдите в зарегистрированный аккаунт.');
+  }
+  const originalUid = current.uid;
+  await reload(current);
+  if (auth.currentUser?.uid !== originalUid) {
+    throw new Error('Изменился идентификатор аккаунта. Доступ не подтверждён.');
+  }
+  return auth.currentUser;
+}
+
+/** Testable SDK boundary; codes must never be logged or persisted by Reflect. */
+export async function completePasswordReset(code, nextPassword) {
+  if (typeof code !== 'string' || !code) throw new Error('Код восстановления отсутствует.');
+  if (typeof nextPassword !== 'string' || nextPassword.length < 10) {
+    throw new Error('Новый пароль должен содержать не менее 10 символов.');
+  }
+  await confirmPasswordReset(auth, code, nextPassword);
 }
