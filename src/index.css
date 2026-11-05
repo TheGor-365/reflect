@@ -723,3 +723,68 @@
   .reflect-session-save-note { width: 40px; justify-content: center; }
   .reflect-chat-message-body { max-width: 83%; }
 }
+
+
+/* Stage 02B3B — privacy-preserving journal timeline and filter controls. */
+.reflect-journal-filters {
+  display: grid; gap: 16px; padding: clamp(14px, 2.3vw, 24px);
+  background: var(--reflect-card); color: var(--reflect-ink);
+  border: 1px solid var(--reflect-border); border-radius: 20px;
+  margin-bottom: 26px; box-shadow: 0 14px 36px rgba(4, 11, 28, .07);
+}
+.reflect-journal-search {
+  display: flex; align-items: center; gap: 12px; min-width: 0;
+  padding: 0 14px; border: 1px solid var(--reflect-border);
+  border-radius: 13px; color: var(--reflect-muted);
+}
+.reflect-journal-search:focus-within { outline: 2px solid var(--reflect-accent); outline-offset: 2px; }
+.reflect-journal-search input {
+  display: block; flex: 1; width: 100%; min-width: 0;
+  padding: 13px 0; border: 0; outline: none; background: transparent;
+  color: var(--reflect-ink); font: inherit; font-size: 14px;
+}
+.reflect-journal-search input:focus-visible { outline: none; }
+.reflect-journal-search input::placeholder { color: var(--reflect-muted); }
+.reflect-journal-kind-list { display: flex; flex-wrap: wrap; gap: 7px; }
+.reflect-journal-kind {
+  min-height: 42px; padding: 8px 13px; border-radius: 12px;
+  border: 1px solid var(--reflect-border); color: var(--reflect-muted);
+  font-size: 13px; font-weight: 650; transition: background-color .15s ease;
+}
+.reflect-journal-kind:hover { color: var(--reflect-ink); background: rgba(118, 146, 190, .10); }
+.reflect-journal-kind[aria-pressed="true"] {
+  color: var(--reflect-accent-ink); background: var(--reflect-accent);
+  border-color: var(--reflect-accent);
+}
+.reflect-journal-date-range { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
+.reflect-journal-date-range label {
+  flex: 1 1 150px; min-width: 0; display: flex; flex-direction: column;
+  gap: 6px; color: var(--reflect-muted); font-size: 12px;
+}
+.reflect-journal-date-range input {
+  width: 100%; min-height: 42px; padding: 8px 11px;
+  border: 1px solid var(--reflect-border); border-radius: 11px;
+  color: var(--reflect-ink); background: var(--reflect-bg); color-scheme: dark;
+}
+.reflect-app[data-theme="light"] .reflect-journal-date-range input { color-scheme: light; }
+.reflect-journal-reset {
+  min-height: 42px; padding: 8px 11px; border-radius: 11px;
+  color: var(--reflect-accent); border: 1px solid var(--reflect-border);
+  font-size: 12px; font-weight: 700;
+}
+.reflect-journal-card {
+  position: relative; overflow-wrap: anywhere;
+  border-left: 4px solid var(--reflect-accent);
+  color: var(--reflect-ink);
+}
+.reflect-journal-card[data-kind="session"] { border-left-color: #a79cf7; }
+.reflect-journal-card[data-kind="goal"] { border-left-color: #f2bf6d; }
+.reflect-journal-card[data-kind="mood"] { border-left-color: #f09c93; }
+.reflect-journal-append-caption {
+  margin: 0 0 7px; font-size: 11px; font-weight: 750;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--reflect-muted);
+}
+@media (max-width: 390px) {
+  .reflect-journal-filters { padding: 13px; gap: 12px; }
+  .reflect-journal-kind { min-height: 40px; padding: 7px 10px; font-size: 12px; }
+}
