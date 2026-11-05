@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, signOut,
-  sendPasswordResetEmail, sendEmailVerification, reload, confirmPasswordReset
+  sendPasswordResetEmail, sendEmailVerification, reload, confirmPasswordReset,
+  applyActionCode
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
 import {
   accountErrorMessage, normalizeEmail, registerCurrentAnonymous,
   signInExisting, signOutRegistered, requestPasswordReset, requestEmailVerification,
-  refreshVerificationStatus, completePasswordReset
+  refreshVerificationStatus, completePasswordReset, completeEmailVerification
 } from './accountAccess';
 
 vi.mock('../firebase/config', () => ({ auth: { currentUser: null } }));
@@ -17,7 +18,7 @@ vi.mock('firebase/auth', () => ({
   signInWithEmailAndPassword: vi.fn(),
   signOut: vi.fn(),
   sendPasswordResetEmail: vi.fn(), sendEmailVerification: vi.fn(),
-  reload: vi.fn(), confirmPasswordReset: vi.fn()
+  reload: vi.fn(), confirmPasswordReset: vi.fn(), applyActionCode: vi.fn()
 }));
 
 beforeEach(() => {
@@ -144,6 +145,14 @@ describe('email verification and password recovery boundaries', () => {
     expect(auth.currentUser.uid).toBe('linked');
     reload.mockImplementationOnce(async () => { auth.currentUser = { uid: 'changed' }; });
     await expect(refreshVerificationStatus()).rejects.toThrow('Изменился идентификатор');
+  });
+
+  it('applies Firebase verification code without changing the current UID', async () => {
+    const originalUser = auth.currentUser;
+    applyActionCode.mockResolvedValue(undefined);
+    await completeEmailVerification('synthetic-action-code');
+    expect(applyActionCode).toHaveBeenCalledWith(auth, 'synthetic-action-code');
+    expect(auth.currentUser).toBe(originalUser);
   });
 
   it('confirms a reset code only with strong replacement password', async () => {
