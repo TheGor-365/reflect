@@ -144,3 +144,24 @@ Only after usable, reliable baseline: validate Mindspace, BodyMap, session exper
 **Проверено:** facts supported by HEAD/CI/screenshots. **Сделано:** named branch, changed files, commit SHA, Draft PR. **Тесты:** typecheck / unit count / build / emulator browser / audit with exact status. **Не подтверждено:** owner visual, live environment, exports, recovery, etc. **Блокеры:** one concrete dependency. **Далее:** 1–3 user steps or your next fully autonomous code batch. Keep master up to date in `docs/handoffs/REFLECT_2_CONTINUATION_2026-11-05.md` and update linked Drive copy if one exists; do not assume another conversation inherited it.
 
 **Stop condition for full project:** only declare Reflect 2.0 ready when functional MVP acceptance, secure anonymous account upgrade, tested backup/restore/export/delete, isolated staging+safe AI backend (if advertised as functional), full CI and owner desktop/mobile visual acceptance, reversible release and live smoke are all evidenced. If a feature is intentionally deferred, label it explicitly and never market it as implemented.
+
+
+## 9. Continuation checkpoint — Stage 02B3B, 2026-11-05
+
+**New stacked Draft PR:** https://github.com/TheGor-365/reflect/pull/11
+Branch `work/reflect-diary-timeline-2026-11-05`, based directly on PR #10 branch `work/reflect-session-workspace-2026-11-05` (base at `7006fe5021d1e71aa2ed4b6aa4e96cbb00246943`). PRs #1–#10 remain open Draft, unmerged; `main` still `b3a72c240bd193e89346a0a5655861cc726f4d61`. Do NOT merge PR #11 separately from its dependency chain.
+
+**Implemented only on Draft:**
+- Pure `src/features/Diary/diaryTimeline.ts` event projection preserving existing documents, linking later appended note entries and goal reflections to their own dates, with per-local-day grouping, stable tie-breaks and explicit undated group.
+- In-memory search, type and date filters over existing current-UID Firestore snapshots. No external search provider, content logging, schema migration, backup manipulation or new Firestore write operations.
+- Midnight Aurora journal filters; one mood icon with explicit intensity; session details collapsed by default; older save status/draft caveat kept.
+- 11 synthetic pure timeline tests + 2 component integration tests = 13 new tests over the prior 34.
+
+**Test evidence:** on functional HEAD `b247eb1762da9cede4e9f90d16cce6e296861858`, 47 Vitest tests across 10 files PASS, strict TypeScript PASS, Vite build PASS, locked Vite foundation PASS and isolated Chromium Auth/Firestore E2E PASS. Links: https://github.com/TheGor-365/reflect/actions/runs/42104694532 , https://github.com/TheGor-365/reflect/actions/runs/42104694519 , https://github.com/TheGor-365/reflect/actions/runs/42104694501 .
+An E2E assertion was then narrowed to the persisted timeline card (rather than sometimes matching an in-flight textarea) on `9cb2e128373251ae4701672933d82d476eb90dfc`; **CI for this later commit must be checked separately**. Historical failed runs on earlier PR #11 SHAs are superseded only when current commit CI passes.
+
+**Owner QA still pending:** local user process holding port 3100, 1440/390/320 dark/light screenshots, real keyboard/scroll. No claim that PR #10 UX or PR #11 diary visual design was approved. Do not kill a general Node process or touch Firebase emulators 9099/18081 and separate restored 18080.
+
+**Release blockers unchanged:** account linking/recovery, protected sensitive drafts, export/delete, Firestore Rules and backup operations, isolated Vercel Preview/staging, server-side optional AI, secret rotation and reversible production release. No writes to production Firebase, no merge/main/Vercel release performed this continuation.
+
+**Next 1–3 actions:** (1) confirm exact latest PR #11 CI status; (2) owner inspect local `ss -ltnp '( sport = :3100 )'` and send result before targeted process stop; (3) visually inspect PR #10 and #11 in local synthetic emulators at 390px and desktop, report actual screenshot before approving design.
