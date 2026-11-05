@@ -96,7 +96,8 @@ async function runBrowserSuite() {
 
     await first.getByPlaceholder("Что нового? Добавьте заметку...").fill("Synthetic alpha journal entry");
     await first.getByRole("button", { name: "Сохранить заметку" }).click();
-    await first.getByText("Synthetic alpha journal entry", { exact: true })
+    await first.locator(".reflect-journal-card p.whitespace-pre-wrap")
+      .filter({ hasText: "Synthetic alpha journal entry" }).first()
       .waitFor({ timeout: 30000 });
 
     await first.reload({ waitUntil: "domcontentloaded" });
@@ -106,7 +107,8 @@ async function runBrowserSuite() {
     if (firstUid !== afterReloadUid) {
       throw new Error("UID changed after reload of the same browser context");
     }
-    await first.getByText("Synthetic alpha journal entry", { exact: true })
+    await first.locator(".reflect-journal-card p.whitespace-pre-wrap")
+      .filter({ hasText: "Synthetic alpha journal entry" }).first()
       .waitFor({ timeout: 30000 });
     if (await first.getByText("Добро пожаловать!").count()) {
       throw new Error("Existing synthetic profile unexpectedly triggered onboarding");
@@ -204,7 +206,8 @@ async function runBrowserSuite() {
     // Continue legacy UID/profile persistence assertions on desktop, where
     // sidebar controls are intentionally visible without opening the drawer.
     await first.setViewportSize({ width: 1280, height: 720 });
-    await first.getByText("Synthetic alpha journal entry", { exact: true })
+    await first.locator(".reflect-journal-card p.whitespace-pre-wrap")
+      .filter({ hasText: "Synthetic alpha journal entry" }).first()
       .waitFor({ timeout: 30000 });
 
 
