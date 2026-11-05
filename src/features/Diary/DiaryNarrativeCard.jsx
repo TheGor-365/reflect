@@ -13,9 +13,9 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend }) => {
           <div>
             <h3 className="text-xl font-bold text-stone-800 mb-2">{entry.data.title}</h3>
             <p className="text-sm text-stone-500 mb-3">Сеанс рефлексии</p>
-            <CollapsibleContent title="Показать детали сеанса" startOpen={true}>
+            <CollapsibleContent title="Показать детали сеанса" startOpen={false}>
               <div className="space-y-4">
-                {entry.data.chatHistory.map((msg, index) => (
+                {(Array.isArray(entry.data.chatHistory) ? entry.data.chatHistory : []).map((msg, index) => (
                   <div key={index}>
                     {msg.role === 'user' ? (
                       <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
@@ -36,7 +36,9 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend }) => {
       case 'goal':
         return (
           <div>
-            <h4 className="font-semibold text-stone-800">{entry.data.completed ? 'Достигнута цель' : 'Поставлена цель'}: {entry.data.text}</h4>
+            {entry.isAppend && <p className="reflect-journal-append-caption">Дополнение к цели</p>}
+            <h4 className="font-semibold text-stone-800">Цель: {entry.data.text}</h4>
+            <p className="text-sm text-stone-500">Текущий статус: {entry.data.completed ? 'выполнена' : 'в работе'}</p>
             <CollapsibleContent title="Показать описание цели">
               <p className="text-sm text-stone-600">{entry.data.purpose}</p>
             </CollapsibleContent>
@@ -66,11 +68,10 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend }) => {
       case 'mood':
         return (
           <div className="flex items-center gap-4">
-            <div className="flex">
-              {Array(entry.data.intensity || 1).fill(MOOD_OPTIONS[entry.data.mood]).map((emoji, i) => <span key={i} className="text-4xl">{emoji}</span>)}
-            </div>
+            <span className="text-4xl" aria-hidden="true">{MOOD_OPTIONS[entry.data.mood] || '😐'}</span>
             <div>
               <h4 className="font-semibold text-stone-800">Запись о настроении</h4>
+              <p className="text-sm text-stone-500">Интенсивность: {Number.isInteger(entry.data.intensity) && entry.data.intensity >= 1 && entry.data.intensity <= 5 ? entry.data.intensity : 'не указана'} из 5</p>
               {entry.data.comment && <p className="text-stone-600">{entry.data.comment}</p>}
             </div>
           </div>
@@ -78,7 +79,8 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend }) => {
       case 'note':
         return (
           <div>
-            <h4 className="font-semibold text-stone-800">{entry.data.title}</h4>
+            {entry.isAppend && <p className="reflect-journal-append-caption">Дополнение к заметке</p>}
+            <h4 className="font-semibold text-stone-800">{entry.data.title || 'Заметка'}</h4>
             {entry.data.entries?.map((noteEntry, i) => (
               <div key={i} className="p-3 mt-2 bg-stone-50 rounded-md border-l-4 border-purple-300">
                 <p className="text-xs text-stone-400 mb-1">{formatDate(noteEntry.createdAt)}</p>
@@ -96,7 +98,7 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend }) => {
   };
 
   return (
-    <div className="bg-white p-5 rounded-xl shadow-md border border-stone-200 transition-shadow hover:shadow-lg">
+    <div className="reflect-journal-card bg-white p-5 rounded-xl shadow-md border border-stone-200 transition-shadow hover:shadow-lg" data-kind={entry.sourceKind || entry.type}>
       {renderContent()}
     </div>
   );
