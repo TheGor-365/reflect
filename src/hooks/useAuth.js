@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { auth } from '../firebase/config';
 
@@ -77,5 +77,15 @@ export const useAuth = () => {
     };
   }, []);
 
-  return { user, isAuthReady, authError };
+  // Linking email can preserve the same UID; auth state subscribers may not
+  // emit on provider changes. Explicitly refresh after a successful link.
+  const refreshUser = useCallback((updatedUser) => {
+    if (updatedUser?.uid) {
+      setUser(updatedUser);
+      setAuthError(null);
+      setIsAuthReady(true);
+    }
+  }, []);
+
+  return { user, isAuthReady, authError, refreshUser };
 };

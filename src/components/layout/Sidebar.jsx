@@ -1,10 +1,10 @@
 import React from 'react';
-import { BookOpen, GitBranch, MessageSquare, Plus, Target, User, X } from 'lucide-react';
+import { BookOpen, GitBranch, MessageSquare, Plus, Target, User, ShieldCheck, X } from 'lucide-react';
 import NavItem from './NavItem';
 
 const Sidebar = ({
   isOpen, onClose, activeTab, changeTab, sessions, currentSessionId,
-  selectSession, handleNewSession, profile, userId, onProfileClick
+  selectSession, handleNewSession, profile, userId, onProfileClick, onAccountClick, accountLabel
 }) => (
   <>
     {isOpen && (
@@ -65,6 +65,11 @@ const Sidebar = ({
             <span className="reflect-profile-name">{profile?.name || 'Мой профиль'}</span>
             <span className="reflect-profile-subtitle">Настройки профиля</span>
           </span>
+        </button>
+        <button type="button" onClick={onAccountClick} className="reflect-account-link" aria-label="Аккаунт и вход">
+          <ShieldCheck size={17} aria-hidden="true" />
+          <span>Аккаунт и вход</span>
+          <span className="reflect-account-state">{accountLabel}</span>
         </button>
         <details className="reflect-account-details">
           <summary>Идентификатор аккаунта</summary>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { getDoc } from 'firebase/firestore';
 import { useAuth } from './hooks/useAuth';
 import { useFirestore } from './hooks/useFirestore';
@@ -26,6 +26,12 @@ vi.mock('./features/Sessions/Sessions', () => ({ default: () => null }));
 vi.mock('./features/SessionSchema/SessionSchema', () => ({ default: () => null }));
 vi.mock('./components/common/Loader', () => ({
   default: () => <div data-testid="loading" />
+}));
+vi.mock('./components/modals/AccountAccess', () => ({
+  default: ({ onAccountChanged }) => <button type="button" data-testid="welcome-link"
+    onClick={() => onAccountChanged({
+      uid: 'new-anon', email: 'demo@example.test', isAnonymous: false
+    })}>Simulate verified link</button>
 }));
 vi.mock('./components/modals/ProfileModal', () => ({
   default: () => <div data-testid="profile-modal">Profile</div>
@@ -79,4 +85,19 @@ test('auth failure is shown instead of a perpetual spinner', () => {
   });
   render(<App />);
   expect(screen.getByRole('alert')).toHaveTextContent('Ошибка авторизации');
+});
+
+test('same-UID email link advances to profile instead of trapping registered user', async () => {
+  const refreshUser = vi.fn();
+  useAuth.mockReturnValue({
+    user: { uid: 'new-anon', isAnonymous: true },
+    isAuthReady: true, authError: null, refreshUser
+  });
+  getDoc.mockResolvedValue({ exists: () => false });
+  render(<App />);
+  fireEvent.click(await screen.findByTestId('welcome-link'));
+  expect(await screen.findByTestId('profile-modal')).toBeInTheDocument();
+  expect(refreshUser).toHaveBeenCalledWith(
+    expect.objectContaining({ uid: 'new-anon', isAnonymous: false })
+  );
 });
