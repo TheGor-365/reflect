@@ -110,6 +110,9 @@ describe('Stage 03G read-only, aggregate schema compatibility', () => {
       { path: ROOT + '/unknown/document', fields: {} }
     ]))).toThrow('Неизвестное расположение');
     expect(() => auditOwnerSchema(envelope([
+      { path: 'artifacts/reflect-8fdc8/users/anotherUid/diaryNotes/id', fields: {} }
+    ]))).toThrow('Неизвестное расположение');
+    expect(() => auditOwnerSchema(envelope([
       { path: ROOT + '/diaryNotes/item', fields: [] }
     ]))).toThrow('Неверная структура');
     expect(() => auditOwnerSchema({ ...envelope([]), namespace: 'another-app' }))
