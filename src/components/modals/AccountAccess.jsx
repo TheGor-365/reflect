@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import OwnerDataExport from './OwnerDataExport';
 import { ArrowRight, KeyRound, LockKeyhole, Mail, ShieldCheck, UserRound, X } from 'lucide-react';
 import {
   accountErrorMessage, registerCurrentAnonymous, signInExisting, signOutRegistered,
@@ -268,6 +269,9 @@ export default function AccountAccess({
             onClick={onGuest}><UserRound size={17} aria-hidden="true" />
             Продолжить без регистрации
           </button>
+        )}
+        {!welcome && mode !== 'recover' && user?.uid && (
+          <OwnerDataExport userId={user.uid} />
         )}
         <p className="reflect-auth-footer">Личный дневник · приватность прежде всего</p>
       </section>

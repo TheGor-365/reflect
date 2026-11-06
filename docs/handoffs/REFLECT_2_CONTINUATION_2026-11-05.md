@@ -319,3 +319,25 @@ Branch `work/reflect-protected-drafts-2026-11-06`, base PR #16 `work/reflect-moo
 3. After verified private QA snapshot, stop only Vite 3100, fetch PR #17 explicitly and create another *isolated* worktree `~/reflect-stage17-qa`, then start Vite from new worktree against the same running emulators. Test opt-in protected draft with separate phrase and reload. Do not stop/reset emulators or deploy production.
 
 **Remaining roadmap:** privacy export/delete and stronger Firestore rules (Stage 03), isolated staging with real email and authentication rules, verified server-side opt-in AI API with no browser key, quota/rate limits, provider data policies, and final regression/audit. The entire stacked PR chain remains Draft and unmerged. No production Firebase/Vercel/main changes.
+
+## 16. Continuation checkpoint — owner archive and confirmed private QA snapshot (2026-11-06)
+
+**Owner-verified local save:** From `~/reflect-stage16-qa`, while both QA emulators were running, the owner executed `npm run qa:state -- save`, receiving `Private QA Auth + Firestore saved. Verify before stopping existing emulators.` Then `npm run qa:state -- status` returned `Private Auth + Firestore snapshot available.` This is **the first positive owner-local checkpoint** of the Auth+Firestore QA snapshot after the preceding reboot, not a demonstrated full owner-local restore. Do not ask the owner to register the same account again or stop/recreate their emulator until deliberate login verification. We have **no screenshot or confirmed UID/email/record counts** for the saved archive, and must not claim it definitely contains `reflect.qa@example.test` without evidence. The private archive stays on the owner's local device and is not uploaded to GitHub or Drive.
+
+**Stacked Draft PR #18 — Stage 03B:** https://github.com/TheGor-365/reflect/pull/18
+Branch `work/reflect-private-data-export-2026-11-06`, base PR #17 `work/reflect-protected-drafts-2026-11-06`. No main merge, production Firebase/Vercel deployment, archive upload, payment, or deletion. Exact source guidance: `docs/privacy/REFLECT_OWNER_EXPORT_2026-11-06.md`.
+
+**Implementation:** Account & Login portal now has `Копия моих данных → Скачать мои данные (JSON)` for the active signed-in or guest UID, always requiring explicit acknowledgement that the resulting local JSON is *unencrypted*. The browser requests **server-confirmed** Firestore data for `profiles/userProfile`, `sessions`, `goals`, `moods` and `diaryNotes` under the current Auth UID. The versioned schema holds Firestore document IDs, nested field values and tagged timestamps/bytes/geopoints/references. No Firebase tokens, passwords, recovery codes, encryption keys, third-party API calls, localStorage plaintext or Firestore mutations. Any failed read, changed UID, invalid value/duplicate id or result >25 MiB stops export without generating a partial download. The app cannot prove the browser completed or safeguarded the file. Reads are **not transactionally consistent** if content changes during export. A user-controlled unencrypted JSON copy is not an encrypted backup and does not yet support automated restore.
+
+**CI evidence on functional code HEAD `cfc7ae538d15b4da4d144df2b3d5ad8f18496aad`:** typecheck/Vitest + Node suite + Vite build and locked Vite SUCCESS:
+- https://github.com/TheGor-365/reflect/actions/runs/42246132979
+- https://github.com/TheGor-365/reflect/actions/runs/42246136029
+- https://github.com/TheGor-365/reflect/actions/runs/42246133252
+Browser E2E previously verified owner JSON download includes synthetic diary and mood, with *another* guest UID's download containing no first-owner documents, on functional code variant before a mock-only test fix. Current exact HEAD CI for the documentation-only commits must be checked before acceptance.
+
+**Owner next steps:**
+1. Keep Firebase Auth emulator 9099 and Firestore 18081 running; their user-confirmed export snapshot exists. Stop **only Vite 3100** with Ctrl+C.
+2. Without touching dirty old `~/reflect-chat-qa` or clean `~/reflect-stage16-qa`, fetch PR #18 remote branch and create a separate worktree `~/reflect-stage18-qa`. Run `npm ci` in it, then the same demo-only `VITE_FIREBASE_CONFIG`, `VITE_APP_ID=reflect-8fdc8`, `VITE_USE_FIREBASE_EMULATORS=true`, `npm run dev -- --strictPort` on port 3100.
+3. In the new local UI, inspect Stage 03A optional protected draft and Stage 03B owner export on **synthetic** content. Do not send JSON archives or passwords to ChatGPT. Report screenshot of Account & Login and export status, and later confirm sign-in with the same UID after clean emulator restart.
+
+**Remaining priority:** Fully tested real staging Firestore Rules including recursive collection-group paths and deny-all unknowns; validated *restoration* of owner JSON or portable viewer and expanded user data inventory before destructive deletion; separate staging Auth email delivery; server-side opt-in AI and outbound privacy audit. Broad wildcard rules in the current emulator are temporary. Sporadic external Google image request during Auth remains blocked but not explained. No release go/no-go.
