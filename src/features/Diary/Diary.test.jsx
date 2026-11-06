@@ -152,3 +152,74 @@ test('appended note text creates two timeline events on distinct dates', () => {
   expect(screen.getAllByTestId('diary-timeline-event')[1])
     .toHaveTextContent('note:note-long:entry:0');
 });
+
+
+test('journal opens with content first and tools collapsed', () => {
+  renderDiary();
+  expect(screen.getByRole('textbox', { name: 'Новая запись' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Поиск и фильтры' }))
+    .toHaveAttribute('aria-expanded', 'false');
+  expect(screen.queryByRole('searchbox', { name: 'Поиск по дневнику' }))
+    .not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Обзор настроения' }))
+    .toHaveAttribute('aria-expanded', 'false');
+  expect(screen.queryByRole('button', { name: 'Настроение: Радость' }))
+    .not.toBeInTheDocument();
+  expect(screen.queryByPlaceholderText('Добавьте комментарий (необязательно)...'))
+    .not.toBeInTheDocument();
+  expect(screen.getByText('Защита черновика').closest('details'))
+    .not.toHaveAttribute('open');
+});
+
+test('confirmed new note appears immediately without reload and does not duplicate after snapshot', async () => {
+  const props = {
+    userId: 'synthetic-owner', sessions: [], goals: [], moods: [],
+    diaryNotes: [], isLoading: false, onAppend: vi.fn()
+  };
+  const view = render(<Diary {...props}/>);
+  fireEvent.change(noteInput(), { target: { value: 'Immediate synthetic note' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить заметку' }));
+  expect(await screen.findByText('Сохранено')).toBeInTheDocument();
+  await waitFor(() => expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(1));
+  expect(screen.getByTestId('diary-timeline-event'))
+    .toHaveTextContent('note:draft-id-1:entry:0');
+
+  // Real Firestore subscription sends exactly this ID. Never show twins.
+  const stored = {
+    id: 'draft-id-1',
+    title: 'Synthetic title',
+    entries: [{ text: 'Immediate synthetic note',
+      createdAt: { toDate: () => new Date('2026-11-06T12:00:00Z') } }],
+    createdAt: { toDate: () => new Date('2026-11-06T12:00:00Z') }
+  };
+  view.rerender(<Diary {...props} diaryNotes={[stored]}/>);
+  expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(1);
+  // If the authoritative source later deletes the note it must stay deleted.
+  view.rerender(<Diary {...props} diaryNotes={[]}/>);
+  await waitFor(() => expect(screen.queryByTestId('diary-timeline-event'))
+    .not.toBeInTheDocument());
+});
+
+test('mood chooser is compact and records a confirmed mood without page reload', async () => {
+  renderDiary();
+  fireEvent.click(screen.getByRole('button', { name: 'Оценить настроение' }));
+  expect(screen.getAllByRole('button', { name: /Настроение:/ })).toHaveLength(5);
+  fireEvent.click(screen.getByRole('button', { name: 'Настроение: Радость' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Интенсивность 4 из 5' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить настроение' }));
+  expect(await screen.findByText('Сохранено')).toBeInTheDocument();
+  expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(1);
+  expect(screen.getByTestId('diary-timeline-event'))
+    .toHaveTextContent('mood:draft-id-1');
+  expect(screen.queryByRole('button', { name: 'Настроение: Радость' }))
+    .not.toBeInTheDocument();
+});
+
+test('user must explicitly reveal the title and long composer grows as typed', () => {
+  renderDiary();
+  expect(screen.queryByText('Заголовок (необязательно)')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Добавить заголовок' }));
+  expect(screen.getByText('Заголовок (необязательно)')).toBeInTheDocument();
+  fireEvent.change(noteInput(), { target: { value: 'Sentence\\n'.repeat(12) } });
+  expect(noteInput()).toHaveValue('Sentence\\n'.repeat(12));
+});
