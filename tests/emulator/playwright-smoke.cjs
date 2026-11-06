@@ -687,8 +687,17 @@ async function runBrowserSuite() {
     await originalCard.getByRole("textbox", { name: "Текст заметки" })
       .fill("Synthetic versioned journal revised");
     await originalCard.getByRole("button", { name: "Сохранить изменения" }).click();
-    await originalCard.getByText("Synthetic versioned journal revised", { exact: true })
-      .waitFor({ timeout: 30000 });
+    // React may render the textarea's new value before the asynchronous
+    // transaction resolves. A visible draft is never proof of persistence.
+    try {
+      await originalCard.getByRole("status")
+        .getByText("Изменения записи сохранены", { exact: true })
+        .waitFor({ timeout: 30000 });
+    } catch {
+      const failure = await originalCard.locator('[role="alert"]').allTextContents();
+      throw new Error("Edited note transaction did not confirm: " +
+        (failure.join(" ").slice(0, 180) || "no confirmed save status"));
+    }
 
     // A transient UI echo is NOT proof of a persisted revision.
     // Inspect only synthetic-owned record fields through the local emulator.
