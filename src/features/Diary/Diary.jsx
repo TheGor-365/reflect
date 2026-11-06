@@ -1,196 +1,370 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Timestamp } from 'firebase/firestore';
+import {
+  ArrowUp, CalendarDays, BarChart3, Check, ChevronDown,
+  LockKeyhole, Search, SlidersHorizontal, Smile, Type, X
+} from 'lucide-react';
 import { useEntrySave } from '../../hooks/useEntrySave';
 import SaveFeedback from '../../components/common/SaveFeedback';
 import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
 import DiaryNarrativeCard from './DiaryNarrativeCard';
 import MoodInsights from '../Moods/MoodInsights';
-import { Calendar, Search } from 'lucide-react';
 import { buildDiaryTimeline, filterDiaryTimeline, groupDiaryTimeline } from './diaryTimeline';
 
-const MOOD_OPTIONS = { happy: '😊', content: '😌', neutral: '😐', sad: '😟', anxious: '😰' };
+const MOOD_OPTIONS = [
+  { type: 'happy', emoji: '😊', label: 'Радость' },
+  { type: 'content', emoji: '😌', label: 'Спокойствие' },
+  { type: 'neutral', emoji: '😐', label: 'Нейтрально' },
+  { type: 'sad', emoji: '😟', label: 'Грусть' },
+  { type: 'anxious', emoji: '😰', label: 'Тревога' }
+];
+const KINDS = [
+  ['all', 'Лента'], ['note', 'Заметки'], ['mood', 'Настроение'],
+  ['goal', 'Цели'], ['session', 'Сеансы']
+];
 
-const Diary = ({ sessions, goals, moods, diaryNotes, userId, onAppend, isLoading }) => {
-  const [selectedMood, setSelectedMood] = useState({type: null, intensity: 1});
+const mergeConfirmed = (records, local) => [
+  ...(Array.isArray(records) ? records : []),
+  ...local.filter(item => !(records || []).some(server => server.id === item.id))
+];
+
+function autoSizeTextarea(element) {
+  if (!element) return;
+  element.style.height = 'auto';
+  const height = Math.max(44, Math.min(element.scrollHeight, 232));
+  element.style.height = height + 'px';
+  element.style.overflowY = element.scrollHeight > 232 ? 'auto' : 'hidden';
+}
+
+/**
+ * Content first: the timeline is the main surface. Tools are collapsed by
+ * default and the note composer grows only as the author actually types.
+ */
+const Diary = ({
+  sessions = [], goals = [], moods = [], diaryNotes = [],
+  userId, onAppend, isLoading
+}) => {
+  const [selectedMood, setSelectedMood] = useState({ type: null, intensity: 3 });
   const [moodComment, setMoodComment] = useState('');
+  const [moodOpen, setMoodOpen] = useState(false);
+  const [showTitle, setShowTitle] = useState(false);
   const [newDiaryNote, setNewDiaryNote] = useState({ title: '', text: '' });
-  const [noteTitlePlaceholder, setNoteTitlePlaceholder] = useState('');
-  // All filters run in memory on the current UID's already authorized snapshots.
-  // Search text is never persisted or sent to an external indexing provider.
   const [entryKind, setEntryKind] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const moodSave = useEntrySave('moods', userId);
-  const noteSave = useEntrySave('diaryNotes', userId);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [insightsOpen, setInsightsOpen] = useState(false);
+  const [localConfirmed, setLocalConfirmed] = useState({ notes: [], moods: [] });
+  const [lastCommittedNote, setLastCommittedNote] = useState(null);
+  const [noteTitlePlaceholder, setNoteTitlePlaceholder] = useState('');
+  const composerRef = useRef(null);
+  const timelineRef = useRef(null);
   const noteDraftRef = useRef(null);
 
-  useEffect(() => {
-    const updatePlaceholder = () => {
-      const date = new Date();
-      const options = { year: 'numeric', month: 'long', day: 'numeric' };
-      setNoteTitlePlaceholder(new Intl.DateTimeFormat('ru-RU', options).format(date));
-    };
-    updatePlaceholder();
-    const interval = setInterval(updatePlaceholder, 60000);
-    return () => clearInterval(interval);
+  const confirmNote = useCallback(record => {
+    setLocalConfirmed(previous => ({
+      ...previous,
+      notes: [...previous.notes.filter(item => item.id !== record.id), record]
+    }));
+    setLastCommittedNote(record.id);
+  }, []);
+  const confirmMood = useCallback(record => {
+    setLocalConfirmed(previous => ({
+      ...previous,
+      moods: [...previous.moods.filter(item => item.id !== record.id), record]
+    }));
   }, []);
 
+  const noteSave = useEntrySave('diaryNotes', userId, confirmNote);
+  const moodSave = useEntrySave('moods', userId, confirmMood);
+
+  useEffect(() => {
+    const updateDate = () => setNoteTitlePlaceholder(
+      new Intl.DateTimeFormat('ru-RU', {
+        year: 'numeric', month: 'long', day: 'numeric'
+      }).format(new Date())
+    );
+    updateDate();
+    const timer = setInterval(updateDate, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    setLocalConfirmed({ notes: [], moods: [] });
+    setLastCommittedNote(null);
+  }, [userId]);
+
+  // Retire the temporary confirmed echo as soon as the authoritative server
+  // snapshot contains its ID. A later server-side delete must NOT resurrect
+  // an old client echo; cached confirmation is never a second source of truth.
+  useEffect(() => {
+    const serverNoteIds = new Set(diaryNotes.map(record => record.id));
+    const serverMoodIds = new Set(moods.map(record => record.id));
+    setLocalConfirmed(previous => {
+      const notes = previous.notes.filter(item => !serverNoteIds.has(item.id));
+      const savedMoods = previous.moods.filter(item => !serverMoodIds.has(item.id));
+      return notes.length === previous.notes.length &&
+        savedMoods.length === previous.moods.length
+        ? previous : { notes, moods: savedMoods };
+    });
+  }, [diaryNotes, moods, localConfirmed.notes, localConfirmed.moods]);
+
+  useEffect(() => autoSizeTextarea(composerRef.current), [newDiaryNote.text]);
+
+  // A confirmed write is immediately represented locally; when Firestore's
+  // subscription catches up by document ID it takes ownership, with no twins.
+  const visibleNotes = useMemo(
+    () => mergeConfirmed(diaryNotes, localConfirmed.notes),
+    [diaryNotes, localConfirmed.notes]
+  );
+  const visibleMoods = useMemo(
+    () => mergeConfirmed(moods, localConfirmed.moods),
+    [moods, localConfirmed.moods]
+  );
   const timelineEvents = useMemo(
-    () => buildDiaryTimeline({ sessions, goals, moods, diaryNotes }),
-    [sessions, goals, moods, diaryNotes]
+    () => buildDiaryTimeline({
+      sessions, goals, moods: visibleMoods, diaryNotes: visibleNotes
+    }), [sessions, goals, visibleMoods, visibleNotes]
   );
   const visibleEvents = useMemo(
     () => filterDiaryTimeline(timelineEvents, {
       kind: entryKind, query: searchQuery, from: fromDate, to: toDate
-    }),
-    [timelineEvents, entryKind, searchQuery, fromDate, toDate]
+    }), [timelineEvents, entryKind, searchQuery, fromDate, toDate]
   );
   const diaryGroups = useMemo(() => groupDiaryTimeline(visibleEvents), [visibleEvents]);
+  const hasFilters = entryKind !== 'all' || !!searchQuery || !!fromDate || !!toDate;
 
+  useEffect(() => {
+    if (!lastCommittedNote || hasFilters) return;
+    const target = [...(timelineRef.current?.querySelectorAll('[data-source-id]') || [])]
+      .find(element => element.dataset.sourceId === lastCommittedNote);
+    target?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    setLastCommittedNote(null);
+  }, [lastCommittedNote, timelineEvents, hasFilters]);
 
-  const handleSaveMood = async (e) => {
-    e.preventDefault();
-    if (!selectedMood.type) return;
-    const didSave = await moodSave.save({
-      mood: selectedMood.type,
-      intensity: selectedMood.intensity,
-      comment: moodComment.trim()
+  const resetFilters = () => {
+    setEntryKind('all'); setSearchQuery(''); setFromDate(''); setToDate('');
+  };
+
+  const handleAddDiaryNote = async event => {
+    event.preventDefault();
+    const content = newDiaryNote.text.trim();
+    if (!content) return;
+    const title = newDiaryNote.title.trim() || noteTitlePlaceholder || 'Запись';
+    const confirmed = await noteSave.save({
+      title, entries: [{ text: content, createdAt: Timestamp.now() }]
     });
-    if (didSave) {
-      setSelectedMood({ type: null, intensity: 1 });
-      setMoodComment('');
+    if (confirmed) {
+      await noteDraftRef.current?.clearAfterCommit();
+      setNewDiaryNote({ title: '', text: '' });
+      setShowTitle(false);
     }
   };
 
-  const handleAddDiaryNote = async (e) => {
-    e.preventDefault();
-    const content = newDiaryNote.text.trim();
-    if (!content) return;
-    // Do not expose an excerpt of a sensitive journal entry as an automatic heading.
-    const title = newDiaryNote.title.trim() || noteTitlePlaceholder || 'Заметка';
-    const didSave = await noteSave.save({
-      title,
-      entries: [{ text: content, createdAt: Timestamp.now() }]
+  const handleSaveMood = async event => {
+    event.preventDefault();
+    if (!selectedMood.type) return;
+    const confirmed = await moodSave.save({
+      mood: selectedMood.type, intensity: selectedMood.intensity,
+      comment: moodComment.trim()
     });
-    if (didSave) {
-      await noteDraftRef.current?.clearAfterCommit();
-      setNewDiaryNote({ title: '', text: '' });
+    if (confirmed) {
+      setSelectedMood({ type: null, intensity: 3 });
+      setMoodComment('');
+      setMoodOpen(false);
     }
   };
 
   return (
-    <div>
-      <h2 className="text-3xl font-bold text-stone-800 mb-6">Дневник</h2>
-      <div className="bg-white p-6 rounded-xl shadow-md border border-stone-100 mb-8">
-        <h3 className="text-lg font-semibold text-stone-800 mb-4">Сегодня</h3>
-        <form onSubmit={handleSaveMood} className="mb-4">
-            <div className="flex justify-around flex-wrap gap-2">
-                {Object.entries(MOOD_OPTIONS).map(([mood, emoji]) => (
-                    <button type="button" key={mood} onClick={() => { moodSave.clearFeedback(); setSelectedMood({type: mood, intensity: selectedMood.type === mood ? selectedMood.intensity : 1}); }} disabled={moodSave.status === 'saving'} aria-label={`Настроение: ${{happy:'Радость', content:'Спокойствие', neutral:'Нейтрально', sad:'Грусть', anxious:'Тревога'}[mood]}`} aria-pressed={selectedMood.type === mood} className={`text-4xl p-2 rounded-full transition-all duration-200 ${selectedMood.type === mood ? 'transform scale-125 bg-teal-100' : 'hover:scale-110'}`}>
-                        {emoji}
-                    </button>
-                ))}
+    <section className="reflect-diary" aria-label="Дневник">
+      <header className="reflect-diary-toolbar">
+        <div className="reflect-diary-heading">
+          <h2>Лента записей</h2>
+          <span className="reflect-diary-count" aria-label={`Записей: ${timelineEvents.length}`}>
+            {timelineEvents.length}
+          </span>
+        </div>
+        <div className="reflect-diary-actions">
+          <button type="button" className={`reflect-diary-icon-button ${filtersOpen || hasFilters ? 'is-active' : ''}`}
+            aria-label="Поиск и фильтры" title="Поиск и фильтры"
+            aria-expanded={filtersOpen} aria-controls="reflect-diary-filters"
+            onClick={() => setFiltersOpen(value => !value)}>
+            <SlidersHorizontal size={18} aria-hidden="true"/>
+            {hasFilters && <span className="reflect-diary-active-dot" aria-hidden="true"/>}
+          </button>
+          <button type="button" className={`reflect-diary-icon-button ${insightsOpen ? 'is-active' : ''}`}
+            aria-label="Обзор настроения" title="Обзор настроения"
+            aria-expanded={insightsOpen} aria-controls="reflect-diary-insights"
+            onClick={() => setInsightsOpen(value => !value)}>
+            <BarChart3 size={18} aria-hidden="true"/>
+          </button>
+        </div>
+      </header>
+
+      <section className="reflect-diary-compose" aria-label="Новая запись">
+        <form onSubmit={handleAddDiaryNote}>
+          <div className="reflect-diary-composer-row">
+            <label className="reflect-diary-composer-field">
+              <span className="sr-only">Новая запись</span>
+              <textarea ref={composerRef} rows={1} value={newDiaryNote.text}
+                aria-label="Новая запись" placeholder="Что у вас на уме?"
+                disabled={noteSave.status === 'saving'}
+                onChange={event => {
+                  noteSave.clearFeedback();
+                  setNewDiaryNote(previous => ({ ...previous, text: event.target.value }));
+                }}/>
+            </label>
+            <button type="button" className={`reflect-diary-icon-button ${showTitle ? 'is-active' : ''}`}
+              title="Добавить заголовок" aria-label="Добавить заголовок"
+              aria-expanded={showTitle} onClick={() => setShowTitle(open => !open)}>
+              <Type size={18} aria-hidden="true"/>
+            </button>
+            <button type="button" className={`reflect-diary-icon-button ${moodOpen ? 'is-active' : ''}`}
+              title="Оценить настроение" aria-label="Оценить настроение"
+              aria-expanded={moodOpen} onClick={() => setMoodOpen(open => !open)}>
+              <Smile size={19} aria-hidden="true"/>
+            </button>
+            <button type="submit" className="reflect-diary-send"
+              aria-label="Сохранить заметку" title="Сохранить заметку"
+              disabled={noteSave.status === 'saving' || !newDiaryNote.text.trim()}>
+              <ArrowUp size={19} aria-hidden="true"/>
+            </button>
+          </div>
+          {showTitle && (
+            <label className="reflect-diary-extra-field">
+              <span>Заголовок (необязательно)</span>
+              <input type="text" value={newDiaryNote.title}
+                placeholder={noteTitlePlaceholder}
+                disabled={noteSave.status === 'saving'}
+                onChange={event => {
+                  noteSave.clearFeedback();
+                  setNewDiaryNote(previous => ({ ...previous, title: event.target.value }));
+                }}/>
+            </label>
+          )}
+        </form>
+
+        {moodOpen && (
+          <form className="reflect-diary-mood" onSubmit={handleSaveMood}
+            aria-label="Запись настроения">
+            <div className="reflect-diary-mood-header">
+              <strong>Настроение</strong>
+              <button type="button" aria-label="Закрыть выбор настроения"
+                onClick={() => setMoodOpen(false)}><X size={16}/></button>
+            </div>
+            <div className="reflect-diary-mood-options" role="group" aria-label="Выберите настроение">
+              {MOOD_OPTIONS.map(item => (
+                <button type="button" key={item.type}
+                  aria-label={`Настроение: ${item.label}`}
+                  aria-pressed={selectedMood.type === item.type}
+                  disabled={moodSave.status === 'saving'}
+                  onClick={() => {
+                    moodSave.clearFeedback();
+                    setSelectedMood(previous => ({
+                      type: item.type, intensity: previous.type === item.type ? previous.intensity : 3
+                    }));
+                  }}>
+                  <span aria-hidden="true">{item.emoji}</span>
+                </button>
+              ))}
             </div>
             {selectedMood.type && (
-                <div className="mt-4 animate-fade-in">
-                    <label className="block text-sm font-medium text-stone-700 mb-2">Насколько сильна эта эмоция?</label>
-                    <div className="flex justify-center items-center gap-2 mb-4">
-                        {[1, 2, 3, 4, 5].map(intensity => (
-                            <button type="button" key={intensity} onClick={() => { moodSave.clearFeedback(); setSelectedMood({...selectedMood, intensity: intensity}); }} disabled={moodSave.status === 'saving'} aria-label={`Интенсивность ${intensity} из 5`} aria-pressed={selectedMood.intensity === intensity} className={`p-1 rounded-full transition-all text-3xl ${selectedMood.intensity >= intensity ? 'opacity-100' : 'opacity-30'}`}>
-                                {intensity}
-                            </button>
-                        ))}
-                    </div>
-                    <textarea value={moodComment} onChange={e => {moodSave.clearFeedback(); setMoodComment(e.target.value);}} disabled={moodSave.status === 'saving'} placeholder="Добавьте комментарий (необязательно)..." className="w-full px-4 py-3 bg-stone-50 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 mb-2" rows="2"></textarea>
-                    <div className="flex justify-end gap-4">
-                        <button type="button" onClick={() => {moodSave.discardAttempt(); setSelectedMood({type: null, intensity: 1}); setMoodComment('');}} disabled={moodSave.status === 'saving'} className="px-4 py-2 text-sm text-stone-600 bg-stone-200 rounded-lg hover:bg-stone-300 font-semibold">Отмена</button>
-                        <button type="submit" disabled={moodSave.status === 'saving'} className="px-4 py-2 text-sm text-white bg-teal-600 rounded-lg hover:bg-teal-700 font-semibold disabled:opacity-50">{moodSave.status === 'saving' ? 'Сохраняется…' : 'Сохранить настроение'}</button>
-                    </div>
+              <div className="reflect-diary-mood-details">
+                <div className="reflect-diary-mood-intensity">
+                  <span>Интенсивность</span>
+                  <div role="group" aria-label="Интенсивность настроения">
+                    {[1, 2, 3, 4, 5].map(level => (
+                      <button type="button" key={level}
+                        aria-label={`Интенсивность ${level} из 5`}
+                        aria-pressed={selectedMood.intensity === level}
+                        onClick={() => setSelectedMood(value => ({ ...value, intensity: level }))}
+                        disabled={moodSave.status === 'saving'}>{level}</button>
+                    ))}
+                  </div>
                 </div>
+                <input type="text" value={moodComment}
+                  placeholder="Комментарий (необязательно)"
+                  aria-label="Комментарий к настроению"
+                  onChange={event => { moodSave.clearFeedback(); setMoodComment(event.target.value); }}
+                  disabled={moodSave.status === 'saving'}/>
+                <button type="submit" className="reflect-diary-mood-save"
+                  disabled={moodSave.status === 'saving'}>
+                  <Check size={16}/> {moodSave.status === 'saving' ? 'Сохраняется…' : 'Сохранить настроение'}
+                </button>
+              </div>
             )}
-        </form>
-        <SaveFeedback status={moodSave.status} />
-      <hr className="my-4"/>
-      <form onSubmit={handleAddDiaryNote} className="space-y-3">
-        <div>
-          <label className="block text-sm font-medium text-stone-700 mb-1">Заголовок (необязательно)</label>
-          <input type="text" value={newDiaryNote.title} onChange={e => {noteSave.clearFeedback(); setNewDiaryNote(prev => ({...prev, title: e.target.value}));}} disabled={noteSave.status === 'saving'} placeholder={noteTitlePlaceholder} className="w-full px-4 py-2 bg-stone-50 border border-stone-300 rounded-lg"/>
-        </div>
-        <textarea value={newDiaryNote.text} onChange={e => {noteSave.clearFeedback(); setNewDiaryNote(prev => ({...prev, text: e.target.value}));}} disabled={noteSave.status === 'saving'} placeholder="Что нового? Добавьте заметку..." className="w-full p-3 border border-stone-300 rounded-lg" rows="3"></textarea>
-        <div className="flex justify-end mt-2">
-          <button type="submit" disabled={noteSave.status === 'saving' || !newDiaryNote.text.trim()} className="px-6 py-2 text-white bg-teal-600 rounded-lg hover:bg-teal-700 font-semibold disabled:opacity-50">{noteSave.status === 'saving' ? 'Сохраняется…' : 'Сохранить заметку'}</button>
-        </div>
-      </form>
-      <SaveFeedback status={noteSave.status} />
-      <ProtectedDraftControls ref={noteDraftRef} userId={userId}
-        surface="diary-new" value={newDiaryNote} onRestore={setNewDiaryNote} />
-      <p className="reflect-journal-draft-notice">До подтверждения Firestore текст остаётся в форме. Локальное восстановление возможно только при добровольно включённом защищённом черновике и наличии его фразы.</p>
-    </div>
+          </form>
+        )}
 
-    <div className="mt-8">
-        <MoodInsights moods={moods} isLoading={isLoading} />
-        <section className="reflect-journal-filters" aria-label="Фильтры дневника">
-          <label className="reflect-journal-search">
-            <Search size={18} aria-hidden="true" />
+        <div className="reflect-diary-feedback">
+          <SaveFeedback status={noteSave.status}/>
+          <SaveFeedback status={moodSave.status}/>
+        </div>
+        <details className="reflect-diary-draft-settings">
+          <summary><LockKeyhole size={15} aria-hidden="true"/> Защита черновика
+            <ChevronDown size={14} aria-hidden="true"/></summary>
+          <ProtectedDraftControls ref={noteDraftRef} userId={userId}
+            surface="diary-new" value={newDiaryNote} onRestore={value => {
+              setNewDiaryNote(value);
+              setShowTitle(Boolean(value?.title));
+            }}/>
+          <p>Черновик сохраняется только после добровольного включения защиты.</p>
+        </details>
+      </section>
+
+      {filtersOpen && (
+        <section id="reflect-diary-filters" className="reflect-diary-filter-panel"
+          aria-label="Фильтры дневника">
+          <label className="reflect-diary-search">
+            <Search size={17} aria-hidden="true"/>
             <span className="sr-only">Поиск по дневнику</span>
-            <input type="search" value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Поиск по своим записям" aria-label="Поиск по дневнику" />
+            <input type="search" value={searchQuery} aria-label="Поиск по дневнику"
+              placeholder="Найти запись" onChange={event => setSearchQuery(event.target.value)}/>
           </label>
-          <div className="reflect-journal-kind-list" role="group" aria-label="Тип записи">
-            {[
-              ['all', 'Все'], ['note', 'Заметки'], ['mood', 'Настроение'],
-              ['goal', 'Цели'], ['session', 'Сеансы']
-            ].map(([kind, title]) => (
+          <div className="reflect-diary-kinds" role="group" aria-label="Тип записи">
+            {KINDS.map(([kind, label]) => (
               <button type="button" key={kind} aria-pressed={entryKind === kind}
-                onClick={() => setEntryKind(kind)}
-                className="reflect-journal-kind">{title}</button>
+                onClick={() => setEntryKind(kind)}>{label}</button>
             ))}
           </div>
-          <div className="reflect-journal-date-range">
-            <label>С даты
-              <input type="date" value={fromDate} max={toDate || undefined}
-                onChange={e => setFromDate(e.target.value)} />
-            </label>
-            <label>По дату
-              <input type="date" value={toDate} min={fromDate || undefined}
-                onChange={e => setToDate(e.target.value)} />
-            </label>
-            {(searchQuery || entryKind !== 'all' || fromDate || toDate) && (
-              <button type="button" className="reflect-journal-reset"
-                onClick={() => { setSearchQuery(''); setEntryKind('all'); setFromDate(''); setToDate(''); }}>
-                Сбросить фильтры
-              </button>
-            )}
+          <div className="reflect-diary-dates">
+            <label>С даты <input type="date" value={fromDate}
+              max={toDate || undefined} onChange={event => setFromDate(event.target.value)}/></label>
+            <label>По дату <input type="date" value={toDate}
+              min={fromDate || undefined} onChange={event => setToDate(event.target.value)}/></label>
+            {hasFilters && <button type="button" onClick={resetFilters}>
+              Сбросить фильтры
+            </button>}
           </div>
         </section>
-        {!isLoading && timelineEvents.length === 0 &&
-          <p className="text-center text-stone-500 py-8">Записей пока нет.</p>}
-        {!isLoading && timelineEvents.length > 0 && diaryGroups.length === 0 &&
-          <p className="text-center text-stone-500 py-8">По выбранным фильтрам ничего не найдено.</p>}
-        <div className="space-y-10">
-          {diaryGroups.map(group => (
-            <div key={group.key} className="relative animate-fade-in-up">
-              <div className="absolute top-3 left-4 -ml-px h-full w-0.5 bg-stone-200" aria-hidden="true"></div>
-              <div className="relative pl-10">
-                <div className="absolute left-0 top-0">
-                  <span className="h-8 w-8 rounded-full bg-teal-500 flex items-center justify-center ring-8 ring-stone-50">
-                    <Calendar className="w-4 h-4 text-white" />
-                  </span>
+      )}
+      {insightsOpen && (
+        <section id="reflect-diary-insights" className="reflect-diary-insights"
+          aria-label="Обзор настроения за 7 дней">
+          <MoodInsights moods={visibleMoods} isLoading={isLoading}/>
+        </section>
+      )}
+
+      <div ref={timelineRef} className="reflect-diary-timeline" aria-label="Лента записей">
+        {!isLoading && !timelineEvents.length &&
+          <div className="reflect-diary-empty">Здесь появятся ваши записи. Начните с одной мысли.</div>}
+        {!isLoading && timelineEvents.length > 0 && !diaryGroups.length &&
+          <div className="reflect-diary-empty">По выбранным фильтрам ничего не найдено.</div>}
+        {diaryGroups.map(group => (
+          <section key={group.key} className="reflect-diary-group">
+            <h3><CalendarDays size={17} aria-hidden="true"/>{group.title}</h3>
+            <div className="reflect-diary-entries">
+              {group.entries.map(entry => (
+                <div key={entry.eventKey} data-source-id={entry.sourceId}>
+                  <DiaryNarrativeCard entry={entry} onAppend={onAppend}/>
                 </div>
-                <h3 className="text-2xl font-bold text-stone-800 mb-6 pt-1 capitalize">{group.title}</h3>
-                <div className="space-y-6">
-                  {group.entries.map(entry => (
-                    <DiaryNarrativeCard key={entry.eventKey} entry={entry} onAppend={onAppend} />
-                  ))}
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </section>
+        ))}
       </div>
-    </div>
+    </section>
   );
 };
 

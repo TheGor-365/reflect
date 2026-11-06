@@ -97,10 +97,20 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend }) => {
     }
   };
 
+  const kind = entry.sourceKind || entry.type;
+  const category = {
+    note: 'Запись', mood: 'Настроение', goal: 'Цель', session: 'Сеанс'
+  }[kind] || 'Запись';
+
   return (
-    <div className="reflect-journal-card bg-white p-5 rounded-xl shadow-md border border-stone-200 transition-shadow hover:shadow-lg" data-kind={entry.sourceKind || entry.type}>
+    <article className="reflect-journal-card bg-white p-5 rounded-xl border border-stone-200"
+      data-kind={kind}>
+      <div className="reflect-journal-category" aria-label={`Рубрика: ${category}`}>
+        <span className="reflect-journal-category-dot" aria-hidden="true"/>
+        {category}
+      </div>
       {renderContent()}
-    </div>
+    </article>
   );
 });
 
