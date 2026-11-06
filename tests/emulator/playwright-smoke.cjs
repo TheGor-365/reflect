@@ -4,6 +4,7 @@
 // Real-browser synthetic test. NEVER contacts production Firebase or AI.
 const { spawn } = require("node:child_process");
 const path = require("node:path");
+const fs = require("node:fs");
 const { chromium } = require("playwright");
 
 const PROJECT = "demo-reflect-auth-qa";
@@ -218,6 +219,29 @@ async function runBrowserSuite() {
       throw new Error("Existing synthetic profile unexpectedly triggered onboarding");
     }
 
+    // Stage 03B: owner explicitly confirms plaintext local export, then
+    // verify downloaded JSON covers all current UID-scoped collections.
+    // Never print a private archive, user text, token, download path or code.
+    await first.getByRole("button", { name: "Аккаунт и вход" }).click();
+    first.once("dialog", dialog => dialog.accept());
+    const firstDownloadPromise = first.waitForEvent("download", { timeout: 30000 });
+    await first.getByRole("button", { name: "Скачать мои данные (JSON)" }).click();
+    const firstDownload = await firstDownloadPromise;
+    const ownerArchive = JSON.parse(fs.readFileSync(await firstDownload.path(), "utf8"));
+    if (ownerArchive.source?.uid !== firstUid ||
+        ownerArchive.format !== "reflect-owner-data-export" ||
+        !ownerArchive.profile?.fields?.name ||
+        !ownerArchive.collections?.diaryNotes?.some(entry =>
+          entry.fields?.entries?.some(item => item.text === "Synthetic alpha journal entry")) ||
+        !ownerArchive.collections?.moods?.some(entry => entry.fields?.mood === "happy") ||
+        !Array.isArray(ownerArchive.collections?.goals) ||
+        !Array.isArray(ownerArchive.collections?.sessions) ||
+        JSON.stringify(ownerArchive).includes("PRIVATE_TOKEN")) {
+      throw new Error("Owner archive missing a collection or contains invalid owner information");
+    }
+    await first.getByRole("button", { name: "Закрыть", exact: true }).click();
+    console.log("PASS: explicit owner JSON export includes full synthetic diary and mood without tokens");
+
     const secondContext = await browser.newContext();
     await protectBrowser(secondContext);
     const second = await secondContext.newPage();
@@ -231,6 +255,21 @@ async function runBrowserSuite() {
     if (await second.getByText("Synthetic alpha journal entry", { exact: true }).count()) {
       throw new Error("Synthetic Beta can see Synthetic Alpha's journal");
     }
+
+    // A separate anonymous UID can export only its own records.
+    await second.getByRole("button", { name: "Аккаунт и вход" }).click();
+    second.once("dialog", dialog => dialog.accept());
+    const betaDownloadPromise = second.waitForEvent("download", { timeout: 30000 });
+    await second.getByRole("button", { name: "Скачать мои данные (JSON)" }).click();
+    const betaDownload = await betaDownloadPromise;
+    const betaArchive = JSON.parse(fs.readFileSync(await betaDownload.path(), "utf8"));
+    if (betaArchive.source?.uid !== secondUid ||
+        betaArchive.collections?.diaryNotes?.length !== 0 ||
+        betaArchive.collections?.moods?.length !== 0) {
+      throw new Error("Cross-user data appeared in private export");
+    }
+    await second.getByRole("button", { name: "Закрыть", exact: true }).click();
+    console.log("PASS: separate guest UID export contains no first-owner records");
 
     // A distinct browser signs in to the linked account and reads its
     // previous profile/diary, without merging into or seeing Beta's data.
