@@ -268,9 +268,12 @@ export default function Goals({ goals = [], userId, onAppend, onFeedback }) {
   // once by its allocated ID, then retire the echo at authoritative readback.
   // Never carry a former account's echo into another UID.
   useEffect(() => {
-    setConfirmedGoals(current => current.filter(entry =>
-      entry.ownerUid === userId && !goals.some(goal => goal.id === entry.id)
-    ));
+    setConfirmedGoals(current => {
+      const remaining = current.filter(entry =>
+        entry.ownerUid === userId && !goals.some(goal => goal.id === entry.id)
+      );
+      return remaining.length === current.length ? current : remaining;
+    });
   }, [goals, userId]);
 
   const visibleGoals = useMemo(() => {
