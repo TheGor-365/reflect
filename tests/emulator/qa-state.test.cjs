@@ -85,6 +85,9 @@ test("emulator hub mapping must be the exact local project port pair", () => {
 test("locator only accepts a loopback host and valid port", () => {
   assert.equal(validateHubLocator({ host: "127.0.0.1", port: 4401 }),
     "http://127.0.0.1:4401");
+  assert.equal(validateHubLocator({
+    version: "15.34.2", origins: ["http://127.0.0.1:4401", "http://[::1]:4401"], pid: 123
+  }), "http://127.0.0.1:4401");
   assert.throws(() => validateHubLocator({ host: "example.com", port: 4401 }), /non-local/);
   assert.throws(() => validateHubLocator({ host: "localhost", port: 0 }), /invalid/);
 });
@@ -94,7 +97,7 @@ test("save uses the correct project locator and private non-overwriting snapshot
   const temp = path.join(home, "temporary");
   fs.mkdirSync(temp);
   fs.writeFileSync(path.join(temp, "hub-" + PROJECT + ".json"),
-    JSON.stringify({ host: "127.0.0.1", port: 4401 }));
+    JSON.stringify({ version: "15.34.2", origins: ["http://127.0.0.1:4401"] }));
   let calls = 0;
   const mockFetch = async (url, options = {}) => {
     calls++;
@@ -130,7 +133,7 @@ test("save aborts before export if the locator points to private restore emulato
   const temp = path.join(home, "temp");
   fs.mkdirSync(temp);
   fs.writeFileSync(path.join(temp, "hub-" + PROJECT + ".json"),
-    JSON.stringify({ host: "127.0.0.1", port: 4401 }));
+    JSON.stringify({ version: "15.34.2", origins: ["http://127.0.0.1:4401"] }));
   let calledExport = false;
   await assert.rejects(saveRunningState({
     home, temporaryDirectory: temp,
