@@ -92,3 +92,15 @@ test('server-confirmed write removes only the currently unlocked encrypted draft
     .toBeInTheDocument();
   expect(discardProtectedDraft).not.toHaveBeenCalled();
 });
+
+test('compact session draft starts unobtrusively and still requires explicit protection', () => {
+  render(<ProtectedDraftControls {...props} surface="session-new" compact />);
+  expect(screen.getByText('Локальный черновик')).toBeInTheDocument();
+  expect(screen.getByText(/Зашифрованная копия останется в этом браузере/)).toBeInTheDocument();
+  expect(screen.queryByText(/AES-GCM/)).not.toBeInTheDocument();
+  expect(openProtectedDraft).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Защитить текст на устройстве' }));
+  expect(screen.getByText('Придумайте отдельную фразу')).toBeInTheDocument();
+  expect(screen.getByPlaceholderText('Минимум 12 символов')).toBeInTheDocument();
+  expect(openProtectedDraft).not.toHaveBeenCalled();
+});
