@@ -222,8 +222,9 @@ test("QA port occupancy is diagnosed before starting a second emulator", async t
   const listener = net.createServer();
   await new Promise((resolve, reject) => {
     listener.once("error", reject);
-    listener.listen(9099, "127.0.0.1", resolve);
+    listener.listen(0, "127.0.0.1", resolve);
   });
   t.after(() => listener.close());
-  await assert.rejects(assertQaPortsFree(), /QA port 9099 is occupied or unavailable/);
+  const port = listener.address().port;
+  await assert.rejects(assertQaPortsFree([port]), new RegExp(`QA port ${port} is occupied or unavailable`));
 });
