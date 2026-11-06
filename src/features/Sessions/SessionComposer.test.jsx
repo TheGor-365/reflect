@@ -25,7 +25,7 @@ test('never sends while server AI is disabled and explains lack of autosave', ()
   const props = makeProps({ value: 'Большая личная история' });
   render(<SessionComposer {...props} />);
   expect(screen.getByRole('button', { name: 'Отправить сообщение' })).toBeDisabled();
-  expect(screen.getByText(/ИИ временно отключён/)).toBeInTheDocument();
+  expect(screen.getByText(/ИИ пока недоступен/)).toBeInTheDocument();
   const field = screen.getByRole('textbox', { name: 'Сообщение для сеанса' });
   fireEvent.keyDown(field, { key: 'Enter', ctrlKey: true });
   expect(props.onSubmit).not.toHaveBeenCalled();
@@ -46,10 +46,10 @@ test('grows input and caps its height without leaving a single-line composer', (
   const props = makeProps({ value: 'Старт' });
   const { rerender } = render(<SessionComposer {...props} />);
   const field = screen.getByRole('textbox', { name: 'Сообщение для сеанса' });
-  expect(field.style.height).toBe('72px');
+  expect(field.style.height).toBe('44px');
   Object.defineProperty(field, 'scrollHeight', { configurable: true, value: 550 });
   rerender(<SessionComposer {...props} value={'Длинное сообщение\n'.repeat(40)} />);
-  expect(field.style.height).toBe('280px');
+  expect(field.style.height).toBe('248px');
   expect(field.style.overflowY).toBe('auto');
 });
 
@@ -76,4 +76,17 @@ test('while saving to diary disable textarea and both relevant actions', () => {
   expect(screen.getByRole('textbox', { name: 'Сообщение для сеанса' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Сохранить текст в дневник' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Отправить сообщение' })).toBeDisabled();
+});
+
+test('encrypted draft controls live inside composer disclosure, not below editor', () => {
+  const { container } = render(<SessionComposer {...makeProps({
+    draftControls: <div data-testid="private-draft">Синтетический черновик</div>
+  })} />);
+  const disclosure = container.querySelector('details.reflect-session-draft-settings');
+  expect(disclosure).not.toHaveAttribute('open');
+  expect(disclosure).toContainElement(screen.getByTestId('private-draft'));
+  expect(container.querySelector('.reflect-session-composer').lastElementChild.tagName)
+    .toBe('FORM');
+  fireEvent.click(screen.getByText('Настройки защищённого черновика'));
+  expect(disclosure).toHaveAttribute('open');
 });
