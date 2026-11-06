@@ -10,6 +10,10 @@ vi.mock('../../security/ownerDataExport', () => ({
   downloadOwnerExport: mock.download
 }));
 
+vi.mock('./OwnerDataRecovery', () => ({
+  default: () => null
+}));
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.spyOn(window, 'confirm').mockReturnValue(true);
