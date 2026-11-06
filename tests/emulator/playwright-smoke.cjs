@@ -127,11 +127,46 @@ async function runBrowserSuite() {
     await profile(first, "Synthetic Alpha");
     const firstUid = await uidInSidebar(first);
 
-    await first.getByPlaceholder("Что нового? Добавьте заметку...").fill("Synthetic alpha journal entry");
+    // Stage 03A: explicitly opt in to AES-GCM; inspect only ciphertext
+    // presence, never log its content, key, passphrase or journal text.
+    await first.getByPlaceholder("Что нового? Добавьте заметку...")
+      .fill("Synthetic alpha journal entry");
+    await first.getByRole("button", { name: "Включить шифрование черновика" }).click();
+    await first.getByPlaceholder("Минимум 12 символов")
+      .fill("Synthetic independent QA draft phrase!");
+    await first.getByRole("button", { name: "Включить", exact: true }).click();
+    await first.getByText("Черновик зашифрован и сохранён на устройстве.")
+      .waitFor({ timeout: 30000 });
+    const storedCipher = await first.evaluate(() =>
+      Object.entries(localStorage).find(([key]) =>
+        key.startsWith("reflect:encrypted-draft:v1:")
+      )?.[1] || null
+    );
+    if (!storedCipher || storedCipher.includes("Synthetic alpha journal entry")) {
+      throw new Error("Private draft was not safely encrypted before reload");
+    }
+    await first.reload({ waitUntil: "domcontentloaded" });
+    await first.getByRole("button", { name: "Восстановить локальный черновик" })
+      .waitFor({ timeout: 30000 });
+    await first.getByRole("button", { name: "Восстановить локальный черновик" }).click();
+    await first.getByPlaceholder("Минимум 12 символов")
+      .fill("Synthetic independent QA draft phrase!");
+    await first.getByRole("button", { name: "Расшифровать" }).click();
+    await first.getByPlaceholder("Что нового? Добавьте заметку...")
+      .waitFor({ timeout: 30000 });
+    if (await first.getByPlaceholder("Что нового? Добавьте заметку...")
+      .inputValue() !== "Synthetic alpha journal entry") {
+      throw new Error("Encrypted journal draft did not recover after reload");
+    }
     await first.getByRole("button", { name: "Сохранить заметку" }).click();
     await first.locator(".reflect-journal-card p.whitespace-pre-wrap")
       .filter({ hasText: "Synthetic alpha journal entry" }).first()
       .waitFor({ timeout: 30000 });
+    await first.waitForFunction(() =>
+      !Object.keys(localStorage).some(key =>
+        key.startsWith("reflect:encrypted-draft:v1:")
+      ), null, { timeout: 30000 });
+    console.log("PASS: encrypted journal draft restored, then cleared after confirmed Firestore write");
 
     // Stage 02D: privacy-safe mood observation must be derived from an
     // actual synthetic Firestore write and survive a browser reload.
