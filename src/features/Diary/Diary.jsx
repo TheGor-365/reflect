@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import {
-  ArrowUp, CalendarDays, ChartNoAxesColumn, Check, ChevronDown,
+  ArrowUp, CalendarDays, BarChart3, Check, ChevronDown,
   LockKeyhole, Search, SlidersHorizontal, Smile, Type, X
 } from 'lucide-react';
 import { useEntrySave } from '../../hooks/useEntrySave';
@@ -197,7 +197,7 @@ const Diary = ({
             aria-label="Обзор настроения" title="Обзор настроения"
             aria-expanded={insightsOpen} aria-controls="reflect-diary-insights"
             onClick={() => setInsightsOpen(value => !value)}>
-            <ChartNoAxesColumn size={18} aria-hidden="true"/>
+            <BarChart3 size={18} aria-hidden="true"/>
           </button>
         </div>
       </header>
