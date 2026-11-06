@@ -457,6 +457,16 @@ async function runBrowserSuite() {
         "third-party request provenance needs privacy review before any production release");
     }
     console.log("PASS: all browser network requests outside localhost were aborted");
+
+    // CI-only actual export integration: exercise the real dedicated Hub,
+    // not mocks. Store synthetic Auth + Firestore outside workspace and never
+    // upload it as an artifact or print its content/credentials.
+    if (process.env.CI === "true") {
+      const { saveRunningState, metadataValid } = require("./qa-state.cjs");
+      const snapshot = await saveRunningState();
+      if (!metadataValid(snapshot)) throw new Error("Actual QA export lacked Auth or Firestore metadata");
+      console.log("PASS: actual demo hub exported BOTH Auth and Firestore to private CI storage");
+    }
   } finally {
     await browser.close();
   }
