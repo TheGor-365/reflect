@@ -130,8 +130,9 @@ async function runBrowserSuite() {
 
     // Stage 03A: explicitly opt in to AES-GCM; inspect only ciphertext
     // presence, never log its content, key, passphrase or journal text.
-    await first.getByPlaceholder("Что нового? Добавьте заметку...")
+    await first.getByPlaceholder("Что у вас на уме?")
       .fill("Synthetic alpha journal entry");
+    await first.locator("details.reflect-diary-draft-settings > summary").click();
     await first.getByRole("button", { name: "Включить шифрование черновика" }).click();
     await first.getByPlaceholder("Минимум 12 символов")
       .fill("Synthetic independent QA draft phrase!");
@@ -147,6 +148,7 @@ async function runBrowserSuite() {
       throw new Error("Private draft was not safely encrypted before reload");
     }
     await first.reload({ waitUntil: "domcontentloaded" });
+    await first.locator("details.reflect-diary-draft-settings > summary").click();
     await first.getByRole("button", { name: "Восстановить локальный черновик" })
       .waitFor({ timeout: 30000 });
     await first.getByRole("button", { name: "Восстановить локальный черновик" }).click();
@@ -157,7 +159,7 @@ async function runBrowserSuite() {
     // click. Wait for its actual React value, not merely DOM presence.
     await first.waitForFunction(() => {
       const field = document.querySelector(
-        'textarea[placeholder="Что нового? Добавьте заметку..."]'
+        'textarea[placeholder="Что у вас на уме?"]'
       );
       return field?.value === "Synthetic alpha journal entry";
     }, null, { timeout: 30000 });
@@ -173,8 +175,10 @@ async function runBrowserSuite() {
 
     // Stage 02D: privacy-safe mood observation must be derived from an
     // actual synthetic Firestore write and survive a browser reload.
+    await first.getByRole("button", { name: "Оценить настроение" }).click();
     await first.getByRole("button", { name: "Настроение: Радость" }).click();
     await first.getByRole("button", { name: "Интенсивность 4 из 5" }).click();
+    await first.getByRole("button", { name: "Обзор настроения" }).click();
     await first.getByRole("button", { name: "Сохранить настроение" }).click();
     await first.getByText("1 из 1 отметок").waitFor({ timeout: 30000 });
     const review = first.getByRole("heading", { name: "Настроение за 7 дней" });
@@ -183,6 +187,7 @@ async function runBrowserSuite() {
       throw new Error("Mood review did not count the real observed day");
     }
     await first.reload({ waitUntil: "domcontentloaded" });
+    await first.getByRole("button", { name: "Обзор настроения" }).click();
     await first.getByText("1 из 1 отметок").waitFor({ timeout: 30000 });
     console.log("PASS: mood review uses persisted owner-scoped reports, survives reload");
 
