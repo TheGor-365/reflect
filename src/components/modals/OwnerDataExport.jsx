@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Download, FileJson2, ShieldAlert } from 'lucide-react';
+import OwnerDataRecovery from './OwnerDataRecovery';
 import { buildOwnerExport, downloadOwnerExport } from '../../security/ownerDataExport';
 
 /**
@@ -78,6 +79,7 @@ export default function OwnerDataExport({ userId }) {
       </button>
       {message && <p className="reflect-owner-export-status" role="status">{message}</p>}
       {error && <p className="reflect-auth-error" role="alert">{error}</p>}
+      <OwnerDataRecovery userId={userId}/>
     </section>
   );
 }

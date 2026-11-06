@@ -1365,3 +1365,63 @@ html:has(.reflect-app[data-theme="light"])::-webkit-scrollbar-thumb {
 .reflect-app[data-theme="light"] :is(.reflect-sidebar-scroll, .reflect-session-messages)::-webkit-scrollbar-thumb {
   background: rgba(8, 127, 128, .37);
 }
+
+/* Stage 03E: collapsed-by-default owner archive review; never print private data. */
+.reflect-owner-recovery {
+  margin-top: 6px;
+  border-top: 1px solid var(--reflect-border);
+  padding-top: 11px;
+  min-width: 0;
+}
+.reflect-owner-recovery > summary {
+  cursor: pointer; display: flex; align-items: center;
+  gap: 9px; padding: 8px 2px;
+  color: var(--reflect-accent);
+  font-size: 11px; font-weight: 750;
+  list-style: none;
+}
+.reflect-owner-recovery > summary::-webkit-details-marker { display: none; }
+.reflect-owner-recovery > summary::after {
+  content: "+"; margin-left: auto; font-size: 16px;
+}
+.reflect-owner-recovery[open] > summary::after { content: "−"; }
+.reflect-owner-recovery-body {
+  display: grid; gap: 10px; padding: 9px 0 3px; min-width: 0;
+}
+.reflect-owner-recovery-body > label {
+  font-size: 11px; font-weight: 750; color: var(--reflect-ink);
+}
+.reflect-owner-recovery-body > input[type="file"] {
+  width: 100%; min-width: 0; max-width: 100%;
+  padding: 11px 8px; border: 1px solid var(--reflect-border);
+  border-radius: 10px; font-size: 11px; color: var(--reflect-ink);
+}
+.reflect-owner-recovery-body > input[type="file"]::file-selector-button {
+  color: var(--reflect-ink); background: var(--reflect-card);
+  border: 1px solid var(--reflect-border);
+  border-radius: 8px; padding: 6px 10px; margin-right: 9px;
+}
+.reflect-owner-recovery-summary {
+  display: grid; gap: 9px; min-width: 0;
+  padding: 10px; border-radius: 11px;
+  background: rgba(80, 172, 157, .075);
+  border: 1px solid var(--reflect-border);
+}
+.reflect-owner-recovery-consent {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 11px; font-weight: 500; line-height: 1.55;
+}
+.reflect-owner-recovery-consent > input[type="checkbox"] {
+  width: 17px; height: 17px; flex: none; margin-top: 2px;
+  accent-color: var(--reflect-accent);
+}
+.reflect-owner-recovery-summary > input[type="text"],
+.reflect-owner-recovery-summary > input:not([type]) {
+  min-width: 0; width: 100%; min-height: 41px;
+  padding: 9px 11px; color: var(--reflect-ink);
+  background: var(--reflect-bg); border: 1px solid var(--reflect-border);
+  border-radius: 10px; font-size: 12px;
+}
+.reflect-owner-recovery :is(summary, input, button):focus-visible {
+  outline: 2px solid var(--reflect-accent); outline-offset: 3px;
+}

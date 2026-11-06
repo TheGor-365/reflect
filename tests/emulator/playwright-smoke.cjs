@@ -266,7 +266,45 @@ async function runBrowserSuite() {
         JSON.stringify(ownerArchive).includes("PRIVATE_TOKEN")) {
       throw new Error("Owner archive missing a collection or contains invalid owner information");
     }
+    // Stage 03E — synthetic-only restoration test. Delete exactly one demo
+    // note through Authenticated emulator REST, inspect the downloaded file,
+    // restore only that missing note in a transaction, and read it back.
+    const syntheticNote = ownerArchive.collections.diaryNotes.find(entry =>
+      entry.fields?.entries?.some(item => item.text === "Synthetic alpha journal entry"));
+    const ownerAuthToken = await first.evaluate(async () => {
+      const { auth } = await import("/src/firebase/config.js");
+      return auth.currentUser?.getIdToken();
+    });
+    if (!ownerAuthToken || !syntheticNote?.id) {
+      throw new Error("Missing synthetic note or local demo Auth token");
+    }
+    const deleted = await fetch(
+      "http://127.0.0.1:18081/v1/projects/demo-reflect-auth-qa/databases/(default)/documents/" +
+      "artifacts/reflect-8fdc8/users/" + firstUid +
+      "/diaryNotes/" + encodeURIComponent(syntheticNote.id),
+      { method: "DELETE", headers: { Authorization: "Bearer " + ownerAuthToken } }
+    );
+    if (deleted.status !== 200) {
+      throw new Error("Synthetic-only demo REST delete for restore test failed");
+    }
+    await first.getByText("Проверить архив и восстановить тестовые записи").click();
+    await first.getByLabel("Файл экспорта Reflect (JSON)").setInputFiles({
+      name: "synthetic-reflect.json", mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(ownerArchive))
+    });
+    await first.getByText("Структура архива проверена").waitFor({ timeout: 30000 });
+    await first.getByRole("checkbox").check();
+    await first.getByLabel("Введите ВОССТАНОВИТЬ для подтверждения").fill("ВОССТАНОВИТЬ");
+    first.once("dialog", dialog => dialog.accept());
+    await first.getByRole("button", {
+      name: "Восстановить отсутствующие записи в тестовой среде"
+    }).click();
+    await first.getByText(/Создано отсутствующих документов: 1/).waitFor({ timeout: 30000 });
     await first.getByRole("button", { name: "Закрыть", exact: true }).click();
+    await first.locator(".reflect-journal-card p.whitespace-pre-wrap")
+      .filter({ hasText: "Synthetic alpha journal entry" }).first()
+      .waitFor({ timeout: 30000 });
+    console.log("PASS: owner archive restored only one missing demo note without overwriting existing data");
     console.log("PASS: explicit owner JSON export includes full synthetic diary and mood without tokens");
 
     const secondContext = await browser.newContext();
@@ -295,7 +333,21 @@ async function runBrowserSuite() {
         betaArchive.collections?.moods?.length !== 0) {
       throw new Error("Cross-user data appeared in private export");
     }
+    // A foreign UID's archive must be rejected before any Firestore write.
+    await second.getByText("Проверить архив и восстановить тестовые записи").click();
+    await second.getByLabel("Файл экспорта Reflect (JSON)").setInputFiles({
+      name: "foreign-owner.json", mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(ownerArchive))
+    });
+    await second.getByRole("alert").filter({ hasText: "другому UID" })
+      .waitFor({ timeout: 30000 });
+    if (await second.getByRole("button", {
+      name: "Восстановить отсутствующие записи в тестовой среде"
+    }).count()) {
+      throw new Error("Cross-UID restore action was incorrectly enabled");
+    }
     await second.getByRole("button", { name: "Закрыть", exact: true }).click();
+    console.log("PASS: foreign UID archive fails closed without a restore action");
     console.log("PASS: separate guest UID export contains no first-owner records");
 
     // A distinct browser signs in to the linked account and reads its
