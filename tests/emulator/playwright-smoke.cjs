@@ -133,6 +133,21 @@ async function runBrowserSuite() {
       .filter({ hasText: "Synthetic alpha journal entry" }).first()
       .waitFor({ timeout: 30000 });
 
+    // Stage 02D: privacy-safe mood observation must be derived from an
+    // actual synthetic Firestore write and survive a browser reload.
+    await first.getByRole("button", { name: "Настроение: Радость" }).click();
+    await first.getByRole("button", { name: "Интенсивность 4 из 5" }).click();
+    await first.getByRole("button", { name: "Сохранить настроение" }).click();
+    await first.getByText("1 из 1 отметок").waitFor({ timeout: 30000 });
+    const review = first.getByRole("heading", { name: "Настроение за 7 дней" });
+    await review.waitFor({ timeout: 30000 });
+    if (await first.getByText("1 / 7").count() !== 1) {
+      throw new Error("Mood review did not count the real observed day");
+    }
+    await first.reload({ waitUntil: "domcontentloaded" });
+    await first.getByText("1 из 1 отметок").waitFor({ timeout: 30000 });
+    console.log("PASS: mood review uses persisted owner-scoped reports, survives reload");
+
     // Upgrade the EXISTING user instead of creating a different UID.
     await first.getByRole("button", { name: "Аккаунт и вход" }).click();
     await first.getByLabel("Email").fill("reflect-synthetic-alpha@example.test");
