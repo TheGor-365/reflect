@@ -398,7 +398,7 @@ async function runBrowserSuite() {
     await dock.getByRole("button", { name: "Цели" }).click();
     await first.getByRole("heading", { name: "Ваши цели" }).waitFor();
     await dock.getByRole("button", { name: "Дневник" }).click();
-    await first.getByRole("heading", { name: "Дневник" }).waitFor();
+    await first.getByRole("heading", { name: "Лента записей" }).waitFor();
 
     await first.getByRole("button", { name: "Открыть меню" }).click();
     const drawer = first.locator(".reflect-sidebar");
