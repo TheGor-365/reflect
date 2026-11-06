@@ -153,3 +153,43 @@ test('linked user may open password recovery without signing out', () => {
   expect(screen.getByText('Аккаунт подключён')).toBeInTheDocument();
   expect(signOutRegistered).not.toHaveBeenCalled();
 });
+
+
+test('account dialog locks only the background scroll and restores prior styles', () => {
+  const previousRoot = document.documentElement.style.overflow;
+  const previousBody = document.body.style.overflow;
+  document.documentElement.style.overflow = 'auto';
+  document.body.style.overflow = 'scroll';
+  const { unmount } = render(<AccountAccess user={{
+    uid: 'synthetic-linked', isAnonymous: false,
+    email: 'synthetic@example.test', emailVerified: true
+  }} onClose={vi.fn()} />);
+  expect(document.documentElement.style.overflow).toBe('hidden');
+  expect(document.body.style.overflow).toBe('hidden');
+  unmount();
+  expect(document.documentElement.style.overflow).toBe('auto');
+  expect(document.body.style.overflow).toBe('scroll');
+  document.documentElement.style.overflow = previousRoot;
+  document.body.style.overflow = previousBody;
+});
+
+test('Escape closes ordinary account settings without signing out or changing the user', () => {
+  const onClose = vi.fn();
+  render(<AccountAccess user={{
+    uid: 'synthetic-linked', isAnonymous: false,
+    email: 'synthetic@example.test', emailVerified: true
+  }} onClose={onClose} />);
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(onClose).toHaveBeenCalledOnce();
+  expect(signOutRegistered).not.toHaveBeenCalled();
+});
+
+test('first-time unregistered welcome cannot escape without choosing an onboarding path', () => {
+  const onGuest = vi.fn();
+  render(<AccountAccess welcome user={{
+    uid: 'synthetic-anon', isAnonymous: true
+  }} onGuest={onGuest} />);
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(onGuest).not.toHaveBeenCalled();
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+});
