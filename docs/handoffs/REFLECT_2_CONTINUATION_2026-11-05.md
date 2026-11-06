@@ -257,3 +257,29 @@ Browser QA proved local synthetic password recovery -> new password -> re-login 
 3. On local UI open "Аккаунт и вход" to inspect verification/recovery in demo mode. Do NOT log out of an emulator account with irreplaceable test records, do NOT share a real password or OOB link, and do NOT interpret `example.test` as deliverable mail. Send only screenshot of account UI and the result.
 
 **Release invariants:** PR #14 depends on #13→#12→#11 and previous Draft PRs. No `main`, production Firebase, Vercel deployment, secrets, payment resources or private backups touched. Production release requires separate staging and privacy/security acceptance.
+
+## 13. Continuation checkpoint — private QA persistence (2026-11-06)
+
+**New stacked Draft PR #15:** https://github.com/TheGor-365/reflect/pull/15
+Branch `work/reflect-qa-state-preservation-2026-11-06`, base PR #14 `work/reflect-auth-recovery-2026-11-06`. No merge to main, no Vercel deploy, no production Firebase write, no access to user's original encrypted Stage-00 archive.
+
+**Why:** Owner runs the synthetic Firebase Auth emulator 9099 and Firestore 18081 for Reflect 2.0, plus an independent restored-private Firestore emulator on 18080. Plain `emulators:start` does not retain demo Auth/Firestore state across shutdown. Auth and Firestore must be preserved together for recovery to the same UID. This stage specifically addresses LOCAL QA durability; it is not production backup, real email, staging, or release.
+
+**Implementation:**
+- `tests/emulator/qa-state.cjs` with `npm run qa:state -- status | save | start`: `save` reads the project-specific Firebase Hub locator for `demo-reflect-auth-qa` (modern `origins` and legacy `host/port` formats), validates exact localhost Auth 9099 and Firestore 18081, then invokes only that hub's `/_admin/export` with Auth+Firestore targets. It refuses mismatched port 18080 or nonlocal endpoints.
+- Exports outside Git to versioned, non-overwriting `~/.local/share/reflect-qa/demo-reflect-auth-qa/snapshots` with owner-only `0700` directories. No private Auth/user records, journal text or OOB codes committed, logged or uploaded. Directory is NOT encrypted; document device encryption and synthetic-only use.
+- `start` imports the latest complete Auth + Firestore manifest and configures `--export-on-exit` to a distinct timestamped snapshot; incomplete newest manifest halts instead of silently starting fresh. Unexpected kill/power loss still requires prior manual checkpoint.
+- Added nine Node built-in security/lifecycle regression tests to `npm test`, and extended isolated Chromium workflow to perform real Auth+Firestore export, shut down, import into a fresh emulator instance and sign into the restored synthetic account, reading its own Firestore diary.
+- Added specific runbook in `tests/emulator/README.md`, source-ignore safeguards. The source for Firebase CLI import/export is https://firebase.google.com/docs/emulator-suite/install_and_configure .
+
+**CI evidence on functional HEAD `f37bec74c4eab027f766e7db95455078964d363d`:** all 4 PR workflows SUCCESS:
+- TypeScript + 107 Vitest + 9 Node tests + Vite build: https://github.com/TheGor-365/reflect/actions/runs/42134900820
+- Locked Vite build: https://github.com/TheGor-365/reflect/actions/runs/42134900864
+- Real synthetic Auth+Firestore export/import and Chromium E2E: https://github.com/TheGor-365/reflect/actions/runs/42134900861
+- Dependency audit: https://github.com/TheGor-365/reflect/actions/runs/42134900755
+
+Browser log confirms both `PASS: actual demo hub exported BOTH Auth and Firestore to private CI storage` and `PASS: imported Auth login and owner-scoped Firestore diary match synthetic baseline`. CI still flagged a blocked external `www.google.com` image request during Auth; continue third-party privacy root-cause review before any production release. CI tests use synthetic records only; no owner real data accessed.
+
+**Owner step gate:** The user's currently running QA emulator processes must remain running until an explicit live `save` reports success. Safest sequence: stop only Vite on port 3100, switch existing `~/reflect-chat-qa` to PR #15 via explicit remote tracking ref (preserve untracked `.tool-versions`), run `npm run qa:state -- save`, then `npm run qa:state -- status`; report success before stopping QA. After successful checkpoint, stop only QA Auth+Firestore tab with Ctrl+C and restart with `npm run qa:state -- start`, leaving independent 18080 restore untouched. User must verify same Firebase UID, profile and diary after restart. Do not claim this owner environment test has happened until observed.
+
+**Remaining product plan:** Stage 02D descriptive mood insights and UI quality; Stage 03 privacy-aware drafts, owner export/delete, stricter Firestore rules; genuine isolated Firebase staging with verified account email delivery; Stage 04 secure opt-in AI backend with server-side token verification, provider-secret rotation and budget/quotas. No production go/no-go yet.

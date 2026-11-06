@@ -50,3 +50,15 @@ jobs:
             --project demo-reflect-auth-qa \
             --only auth,firestore \
             "node playwright-smoke.cjs"
+
+      - name: Verify real Auth + Firestore import after emulator shutdown
+        working-directory: tests/emulator
+        run: |
+          set -euo pipefail
+          SNAPSHOT="$(node qa-state.cjs latest)"
+          test -f "$SNAPSHOT/firebase-export-metadata.json"
+          firebase emulators:exec \
+            --project demo-reflect-auth-qa \
+            --only auth,firestore \
+            --import "$SNAPSHOT" \
+            "node restore-smoke.cjs"

@@ -32,3 +32,10 @@ yarn-error.log*
 /tests/emulator/node_modules
 /tests/emulator/firestore-debug.log
 /tests/emulator/firebase-debug.log
+
+# Never commit Auth/Firestore emulator exports, even synthetic ones.
+/tests/emulator/auth_export/
+/tests/emulator/firestore_export/
+/tests/emulator/qa-state/
+/tests/emulator/emulator-data/
+/tests/emulator/firebase-export-metadata.json
