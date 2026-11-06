@@ -44,7 +44,10 @@ function assertPrivateRoot(root, repoRoot = REPO_ROOT) {
 
 function ensurePrivateDirs(root = defaultRoot()) {
   const checked = assertPrivateRoot(root);
-  const home = os.homedir();
+  const home = path.resolve(checked, "../../../..");
+  if (defaultRoot(home) !== checked) {
+    throw new Error("Private QA snapshot root has an unexpected structure.");
+  }
   const segments = [
     path.join(home, ".local"),
     path.join(home, ".local", "share"),
