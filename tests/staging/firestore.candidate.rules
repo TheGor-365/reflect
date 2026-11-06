@@ -1,0 +1,88 @@
+// Stage 03H — CANDIDATE FOR A SEPARATE SYNTHETIC STAGING EMULATOR ONLY.
+// Not active in tests/emulator/firebase.json; NEVER deploy directly.
+// Schema audit of real legacy accounts is not yet approved.
+// All paths remain UID-scoped; only profile and diary WRITES have early
+// field validation. Other collections stay UID-only until full compatibility
+// evidence exists. No recursive wildcard paths.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function own(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+    function profileName(data) {
+      return data.get('name', '') is string &&
+        data.get('name', '').size() > 0 &&
+        data.get('name', '').size() <= 80;
+    }
+    function profileAge(data) {
+      return data.get('age', '') == '' ||
+        (data.get('age', '') is int &&
+          data.get('age', 0) >= 1 && data.get('age', 0) <= 120);
+    }
+    function profileGender(data) {
+      return data.get('gender', 'не указан') is string &&
+        data.get('gender', 'не указан').size() <= 32;
+    }
+    function validNewProfile(data) {
+      return data.keys().hasOnly(['name', 'age', 'gender', 'createdAt', 'updatedAt']) &&
+        profileName(data) && profileAge(data) && profileGender(data);
+    }
+    function validProfileEdit() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return changed.hasOnly(['name', 'age', 'gender', 'updatedAt']) &&
+        (!changed.hasAny(['name']) || profileName(request.resource.data)) &&
+        (!changed.hasAny(['age']) || profileAge(request.resource.data)) &&
+        (!changed.hasAny(['gender']) || profileGender(request.resource.data));
+    }
+    function validDiaryTitle(data) {
+      return data.get('title', '') is string &&
+        data.get('title', '').size() <= 240;
+    }
+    function validDiaryEntries(data) {
+      return data.get('entries', []) is list &&
+        data.get('entries', []).size() >= 1 &&
+        data.get('entries', []).size() <= 200;
+    }
+    function validNewDiary(data) {
+      return data.keys().hasAll(['title', 'entries']) &&
+        data.keys().hasOnly([
+          'title', 'entries', 'createdAt', 'updatedAt',
+          'sessionId', 'sessionTitle', 'source'
+        ]) &&
+        validDiaryTitle(data) && validDiaryEntries(data);
+    }
+    function validDiaryEdit() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return changed.hasOnly([
+          'title', 'entries', 'updatedAt', 'sessionId', 'sessionTitle', 'source'
+        ]) &&
+        (!changed.hasAny(['title']) || validDiaryTitle(request.resource.data)) &&
+        (!changed.hasAny(['entries']) || validDiaryEntries(request.resource.data));
+    }
+
+    match /artifacts/reflect-8fdc8/users/{uid} {
+      match /profiles/userProfile {
+        allow get: if own(uid);
+        allow create: if own(uid) && validNewProfile(request.resource.data);
+        allow update: if own(uid) && validProfileEdit();
+        // No profile delete/list, same as live QA rules.
+      }
+      match /diaryNotes/{id} {
+        allow get, list, delete: if own(uid);
+        allow create: if own(uid) && validNewDiary(request.resource.data);
+        allow update: if own(uid) && validDiaryEdit();
+      }
+      // Deliberately not strict yet. Do not guess historical data shapes.
+      match /moods/{id} {
+        allow get, list, create, update, delete: if own(uid);
+      }
+      match /goals/{id} {
+        allow get, list, create, update, delete: if own(uid);
+      }
+      match /sessions/{id} {
+        allow get, list, create, update, delete: if own(uid);
+      }
+    }
+  }
+}

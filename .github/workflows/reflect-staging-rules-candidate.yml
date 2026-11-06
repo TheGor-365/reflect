@@ -1,0 +1,40 @@
+name: Reflect staging-only Rules candidate
+
+on:
+  pull_request:
+    paths:
+      - 'tests/staging/**'
+      - '.github/workflows/reflect-staging-rules-candidate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-field-rules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GCLOUD_PROJECT: demo-reflect-stage03h-rules
+    steps:
+      - name: Checkout exact PR candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Java 21 for Firestore Emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install pinned Firebase CLI
+        run: npm install --global firebase-tools@15.34.2
+      - name: Test candidate ONLY on separate demo project and ports
+        working-directory: tests/staging
+        run: |
+          firebase emulators:exec \
+            --config firebase.json \
+            --project demo-reflect-stage03h-rules \
+            --only auth,firestore \
+            "node rules-smoke.cjs"
