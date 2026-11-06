@@ -128,6 +128,20 @@ async function runBrowserSuite() {
     await profile(first, "Synthetic Alpha");
     const firstUid = await uidInSidebar(first);
 
+    // Stage 02E: content-first journal defaults and growth cap.
+    if (await first.getByRole("searchbox", { name: "Поиск по дневнику" }).count()) {
+      throw new Error("Journal search must start collapsed");
+    }
+    const journalBox = first.getByRole("textbox", { name: "Новая запись" });
+    const compact = await journalBox.evaluate(el => el.getBoundingClientRect().height);
+    if (compact > 56) throw new Error("Journal editor must start one line high");
+    await journalBox.fill(("Synthetic multiline text" + String.fromCharCode(10)).repeat(14));
+    const grown = await journalBox.evaluate(el => el.getBoundingClientRect().height);
+    if (grown <= compact || grown > 233) {
+      throw new Error("Journal editor did not expand and cap height");
+    }
+    console.log("PASS: compact entry expands only while typing; search starts collapsed");
+
     // Stage 03A: explicitly opt in to AES-GCM; inspect only ciphertext
     // presence, never log its content, key, passphrase or journal text.
     await first.getByPlaceholder("Что у вас на уме?")
