@@ -110,7 +110,7 @@ function validateEncodedField(value, root, depth = 0) {
 function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === 'object') {
-    const result = {};
+    const result = Object.create(null);
     for (const key of Object.keys(value).sort()) result[key] = canonical(value[key]);
     return result;
   }
