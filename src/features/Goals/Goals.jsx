@@ -1,6 +1,6 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  CalendarDays, Check, CirclePause, ClipboardList, Pencil, Plus,
+  CalendarDays, Check, CirclePause, ClipboardList, Pencil, Plus, SlidersHorizontal,
   RotateCcw, Sparkles, Target, Trash2, X
 } from 'lucide-react';
 import { dateLabel, dueDayOf, dueState, progressOf, statusOf } from './goalDomain';
@@ -253,132 +253,197 @@ function GoalCard({ goal, userId, onAppend, onFeedback }) {
 export default function Goals({ goals = [], userId, onAppend, onFeedback }) {
   const [draft, setDraft] = useState(DEFAULT_DRAFT);
   const [newStep, setNewStep] = useState('');
+  const [advanced, setAdvanced] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState('active');
+  const [confirmedGoals, setConfirmedGoals] = useState([]);
   const [createError, setCreateError] = useState('');
   const [createNotice, setCreateNotice] = useState('');
   const [creating, setCreating] = useState(false);
   const busyRef = useRef(false);
   const pendingId = useRef(null);
+  const currentUserRef = useRef(userId);
+  currentUserRef.current = userId;
+
+  // A transaction-confirmed goal may precede the subscription event. Show it
+  // once by its allocated ID, then retire the echo at authoritative readback.
+  // Never carry a former account's echo into another UID.
+  useEffect(() => {
+    setConfirmedGoals(current => current.filter(entry =>
+      entry.ownerUid === userId && !goals.some(goal => goal.id === entry.id)
+    ));
+  }, [goals, userId]);
+
+  const visibleGoals = useMemo(() => {
+    const known = new Set(goals.map(goal => goal.id));
+    return [
+      ...confirmedGoals.filter(entry => entry.ownerUid === userId && !known.has(entry.id)),
+      ...goals
+    ];
+  }, [goals, confirmedGoals, userId]);
   const groups = useMemo(() => STATUS.map(([status, title]) => ({
-    status, title, items: goals.filter(goal => statusOf(goal) === status)
-  })), [goals]);
-  const completed = groups.find(group => group.status === 'completed')?.items.length || 0;
+    status, title, items: visibleGoals.filter(goal => statusOf(goal) === status)
+  })), [visibleGoals]);
+  const currentGroup = groups.find(group => group.status === selectedStatus) || groups[0];
 
   const addDraftStep = () => {
     const text = newStep.trim();
     if (!text || !userId) return;
-    setDraft(current => ({ ...current, subItems: [
-      ...current.subItems, { id: newSubtaskId(userId), text, completed: false }
-    ] }));
+    setDraft(current => ({
+      ...current, subItems: [
+        ...current.subItems, { id: newSubtaskId(userId), text, completed: false }
+      ]
+    }));
     setNewStep('');
   };
 
   const submit = async event => {
     event.preventDefault();
-    if (busyRef.current || !userId) return;
+    if (busyRef.current || !userId || !draft.text.trim()) return;
     busyRef.current = true;
     setCreating(true);
     setCreateNotice('');
     setCreateError('');
+    const owner = userId;
+    const savedDraft = {
+      ...draft,
+      subItems: draft.subItems.map(item => ({ ...item }))
+    };
     try {
-      pendingId.current ||= newGoalId(userId);
-      await createGoal(userId, pendingId.current, draft);
+      pendingId.current ||= newGoalId(owner);
+      const id = pendingId.current;
+      await createGoal(owner, id, savedDraft);
+      if (currentUserRef.current !== owner) return;
+      setConfirmedGoals(current => [
+        ...current.filter(entry => entry.id !== id),
+        {
+          ...savedDraft, id, ownerUid: owner,
+          text: savedDraft.text.trim(), type: savedDraft.type,
+          status: 'active', completed: false, reflections: []
+        }
+      ]);
       setDraft(DEFAULT_DRAFT);
       setNewStep('');
+      setAdvanced(false);
+      setSelectedStatus('active');
       pendingId.current = null;
       setCreateNotice('Цель сохранена');
     } catch (failure) {
-      setCreateError(failure?.message || 'Цель не сохранилась. Проверьте соединение и повторите.');
+      if (currentUserRef.current === owner) {
+        setCreateError(failure?.message || 'Цель не сохранилась. Проверьте соединение и повторите.');
+      }
     } finally {
       busyRef.current = false;
-      setCreating(false);
+      if (currentUserRef.current === owner) setCreating(false);
     }
   };
 
   return (
-    <section className="reflect-goals-workspace" aria-label="Цели и задачи">
-      <div className="reflect-goals-heading">
-        <span className="reflect-goals-icon"><Target size={24} aria-hidden="true"/></span>
-        <div>
-          <p className="reflect-overline">Личное пространство</p>
-          <h2>Ваши цели</h2>
-          <p>Планируйте небольшие шаги, отмечайте реальный прогресс и выбирайте собственный темп.</p>
-        </div>
-      </div>
+    <section className="reflect-goals-workspace reflect-goals-focused" aria-label="Цели и задачи">
+      <header className="reflect-goals-focus-header">
+        <h2><Target size={19} aria-hidden="true" /> Ваши цели</h2>
+        <span aria-label="Количество целей">Всего {visibleGoals.length}</span>
+      </header>
 
-      <div className="reflect-goals-summary" role="group" aria-label="Сводка целей">
-        <span>Всего: <strong>{goals.length}</strong></span>
-        <span>В работе: <strong>{groups[0].items.length}</strong></span>
-        <span>На паузе: <strong>{groups[1].items.length}</strong></span>
-        <span>Завершено: <strong>{completed}</strong></span>
-      </div>
+      <form onSubmit={submit} className="reflect-goals-creator reflect-goals-creator--compact">
+        <div className="reflect-goals-compose-row">
+          <label className="sr-only" htmlFor="reflect-goal-name">Название цели</label>
+          <input id="reflect-goal-name" type="text" required maxLength={240}
+            placeholder="Новая цель…"
+            value={draft.text} disabled={creating}
+            onChange={event => {
+              setCreateNotice('');
+              setDraft(value => ({ ...value, text: event.target.value }));
+            }} />
+          <button type="button" className="reflect-goals-options-toggle"
+            aria-label="Дополнительные параметры цели" aria-controls="reflect-goals-advanced"
+            aria-expanded={advanced} title="Параметры цели"
+            onClick={() => setAdvanced(open => !open)} disabled={creating}>
+            <SlidersHorizontal size={18} aria-hidden="true"/>
+          </button>
+          <button className="reflect-goals-submit-compact" type="submit"
+            aria-label="Создать цель" title="Создать цель"
+            disabled={creating || !draft.text.trim()}>
+            {creating ? <span className="sr-only">Сохранение…</span> : <Plus size={19} aria-hidden="true"/>}
+          </button>
+        </div>
 
-      <form onSubmit={submit} className="reflect-goals-creator">
-        <div className="reflect-goals-creator-heading">
-          <Plus size={20} aria-hidden="true"/>
-          <h3>Новая цель</h3>
-        </div>
-        <div className="reflect-goal-type-picker" role="group" aria-label="Тип цели">
-          <button type="button" aria-pressed={draft.type === 'checklist'}
-            onClick={() => setDraft(v => ({ ...v, type: 'checklist' }))}>Задачи и шаги</button>
-          <button type="button" aria-pressed={draft.type === 'reflection'}
-            onClick={() => setDraft(v => ({ ...v, type: 'reflection' }))}>Рефлексия</button>
-        </div>
-        <div className="reflect-goals-fields">
-          <label>Название цели
-            <input type="text" required maxLength={240} placeholder="Что хотите сделать?"
-              value={draft.text} onChange={e => setDraft(v => ({ ...v, text: e.target.value }))}/>
-          </label>
-          <label>Зачем это нужно? <span>(необязательно)</span>
-            <textarea rows={2} maxLength={1000} placeholder="Что изменится в результате?"
-              value={draft.purpose} onChange={e => setDraft(v => ({ ...v, purpose: e.target.value }))}/>
-          </label>
-          <label>Срок <span>(необязательно)</span>
-            <input type="date" value={draft.dueDay}
-              onChange={e => setDraft(v => ({ ...v, dueDay: e.target.value }))}/>
-          </label>
-        </div>
-        {draft.type === 'checklist' && (
-          <div className="reflect-goals-draft-steps">
-            {draft.subItems.map((item, index) => (
-              <div key={item.id} className="reflect-goals-draft-step">
-                <Check size={15} aria-hidden="true" /> {item.text}
-                <button type="button" aria-label={`Удалить черновую подзадачу: ${item.text}`}
-                  onClick={() => setDraft(v => ({ ...v, subItems: v.subItems.filter((_, i) => i !== index) }))}>
-                  <X size={16}/></button>
-              </div>
-            ))}
-            <div className="reflect-goal-subcreate">
-              <input aria-label="Шаг новой цели" value={newStep} maxLength={240}
-                onChange={e => setNewStep(e.target.value)} placeholder="Добавить подзадачу" />
-              <button type="button" disabled={!newStep.trim()} aria-label="Добавить шаг"
-                onClick={addDraftStep}><Plus size={17}/></button>
+        {advanced && (
+          <div id="reflect-goals-advanced" className="reflect-goals-advanced">
+            <div className="reflect-goal-type-picker" role="group" aria-label="Тип цели">
+              <button type="button" aria-pressed={draft.type === 'checklist'}
+                onClick={() => setDraft(value => ({ ...value, type: 'checklist' }))}>
+                Задачи и шаги
+              </button>
+              <button type="button" aria-pressed={draft.type === 'reflection'}
+                onClick={() => setDraft(value => ({ ...value, type: 'reflection' }))}>
+                Рефлексия
+              </button>
             </div>
+            <div className="reflect-goals-fields">
+              <label>Зачем это нужно? <span>(необязательно)</span>
+                <textarea rows={2} maxLength={1000} placeholder="Что изменится в результате?"
+                  value={draft.purpose} onChange={event =>
+                    setDraft(value => ({ ...value, purpose: event.target.value }))} />
+              </label>
+              <label>Срок <span>(необязательно)</span>
+                <input type="date" value={draft.dueDay} onChange={event =>
+                  setDraft(value => ({ ...value, dueDay: event.target.value }))}/>
+              </label>
+            </div>
+            {draft.type === 'checklist' && (
+              <div className="reflect-goals-draft-steps">
+                {draft.subItems.map((item, index) => (
+                  <div key={item.id} className="reflect-goals-draft-step">
+                    <Check size={15} aria-hidden="true" /> {item.text}
+                    <button type="button" aria-label={'Удалить черновую подзадачу: ' + item.text}
+                      onClick={() => setDraft(value => ({
+                        ...value, subItems: value.subItems.filter((_, i) => i !== index)
+                      }))}><X size={16}/></button>
+                  </div>
+                ))}
+                <div className="reflect-goal-subcreate">
+                  <input aria-label="Шаг новой цели" value={newStep} maxLength={240}
+                    onChange={event => setNewStep(event.target.value)}
+                    placeholder="Добавить подзадачу"/>
+                  <button type="button" disabled={!newStep.trim()} aria-label="Добавить шаг"
+                    onClick={addDraftStep}><Plus size={17}/></button>
+                </div>
+              </div>
+            )}
           </div>
         )}
         {createError && <p role="alert" className="reflect-goal-error">{createError}</p>}
         {createNotice && <p role="status" className="reflect-goal-feedback">{createNotice}</p>}
-        <button className="reflect-goal-create-btn" type="submit" disabled={creating}>
-          {creating ? 'Сохранение…' : 'Создать цель'}
-        </button>
-        <p className="reflect-goals-smallprint">Срок необязателен. Статус и выполнение шагов управляются отдельно.</p>
       </form>
 
-      <div className="reflect-goals-board">
+      <div className="reflect-goals-focus-tabs" role="tablist" aria-label="Фильтр статуса целей">
         {groups.map(group => (
-          <section className="reflect-goals-column" key={group.status}
-            aria-label={group.title}>
-            <div className="reflect-goals-column-title">
-              {group.status === 'completed' ? <Check size={18} /> :
-                group.status === 'paused' ? <CirclePause size={18}/> : <RotateCcw size={18}/>}
-              <h3>{group.title}</h3>
-              <span>{group.items.length}</span>
-            </div>
-            {group.items.length === 0 && <p className="reflect-goals-empty">Здесь пока нет целей.</p>}
-            {group.items.map(goal => <GoalCard key={goal.id} goal={goal} userId={userId}
-              onAppend={onAppend} onFeedback={onFeedback}/>)}
-          </section>
+          <button key={group.status} role="tab" type="button"
+            id={'reflect-goals-tab-' + group.status}
+            aria-selected={selectedStatus === group.status}
+            aria-controls="reflect-goals-current-panel"
+            onClick={() => setSelectedStatus(group.status)}>
+            {group.title} <span>{group.items.length}</span>
+          </button>
         ))}
       </div>
+      <section className="reflect-goals-board reflect-goals-board--focused"
+        id="reflect-goals-current-panel" role="tabpanel"
+        aria-labelledby={'reflect-goals-tab-' + currentGroup.status}>
+        <div className="reflect-goals-column">
+          {currentGroup.items.length === 0 && (
+            <p className="reflect-goals-empty">
+              {selectedStatus === 'active'
+                ? 'Активных целей пока нет. Добавьте первую выше.'
+                : 'В этом разделе пока нет целей.'}
+            </p>
+          )}
+          {currentGroup.items.map(goal => (
+            <GoalCard key={goal.id} goal={goal} userId={userId}
+              onAppend={onAppend} onFeedback={onFeedback}/>
+          ))}
+        </div>
+      </section>
     </section>
   );
 }
