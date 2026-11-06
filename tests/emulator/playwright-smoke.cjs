@@ -152,12 +152,14 @@ async function runBrowserSuite() {
     await first.getByPlaceholder("Минимум 12 символов")
       .fill("Synthetic independent QA draft phrase!");
     await first.getByRole("button", { name: "Расшифровать" }).click();
-    await first.getByPlaceholder("Что нового? Добавьте заметку...")
-      .waitFor({ timeout: 30000 });
-    if (await first.getByPlaceholder("Что нового? Добавьте заметку...")
-      .inputValue() !== "Synthetic alpha journal entry") {
-      throw new Error("Encrypted journal draft did not recover after reload");
-    }
+    // Decryption is async PBKDF2/WebCrypto; the textarea existed before the
+    // click. Wait for its actual React value, not merely DOM presence.
+    await first.waitForFunction(() => {
+      const field = document.querySelector(
+        'textarea[placeholder="Что нового? Добавьте заметку..."]'
+      );
+      return field?.value === "Synthetic alpha journal entry";
+    }, null, { timeout: 30000 });
     await first.getByRole("button", { name: "Сохранить заметку" }).click();
     await first.locator(".reflect-journal-card p.whitespace-pre-wrap")
       .filter({ hasText: "Synthetic alpha journal entry" }).first()
