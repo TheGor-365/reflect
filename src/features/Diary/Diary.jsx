@@ -1,13 +1,14 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import {
-  ArrowUp, CalendarDays, BarChart3, Check, ChevronDown,
+  ArrowUp, BarChart3, Check, ChevronDown,
   LockKeyhole, Search, SlidersHorizontal, Smile, Type, X
 } from 'lucide-react';
 import { useEntrySave } from '../../hooks/useEntrySave';
 import SaveFeedback from '../../components/common/SaveFeedback';
 import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
 import DiaryNarrativeCard from './DiaryNarrativeCard';
+import { saveNoteRevision } from './noteVersions';
 import MoodInsights from '../Moods/MoodInsights';
 import { buildDiaryTimeline, filterDiaryTimeline, groupDiaryTimeline } from './diaryTimeline';
 
@@ -56,11 +57,14 @@ const Diary = ({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [insightsOpen, setInsightsOpen] = useState(false);
   const [localConfirmed, setLocalConfirmed] = useState({ notes: [], moods: [] });
+  const [confirmedEdits, setConfirmedEdits] = useState([]);
   const [lastCommittedNote, setLastCommittedNote] = useState(null);
-  const [noteTitlePlaceholder, setNoteTitlePlaceholder] = useState('');
+  const [justAddedNoteId, setJustAddedNoteId] = useState(null);
   const composerRef = useRef(null);
   const timelineRef = useRef(null);
   const noteDraftRef = useRef(null);
+  const activeUserRef = useRef(userId);
+  activeUserRef.current = userId;
 
   const confirmNote = useCallback(record => {
     setLocalConfirmed(previous => ({
@@ -68,6 +72,7 @@ const Diary = ({
       notes: [...previous.notes.filter(item => item.id !== record.id), record]
     }));
     setLastCommittedNote(record.id);
+    setJustAddedNoteId(record.id);
   }, []);
   const confirmMood = useCallback(record => {
     setLocalConfirmed(previous => ({
@@ -79,20 +84,12 @@ const Diary = ({
   const noteSave = useEntrySave('diaryNotes', userId, confirmNote);
   const moodSave = useEntrySave('moods', userId, confirmMood);
 
-  useEffect(() => {
-    const updateDate = () => setNoteTitlePlaceholder(
-      new Intl.DateTimeFormat('ru-RU', {
-        year: 'numeric', month: 'long', day: 'numeric'
-      }).format(new Date())
-    );
-    updateDate();
-    const timer = setInterval(updateDate, 60000);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     setLocalConfirmed({ notes: [], moods: [] });
+    setConfirmedEdits([]);
     setLastCommittedNote(null);
+    setJustAddedNoteId(null);
   }, [userId]);
 
   // Retire the temporary confirmed echo as soon as the authoritative server
@@ -112,12 +109,40 @@ const Diary = ({
 
   useEffect(() => autoSizeTextarea(composerRef.current), [newDiaryNote.text]);
 
+  useEffect(() => {
+    if (!justAddedNoteId) return undefined;
+    const timer = setTimeout(() => setJustAddedNoteId(null), 640);
+    return () => clearTimeout(timer);
+  }, [justAddedNoteId]);
+
+  // A transaction-confirmed edit remains visible while onSnapshot catches
+  // up, then retires as soon as that same version or a newer one arrives.
+  useEffect(() => {
+    setConfirmedEdits(current => {
+      const remaining = current.filter(edit => {
+        if (edit.ownerUid !== userId) return false;
+        const server = diaryNotes.find(item => item.id === edit.id);
+        if (!server) return true;
+        const remote = server.entries?.[edit.entryIndex];
+        if (!remote) return true;
+        const version = remote.version || 1;
+        return remote.lastEditId !== edit.editId && version < edit.version;
+      });
+      return remaining.length === current.length ? current : remaining;
+    });
+  }, [diaryNotes, userId]);
+
   // A confirmed write is immediately represented locally; when Firestore's
   // subscription catches up by document ID it takes ownership, with no twins.
-  const visibleNotes = useMemo(
-    () => mergeConfirmed(diaryNotes, localConfirmed.notes),
-    [diaryNotes, localConfirmed.notes]
-  );
+  const visibleNotes = useMemo(() => {
+    const records = mergeConfirmed(diaryNotes, localConfirmed.notes);
+    return records.map(note => {
+      const echo = confirmedEdits.find(edit =>
+        edit.ownerUid === userId && edit.id === note.id
+      );
+      return echo ? echo.record : note;
+    });
+  }, [diaryNotes, localConfirmed.notes, confirmedEdits, userId]);
   const visibleMoods = useMemo(
     () => mergeConfirmed(moods, localConfirmed.moods),
     [moods, localConfirmed.moods]
@@ -151,7 +176,7 @@ const Diary = ({
     event.preventDefault();
     const content = newDiaryNote.text.trim();
     if (!content) return;
-    const title = newDiaryNote.title.trim() || noteTitlePlaceholder || 'Запись';
+    const title = newDiaryNote.title.trim();
     const confirmed = await noteSave.save({
       title, entries: [{ text: content, createdAt: Timestamp.now() }]
     });
@@ -160,6 +185,24 @@ const Diary = ({
       setNewDiaryNote({ title: '', text: '' });
       setShowTitle(false);
     }
+  };
+
+  const handleEditNote = async ({ noteId, entryIndex, title, text, expectedVersion, editId }) => {
+    const ownerUid = userId;
+    const record = await saveNoteRevision({
+      userId: ownerUid, noteId, entryIndex, title, text, expectedVersion, editId
+    });
+    // Never carry a confirmed edit echo into the next signed-in account.
+    if (ownerUid !== activeUserRef.current) return record;
+    setConfirmedEdits(current => [
+      ...current.filter(edit => edit.id !== noteId),
+      {
+        id: noteId, ownerUid, entryIndex, editId,
+        version: record.entries[entryIndex]?.version || 1,
+        record
+      }
+    ]);
+    return record;
   };
 
   const handleSaveMood = async event => {
@@ -235,7 +278,7 @@ const Diary = ({
             <label className="reflect-diary-extra-field">
               <span>Заголовок (необязательно)</span>
               <input type="text" value={newDiaryNote.title}
-                placeholder={noteTitlePlaceholder}
+                placeholder="Краткий заголовок"
                 disabled={noteSave.status === 'saving'}
                 onChange={event => {
                   noteSave.clearFeedback();
@@ -352,12 +395,14 @@ const Diary = ({
         {!isLoading && timelineEvents.length > 0 && !diaryGroups.length &&
           <div className="reflect-diary-empty">По выбранным фильтрам ничего не найдено.</div>}
         {diaryGroups.map(group => (
-          <section key={group.key} className="reflect-diary-group">
-            <h3><CalendarDays size={17} aria-hidden="true"/>{group.title}</h3>
+          <section key={group.key} className="reflect-diary-group" aria-label={group.title}>
             <div className="reflect-diary-entries">
               {group.entries.map(entry => (
-                <div key={entry.eventKey} data-source-id={entry.sourceId}>
-                  <DiaryNarrativeCard entry={entry} onAppend={onAppend}/>
+                <div key={entry.eventKey} data-source-id={entry.sourceId}
+                  className={entry.type === 'note' && entry.sourceId === justAddedNoteId
+                    ? 'reflect-diary-entering' : undefined}>
+                  <DiaryNarrativeCard entry={entry} onAppend={onAppend}
+                    onEditNote={handleEditNote}/>
                 </div>
               ))}
             </div>

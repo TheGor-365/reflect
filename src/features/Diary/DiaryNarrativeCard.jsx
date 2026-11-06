@@ -1,11 +1,73 @@
 import React from 'react';
-import { Star } from 'lucide-react';
+import { Check, History, Pencil, Plus, Star, X } from 'lucide-react';
+import { entryTitle, entryVersion, entryVersions } from './noteVersions';
 import CollapsibleContent from '../../components/common/CollapsibleContent';
 import { formatDate } from '../../utils/formatDate';
 
 const MOOD_OPTIONS = { happy: '😊', content: '😌', neutral: '😐', sad: '😟', anxious: '😰' };
 
-const DiaryNarrativeCard = React.memo(({ entry, onAppend }) => {
+const compactDate = date => new Intl.DateTimeFormat('ru-RU', {
+  day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+}).format(date);
+const asDate = value => {
+  try {
+    const date = value instanceof Date ? value : value?.toDate?.();
+    return date instanceof Date && Number.isFinite(date.getTime()) ? date : null;
+  } catch {
+    return null;
+  }
+};
+
+const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote }) => {
+  const [editing, setEditing] = React.useState(false);
+  const [versionsOpen, setVersionsOpen] = React.useState(false);
+  const [editDraft, setEditDraft] = React.useState({ title: '', text: '' });
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const [saved, setSaved] = React.useState(false);
+  const pendingEdit = React.useRef(null);
+  const item = entry.type === 'note' ? entry.data.entries?.[0] : null;
+
+  const startEditing = () => {
+    if (!item || busy) return;
+    setEditDraft({ title: entryTitle(entry.data, item), text: item.text || '' });
+    pendingEdit.current = null;
+    setError('');
+    setSaved(false);
+    setVersionsOpen(false);
+    setEditing(true);
+  };
+
+  const submitEdit = async event => {
+    event.preventDefault();
+    if (busy || !onEditNote || !item || !editDraft.text.trim()) return;
+    const fingerprint = editDraft.title + '\u0000' + editDraft.text;
+    if (!pendingEdit.current || pendingEdit.current.fingerprint !== fingerprint) {
+      pendingEdit.current = {
+        fingerprint,
+        id: 'rev-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 13)
+      };
+    }
+    setError('');
+    setBusy(true);
+    try {
+      await onEditNote({
+        noteId: entry.sourceId,
+        entryIndex: entry.entryIndex,
+        title: editDraft.title,
+        text: editDraft.text,
+        editId: pendingEdit.current.id,
+        expectedVersion: entryVersion(item)
+      });
+      pendingEdit.current = null;
+      setEditing(false);
+      setSaved(true);
+    } catch (failure) {
+      setError(failure?.message || 'Не удалось сохранить правку. Текст сохранён в форме.');
+    } finally {
+      setBusy(false);
+    }
+  };
   const renderContent = () => {
     switch (entry.type) {
       case 'session':
@@ -76,22 +138,89 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend }) => {
             </div>
           </div>
         );
-      case 'note':
+      case 'note': {
+        const noteTitle = entryTitle(entry.data, item);
+        const versions = entryVersions(entry.data, item);
+        const at = asDate(entry.displayAt);
         return (
-          <div>
-            {entry.isAppend && <p className="reflect-journal-append-caption">Дополнение к заметке</p>}
-            <h4 className="font-semibold text-stone-800">{entry.data.title || 'Заметка'}</h4>
-            {entry.data.entries?.map((noteEntry, i) => (
-              <div key={i} className="p-3 mt-2 bg-stone-50 rounded-md border-l-4 border-purple-300">
-                <p className="text-xs text-stone-400 mb-1">{formatDate(noteEntry.createdAt)}</p>
-                <p className="whitespace-pre-wrap">{noteEntry.text}</p>
+          <div className="reflect-journal-note">
+            {noteTitle && <h4 className="reflect-journal-note-title">{noteTitle}</h4>}
+            <p className="reflect-journal-note-body whitespace-pre-wrap">
+              {typeof item?.text === 'string' ? item.text : 'Запись без текста'}
+            </p>
+
+            {editing && (
+              <form className="reflect-journal-edit" onSubmit={submitEdit} aria-label="Редактирование заметки">
+                <label>Заголовок <span>(необязательно)</span>
+                  <input type="text" maxLength={240} value={editDraft.title}
+                    disabled={busy} placeholder="Добавить заголовок"
+                    onChange={event => setEditDraft(value => ({ ...value, title: event.target.value }))}/>
+                </label>
+                <label>Текст заметки
+                  <textarea rows={5} maxLength={20000} required value={editDraft.text}
+                    disabled={busy}
+                    onChange={event => setEditDraft(value => ({ ...value, text: event.target.value }))}/>
+                </label>
+                <div className="reflect-journal-edit-actions">
+                  <button type="submit" disabled={busy || !editDraft.text.trim()}>
+                    <Check size={16} aria-hidden="true"/> {busy ? 'Сохраняется…' : 'Сохранить изменения'}
+                  </button>
+                  <button type="button" disabled={busy} onClick={() => {
+                    setEditing(false); setError(''); pendingEdit.current = null;
+                  }}>
+                    <X size={16} aria-hidden="true"/> Отмена
+                  </button>
+                </div>
+                {error && <p role="alert" className="reflect-journal-edit-error">{error}</p>}
+              </form>
+            )}
+
+            {versionsOpen && (
+              <section className="reflect-journal-versions" aria-label="Версии записи">
+                {versions.map((version, index) => {
+                  const versionDate = asDate(version.at);
+                  return (
+                    <article key={index} className="reflect-journal-version">
+                      <div className="reflect-journal-version-heading">
+                        <strong>{'Версия ' + version.version}{version.current ? ' · текущая' : ''}</strong>
+                        {versionDate && <time dateTime={versionDate.toISOString()}>
+                          {compactDate(versionDate)}
+                        </time>}
+                      </div>
+                      {version.title && <p className="reflect-journal-version-title">{version.title}</p>}
+                      <p className="whitespace-pre-wrap">{version.text}</p>
+                    </article>
+                  );
+                })}
+              </section>
+            )}
+
+            <footer className="reflect-journal-note-footer">
+              <div className="reflect-journal-note-actions" role="group" aria-label="Действия с записью">
+                <button type="button" title="Редактировать запись или заголовок"
+                  aria-label="Редактировать запись" disabled={!item || busy || !onEditNote}
+                  aria-expanded={editing} onClick={() => editing ? setEditing(false) : startEditing()}>
+                  <Pencil size={17} aria-hidden="true"/>
+                </button>
+                <button type="button" title="Все версии"
+                  aria-label="История версий" aria-expanded={versionsOpen}
+                  onClick={() => { setEditing(false); setVersionsOpen(open => !open); }}>
+                  <History size={17} aria-hidden="true"/>
+                </button>
+                <button type="button" title="Дополнить заметку" aria-label="Дополнить заметку"
+                  disabled={!onAppend} onClick={() => onAppend?.(entry)}>
+                  <Plus size={17} aria-hidden="true"/>
+                </button>
               </div>
-            ))}
-            <button onClick={() => onAppend(entry)} className="mt-2 text-sm px-3 py-1 text-white bg-purple-600 rounded-lg hover:bg-purple-700 font-semibold">
-              Дополнить заметку
-            </button>
+              {at && (
+                <time className="reflect-journal-note-date" dateTime={at.toISOString()}
+                  title={at.toLocaleString('ru-RU')}>{compactDate(at)}</time>
+              )}
+            </footer>
+            <span className="sr-only" role="status">{saved ? 'Изменения записи сохранены' : ''}</span>
           </div>
         );
+      }
       default:
         return null;
     }
@@ -105,10 +234,10 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend }) => {
   return (
     <article className="reflect-journal-card bg-white p-5 rounded-xl border border-stone-200"
       data-kind={kind}>
-      <div className="reflect-journal-category" aria-label={`Рубрика: ${category}`}>
+      {kind !== 'note' && <div className="reflect-journal-category" aria-label={`Рубрика: ${category}`}>
         <span className="reflect-journal-category-dot" aria-hidden="true"/>
         {category}
-      </div>
+      </div>}
       {renderContent()}
     </article>
   );

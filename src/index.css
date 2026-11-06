@@ -1822,3 +1822,161 @@ html:has(.reflect-app[data-theme="light"])::-webkit-scrollbar-thumb {
 @media (prefers-reduced-motion: reduce) {
   .reflect-goals-focused .reflect-goal-progress > div { transition: none; }
 }
+
+
+/* Stage 02G — content-first diary notes, quiet metadata and revision controls. */
+.reflect-diary-timeline { gap: 10px; }
+.reflect-diary-group { gap: 0; }
+.reflect-diary .reflect-diary-entries { gap: 10px; }
+.reflect-diary .reflect-journal-card[data-kind="note"] {
+  padding: 17px 20px 12px;
+  border-left: 1px solid var(--reflect-border);
+  background: var(--reflect-card);
+}
+.reflect-diary .reflect-journal-note-title {
+  margin: 0 0 11px;
+  font-size: 15px;
+  font-weight: 720;
+  line-height: 1.35;
+  color: var(--reflect-ink);
+  overflow-wrap: anywhere;
+}
+.reflect-diary .reflect-journal-card .reflect-journal-note-body {
+  margin: 0;
+  padding: 0;
+  color: var(--reflect-ink);
+  font-size: 15px;
+  font-weight: 450;
+  line-height: 1.72;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.reflect-journal-note-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  min-width: 0;
+  gap: 7px 14px;
+  margin-top: 19px;
+  padding-top: 8px;
+}
+.reflect-journal-note-actions { display: inline-flex; align-items: center; gap: 4px; }
+.reflect-diary .reflect-journal-card .reflect-journal-note-actions button {
+  display: inline-flex;
+  width: 36px; height: 36px;
+  align-items: center; justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--reflect-muted);
+  background: transparent;
+  transition: background .16s ease, color .16s ease;
+}
+.reflect-diary .reflect-journal-card .reflect-journal-note-actions button:hover,
+.reflect-diary .reflect-journal-card .reflect-journal-note-actions button[aria-expanded="true"] {
+  background: rgba(111, 207, 197, .10);
+  color: var(--reflect-accent);
+}
+.reflect-diary .reflect-journal-card .reflect-journal-note-actions button:disabled {
+  opacity: .3; cursor: default;
+}
+.reflect-journal-note-date {
+  margin-left: auto;
+  color: var(--reflect-muted);
+  opacity: .66;
+  font-size: 10px;
+  font-weight: 450;
+  line-height: 1.3;
+  letter-spacing: .01em;
+  font-variant-numeric: tabular-nums;
+}
+.reflect-journal-edit {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0 2px;
+  padding: 13px;
+  border-radius: 12px;
+  border: 1px solid var(--reflect-border);
+  background: var(--reflect-bg);
+}
+.reflect-journal-edit label {
+  display: grid; gap: 7px;
+  min-width: 0;
+  color: var(--reflect-ink);
+  font-size: 11px; font-weight: 700;
+}
+.reflect-journal-edit label span { color: var(--reflect-muted); font-weight: 450; }
+.reflect-app .reflect-workspace .reflect-journal-edit :is(textarea,input) {
+  display: block;
+  width: 100%; min-width: 0;
+  border-radius: 10px;
+  border: 1px solid var(--reflect-border);
+  padding: 9px 11px;
+  color: var(--reflect-ink);
+  background: var(--reflect-card);
+  font: inherit; font-size: 13px; line-height: 1.6;
+}
+.reflect-app .reflect-workspace .reflect-journal-edit textarea {
+  min-height: 118px; max-height: 400px;
+  resize: vertical; white-space: pre-wrap;
+}
+.reflect-journal-edit-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.reflect-diary .reflect-journal-card .reflect-journal-edit-actions button {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--reflect-border);
+  font-size: 11px; font-weight: 700;
+}
+.reflect-journal-edit-actions button:first-child {
+  color: var(--reflect-accent); background: rgba(107, 207, 193, .10);
+}
+.reflect-journal-edit-actions button:disabled { opacity: .5; }
+.reflect-diary .reflect-journal-card .reflect-journal-edit-error {
+  margin: 0; color: #ec9a9f; font-size: 11px;
+}
+.reflect-journal-versions {
+  display: grid; gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--reflect-border);
+  max-height: 48dvh; overflow-y: auto;
+}
+.reflect-journal-version {
+  min-width: 0;
+  padding: 10px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--reflect-border);
+  background: var(--reflect-bg);
+}
+.reflect-journal-version-heading {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 6px;
+  margin-bottom: 7px;
+  color: var(--reflect-muted);
+  font-size: 10px;
+}
+.reflect-journal-version-heading strong { color: var(--reflect-ink); font-weight: 700; }
+.reflect-journal-version-heading time { opacity: .65; }
+.reflect-diary .reflect-journal-card .reflect-journal-version-title {
+  margin: 0 0 5px; font-size: 12px; font-weight: 700;
+}
+.reflect-diary .reflect-journal-card .reflect-journal-version p.whitespace-pre-wrap {
+  margin: 0; font-size: 12px; line-height: 1.6;
+}
+.reflect-diary-entering {
+  animation: reflect-diary-arrive .43s cubic-bezier(.19,1,.22,1) both;
+}
+@keyframes reflect-diary-arrive {
+  from { opacity: 0; transform: translateY(11px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 600px) {
+  .reflect-diary .reflect-journal-card[data-kind="note"] { padding: 14px 14px 10px; }
+  .reflect-diary .reflect-journal-card .reflect-journal-note-body { font-size: 14px; }
+  .reflect-journal-note-date { font-size: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reflect-diary-entering { animation: none; }
+  .reflect-diary .reflect-journal-card .reflect-journal-note-actions button { transition: none; }
+}

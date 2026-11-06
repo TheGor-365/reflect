@@ -18,6 +18,7 @@ export interface DiaryTimelineEvent {
   parentSessionId: string | null;
   isPending: boolean;
   isAppend: boolean;
+  entryIndex: number | null;
   data: LegacyRecord;
 }
 
@@ -92,12 +93,12 @@ export function localCalendarKey(date: Date, timeZone?: string): string {
 
 function makeEvent(kind: DiarySource, record: LegacyRecord, id: string,
   eventKey: string, at: unknown, parentSessionId: string | null,
-  isAppend = false): DiaryTimelineEvent {
+  isAppend = false, entryIndex: number | null = null): DiaryTimelineEvent {
   const displayAt = timestampDate(at);
   return {
     id, type: kind, sourceKind: kind, sourceId: id, eventKey,
     createdAt: at, displayAt, parentSessionId, isPending: !displayAt,
-    isAppend, data: record
+    isAppend, entryIndex, data: record
   };
 }
 
@@ -144,7 +145,7 @@ export function buildDiaryTimeline({
       // entire note under the parent's original creation date.
       events.push(makeEvent('note', { ...record, entries: [entry] },
         id, `note:${id}:entry:${entryIndex}`,
-        entry.createdAt, null, entryIndex > 0));
+        entry.createdAt, null, entryIndex > 0, entryIndex));
     });
   });
   return events.sort((a, b) => {
