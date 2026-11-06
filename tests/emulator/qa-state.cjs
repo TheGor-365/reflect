@@ -15,6 +15,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { randomBytes } = require("node:crypto");
+const net = require("node:net");
 
 const PROJECT = "demo-reflect-auth-qa";
 const AUTH_PORT = 9099;
@@ -99,6 +100,80 @@ function latestSnapshot(root = defaultRoot()) {
   return newest;
 }
 
+/**
+ * Check the actual import payload without reading or printing private account
+ * data. A valid-looking manifest alone does not prove there are files to
+ * restore. Path resolution is confined to the selected private export and
+ * refuses symlinks at every component.
+ */
+function safeSnapshotMember(snapshot, member) {
+  if (typeof member !== "string" || !member ||
+      member.includes("\\") || path.isAbsolute(member)) {
+    throw new Error("Invalid path in private QA export manifest.");
+  }
+  const target = path.resolve(snapshot, member);
+  if (target === snapshot || !within(snapshot, target)) {
+    throw new Error("Export manifest path escapes the private QA snapshot.");
+  }
+  let cursor = snapshot;
+  for (const segment of path.relative(snapshot, target).split(path.sep)) {
+    cursor = path.join(cursor, segment);
+    let stat;
+    try { stat = fs.lstatSync(cursor); }
+    catch { throw new Error("Private QA snapshot payload is missing."); }
+    if (stat.isSymbolicLink()) {
+      throw new Error("Symlink inside private QA snapshot is not allowed.");
+    }
+  }
+  return target;
+}
+
+function verifiedSnapshot(root = defaultRoot()) {
+  const snapshot = latestSnapshot(root);
+  if (!snapshot) {
+    throw new Error("No private Auth + Firestore snapshot. Refusing an empty restore.");
+  }
+  const meta = JSON.parse(fs.readFileSync(path.join(snapshot, METADATA), "utf8"));
+  const auth = safeSnapshotMember(snapshot, meta.auth?.path);
+  const authStat = fs.lstatSync(auth);
+  if (authStat.isDirectory()) {
+    // Some CLI versions use an Auth export directory rather than a JSON file.
+    const members = fs.readdirSync(auth);
+    if (!members.length || !members.some(name => {
+      const entry = safeSnapshotMember(snapshot, path.relative(snapshot, path.join(auth, name)));
+      const stat = fs.lstatSync(entry);
+      return stat.isFile() && stat.size > 0;
+    })) {
+      throw new Error("Private QA Auth export has no readable payload files.");
+    }
+  } else if (!authStat.isFile() || authStat.size === 0) {
+    throw new Error("Private QA Auth export is incomplete.");
+  }
+  const firestore = safeSnapshotMember(snapshot, meta.firestore?.metadata_file);
+  const fsStat = fs.lstatSync(firestore);
+  if (!fsStat.isFile() || fsStat.size === 0) {
+    throw new Error("Private QA Firestore export metadata is incomplete.");
+  }
+  // Only safe booleans are returned. Never expose Auth UIDs or note contents.
+  return { snapshot, authReady: true, firestoreReady: true };
+}
+
+/**
+ * Binding briefly to the exact local emulator addresses verifies both ports
+ * are free before any firebase spawn. This does not touch live emulator data.
+ */
+function assertQaPortsFree(ports = [AUTH_PORT, FIRESTORE_PORT]) {
+  return Promise.all(ports.map(port => new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once("error", error => reject(new Error(
+      `QA port ${port} is occupied or unavailable (${error.code || "bind error"}). Stop only the existing QA emulator after a verified backup.`
+    )));
+    server.listen({ host: "127.0.0.1", port, exclusive: true }, () => {
+      server.close(resolve);
+    });
+  })));
+}
+
 function newSnapshotPath(root = defaultRoot(), now = new Date(), random = randomBytes(5).toString("hex")) {
   const stamp = now.toISOString().replace(/[:.]/g, "-");
   return path.join(assertPrivateRoot(root), "snapshots", stamp + "-" + random);
@@ -170,14 +245,24 @@ async function saveRunningState({
   if (!exportResult.ok || !metadataValid(target)) {
     throw new Error("Snapshot not confirmed complete. Current emulators must remain running.");
   }
+  // Never claim a usable backup based on the manifest alone.
+  // A partial export must leave the original emulator running.
+  const checked = verifiedSnapshot(root);
+  if (checked.snapshot !== target) {
+    throw new Error("Latest private QA snapshot differs from freshly exported snapshot.");
+  }
   fs.chmodSync(target, 0o700);
   // Do not log the contents: Auth exports may include hashed credentials,
   // Firestore exports can include private notes even in a demo project.
   return target;
 }
 
-function startArgs(root = defaultRoot()) {
+function startArgs(root = defaultRoot(), { allowEmpty = false } = {}) {
   const latest = latestSnapshot(root);
+  if (allowEmpty && latest) {
+    throw new Error("Private QA snapshot exists; refusing a new empty emulator.");
+  }
+  if (!allowEmpty) verifiedSnapshot(root);
   const exportTarget = newSnapshotPath(root);
   const args = [
     "emulators:start", "--config", path.join(CONFIG_DIR, "firebase.json"),
@@ -188,12 +273,14 @@ function startArgs(root = defaultRoot()) {
   return { args, latest, exportTarget };
 }
 
-function startEmulators() {
+async function startEmulators({ allowEmpty = false } = {}) {
+  // Validate before any process is spawned or old emulator state is touched.
+  const plan = startArgs(defaultRoot(), { allowEmpty });
+  await assertQaPortsFree();
   ensurePrivateDirs();
-  const plan = startArgs();
   console.log(plan.latest
-    ? "Importing latest private QA Auth + Firestore snapshot."
-    : "No private QA snapshot exists. Starting NEW empty synthetic emulators.");
+    ? "Importing verified private QA Auth + Firestore snapshot."
+    : "EXPLICIT start-empty: starting new empty demo emulators.");
   console.log("Ctrl+C clean shutdown will export to another private snapshot.");
   const child = spawn("firebase", plan.args, {
     cwd: CONFIG_DIR, stdio: "inherit", env: process.env
@@ -220,28 +307,35 @@ function startEmulators() {
 }
 
 async function main(command) {
-  if (!["status", "save", "start", "latest"].includes(command)) {
-    throw new Error("Usage: node tests/emulator/qa-state.cjs {status|save|start|latest}");
+  if (!["status", "save", "start", "start-empty", "latest", "preflight"].includes(command)) {
+    throw new Error("Usage: node tests/emulator/qa-state.cjs {status|save|preflight|start|start-empty|latest}");
   }
   if (command === "latest") {
-    const latest = latestSnapshot();
-    if (!latest) throw new Error("No complete private QA snapshot exists.");
-    process.stdout.write(latest + "\n");
+    process.stdout.write(verifiedSnapshot().snapshot + "\n");
+  } else if (command === "preflight") {
+    verifiedSnapshot();
+    console.log("PASS: local Auth and Firestore snapshot payloads exist; import not executed.");
+    console.log("Next: stop only the original QA emulator after checking its fresh export.");
   } else if (command === "status") {
     const latest = latestSnapshot();
-    console.log(latest ? "Private Auth + Firestore snapshot available." :
-      "No complete private QA snapshot found.");
+    if (latest) {
+      verifiedSnapshot();
+      console.log("Private Auth + Firestore snapshot payloads verified.");
+    } else {
+      console.log("No complete private QA snapshot found. Do not stop running emulators.");
+    }
   } else if (command === "save") {
     await saveRunningState();
     console.log("Private QA Auth + Firestore saved. Verify before stopping existing emulators.");
   } else {
-    startEmulators();
+    await startEmulators({ allowEmpty: command === "start-empty" });
   }
 }
 
 module.exports = {
   PROJECT, AUTH_PORT, FIRESTORE_PORT, defaultRoot, assertPrivateRoot,
-  metadataValid, latestSnapshot, newSnapshotPath, assertHubEmulators,
+  metadataValid, latestSnapshot, verifiedSnapshot, safeSnapshotMember,
+  assertQaPortsFree, newSnapshotPath, assertHubEmulators,
   validateHubLocator, saveRunningState, startArgs
 };
 

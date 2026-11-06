@@ -1,0 +1,26 @@
+name: Reflect QA state snapshot safety
+
+on:
+  pull_request:
+    paths:
+      - 'tests/emulator/qa-state.cjs'
+      - 'tests/emulator/qa-state.test.cjs'
+      - '.github/workflows/reflect-qa-state-safety.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  private-demo-backup-guards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact PR files
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test synthetic backup preflight without Firebase or network
+        run: node --test tests/emulator/qa-state.test.cjs
