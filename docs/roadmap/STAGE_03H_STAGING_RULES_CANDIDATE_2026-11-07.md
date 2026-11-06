@@ -24,3 +24,24 @@ The candidate enforces only top-level note/profile structures and does not valid
 3. Review actual legacy shapes and extend candidate with new synthetic test cases, then seek explicit approval before any deployment.
 
 Firebase field rules reference: https://firebase.google.com/docs/firestore/security/rules-fields
+
+
+## Owner aggregate inventory — 2026-11-07
+
+The owner opened the **Stage03G collapsed local audit** of their own newly downloaded private Reflect JSON and shared only a screenshot of counts. Source files were not uploaded or read by the assistant.
+
+| Aggregate-only metric | Verified count |
+|---|---:|
+| Documents | 3 |
+| Collections with data | 2 of 5 |
+| Unknown top-level fields | 0 |
+| Shape warnings | 0 |
+| Legacy journal entries missing explicit version | 1 |
+| Prior saved version snapshots | 1 |
+| Near/over size budget | 0 / 0 |
+
+The 3-document breakdown shown separately is one profile and two journal notes; goals, moods and sessions have zero records. The zero warnings apply **only to sampled data** and do not validate future or other-user records.
+
+The candidate continues to validate only top-level diary/profile creates and changed fields in updates; it **does not** require all old entries to have a version. Staging smoke now reproduces a synthetic versionless old entry, edits its title, upgrades its body to version 2 preserving the original in `versions[]`, and confirms unchanged unrecognized legacy metadata survives. Unauthorized cross-UID replacement of its history must still fail.
+
+**Decision:** synthetic legacy compatibility is acceptable as a prerequisite for continued staging tests; **do not activate these Rules on the owner's original Test emulator or production**. Broader datasets, nested field validation, all 5 collections and verified pre/post Auth UID comparison remain open gates. Stage04 server AI remains a separate future stage.
