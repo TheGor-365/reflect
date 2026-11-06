@@ -1,10 +1,40 @@
-// Snapshot of existing user-scoped rules; demo emulator only.
-// No production rule deployment or owner data access in this test.
+// Stage 03D — localhost-only QA rule candidate, NOT a production deployment.
+// Deny every path not expressly identified below. Restrict known Reflect
+// collections to their authenticated Firebase UID and fixed app namespace.
+// No recursive wildcard permits arbitrary user descendants/subcollections.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /artifacts/{appId}/users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    function ownsReflectSpace(userId) {
+      return request.auth != null
+        && request.auth.uid == userId;
     }
+
+    // Only the known v1 Reflect app namespace is present in this client.
+    match /artifacts/reflect-8fdc8/users/{userId} {
+      // A profile is a single document, not a listing or nested collection.
+      match /profiles/userProfile {
+        allow get, create, update: if ownsReflectSpace(userId);
+        // The app has no intentional destructive profile delete workflow.
+      }
+
+      // Existing diary, mood, sessions and goals retain their current data
+      // shapes and legitimate create/edit/delete behavior. Validation of
+      // field schemas needs a separate migration and legacy-data audit.
+      match /diaryNotes/{entryId} {
+        allow get, list, create, update, delete: if ownsReflectSpace(userId);
+      }
+      match /moods/{moodId} {
+        allow get, list, create, update, delete: if ownsReflectSpace(userId);
+      }
+      match /sessions/{sessionId} {
+        allow get, list, create, update, delete: if ownsReflectSpace(userId);
+      }
+      match /goals/{goalId} {
+        allow get, list, create, update, delete: if ownsReflectSpace(userId);
+      }
+    }
+    // No rule grants access to other app IDs, user documents, arbitrary
+    // collections or nested subcollections. Firestore default is deny.
   }
 }
