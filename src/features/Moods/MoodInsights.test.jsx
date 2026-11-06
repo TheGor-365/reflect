@@ -25,8 +25,8 @@ test('weekly review reports exact observed days and intensity denominator', () =
   render(<MoodInsights moods={[
     mark(4, 'happy', 4), mark(4, 'sad', null), mark(6, 'content', 2)
   ]} now={now} />);
-  expect(screen.getByText('3', { selector: '.reflect-mood-metrics strong' }))
-    .toBeInTheDocument();
+  expect(screen.getByText('Отметок').closest('div').querySelector('strong'))
+    .toHaveTextContent('3');
   expect(screen.getByText('2 / 7')).toBeInTheDocument();
   expect(screen.getByText('2 из 3 отметок')).toBeInTheDocument();
   expect(screen.getByText('Радость:')).toBeInTheDocument();
