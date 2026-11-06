@@ -677,7 +677,7 @@ async function runBrowserSuite() {
     if (await originalCard.locator("time.reflect-journal-note-date").count() !== 1) {
       throw new Error("Journal card repeats visible dates or loses its date");
     }
-    const noteId = await originalCard.locator("xpath=../..")
+    const noteId = await originalCard.locator("xpath=..")
       .getAttribute("data-source-id");
     if (!noteId) throw new Error("New synthetic note lacks stable Firestore source ID");
 
