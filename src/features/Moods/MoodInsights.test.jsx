@@ -30,7 +30,7 @@ test('weekly review reports exact observed days and intensity denominator', () =
   expect(screen.getByText('2 / 7')).toBeInTheDocument();
   expect(screen.getByText('2 из 3 отметок')).toBeInTheDocument();
   expect(screen.getByText('Радость:')).toBeInTheDocument();
-  expect(screen.getByText('Тревога:')).not.toBeInTheDocument();
+  expect(screen.queryByText('Тревога:')).not.toBeInTheDocument();
   expect(screen.getAllByRole('img', { name: /отметок/ })).toHaveLength(7);
   expect(screen.queryByText('Synthetic private text not used by analytics')).not.toBeInTheDocument();
 });
