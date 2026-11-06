@@ -113,12 +113,12 @@ function emptyBucket() {
   };
 }
 
-function kindFromPath(path) {
+function kindFromPath(path, expectedUid) {
   if (typeof path !== 'string') throw new Error('Неподдерживаемая структура документа.');
   const segments = path.split('/');
   if (segments.length !== 6 || segments[0] !== 'artifacts' ||
       segments[1] !== 'reflect-8fdc8' || segments[2] !== 'users' ||
-      !segments[3] || !COLLECTIONS.includes(segments[4]) || !segments[5]) {
+      segments[3] !== expectedUid || !COLLECTIONS.includes(segments[4]) || !segments[5]) {
     throw new Error('Неизвестное расположение документа. Анализ отменён.');
   }
   if (segments[4] === 'profiles' && segments[5] !== 'userProfile') {
@@ -135,7 +135,7 @@ export function auditOwnerSchema(inspection) {
   }
   const buckets = Object.fromEntries(COLLECTIONS.map(name => [name, emptyBucket()]));
   for (const item of inspection.documents) {
-    const kind = kindFromPath(item?.path);
+    const kind = kindFromPath(item?.path, inspection.uid);
     if (!plain(item.fields)) {
       throw new Error('Неверная структура документа. Анализ отменён.');
     }
