@@ -440,6 +440,23 @@ async function runBrowserSuite() {
     const lastInDock = await first.locator(".reflect-session-compose-dock")
       .evaluate(el => el.lastElementChild?.classList.contains("reflect-session-composer"));
     if (!lastInDock) throw new Error("A separate card appears below the session composer");
+    // Draft settings are optional and must open inside the mobile viewport,
+    // not turn the writing area into a full-width configuration form.
+    await privateSettings.locator("summary").click();
+    await first.getByText("Локальный черновик", { exact: true }).waitFor();
+    const popoverBounds = await first.locator(".reflect-session-draft-popover")
+      .evaluate(el => {
+        const rect = el.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, top: rect.top,
+          viewportWidth: document.documentElement.clientWidth };
+      });
+    if (popoverBounds.left < -1 ||
+        popoverBounds.right > popoverBounds.viewportWidth + 1 ||
+        popoverBounds.top < -1) {
+      throw new Error("Compact draft settings escaped 390px mobile viewport: " +
+        JSON.stringify(popoverBounds));
+    }
+    await privateSettings.locator("summary").click();
     const syntheticReflection = "Synthetic session reflection " +
       "expanded text ".repeat(85) + "\nSecond synthetic paragraph";
     await composer.fill(syntheticReflection);
