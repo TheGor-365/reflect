@@ -664,6 +664,41 @@ async function runBrowserSuite() {
     await recoveryContext.close();
     console.log("PASS: verified email status refreshed without UID change");
 
+    // Stage 02G: preserve the first edit as an immutable version, through a
+    // genuine UID-scoped Firestore transaction and browser reload.
+    await first.setViewportSize({ width: 1280, height: 900 });
+    await first.getByRole("button", { name: "Дневник", exact: true }).click();
+    await first.getByRole("textbox", { name: "Новая запись" })
+      .fill("Synthetic versioned journal original");
+    await first.getByRole("button", { name: "Сохранить заметку" }).click();
+    const originalCard = first.locator('.reflect-journal-card[data-kind="note"]')
+      .filter({ hasText: "Synthetic versioned journal original" }).first();
+    await originalCard.waitFor({ timeout: 30000 });
+    if (await originalCard.locator("time.reflect-journal-note-date").count() !== 1) {
+      throw new Error("Journal card repeats visible dates or loses its date");
+    }
+    await originalCard.getByRole("button", { name: "Редактировать запись" }).click();
+    await originalCard.getByRole("textbox", { name: /Заголовок/ })
+      .fill("Synthetic user-authored title");
+    await originalCard.getByRole("textbox", { name: "Текст заметки" })
+      .fill("Synthetic versioned journal revised");
+    await originalCard.getByRole("button", { name: "Сохранить изменения" }).click();
+    await originalCard.getByText("Synthetic versioned journal revised", { exact: true })
+      .waitFor({ timeout: 30000 });
+    await first.reload({ waitUntil: "domcontentloaded" });
+    const updatedCard = first.locator('.reflect-journal-card[data-kind="note"]')
+      .filter({ hasText: "Synthetic versioned journal revised" }).first();
+    await updatedCard.waitFor({ timeout: 30000 });
+    await updatedCard.getByText("Synthetic user-authored title").waitFor();
+    await updatedCard.getByRole("button", { name: "История версий" }).click();
+    const history = updatedCard.getByRole("region", { name: "Версии записи" });
+    await history.getByText("Synthetic versioned journal original", { exact: true })
+      .waitFor({ timeout: 30000 });
+    if (await history.locator(".reflect-journal-version").count() !== 2) {
+      throw new Error("Note revision history must preserve original and current versions");
+    }
+    console.log("PASS: quiet journal card, authored title and immutable versions survive reload");
+
     await secondContext.close();
     await firstContext.close();
     console.log("PASS: synthetic anonymous UID persists across reload");
