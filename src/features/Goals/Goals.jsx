@@ -263,6 +263,11 @@ export default function Goals({ goals = [], userId, onAppend, onFeedback }) {
   const pendingId = useRef(null);
   const currentUserRef = useRef(userId);
   currentUserRef.current = userId;
+  useEffect(() => {
+    pendingId.current = null;
+    setCreateError('');
+    setCreateNotice('');
+  }, [userId]);
 
   // A transaction-confirmed goal may precede the subscription event. Show it
   // once by its allocated ID, then retire the echo at authoritative readback.
