@@ -87,6 +87,6 @@ test('encrypted draft controls live inside composer disclosure, not below editor
   expect(disclosure).toContainElement(screen.getByTestId('private-draft'));
   expect(container.querySelector('.reflect-session-composer').lastElementChild.tagName)
     .toBe('FORM');
-  fireEvent.click(screen.getByText('Настройки защищённого черновика'));
+  fireEvent.click(disclosure.querySelector('summary'))
   expect(disclosure).toHaveAttribute('open');
 });
