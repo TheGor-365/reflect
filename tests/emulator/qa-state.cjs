@@ -119,7 +119,7 @@ function validateHubLocator(locator) {
       !Number.isInteger(port) || port < 1024 || port > 65535) {
     throw new Error("Refusing non-local or invalid Firebase Emulator hub.");
   }
-  return \`http://127.0.0.1:\${port}\`;
+  return `http://127.0.0.1:${port}`;
 }
 
 async function saveRunningState({
@@ -127,7 +127,7 @@ async function saveRunningState({
 } = {}) {
   const root = defaultRoot(home);
   const snapshotFolder = ensurePrivateDirs(root);
-  const locatorPath = path.join(temporaryDirectory, \`hub-\${PROJECT}.json\`);
+  const locatorPath = path.join(temporaryDirectory, `hub-${PROJECT}.json`);
   const locatorInfo = fs.lstatSync(locatorPath, { throwIfNoEntry: false });
   if (!locatorInfo || !locatorInfo.isFile() || locatorInfo.isSymbolicLink()) {
     throw new Error("Dedicated demo Auth/Firestore hub not found. No export performed.");
