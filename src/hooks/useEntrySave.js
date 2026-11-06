@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db, appId } from '../firebase/config';
 
 /**
@@ -13,7 +13,9 @@ import { db, appId } from '../firebase/config';
  * Content is held in React memory only. This hook does NOT persist a sensitive
  * journal draft in localStorage, IndexedDB, or an external service.
  */
-export const useEntrySave = (collectionName, userId) => {
+export const useEntrySave = (collectionName, userId, onConfirmed) => {
+  const onConfirmedRef = useRef(onConfirmed);
+  onConfirmedRef.current = onConfirmed;
   const [status, setStatus] = useState('idle');
   const pendingRef = useRef(null);
   const busyRef = useRef(false);
@@ -52,8 +54,14 @@ export const useEntrySave = (collectionName, userId) => {
       );
 
       if (activeUidRef.current === userId) {
+        const committedId = pendingRef.current.ref.id;
         pendingRef.current = null;
         setStatus('saved');
+        // Firestore confirmed the write; show it immediately while the
+        // subscribed list catches up. Never treat a UI callback as a write error.
+        try {
+          onConfirmedRef.current?.({ ...payload, id: committedId, createdAt: Timestamp.now() });
+        } catch { /* UI projection errors cannot undo a confirmed Firestore write. */ }
       }
       return true;
     } catch (error) {
