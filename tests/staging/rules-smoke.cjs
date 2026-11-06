@@ -76,13 +76,42 @@ async function main() {
     { createdAt: { timestampValue: "2020-01-01T00:00:00Z" } }, ["createdAt"]), 403);
   const legacy = root + "diaryNotes/synthetic-legacy";
   verify("isolated admin seeds legacy only", await operation(legacy, "PATCH", "owner",
-    note("6 ноября 2026 г.", { unknownLegacy: str("retained") })), 200);
+    note("6 ноября 2026 г.", {
+      unknownLegacy: str("retained"),
+      entries: { arrayValue: { values: [entry("Legacy original")] } }
+    })), 200);
   const update = await operation(legacy, "PATCH", alice.token,
     { title: str("Custom legacy title") }, ["title"]);
   verify("edit old title without deleting legacy field", update, 200);
   if (update.data?.fields?.unknownLegacy?.stringValue !== "retained") {
     throw new Error("Legacy field was lost on safe edit");
   }
+  // Owner archive inventory: two diary documents, one old entry without
+  // version and one record containing a saved original. Reproduce only
+  // synthetic shapes; no private exported JSON is used.
+  const v1 = update.data?.fields?.entries?.arrayValue?.values?.[0]?.mapValue?.fields;
+  if (v1?.text?.stringValue !== "Legacy original" || v1.version !== undefined) {
+    throw new Error("Synthetic legacy version-one record was unexpectedly rewritten");
+  }
+  const upgrade = await operation(legacy, "PATCH", alice.token,
+    { entries: { arrayValue: { values: [entry("Legacy edited", ["Legacy original"])] } } },
+    ["entries"]);
+  verify("legacy unversioned entry upgraded to versioned note", upgrade, 200);
+  const upgraded = upgrade.data?.fields || {};
+  const current = upgraded.entries?.arrayValue?.values?.[0]?.mapValue?.fields;
+  const original = current?.versions?.arrayValue?.values?.[0]?.mapValue?.fields;
+  if (upgraded.unknownLegacy?.stringValue !== "retained" ||
+      upgraded.title?.stringValue !== "Custom legacy title" ||
+      current?.text?.stringValue !== "Legacy edited" ||
+      Number(current?.version?.integerValue) !== 2 ||
+      original?.text?.stringValue !== "Legacy original") {
+    throw new Error("Legacy upgrade lost old content, title, unknown metadata or history");
+  }
+  verify("other UID cannot replace preserved history", await operation(
+    legacy, "PATCH", bob.token, {
+      entries: { arrayValue: { values: [entry("foreign overwrite")] } }
+    }, ["entries"]), 403);
+
   const profile = root + "profiles/userProfile";
   verify("valid profile create", await operation(profile, "PATCH", alice.token,
     { name: str("Synthetic"), age: { integerValue: "39" } }), 200);
