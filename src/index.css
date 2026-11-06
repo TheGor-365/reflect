@@ -1327,3 +1327,41 @@
 @media (max-width: 480px) {
   .reflect-owner-export { padding: 12px; }
 }
+
+/* Consistent narrow native scrollbars across the application, not white Chrome rails. */
+html:has(.reflect-app) { scrollbar-width: thin; scrollbar-color: #4b627c #0a1020; }
+html:has(.reflect-app[data-theme="light"]) {
+  scrollbar-color: #a7b7c8 #f4f7fc;
+}
+html:has(.reflect-app)::-webkit-scrollbar { width: 8px; height: 8px; }
+html:has(.reflect-app)::-webkit-scrollbar-track { background: #0a1020; }
+html:has(.reflect-app)::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #4b627c;
+  border: 2px solid #0a1020;
+}
+html:has(.reflect-app[data-theme="light"])::-webkit-scrollbar-track { background: #f4f7fc; }
+html:has(.reflect-app[data-theme="light"])::-webkit-scrollbar-thumb {
+  background: #a7b7c8; border-color: #f4f7fc;
+}
+.reflect-app :is(.reflect-sidebar-scroll, .reflect-session-messages, .reflect-auth-card) {
+  scrollbar-width: thin;
+}
+.reflect-app :is(.reflect-sidebar-scroll, .reflect-session-messages) {
+  scrollbar-color: rgba(125, 229, 213, .33) transparent;
+}
+.reflect-app[data-theme="light"] :is(.reflect-sidebar-scroll, .reflect-session-messages) {
+  scrollbar-color: rgba(8, 127, 128, .37) transparent;
+}
+.reflect-app :is(.reflect-sidebar-scroll, .reflect-session-messages)::-webkit-scrollbar {
+  width: 6px; height: 6px;
+}
+.reflect-app :is(.reflect-sidebar-scroll, .reflect-session-messages)::-webkit-scrollbar-track {
+  background: transparent;
+}
+.reflect-app :is(.reflect-sidebar-scroll, .reflect-session-messages)::-webkit-scrollbar-thumb {
+  border-radius: 999px; background: rgba(125, 229, 213, .33);
+}
+.reflect-app[data-theme="light"] :is(.reflect-sidebar-scroll, .reflect-session-messages)::-webkit-scrollbar-thumb {
+  background: rgba(8, 127, 128, .37);
+}
