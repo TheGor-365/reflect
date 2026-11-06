@@ -20,7 +20,7 @@ vi.mock('firebase/firestore', async importOriginal => {
     getDocs: vi.fn()
   };
 });
-import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
+import { collection, doc, getDocFromServer, getDocsFromServer, setDoc } from 'firebase/firestore';
 
 const date = new Date('2026-11-06T12:00:00.000Z');
 const profile = { name: 'Synthetic Owner', createdAt: Timestamp.fromDate(date) };
@@ -36,10 +36,10 @@ beforeEach(() => {
     uid: 'ownerA', isAnonymous: false, email: 'not-exported@example.test',
     accessToken: 'PRIVATE_TOKEN'
   };
-  getDoc.mockResolvedValue({
+  getDocFromServer.mockResolvedValue({
     id: 'userProfile', exists: () => true, data: () => profile
   });
-  getDocs.mockImplementation(async ref => ({
+  getDocsFromServer.mockImplementation(async ref => ({
     docs: ref.path.endsWith('/diaryNotes') ? notes :
       ref.path.endsWith('/moods') ?
         [{ id: 'mood-1', data: () => ({ mood: 'neutral', intensity: 3 }) }] : []
@@ -73,12 +73,12 @@ describe('owner-scoped Firestore JSON export', () => {
   });
 
   it('fails closed if any collection is inaccessible rather than downloading a partial archive', async () => {
-    getDocs.mockRejectedValueOnce({ code: 'permission-denied' });
+    getDocsFromServer.mockRejectedValueOnce({ code: 'permission-denied' });
     await expect(buildOwnerExport()).rejects.toEqual({ code: 'permission-denied' });
   });
 
   it('aborts if account changes during the reads', async () => {
-    getDocs.mockImplementationOnce(async () => {
+    getDocsFromServer.mockImplementationOnce(async () => {
       testState.auth.currentUser = { uid: 'ownerB', isAnonymous: true };
       return { docs: [] };
     });
@@ -88,11 +88,11 @@ describe('owner-scoped Firestore JSON export', () => {
   it('rejects logged-out access and does not query Firestore', async () => {
     testState.auth.currentUser = null;
     await expect(buildOwnerExport()).rejects.toThrow('после входа');
-    expect(getDoc).not.toHaveBeenCalled();
+    expect(getDocFromServer).not.toHaveBeenCalled();
   });
 
   it('permits a missing profile when the collection requests succeeded', async () => {
-    getDoc.mockResolvedValue({ id: 'userProfile', exists: () => false });
+    getDocFromServer.mockResolvedValue({ id: 'userProfile', exists: () => false });
     const output = JSON.parse((await buildOwnerExport()).json);
     expect(output.profile).toBeNull();
     expect(output.source.uid).toBe('ownerA');
@@ -122,7 +122,7 @@ describe('owner-scoped Firestore JSON export', () => {
   });
 
   it('rejects duplicate document ids rather than reporting a misleading complete export', async () => {
-    getDocs.mockResolvedValue({ docs: [
+    getDocsFromServer.mockResolvedValue({ docs: [
       { id: 'dup', data: () => ({}) },
       { id: 'dup', data: () => ({}) }
     ] });
