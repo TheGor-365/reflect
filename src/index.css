@@ -1218,3 +1218,49 @@
 @media (prefers-reduced-motion: reduce) {
   .reflect-mood-week-bar-track > span { transition: none; }
 }
+
+/* Stage 03A: encrypted, opt-in, local-only drafts. */
+.reflect-protected-draft {
+  margin-top: 12px; padding: 14px 15px; min-width: 0;
+  color: var(--reflect-ink); background: var(--reflect-card);
+  border: 1px solid var(--reflect-border); border-radius: 13px;
+}
+.reflect-protected-draft-heading {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 700;
+}
+.reflect-protected-draft-heading > svg { color: var(--reflect-accent); }
+.reflect-protected-draft-help {
+  font-size: 11px; line-height: 1.6; margin: 8px 0 9px;
+  color: var(--reflect-muted);
+}
+.reflect-protected-draft-actions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+}
+.reflect-protected-draft-actions button {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 7px; min-height: 36px; font-size: 11px; font-weight: 750;
+  padding: 7px 11px; color: var(--reflect-accent);
+  border: 1px solid var(--reflect-border); border-radius: 10px;
+}
+.reflect-protected-draft-actions button:disabled { opacity: .55; }
+.reflect-protected-draft-unlock { display: grid; gap: 9px; margin-top: 12px; }
+.reflect-protected-draft-unlock label { font-size: 12px; font-weight: 700; }
+.reflect-protected-draft-unlock input {
+  width: 100%; min-height: 42px; padding: 9px 12px;
+  border: 1px solid var(--reflect-border); border-radius: 10px;
+  background: var(--reflect-bg); color: var(--reflect-ink); font-size: 13px;
+}
+.reflect-protected-draft-state { font-size: 11px; color: var(--reflect-muted); line-height: 1.5; }
+.reflect-protected-draft-error {
+  display: flex; gap: 7px; align-items: flex-start;
+  color: #f4b1b4; margin-top: 10px; font-size: 11px; line-height: 1.5;
+}
+.reflect-app[data-theme="light"] .reflect-protected-draft-error { color: #a73545; }
+.reflect-protected-draft :is(button, input):focus-visible {
+  outline: 2px solid var(--reflect-accent); outline-offset: 3px;
+}
+@media (max-width: 480px) {
+  .reflect-protected-draft { padding: 11px; }
+  .reflect-protected-draft-actions button { flex: 1; }
+}

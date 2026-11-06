@@ -4,6 +4,7 @@ import { db, appId } from '../../firebase/config';
 import { AI_SESSION_ENABLED, getAnalysisFromAI } from '../../api/geminiService';
 import ChatMessage from './ChatMessage';
 import SessionComposer from './SessionComposer';
+import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
 import InfoCard from '../../components/common/InfoCard';
 import { useEntrySave } from '../../hooks/useEntrySave';
 import { BookOpen, BarChart2, MessageSquareText, PenLine, ShieldCheck, Sparkles } from 'lucide-react';
@@ -13,6 +14,7 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
   const [isLoading, setIsLoading] = useState(false);
   const [sendError, setSendError] = useState('');
   const noteSave = useEntrySave('diaryNotes', userId);
+  const sessionDraftRef = useRef(null);
   const [isUserRecording, setIsUserRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentlySpeakingId, setCurrentlySpeakingId] = useState(null);
@@ -85,6 +87,7 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
       }
 
       // AI suggestions are advisory only: never auto-create user goals.
+      await sessionDraftRef.current?.clearAfterCommit();
       setUserInput('');
     } catch (error) {
         console.error("Send Message Error:", error);
@@ -103,7 +106,10 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
       title: `Запись из размышления · ${new Date().toLocaleDateString('ru-RU')}`,
       entries: [{ text, createdAt: Timestamp.now() }]
     });
-    if (saved) setUserInput('');
+    if (saved) {
+      await sessionDraftRef.current?.clearAfterCommit();
+      setUserInput('');
+    }
   };
 
   const handlePlayAudio = (id, text) => {
@@ -224,6 +230,9 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
             aiAvailable={AI_SESSION_ENABLED}
             error={sendError}
           />
+          <ProtectedDraftControls ref={sessionDraftRef} userId={userId}
+            surface={currentSessionId ? `session-${currentSessionId}` : 'session-new'}
+            value={{ text: userInput }} onRestore={draft => setUserInput(draft.text)} />
         </div>
       </div>
 

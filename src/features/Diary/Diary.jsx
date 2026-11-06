@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { useEntrySave } from '../../hooks/useEntrySave';
 import SaveFeedback from '../../components/common/SaveFeedback';
+import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
 import DiaryNarrativeCard from './DiaryNarrativeCard';
 import MoodInsights from '../Moods/MoodInsights';
 import { Calendar, Search } from 'lucide-react';
@@ -22,6 +23,7 @@ const Diary = ({ sessions, goals, moods, diaryNotes, userId, onAppend, isLoading
   const [toDate, setToDate] = useState('');
   const moodSave = useEntrySave('moods', userId);
   const noteSave = useEntrySave('diaryNotes', userId);
+  const noteDraftRef = useRef(null);
 
   useEffect(() => {
     const updatePlaceholder = () => {
@@ -71,7 +73,10 @@ const Diary = ({ sessions, goals, moods, diaryNotes, userId, onAppend, isLoading
       title,
       entries: [{ text: content, createdAt: Timestamp.now() }]
     });
-    if (didSave) setNewDiaryNote({ title: '', text: '' });
+    if (didSave) {
+      await noteDraftRef.current?.clearAfterCommit();
+      setNewDiaryNote({ title: '', text: '' });
+    }
   };
 
   return (
@@ -118,7 +123,9 @@ const Diary = ({ sessions, goals, moods, diaryNotes, userId, onAppend, isLoading
         </div>
       </form>
       <SaveFeedback status={noteSave.status} />
-      <p className="reflect-journal-draft-notice">До подтверждения сохранения Firestore текст остаётся только в открытой форме. Автоматическое восстановление после перезагрузки пока не включено.</p>
+      <ProtectedDraftControls ref={noteDraftRef} userId={userId}
+        surface="diary-new" value={newDiaryNote} onRestore={setNewDiaryNote} />
+      <p className="reflect-journal-draft-notice">До подтверждения Firestore текст остаётся в форме. Локальное восстановление возможно только при добровольно включённом защищённом черновике и наличии его фразы.</p>
     </div>
 
     <div className="mt-8">
