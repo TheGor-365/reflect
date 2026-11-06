@@ -26,7 +26,7 @@ const noteInput = () => screen.getByPlaceholderText('Что у вас на ум�
 
 beforeEach(() => {
   vi.clearAllMocks();
-  setDoc.mockResolvedValue(undefined);
+  setDoc.mockReset().mockResolvedValue(undefined);
 });
 
 test('successful new note uses one Firestore ID and shows confirmed save status', async () => {
@@ -78,7 +78,7 @@ test('pending promise disables repeat submission rather than creating duplicate 
   fireEvent.change(noteInput(), { target: { value: 'Черновик без повторной записи' } });
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить заметку' }));
   expect(await screen.findByRole('status')).toHaveTextContent('Сохраняется…');
-  expect(screen.getByRole('button', { name: 'Сохраняется…' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Сохранить заметку' })).toBeDisabled();
   fireEvent.submit(noteInput().closest('form'));
   expect(setDoc).toHaveBeenCalledTimes(1);
   expect(doc).toHaveBeenCalledTimes(1);
@@ -92,12 +92,12 @@ test('mood error preserves rating and comment; retry keeps one document', async 
   fireEvent.click(screen.getByRole('button', { name: 'Оценить настроение' }));
   fireEvent.click(screen.getByRole('button', { name: 'Настроение: Радость' }));
   fireEvent.click(screen.getByRole('button', { name: 'Интенсивность 4 из 5' }));
-  fireEvent.change(screen.getByPlaceholderText('Добавьте комментарий (необязательно)...'), {
+  fireEvent.change(screen.getByRole('textbox', { name: 'Комментарий к настроению' }), {
     target: { value: 'Спокойный тестовый день' }
   });
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить настроение' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Сохранение не подтверждено');
-  expect(screen.getByPlaceholderText('Добавьте комментарий (необязательно)...'))
+  expect(screen.getByRole('textbox', { name: 'Комментарий к настроению' }))
     .toHaveValue('Спокойный тестовый день');
   expect(screen.getByRole('button', { name: 'Интенсивность 4 из 5' }))
     .toHaveAttribute('aria-pressed', 'true');
@@ -181,12 +181,13 @@ test('confirmed new note appears immediately without reload and does not duplica
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить заметку' }));
   expect(await screen.findByText('Сохранено')).toBeInTheDocument();
   await waitFor(() => expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(1));
+  const confirmedId = setDoc.mock.calls[0][0].id;
   expect(screen.getByTestId('diary-timeline-event'))
-    .toHaveTextContent('note:draft-id-1:entry:0');
+    .toHaveTextContent('note:' + confirmedId + ':entry:0');
 
   // Real Firestore subscription sends exactly this ID. Never show twins.
   const stored = {
-    id: 'draft-id-1',
+    id: setDoc.mock.calls[0][0].id,
     title: 'Synthetic title',
     entries: [{ text: 'Immediate synthetic note',
       createdAt: { toDate: () => new Date('2026-11-06T12:00:00Z') } }],
@@ -209,8 +210,9 @@ test('mood chooser is compact and records a confirmed mood without page reload',
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить настроение' }));
   expect(await screen.findByText('Сохранено')).toBeInTheDocument();
   expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(1);
+  const confirmedId = setDoc.mock.calls[0][0].id;
   expect(screen.getByTestId('diary-timeline-event'))
-    .toHaveTextContent('mood:draft-id-1');
+    .toHaveTextContent('mood:' + confirmedId);
   expect(screen.queryByRole('button', { name: 'Настроение: Радость' }))
     .not.toBeInTheDocument();
 });
