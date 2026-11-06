@@ -162,8 +162,8 @@ function verifiedSnapshot(root = defaultRoot()) {
  * Binding briefly to the exact local emulator addresses verifies both ports
  * are free before any firebase spawn. This does not touch live emulator data.
  */
-function assertQaPortsFree() {
-  return Promise.all([AUTH_PORT, FIRESTORE_PORT].map(port => new Promise((resolve, reject) => {
+function assertQaPortsFree(ports = [AUTH_PORT, FIRESTORE_PORT]) {
+  return Promise.all(ports.map(port => new Promise((resolve, reject) => {
     const server = net.createServer();
     server.once("error", error => reject(new Error(
       `QA port ${port} is occupied or unavailable (${error.code || "bind error"}). Stop only the existing QA emulator after a verified backup.`
