@@ -3,6 +3,7 @@ import { Timestamp } from 'firebase/firestore';
 import { useEntrySave } from '../../hooks/useEntrySave';
 import SaveFeedback from '../../components/common/SaveFeedback';
 import DiaryNarrativeCard from './DiaryNarrativeCard';
+import MoodInsights from '../Moods/MoodInsights';
 import { Calendar, Search } from 'lucide-react';
 import { buildDiaryTimeline, filterDiaryTimeline, groupDiaryTimeline } from './diaryTimeline';
 
@@ -121,6 +122,7 @@ const Diary = ({ sessions, goals, moods, diaryNotes, userId, onAppend, isLoading
     </div>
 
     <div className="mt-8">
+        <MoodInsights moods={moods} isLoading={isLoading} />
         <section className="reflect-journal-filters" aria-label="Фильтры дневника">
           <label className="reflect-journal-search">
             <Search size={18} aria-hidden="true" />
