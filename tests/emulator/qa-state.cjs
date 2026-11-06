@@ -116,13 +116,24 @@ function assertHubEmulators(mapping) {
 }
 
 function validateHubLocator(locator) {
-  const host = locator && locator.host;
-  const port = Number(locator && locator.port);
-  if (!["127.0.0.1", "localhost", "::1"].includes(host) ||
-      !Number.isInteger(port) || port < 1024 || port > 65535) {
-    throw new Error("Refusing non-local or invalid Firebase Emulator hub.");
+  // Newer firebase-tools hub locator files contain {version, origins, pid}
+  // without the legacy host/port fields. Accept only literal loopback HTTP.
+  const origins = Array.isArray(locator?.origins) ? locator.origins : [];
+  if (locator?.host && locator?.port) {
+    origins.push(`http://${locator.host}:${locator.port}`);
   }
-  return `http://127.0.0.1:${port}`;
+  for (const origin of origins) {
+    let parsed;
+    try { parsed = new URL(origin); } catch { continue; }
+    const port = Number(parsed.port);
+    if (parsed.protocol === "http:" &&
+        ["127.0.0.1", "localhost", "[::1]"].includes(parsed.hostname) &&
+        Number.isInteger(port) && port >= 1024 && port <= 65535 &&
+        (parsed.pathname === "/" || parsed.pathname === "")) {
+      return `http://127.0.0.1:${port}`;
+    }
+  }
+  throw new Error("Refusing non-local or invalid Firebase Emulator hub.");
 }
 
 async function saveRunningState({
