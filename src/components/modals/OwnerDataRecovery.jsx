@@ -11,6 +11,7 @@ import { auditOwnerSchema } from '../../security/schemaAudit';
  */
 export default function OwnerDataRecovery({ userId }) {
   const [inspection, setInspection] = useState(null);
+  const [schemaAudit, setSchemaAudit] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState('');
@@ -24,6 +25,7 @@ export default function OwnerDataRecovery({ userId }) {
 
   useEffect(() => {
     setInspection(null);
+    setSchemaAudit(null);
     setBusy(false);
     setError('');
     setResult('');
@@ -37,6 +39,7 @@ export default function OwnerDataRecovery({ userId }) {
     const file = event.target.files?.[0];
     const owner = userId;
     setInspection(null);
+    setSchemaAudit(null);
     setError('');
     setResult('');
     setAcknowledged(false);
@@ -57,8 +60,11 @@ export default function OwnerDataRecovery({ userId }) {
       const verified = inspectOwnerArchive(raw, { uid: owner });
       // Local in-memory read only; the report includes numeric counts, never
       // personal text, field names, document IDs or the user UID.
-      const schemaAudit = auditOwnerSchema(verified);
-      setInspection({ ...verified, schemaAudit });
+      const report = auditOwnerSchema(verified);
+      // The recovery object is not modified: its original verified structure
+      // and explicit confirmation controls remain the only restore input.
+      setInspection(verified);
+      setSchemaAudit(report);
     } catch (failure) {
       if (uidRef.current === owner) {
         setError(failure?.message || 'Проверка файла не удалась.');
@@ -131,18 +137,18 @@ export default function OwnerDataRecovery({ userId }) {
               {' '}· Дневник: {inspection.counts.diaryNotes}</p>
             <p>Данные записей намеренно не выводятся на экран.
               Файл не имеет криптографической подписи и не доказывает подлинность содержимого.</p>
-            {inspection.schemaAudit && (
+            {schemaAudit && (
               <details className="reflect-owner-schema-audit">
                 <summary>Совместимость данных со staging</summary>
                 <div aria-label="Сводка структуры архива">
-                  <p>Проверено документов: {inspection.schemaAudit.totals.documents}
-                    {' '}· Коллекций с данными: {inspection.schemaAudit.reviewedCollections} из 5</p>
-                  <p>Нестандартных полей: {inspection.schemaAudit.totals.unknownFields}
-                    {' '}· Структурных предупреждений: {inspection.schemaAudit.totals.shapeWarnings}</p>
-                  <p>Старых записей без номера версии: {inspection.schemaAudit.totals.legacyEntries}
-                    {' '}· Сохранённых предыдущих версий: {inspection.schemaAudit.totals.noteVersions}</p>
-                  <p>Больших документов: {inspection.schemaAudit.totals.nearLimitDocuments}
-                    {' '}· Очень больших: {inspection.schemaAudit.totals.oversizedDocuments}</p>
+                  <p>Проверено документов: {schemaAudit.totals.documents}
+                    {' '}· Коллекций с данными: {schemaAudit.reviewedCollections} из 5</p>
+                  <p>Нестандартных полей: {schemaAudit.totals.unknownFields}
+                    {' '}· Структурных предупреждений: {schemaAudit.totals.shapeWarnings}</p>
+                  <p>Старых записей без номера версии: {schemaAudit.totals.legacyEntries}
+                    {' '}· Сохранённых предыдущих версий: {schemaAudit.totals.noteVersions}</p>
+                  <p>Больших документов: {schemaAudit.totals.nearLimitDocuments}
+                    {' '}· Очень больших: {schemaAudit.totals.oversizedDocuments}</p>
                   <p>Это только анализ локального файла. Никакие записи не изменяются.
                     Отсутствие предупреждений не означает готовность Rules к production.
                     Старые форматы не удаляются и не считаются повреждёнными.</p>
