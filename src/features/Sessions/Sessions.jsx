@@ -225,7 +225,7 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
             aiAvailable={AI_SESSION_ENABLED}
             error={sendError}
             draftControls={
-              <ProtectedDraftControls ref={sessionDraftRef} userId={userId}
+              <ProtectedDraftControls compact ref={sessionDraftRef} userId={userId}
                 surface={currentSessionId ? `session-${currentSessionId}` : 'session-new'}
                 value={{ text: userInput }} onRestore={draft => setUserInput(draft.text)} />
             }
