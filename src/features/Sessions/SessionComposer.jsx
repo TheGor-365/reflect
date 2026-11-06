@@ -61,7 +61,7 @@ const SessionComposer = ({
           <p id="reflect-session-message-hint" className="reflect-session-composer-hint">
             {aiAvailable
               ? 'Enter — новая строка · Ctrl+Enter — отправить'
-              : 'ИИ временно отключён. Текст не сохраняется автоматически — используйте кнопку «В дневник».'}
+              : 'ИИ временно отключён. «В дневник» — сохранение в Firestore; защищённый локальный черновик включается отдельно ниже.'}
           </p>
           <div className="reflect-session-composer-controls">
             {onSaveToDiary && (
