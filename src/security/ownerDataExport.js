@@ -1,5 +1,5 @@
 import {
-  collection, doc, getDoc, getDocs, Timestamp, GeoPoint, Bytes, DocumentReference
+  collection, doc, getDocFromServer, getDocsFromServer, Timestamp, GeoPoint, Bytes, DocumentReference
 } from 'firebase/firestore';
 import { auth, db, appId } from '../firebase/config';
 
@@ -83,12 +83,12 @@ export async function buildOwnerExport({ now = new Date() } = {}) {
   if (!Number.isFinite(now.getTime())) throw new Error('Неверная дата экспорта.');
   if (!db || !appId) throw new Error('Соединение с Firestore не настроено.');
   const root = 'artifacts/' + appId + '/users/' + uid;
-  const profileSnapshot = await getDoc(doc(db, root, 'profiles', 'userProfile'));
+  const profileSnapshot = await getDocFromServer(doc(db, root, 'profiles', 'userProfile'));
   ensureOwner(uid);
 
   const collections = Object.create(null);
   for (const name of OWNER_EXPORT_COLLECTIONS) {
-    const snapshot = await getDocs(collection(db, root, name));
+    const snapshot = await getDocsFromServer(collection(db, root, name));
     ensureOwner(uid);
     const ids = new Set();
     collections[name] = snapshot.docs.map(document => {
