@@ -1143,3 +1143,78 @@
 .reflect-auth-textbutton:hover { text-decoration: underline; }
 .reflect-auth-textbutton:focus-visible,
 .reflect-auth-secondary:focus-visible { outline: 2px solid var(--reflect-accent); outline-offset: 3px; }
+
+/* Stage 02D — private, descriptive mood observation only. */
+.reflect-mood-insights {
+  padding: clamp(17px, 2.4vw, 26px); margin-bottom: 28px;
+  background: linear-gradient(125deg, rgba(80, 190, 193, .07), transparent 43%), var(--reflect-card);
+  border: 1px solid var(--reflect-border); border-radius: 20px;
+  color: var(--reflect-ink);
+}
+.reflect-mood-insights-heading { display: flex; align-items: center; gap: 12px; }
+.reflect-mood-insights-icon {
+  display: grid; place-items: center; flex: none; width: 43px; height: 43px;
+  border-radius: 14px; color: var(--reflect-accent);
+  border: 1px solid var(--reflect-border); background: rgba(74, 189, 178, .1);
+}
+.reflect-mood-insights h3 {
+  font-size: 19px; font-weight: 800; letter-spacing: -.02em; line-height: 1.35;
+}
+.reflect-mood-insights-explainer {
+  color: var(--reflect-muted); font-size: 12px; line-height: 1.6; margin: 14px 0 19px;
+}
+.reflect-mood-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.reflect-mood-metrics > div {
+  display: flex; flex-direction: column; gap: 5px;
+  background: var(--reflect-bg); border: 1px solid var(--reflect-border);
+  border-radius: 13px; padding: 13px 12px;
+}
+.reflect-mood-metrics strong { font-size: 23px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.reflect-mood-metrics span, .reflect-mood-metrics small {
+  color: var(--reflect-muted); font-size: 11px; line-height: 1.5;
+}
+.reflect-mood-week {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: clamp(5px, 2vw, 15px); align-items: end;
+  margin: 20px 0 14px; padding: 14px 10px 6px;
+  border-top: 1px solid var(--reflect-border); border-bottom: 1px solid var(--reflect-border);
+}
+.reflect-mood-week-day { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+.reflect-mood-week-count { font-size: 11px; color: var(--reflect-ink); font-variant-numeric: tabular-nums; }
+.reflect-mood-week-bar-track {
+  display: flex; align-items: end; width: min(100%, 45px); height: 85px; padding: 0 3px;
+  border-radius: 9px; background: rgba(110, 149, 178, .10);
+}
+.reflect-mood-week-bar-track > span {
+  display: block; width: 100%; border-radius: 7px 7px 4px 4px;
+  background: linear-gradient(0deg, #4ebac4, #8eddd4);
+  transition: height .2s ease;
+}
+.reflect-mood-week-date {
+  color: var(--reflect-muted); text-align: center; line-height: 1.4;
+  font-size: 10px; overflow-wrap: anywhere;
+}
+.reflect-mood-categories { display: flex; gap: 7px; flex-wrap: wrap; }
+.reflect-mood-category {
+  display: inline-flex; align-items: center; gap: 5px; padding: 7px 10px;
+  border: 1px solid var(--reflect-border); border-radius: 999px;
+  background: var(--reflect-bg); color: var(--reflect-muted); font-size: 11px;
+}
+.reflect-mood-category strong { color: var(--reflect-ink); font-variant-numeric: tabular-nums; }
+.reflect-mood-insights-footnote {
+  display: flex; gap: 8px; align-items: flex-start; margin-top: 16px;
+  color: var(--reflect-muted); font-size: 11px; line-height: 1.6;
+}
+.reflect-mood-insights-footnote svg { flex: none; color: var(--reflect-accent); margin-top: 1px; }
+.reflect-mood-insights-calendar { display: flex; align-items: center; gap: 7px; margin-top: 12px; color: var(--reflect-muted); font-size: 11px; }
+.reflect-mood-insights-empty { padding: 13px 14px; border: 1px dashed var(--reflect-border); border-radius: 12px; font-size: 13px; color: var(--reflect-muted); }
+@media (max-width: 600px) {
+  .reflect-mood-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reflect-mood-metrics > div:last-child { grid-column: 1 / -1; }
+  .reflect-mood-week { gap: 4px; padding: 13px 0 6px; }
+  .reflect-mood-week-date { font-size: 9px; }
+  .reflect-mood-week-bar-track { height: 70px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reflect-mood-week-bar-track > span { transition: none; }
+}
