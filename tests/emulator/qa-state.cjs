@@ -209,10 +209,14 @@ function startEmulators() {
 }
 
 async function main(command) {
-  if (!["status", "save", "start"].includes(command)) {
-    throw new Error("Usage: node tests/emulator/qa-state.cjs {status|save|start}");
+  if (!["status", "save", "start", "latest"].includes(command)) {
+    throw new Error("Usage: node tests/emulator/qa-state.cjs {status|save|start|latest}");
   }
-  if (command === "status") {
+  if (command === "latest") {
+    const latest = latestSnapshot();
+    if (!latest) throw new Error("No complete private QA snapshot exists.");
+    process.stdout.write(latest + "\n");
+  } else if (command === "status") {
     const latest = latestSnapshot();
     console.log(latest ? "Private Auth + Firestore snapshot available." :
       "No complete private QA snapshot found.");
