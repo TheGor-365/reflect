@@ -16,8 +16,9 @@ vi.mock('firebase/firestore', async importOriginal => {
     ...sdk,
     doc: vi.fn((_db, ...parts) => ({ path: parts.join('/') })),
     collection: vi.fn((_db, ...parts) => ({ path: parts.join('/') })),
-    getDoc: vi.fn(),
-    getDocs: vi.fn()
+    getDocFromServer: vi.fn(),
+    getDocsFromServer: vi.fn(),
+    setDoc: vi.fn()
   };
 });
 import { collection, doc, getDocFromServer, getDocsFromServer, setDoc } from 'firebase/firestore';
