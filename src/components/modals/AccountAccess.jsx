@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import OwnerDataExport from './OwnerDataExport';
 import { ArrowRight, KeyRound, LockKeyhole, Mail, ShieldCheck, UserRound, X } from 'lucide-react';
 import {
@@ -22,6 +22,35 @@ export default function AccountAccess({
   const [notice, setNotice] = useState('');
   const busyRef = useRef(false);
   const linked = Boolean(user && !user.isAnonymous);
+
+  // The dialog scrolls internally; do not leave a second browser page
+  // scrollbar visible or allow the underlying diary to move.
+  useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    const previousRootOverflow = root.style.overflow;
+    const previousBodyOverflow = body.style.overflow;
+    root.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    return () => {
+      root.style.overflow = previousRootOverflow;
+      body.style.overflow = previousBodyOverflow;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (busy || (welcome && !linked)) return undefined;
+    const close = welcome ? onContinue : onClose;
+    if (!close) return undefined;
+    const onKeyDown = event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        close();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [busy, welcome, linked, onContinue, onClose]);
 
   const changeMode = nextMode => {
     if (busyRef.current) return;
