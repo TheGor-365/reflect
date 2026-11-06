@@ -44,7 +44,10 @@ test('new session renders full chat with bottom textarea and no fabricated assis
   expect(screen.queryByText('Начните диалог...')).not.toBeInTheDocument();
   expect(screen.queryByText('Как это работает?')).not.toBeInTheDocument();
   expect(screen.queryByText(/Здравствуйте, Demo/)).not.toBeInTheDocument();
-  expect(screen.getByText(/ИИ-диалог временно недоступен/)).toBeInTheDocument();
+  expect(screen.getByText(/Пока ИИ недоступен/)).toBeInTheDocument();
+  const composer = container.querySelector('.reflect-session-composer');
+  expect(container.querySelector('.reflect-session-compose-dock').lastElementChild).toBe(composer);
+  expect(container.querySelector('details.reflect-session-draft-settings')).not.toHaveAttribute('open');
   expect(screen.getByRole('button', { name: 'Отправить сообщение' })).toBeDisabled();
 });
 

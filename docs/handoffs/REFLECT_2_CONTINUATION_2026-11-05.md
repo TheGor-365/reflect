@@ -424,3 +424,19 @@ Only within a localhost `demo-reflect-auth-qa` Firebase Emulator using explicit 
 3. In browser validate initial journal shows compact composer and chronological card, tap icons to expand mood and filters, write **synthetic** multiline text, save and see new card without refresh, check light/mobile. Send screenshots, not original journal, password, raw export or tokens. Do NOT manually restore the previous plaintext JSON to an unknown/unconfirmed UID.
 
 **Roadmap after visual gate:** finish Stage 03F local same-UID demo snapshot import and rule activation, real staging field-level security/backup recovery and release gates; Stage 04 protected opt-in AI backend with budget/rate limits and user consent; Stage 05 accessible Midnight Aurora QA and reversible production release. Stacked PR merge to production only with explicit go/no-go after proof.
+
+
+## 21. Continuation checkpoint — Stage 02F Goals + Sessions focused UX (2026-11-06)
+
+**Stacked Draft development:** `work/reflect-goals-session-focus-2026-11-06`, based on Stage 02E PR #22 HEAD `0933ff58f25a647870fd4e2b3ae0a26b88ad6ba8`. Follow-up PR/CI status to be read live from GitHub; this text does not imply merge, passing CI, deployment or visual acceptance.
+
+The user requested: make Goals and New Session as compact as the redesigned Diary, with the actual session editor at the **bottom**. Changes: one-field goal creation with optional advanced disclosure; one active/paused/completed filtered goal feed instead of massive three-column empty board; transaction-confirmed goal ID echo retired on UID-scoped Firestore snapshot; one-line (44px) session textarea growing to 248px, anchored inside the chat footer; encrypted AES-GCM draft controls moved inside an opt-in settings popover of the composer, never beneath the editor; no fake AI enablement, no production changes or schema migration. Business rules for goals, protected drafts and save-to-diary preserved. Details: `docs/roadmap/STAGE_02F_GOALS_SESSIONS_FOCUS_2026-11-06.md`.
+
+**QA:** test suite and isolated browser smoke are updated on the branch. Exact final-head CI and owner visual mobile/desktop acceptance must be verified before Stage 03F. User-local `~/reflect-stage22-qa`, active emulators 9099/18081 and original Test UID must be preserved. No restart of Firebase, replacement of live data, new Test registration or merge into main without explicit permission.
+
+
+## 22. Owner feedback + Stage 02F compact draft UX (2026-11-06)
+
+Screenshots at 127.0.0.1:3100 and shell showed the owner remained in `~/reflect-stage22-qa`, `0933ff5`, because `git fetch origin` did not fetch the Stage02F remote ref and `git worktree add` failed; port 3100 was held by the already running **old Vite**. They are not screenshots of PR #23. The user requested minimal, non-form-like encrypted-draft controls. On the Stage02F branch the protected draft already lives under a collapsed lock inside the bottom composer; refine only the Session scope with concise wording, keep exact password/recovery/encryption flow, and pin the 320px panel inside the right edge of the composer to prevent 390px viewport overflow. Added unit tests and isolated Playwright geometry assertion; journal controls unchanged.
+
+**Correct owner checkout:** `git fetch origin refs/heads/work/reflect-goals-session-focus-2026-11-06:refs/remotes/origin/work/reflect-goals-session-focus-2026-11-06`, then `git worktree add --detach ~/reflect-stage23-qa refs/remotes/origin/work/reflect-goals-session-focus-2026-11-06`. Stop only old Vite 3100 (Ctrl+C), do not stop/reset Auth 9099 or Firestore 18081, do not touch dirty Stage22 worktree, use Node 22.23.4 and existing demo-only env. Exact-head CI and owner visual QA still gate any merge/release. No real Test data should be included in screenshots or logs.

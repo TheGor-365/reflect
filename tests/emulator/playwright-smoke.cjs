@@ -431,6 +431,32 @@ async function runBrowserSuite() {
     if (await composer.evaluate(el => el.tagName) !== "TEXTAREA") {
       throw new Error("Session composer is not a multiline textarea");
     }
+    const initialInputHeight = await composer.evaluate(el => el.getBoundingClientRect().height);
+    if (initialInputHeight > 56) throw new Error("Session input must initially fit one line");
+    const privateSettings = first.locator("details.reflect-session-draft-settings");
+    if (await privateSettings.getAttribute("open") !== null) {
+      throw new Error("Private draft settings must start collapsed");
+    }
+    const lastInDock = await first.locator(".reflect-session-compose-dock")
+      .evaluate(el => el.lastElementChild?.classList.contains("reflect-session-composer"));
+    if (!lastInDock) throw new Error("A separate card appears below the session composer");
+    // Draft settings are optional and must open inside the mobile viewport,
+    // not turn the writing area into a full-width configuration form.
+    await privateSettings.locator("summary").click();
+    await first.getByText("Локальный черновик", { exact: true }).waitFor();
+    const popoverBounds = await first.locator(".reflect-session-draft-popover")
+      .evaluate(el => {
+        const rect = el.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, top: rect.top,
+          viewportWidth: document.documentElement.clientWidth };
+      });
+    if (popoverBounds.left < -1 ||
+        popoverBounds.right > popoverBounds.viewportWidth + 1 ||
+        popoverBounds.top < -1) {
+      throw new Error("Compact draft settings escaped 390px mobile viewport: " +
+        JSON.stringify(popoverBounds));
+    }
+    await privateSettings.locator("summary").click();
     const syntheticReflection = "Synthetic session reflection " +
       "expanded text ".repeat(85) + "\nSecond synthetic paragraph";
     await composer.fill(syntheticReflection);
@@ -480,6 +506,9 @@ async function runBrowserSuite() {
     await first.locator(".reflect-side-nav")
       .getByRole("button", { name: "Цели" }).click();
     await first.getByRole("heading", { name: "Ваши цели" }).waitFor();
+    if (await first.getByLabel("Зачем это нужно? (необязательно)").count()) {
+      throw new Error("Goal advanced options must start closed");
+    }
     await first.getByLabel("Название цели").fill("Synthetic goal without deadline");
     await first.getByRole("button", { name: "Создать цель" }).click();
     const goalCard = first.locator(".reflect-goal-card")
@@ -499,11 +528,15 @@ async function runBrowserSuite() {
     await goalCard.locator('[role="progressbar"][aria-valuenow="100"]')
       .waitFor({ timeout: 30000 });
     await goalCard.getByRole("button", { name: "На паузе" }).click();
-    await goalCard.getByRole("button", { name: "На паузе", pressed: true })
+    await first.getByRole("tab", { name: /На паузе/ }).click();
+    await first.locator(".reflect-goal-card")
+      .filter({ hasText: "Synthetic goal without deadline" })
+      .getByRole("button", { name: "На паузе", pressed: true })
       .waitFor({ timeout: 30000 });
     await first.reload({ waitUntil: "domcontentloaded" });
     await first.locator(".reflect-side-nav")
       .getByRole("button", { name: "Цели" }).click();
+    await first.getByRole("tab", { name: /На паузе/ }).click();
     const restoredGoal = first.locator(".reflect-goal-card")
       .filter({ hasText: "Synthetic goal without deadline" });
     await restoredGoal.waitFor({ timeout: 30000 });

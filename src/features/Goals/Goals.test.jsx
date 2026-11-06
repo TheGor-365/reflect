@@ -97,3 +97,59 @@ test('malformed legacy subtask is visible as a warning without UI crash', () => 
   expect(screen.getByRole('checkbox', { name: 'Сохранившийся шаг' }))
     .not.toBeChecked();
 });
+
+test('goal creator starts as a single compact field with optional details closed', () => {
+  render(<Goals goals={[]} userId="synthetic-uid" />);
+  expect(screen.getByRole('textbox', { name: 'Название цели' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Дополнительные параметры цели' }))
+    .toHaveAttribute('aria-expanded', 'false');
+  expect(screen.queryByLabelText(/Зачем это нужно/)).not.toBeInTheDocument();
+  expect(screen.queryByLabelText(/Срок/)).not.toBeInTheDocument();
+  expect(screen.getAllByRole('tabpanel')).toHaveLength(1);
+});
+
+test('advanced fields keep typed purpose and steps when collapsed and reopened', () => {
+  render(<Goals goals={[]} userId="synthetic-uid" />);
+  const options = screen.getByRole('button', { name: 'Дополнительные параметры цели' });
+  fireEvent.click(options);
+  fireEvent.change(screen.getByLabelText(/Зачем это нужно/), {
+    target: { value: 'Личное намерение' }
+  });
+  fireEvent.change(screen.getByLabelText('Шаг новой цели'), {
+    target: { value: 'Тихий первый шаг' }
+  });
+  fireEvent.click(options);
+  fireEvent.click(options);
+  expect(screen.getByLabelText(/Зачем это нужно/)).toHaveValue('Личное намерение');
+  expect(screen.getByLabelText('Шаг новой цели')).toHaveValue('Тихий первый шаг');
+  fireEvent.click(screen.getByRole('button', { name: 'Добавить шаг' }));
+  expect(screen.getByText('Тихий первый шаг')).toBeInTheDocument();
+});
+
+test('transaction-confirmed goal appears immediately and snapshot replaces echo once', async () => {
+  const { rerender } = render(<Goals goals={[]} userId="synthetic-uid" />);
+  fireEvent.change(screen.getByRole('textbox', { name: 'Название цели' }), {
+    target: { value: 'Новая подтверждённая цель' }
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Создать цель' }));
+  await waitFor(() => expect(screen.getByRole('article', { name: 'Новая подтверждённая цель' }))
+    .toBeInTheDocument());
+  rerender(<Goals userId="synthetic-uid" goals={[{
+    ...goal, id: 'synthetic-goal-id', text: 'Новая подтверждённая цель'
+  }]} />);
+  await waitFor(() => expect(screen.getAllByRole('article', { name: 'Новая подтверждённая цель' }))
+    .toHaveLength(1));
+});
+
+test('paused and completed goals are accessible but hidden until their filter is selected', () => {
+  render(<Goals userId="synthetic-uid" goals={[
+    goal,
+    { ...goal, id: 'g2', text: 'Пауза', status: 'paused' },
+    { ...goal, id: 'g3', text: 'Сделано', status: 'completed', completed: true }
+  ]} />);
+  expect(screen.queryByRole('article', { name: 'Пауза' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('tab', { name: /На паузе/ }));
+  expect(screen.getByRole('article', { name: 'Пауза' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('tab', { name: /Завершены/ }));
+  expect(screen.getByRole('article', { name: 'Сделано' })).toBeInTheDocument();
+});

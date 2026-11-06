@@ -12,7 +12,7 @@ import {
  * is stored in localStorage. All saves are serialized and checked for conflicts.
  */
 const ProtectedDraftControls = forwardRef(function ProtectedDraftControls({
-  userId, surface, value, onRestore
+  userId, surface, value, onRestore, compact = false
 }, ref) {
   const [available, setAvailable] = useState(false);
   const [enabled, setEnabled] = useState(false);
@@ -155,22 +155,23 @@ const ProtectedDraftControls = forwardRef(function ProtectedDraftControls({
   };
 
   return (
-    <section className="reflect-protected-draft" aria-label="Защищённый локальный черновик">
+    <section className={`reflect-protected-draft${compact ? ' reflect-protected-draft--compact' : ''}`} aria-label="Защищённый локальный черновик">
       <div className="reflect-protected-draft-heading">
         <LockKeyhole size={17} aria-hidden="true"/>
-        <strong>Защищённый черновик</strong>
+        <strong>{compact ? 'Локальный черновик' : 'Защищённый черновик'}</strong>
         {enabled && status === 'saved' && <CheckCircle2 size={17} aria-hidden="true" />}
       </div>
       <p className="reflect-protected-draft-help">
-        По желанию: шифрование AES-GCM на этом устройстве. Ключ из отдельной фразы
-        не сохраняется. В другом браузере черновик не появится.
+        {compact
+          ? 'Необязательно. Зашифрованная копия останется в этом браузере. Для восстановления нужна отдельная фраза.'
+          : 'По желанию: шифрование AES-GCM на этом устройстве. Ключ из отдельной фразы не сохраняется. В другом браузере черновик не появится.'}
       </p>
 
       {!enabled && !editingPhrase && (
         <div className="reflect-protected-draft-actions">
           <button type="button" onClick={() => setEditingPhrase(true)}>
             <KeyRound size={15} aria-hidden="true" />
-            {available ? 'Восстановить локальный черновик' : 'Включить шифрование черновика'}
+            {available ? 'Восстановить локальный черновик' : compact ? 'Защитить текст на устройстве' : 'Включить шифрование черновика'}
           </button>
           {available && <button type="button" onClick={deleteLocal} aria-label="Удалить локальную зашифрованную копию">
             <Trash2 size={15} aria-hidden="true"/> Удалить копию
@@ -181,7 +182,7 @@ const ProtectedDraftControls = forwardRef(function ProtectedDraftControls({
       {editingPhrase && (
         <form className="reflect-protected-draft-unlock" onSubmit={unlock}>
           <label htmlFor={'reflect-draft-phrase-' + surface.replace(/[^a-z0-9]/gi, '-')}>
-            {available ? 'Фраза для восстановления' : 'Новая фраза для шифрования'}
+            {available ? 'Фраза для восстановления' : compact ? 'Придумайте отдельную фразу' : 'Новая фраза для шифрования'}
           </label>
           <input
             id={'reflect-draft-phrase-' + surface.replace(/[^a-z0-9]/gi, '-')}
@@ -198,8 +199,9 @@ const ProtectedDraftControls = forwardRef(function ProtectedDraftControls({
             }}>Отмена</button>
           </div>
           <p className="reflect-protected-draft-help">
-            Не используйте пароль Firebase. Если потеряете эту фразу, локальный
-            черновик нельзя будет расшифровать.
+            {compact
+              ? 'Не используйте пароль аккаунта. Если забыть фразу, копию не восстановить.'
+              : 'Не используйте пароль Firebase. Если потеряете эту фразу, локальный черновик нельзя будет расшифровать.'}
           </p>
         </form>
       )}
