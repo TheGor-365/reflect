@@ -24,10 +24,12 @@ const ProtectedDraftControls = forwardRef(function ProtectedDraftControls({
   const controllerRef = useRef(null);
   const queueRef = useRef(Promise.resolve());
   const timerRef = useRef(null);
+  const revisionRef = useRef(0);
   const scopeRef = useRef({ userId, surface });
   scopeRef.current = { userId, surface };
 
   useEffect(() => {
+    revisionRef.current++;
     clearTimeout(timerRef.current);
     controllerRef.current = null;
     queueRef.current = Promise.resolve();
@@ -49,6 +51,7 @@ const ProtectedDraftControls = forwardRef(function ProtectedDraftControls({
     const active = controllerRef.current;
     const uid = userId;
     const draftSurface = surface;
+    const revision = ++revisionRef.current;
     clearTimeout(timerRef.current);
     setStatus('pending');
     timerRef.current = setTimeout(() => {
@@ -60,7 +63,7 @@ const ProtectedDraftControls = forwardRef(function ProtectedDraftControls({
             scopeRef.current.surface !== draftSurface) return;
         setStatus('saving');
         await active.write({ title: value.title || '', text: value.text || '' });
-        if (controllerRef.current === active) {
+        if (controllerRef.current === active && revisionRef.current === revision) {
           setStatus('saved');
           setAvailable(true);
           setError('');
@@ -77,6 +80,7 @@ const ProtectedDraftControls = forwardRef(function ProtectedDraftControls({
 
   useImperativeHandle(ref, () => ({
     async clearAfterCommit() {
+      revisionRef.current++;
       clearTimeout(timerRef.current);
       const old = controllerRef.current;
       controllerRef.current = null;
@@ -128,17 +132,24 @@ const ProtectedDraftControls = forwardRef(function ProtectedDraftControls({
     }
   };
 
-  const deleteLocal = () => {
+  const deleteLocal = async () => {
     if (!window.confirm('Удалить только локальную зашифрованную копию? Текст в форме останется.')) return;
+    revisionRef.current++;
     clearTimeout(timerRef.current);
+    const previous = controllerRef.current;
     controllerRef.current = null;
     setEnabled(false);
+    setStatus('off');
+    // The in-flight WebCrypto write must finish before deleting a copy;
+    // otherwise it could reappear after the user's explicit deletion.
+    await queueRef.current.catch(() => undefined);
     try {
-      discardProtectedDraft(userId, surface);
+      if (previous) previous.discard();
+      else discardProtectedDraft(userId, surface);
       setAvailable(false);
-      setStatus('off');
       setError('');
     } catch (failure) {
+      setAvailable(true);
       setError(failure?.message || 'Не удалось удалить локальную копию.');
     }
   };
