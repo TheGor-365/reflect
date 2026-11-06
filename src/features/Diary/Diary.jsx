@@ -95,6 +95,21 @@ const Diary = ({
     setLastCommittedNote(null);
   }, [userId]);
 
+  // Retire the temporary confirmed echo as soon as the authoritative server
+  // snapshot contains its ID. A later server-side delete must NOT resurrect
+  // an old client echo; cached confirmation is never a second source of truth.
+  useEffect(() => {
+    const serverNoteIds = new Set(diaryNotes.map(record => record.id));
+    const serverMoodIds = new Set(moods.map(record => record.id));
+    setLocalConfirmed(previous => {
+      const notes = previous.notes.filter(item => !serverNoteIds.has(item.id));
+      const savedMoods = previous.moods.filter(item => !serverMoodIds.has(item.id));
+      return notes.length === previous.notes.length &&
+        savedMoods.length === previous.moods.length
+        ? previous : { notes, moods: savedMoods };
+    });
+  }, [diaryNotes, moods, localConfirmed.notes, localConfirmed.moods]);
+
   useEffect(() => autoSizeTextarea(composerRef.current), [newDiaryNote.text]);
 
   // A confirmed write is immediately represented locally; when Firestore's
