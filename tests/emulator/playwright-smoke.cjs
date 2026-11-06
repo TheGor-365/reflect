@@ -312,6 +312,19 @@ async function runBrowserSuite() {
       buffer: Buffer.from(JSON.stringify(ownerArchive))
     });
     await first.getByText("Структура архива проверена").waitFor({ timeout: 30000 });
+    // Stage 03G: auditing is read-only, collapsed and aggregate-only; it
+    // neither returns raw synthetic text nor changes the restore decision.
+    const schemaReport = first.locator("details.reflect-owner-schema-audit");
+    if (await schemaReport.getAttribute("open") !== null) {
+      throw new Error("Schema inventory must start collapsed");
+    }
+    await schemaReport.locator("summary").click();
+    await schemaReport.getByText(/Проверено документов:/).waitFor();
+    if (await schemaReport.getByText(/Старых записей без номера версии:/).count() !== 1) {
+      throw new Error("Local schema inventory did not count legacy notes");
+    }
+    console.log("PASS: local owner schema inventory is opt-in, aggregate-only and non-mutating");
+
     await first.getByRole("checkbox").check();
     await first.getByLabel("Введите ВОССТАНОВИТЬ для подтверждения").fill("ВОССТАНОВИТЬ");
     first.once("dialog", dialog => dialog.accept());

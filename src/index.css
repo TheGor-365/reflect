@@ -1980,3 +1980,34 @@ html:has(.reflect-app[data-theme="light"])::-webkit-scrollbar-thumb {
   .reflect-diary-entering { animation: none; }
   .reflect-diary .reflect-journal-card .reflect-journal-note-actions button { transition: none; }
 }
+
+
+/* Stage 03G: nested, collapsed-only schema compatibility inventory. */
+.reflect-owner-schema-audit {
+  margin-block: 4px 2px;
+  padding: 7px 10px;
+  border: 1px solid var(--reflect-border);
+  border-radius: 10px;
+  background: var(--reflect-bg);
+}
+.reflect-owner-schema-audit > summary {
+  cursor: pointer;
+  padding-block: 5px;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--reflect-accent);
+}
+.reflect-owner-schema-audit > div {
+  display: grid;
+  gap: 7px;
+  margin-top: 8px;
+  padding-top: 9px;
+  border-top: 1px solid var(--reflect-border);
+}
+.reflect-owner-schema-audit p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--reflect-muted);
+}

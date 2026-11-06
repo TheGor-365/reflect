@@ -52,6 +52,13 @@ test('file selection only inspects locally; output contains counts, not private 
   expect(screen.getByText('Структура архива проверена')).toBeInTheDocument();
   expect(screen.getByText(/Документов: 3/)).toBeInTheDocument();
   expect(screen.queryByText('SECRET_SYNTHETIC_PRIVATE_ENTRY')).toBeNull();
+  const schemaTrigger = screen.getByText('Совместимость данных со staging');
+  const disclosure = schemaTrigger.closest('details');
+  expect(disclosure).not.toHaveAttribute('open');
+  fireEvent.click(schemaTrigger);
+  expect(disclosure).toHaveAttribute('open');
+  expect(screen.getByText(/Проверено документов: 1/)).toBeInTheDocument();
+  expect(screen.queryByText('SECRET_SYNTHETIC_PRIVATE_ENTRY')).toBeNull();
   expect(mocks.restore).not.toHaveBeenCalled();
 });
 
