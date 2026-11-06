@@ -321,7 +321,7 @@ async function runBrowserSuite() {
     if (secondUid === firstUid) {
       throw new Error("Different browser contexts shared an anonymous Auth UID");
     }
-    await second.getByText("Записей пока нет.").waitFor({ timeout: 30000 });
+    await second.getByText("Здесь появятся ваши записи. Начните с одной мысли.").waitFor({ timeout: 30000 });
     if (await second.getByText("Synthetic alpha journal entry", { exact: true }).count()) {
       throw new Error("Synthetic Beta can see Synthetic Alpha's journal");
     }
