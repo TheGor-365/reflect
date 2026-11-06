@@ -695,7 +695,7 @@ async function runBrowserSuite() {
         .getByText("Изменения записи сохранены", { exact: true })
         .waitFor({ timeout: 30000 });
     } catch {
-      const failure = await originalCard.locator('[role="alert"]').allTextContents();
+      const failure = await noteWrapper.locator('[role="alert"]').allTextContents();
       throw new Error("Edited note transaction did not confirm: " +
         (failure.join(" ").slice(0, 180) || "no confirmed save status"));
     }
