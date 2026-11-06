@@ -707,12 +707,20 @@ async function runBrowserSuite() {
     const fields = (await persisted.json()).fields || {};
     const entries = fields.entries?.arrayValue?.values || [];
     const updated = entries[0]?.mapValue?.fields || {};
-    if (updated.text?.stringValue !== "Synthetic versioned journal revised" ||
-        updated.displayTitle?.stringValue !== "Synthetic user-authored title" ||
-        Number(updated.version?.integerValue) !== 2 ||
-        updated.versions?.arrayValue?.values?.[0]?.mapValue?.fields?.text?.stringValue !==
-          "Synthetic versioned journal original") {
-      throw new Error("Firestore snapshot does not contain exact original and edited versions");
+    const versionChecks = {
+      recordPresent: Boolean(fields.entries),
+      entryCount: entries.length,
+      text: updated.text?.stringValue === "Synthetic versioned journal revised",
+      title: updated.displayTitle?.stringValue === "Synthetic user-authored title",
+      version: Number(updated.version?.integerValue) === 2,
+      prior: updated.versions?.arrayValue?.values?.[0]?.mapValue?.fields?.text?.stringValue ===
+        "Synthetic versioned journal original"
+    };
+    if (!versionChecks.text || !versionChecks.title ||
+        !versionChecks.version || !versionChecks.prior) {
+      // Boolean-only diagnostics; never print note text, tokens or private data.
+      throw new Error("Firestore synthetic revision verification: " +
+        JSON.stringify(versionChecks));
     }
 
     await recovered.reload({ waitUntil: "domcontentloaded" });
