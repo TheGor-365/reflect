@@ -63,6 +63,8 @@ const Diary = ({
   const composerRef = useRef(null);
   const timelineRef = useRef(null);
   const noteDraftRef = useRef(null);
+  const activeUserRef = useRef(userId);
+  activeUserRef.current = userId;
 
   const confirmNote = useCallback(record => {
     setLocalConfirmed(previous => ({
@@ -191,7 +193,7 @@ const Diary = ({
       userId: ownerUid, noteId, entryIndex, title, text, expectedVersion, editId
     });
     // Never carry a confirmed edit echo into the next signed-in account.
-    if (ownerUid !== userId) return record;
+    if (ownerUid !== activeUserRef.current) return record;
     setConfirmedEdits(current => [
       ...current.filter(edit => edit.id !== noteId),
       {
@@ -393,8 +395,7 @@ const Diary = ({
         {!isLoading && timelineEvents.length > 0 && !diaryGroups.length &&
           <div className="reflect-diary-empty">По выбранным фильтрам ничего не найдено.</div>}
         {diaryGroups.map(group => (
-          <section key={group.key} className="reflect-diary-group">
-            <h3 className="sr-only">{group.title}</h3>
+          <section key={group.key} className="reflect-diary-group" aria-label={group.title}>
             <div className="reflect-diary-entries">
               {group.entries.map(entry => (
                 <div key={entry.eventKey} data-source-id={entry.sourceId}
