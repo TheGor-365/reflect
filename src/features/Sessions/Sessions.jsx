@@ -7,7 +7,7 @@ import SessionComposer from './SessionComposer';
 import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
 import InfoCard from '../../components/common/InfoCard';
 import { useEntrySave } from '../../hooks/useEntrySave';
-import { BookOpen, BarChart2, MessageSquareText, PenLine, ShieldCheck, Sparkles } from 'lucide-react';
+import { BookOpen, BarChart2, MessageSquareText, PenLine, ShieldCheck } from 'lucide-react';
 
 const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession }) => {
   const [userInput, setUserInput] = useState('');
@@ -196,14 +196,9 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
         <div className="reflect-session-messages" role="log" aria-label="История сообщений" aria-live="polite">
           <div className="reflect-session-messages-inner">
             {isNewSessionView && messagesToDisplay.length === 0 && (
-              <div className="reflect-session-welcome">
-                <span className="reflect-session-welcome-icon"><Sparkles size={27} aria-hidden="true" /></span>
-                <h3>О чём хотите поразмышлять?</h3>
-                <p>Расскажите о ситуации своими словами. Текст может быть длинным — поле внизу расширится автоматически.</p>
-                {!AI_SESSION_ENABLED && (
-                  <p className="reflect-session-disabled-note">ИИ-диалог временно недоступен. Пока вы можете сохранить написанное как запись дневника.</p>
-                )}
-              </div>
+              <p className="reflect-session-welcome">
+                Начните с мысли или ситуации. Пока ИИ недоступен, запись можно сохранить в дневник.
+              </p>
             )}
 
             {messagesToDisplay.map((msg, index) => (
@@ -229,10 +224,12 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
             isRecording={isUserRecording}
             aiAvailable={AI_SESSION_ENABLED}
             error={sendError}
+            draftControls={
+              <ProtectedDraftControls ref={sessionDraftRef} userId={userId}
+                surface={currentSessionId ? `session-${currentSessionId}` : 'session-new'}
+                value={{ text: userInput }} onRestore={draft => setUserInput(draft.text)} />
+            }
           />
-          <ProtectedDraftControls ref={sessionDraftRef} userId={userId}
-            surface={currentSessionId ? `session-${currentSessionId}` : 'session-new'}
-            value={{ text: userInput }} onRestore={draft => setUserInput(draft.text)} />
         </div>
       </div>
 
