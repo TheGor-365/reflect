@@ -98,13 +98,13 @@ export function planNoteRevision(note, {
       version: currentVersion,
       text: previous.text,
       title: oldTitle,
-      savedAt
+      savedAt: previous.editedAt || previous.createdAt || savedAt
     }]
   };
   const entries = [...note.entries];
   entries[entryIndex] = updatedEntry;
   const next = { ...note, entries };
-  if (JSON.stringify({ title: next.title, entries }).length > MAX_NOTE_BYTES_ESTIMATE) {
+  if (new TextEncoder().encode(JSON.stringify({ title: next.title, entries })).length > MAX_NOTE_BYTES_ESTIMATE) {
     throw new Error('Достигнут лимит истории этой записи. Сохраните отдельную заметку; версии не удалены.');
   }
   return { note: next, alreadyApplied: false, changed: true };
