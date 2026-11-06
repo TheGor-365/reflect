@@ -39,7 +39,7 @@ test('successful new note uses one Firestore ID and shows confirmed save status'
   expect(doc).toHaveBeenCalledTimes(1);
   expect(setDoc).toHaveBeenCalledTimes(1);
   expect(setDoc.mock.calls[0][1].entries[0].text).toBe('Длинная синтетическая запись\nВторая строка');
-  expect(setDoc.mock.calls[0][1].title).not.toContain('Длинная синтетическая');
+  expect(setDoc.mock.calls[0][1].title).toBe(''); // no invented date heading
 });
 
 test('ambiguous write error retains text and retry reuses original document ID', async () => {
@@ -181,6 +181,8 @@ test('confirmed new note appears immediately without reload and does not duplica
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить заметку' }));
   expect(await screen.findByText('Сохранено')).toBeInTheDocument();
   await waitFor(() => expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(1));
+  expect(screen.getByTestId('diary-timeline-event').parentElement)
+    .toHaveClass('reflect-diary-entering');
   const confirmedId = setDoc.mock.calls[0][0].id;
   expect(screen.getByTestId('diary-timeline-event'))
     .toHaveTextContent('note:' + confirmedId + ':entry:0');
