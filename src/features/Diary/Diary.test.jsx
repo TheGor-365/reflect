@@ -22,7 +22,7 @@ const renderDiary = () => render(
   <Diary userId="synthetic-owner" sessions={[]} goals={[]} moods={[]} diaryNotes={[]}
     isLoading={false} onAppend={vi.fn()} />
 );
-const noteInput = () => screen.getByPlaceholderText('Что нового? Добавьте заметку...');
+const noteInput = () => screen.getByPlaceholderText('Что у вас на уме?');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -89,6 +89,7 @@ test('pending promise disables repeat submission rather than creating duplicate 
 test('mood error preserves rating and comment; retry keeps one document', async () => {
   setDoc.mockRejectedValueOnce({ code: 'permission-denied' }).mockResolvedValueOnce(undefined);
   renderDiary();
+  fireEvent.click(screen.getByRole('button', { name: 'Оценить настроение' }));
   fireEvent.click(screen.getByRole('button', { name: 'Настроение: Радость' }));
   fireEvent.click(screen.getByRole('button', { name: 'Интенсивность 4 из 5' }));
   fireEvent.change(screen.getByPlaceholderText('Добавьте комментарий (необязательно)...'), {
@@ -121,6 +122,7 @@ test('in-memory timeline filters events without sending a search request', () =>
       isLoading={false} onAppend={vi.fn()} />
   );
   expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(2);
+  fireEvent.click(screen.getByRole('button', { name: 'Поиск и фильтры' }));
   fireEvent.click(screen.getByRole('button', { name: 'Заметки' }));
   expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(1);
   expect(screen.getByTestId('diary-timeline-event')).toHaveTextContent('note:note-1:entry:0');
