@@ -1264,3 +1264,28 @@
   .reflect-protected-draft { padding: 11px; }
   .reflect-protected-draft-actions button { flex: 1; }
 }
+
+/* Stage 03B — explicit, UID-scoped download of personal Firestore records. */
+.reflect-owner-export {
+  margin-top: 20px; padding: 15px 14px; border-radius: 14px;
+  border: 1px solid var(--reflect-border);
+  background: rgba(82, 163, 183, .055);
+  display: grid; gap: 10px;
+}
+.reflect-owner-export-heading { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.reflect-owner-export-heading > svg { color: var(--reflect-accent); flex: none; }
+.reflect-owner-export p { font-size: 11px; line-height: 1.6; color: var(--reflect-muted); margin: 0; }
+.reflect-owner-export .reflect-owner-export-warning {
+  padding: 10px; border-radius: 9px; background: rgba(195, 139, 65, .1);
+  display: flex; gap: 9px; align-items: flex-start;
+  color: var(--reflect-ink); border: 1px solid rgba(195, 139, 65, .24);
+}
+.reflect-owner-export-warning > svg { flex: none; margin-top: 1px; color: #c78b40; }
+.reflect-owner-export .reflect-owner-export-button {
+  width: 100%; display: inline-flex; align-items: center;
+  justify-content: center; gap: 8px; min-height: 41px;
+}
+.reflect-owner-export .reflect-owner-export-status { color: var(--reflect-accent); }
+@media (max-width: 480px) {
+  .reflect-owner-export { padding: 12px; }
+}
