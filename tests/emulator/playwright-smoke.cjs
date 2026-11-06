@@ -660,23 +660,27 @@ async function runBrowserSuite() {
     if (await uidInSidebar(recovered) !== firstUid) {
       throw new Error("Email verification changed original UID");
     }
-    await recoveredContext.close();
-    await recoveryContext.close();
     console.log("PASS: verified email status refreshed without UID change");
 
-    // Stage 02G: preserve the first edit as an immutable version, through a
-    // genuine UID-scoped Firestore transaction and browser reload.
-    await first.setViewportSize({ width: 1280, height: 900 });
-    await first.getByRole("button", { name: "Дневник", exact: true }).click();
-    await first.getByRole("textbox", { name: "Новая запись" })
+    // Stage 02G: use the FRESHLY RECOVERED authenticated context here.
+    // Password reset revokes earlier refresh credentials: the initial
+    // 'first' context may be signed out or reinitialized on reload.
+    // Testing its stale credential would falsely diagnose a note as lost.
+    await recovered.getByRole("button", { name: "Закрыть", exact: true }).click();
+    await recovered.setViewportSize({ width: 1280, height: 900 });
+    await recovered.getByRole("textbox", { name: "Новая запись" })
       .fill("Synthetic versioned journal original");
-    await first.getByRole("button", { name: "Сохранить заметку" }).click();
-    const originalCard = first.locator('.reflect-journal-card[data-kind="note"]')
+    await recovered.getByRole("button", { name: "Сохранить заметку" }).click();
+    const originalCard = recovered.locator('.reflect-journal-card[data-kind="note"]')
       .filter({ hasText: "Synthetic versioned journal original" }).first();
     await originalCard.waitFor({ timeout: 30000 });
     if (await originalCard.locator("time.reflect-journal-note-date").count() !== 1) {
       throw new Error("Journal card repeats visible dates or loses its date");
     }
+    const noteId = await originalCard.locator("xpath=../..")
+      .getAttribute("data-source-id");
+    if (!noteId) throw new Error("New synthetic note lacks stable Firestore source ID");
+
     await originalCard.getByRole("button", { name: "Редактировать запись" }).click();
     await originalCard.getByRole("textbox", { name: /Заголовок/ })
       .fill("Synthetic user-authored title");
@@ -685,8 +689,39 @@ async function runBrowserSuite() {
     await originalCard.getByRole("button", { name: "Сохранить изменения" }).click();
     await originalCard.getByText("Synthetic versioned journal revised", { exact: true })
       .waitFor({ timeout: 30000 });
-    await first.reload({ waitUntil: "domcontentloaded" });
-    const updatedCard = first.locator('.reflect-journal-card[data-kind="note"]')
+
+    // A transient UI echo is NOT proof of a persisted revision.
+    // Inspect only synthetic-owned record fields through the local emulator.
+    const recoveredToken = await recovered.evaluate(async () => {
+      const { auth } = await import("/src/firebase/config.js");
+      return auth.currentUser?.getIdToken();
+    });
+    if (!recoveredToken) throw new Error("Recovered session has no Auth token");
+    const persisted = await fetch(
+      "http://127.0.0.1:18081/v1/projects/demo-reflect-auth-qa/databases/(default)/documents/" +
+      "artifacts/reflect-8fdc8/users/" + firstUid +
+      "/diaryNotes/" + encodeURIComponent(noteId),
+      { headers: { Authorization: "Bearer " + recoveredToken } }
+    );
+    if (!persisted.ok) throw new Error("Synthetic edited Firestore document was not readable");
+    const fields = (await persisted.json()).fields || {};
+    const entries = fields.entries?.arrayValue?.values || [];
+    const updated = entries[0]?.mapValue?.fields || {};
+    if (updated.text?.stringValue !== "Synthetic versioned journal revised" ||
+        updated.displayTitle?.stringValue !== "Synthetic user-authored title" ||
+        Number(updated.version?.integerValue) !== 2 ||
+        updated.versions?.arrayValue?.values?.[0]?.mapValue?.fields?.text?.stringValue !==
+          "Synthetic versioned journal original") {
+      throw new Error("Firestore snapshot does not contain exact original and edited versions");
+    }
+
+    await recovered.reload({ waitUntil: "domcontentloaded" });
+    await recovered.getByRole("button", { name: "Synthetic Alpha" })
+      .waitFor({ timeout: 30000 });
+    if (await uidInSidebar(recovered) !== firstUid) {
+      throw new Error("Recovered UID changed after the journal edit reload");
+    }
+    const updatedCard = recovered.locator('.reflect-journal-card[data-kind="note"]')
       .filter({ hasText: "Synthetic versioned journal revised" }).first();
     await updatedCard.waitFor({ timeout: 30000 });
     await updatedCard.getByText("Synthetic user-authored title").waitFor();
@@ -697,7 +732,9 @@ async function runBrowserSuite() {
     if (await history.locator(".reflect-journal-version").count() !== 2) {
       throw new Error("Note revision history must preserve original and current versions");
     }
-    console.log("PASS: quiet journal card, authored title and immutable versions survive reload");
+    await recoveredContext.close();
+    await recoveryContext.close();
+    console.log("PASS: Firestore persisted authored title and immutable original history after same-UID reload");
 
     await secondContext.close();
     await firstContext.close();
