@@ -801,7 +801,9 @@
   justify-content: center;
   min-width: 0;
   padding: 24px 16px;
-  overflow-y: auto;
+  /* Exactly one scroll container: the dialog, not the page and overlay. */
+  overflow: hidden;
+  overscroll-behavior: contain;
   background:
     radial-gradient(ellipse 42% 48% at 14% 22%, rgba(86, 206, 196, .12), transparent 70%),
     radial-gradient(ellipse 48% 56% at 86% 80%, rgba(133, 118, 227, .18), transparent 68%),
@@ -820,6 +822,12 @@
   width: min(100%, 480px);
   max-height: calc(100dvh - 30px);
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  /* Narrow, theme-aware scrollbar; trackpad, wheel, touch and keyboard work. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(125, 229, 213, .38) transparent;
   margin: auto;
   padding: clamp(24px, 4vw, 36px);
   border-radius: 26px;
@@ -829,7 +837,10 @@
   box-shadow: 0 28px 90px rgba(0, 0, 0, .27);
 }
 .reflect-auth-close {
-  position: absolute; top: 18px; right: 18px;
+  /* Keep the exit visible when the account panel is scrolled. */
+  position: sticky; top: 0; z-index: 3;
+  margin-left: auto; margin-right: -11px; margin-top: -11px;
+  margin-bottom: -40px;
   width: 40px; height: 40px;
   display: grid; place-items: center;
   border-radius: 12px;
@@ -838,6 +849,33 @@
   border: 1px solid var(--reflect-border);
 }
 .reflect-auth-close:hover { color: var(--reflect-ink); }
+
+/* Midnight Aurora scrollbar: supports Chromium and Firefox, no ugly white rails. */
+.reflect-auth-card::-webkit-scrollbar { width: 6px; }
+.reflect-auth-card::-webkit-scrollbar-track { background: transparent; }
+.reflect-auth-card::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(125, 229, 213, .38);
+}
+.reflect-auth-card:hover::-webkit-scrollbar-thumb,
+.reflect-auth-card:focus-within::-webkit-scrollbar-thumb {
+  background: rgba(125, 229, 213, .66);
+}
+.reflect-app[data-theme="light"] .reflect-auth-card {
+  scrollbar-color: rgba(8, 127, 128, .38) transparent;
+}
+.reflect-app[data-theme="light"] .reflect-auth-card::-webkit-scrollbar-thumb {
+  background: rgba(8, 127, 128, .38);
+}
+.reflect-app[data-theme="light"] .reflect-auth-card:hover::-webkit-scrollbar-thumb,
+.reflect-app[data-theme="light"] .reflect-auth-card:focus-within::-webkit-scrollbar-thumb {
+  background: rgba(8, 127, 128, .62);
+}
+@media (max-height: 520px) {
+  .reflect-auth-overlay { padding-top: 8px; padding-bottom: 8px; }
+  .reflect-auth-card { max-height: calc(100dvh - 16px); }
+}
+
 .reflect-auth-mark {
   display: grid;
   place-items: center;
