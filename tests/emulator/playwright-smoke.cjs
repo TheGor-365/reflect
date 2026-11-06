@@ -680,17 +680,18 @@ async function runBrowserSuite() {
     const noteId = await originalCard.locator("xpath=..")
       .getAttribute("data-source-id");
     if (!noteId) throw new Error("New synthetic note lacks stable Firestore source ID");
+    const noteWrapper = recovered.locator('[data-source-id="' + noteId + '"]');
 
-    await originalCard.getByRole("button", { name: "Редактировать запись" }).click();
-    await originalCard.getByRole("textbox", { name: /Заголовок/ })
+    await noteWrapper.getByRole("button", { name: "Редактировать запись" }).click();
+    await noteWrapper.getByRole("textbox", { name: /Заголовок/ })
       .fill("Synthetic user-authored title");
-    await originalCard.getByRole("textbox", { name: "Текст заметки" })
+    await noteWrapper.getByRole("textbox", { name: "Текст заметки" })
       .fill("Synthetic versioned journal revised");
-    await originalCard.getByRole("button", { name: "Сохранить изменения" }).click();
+    await noteWrapper.getByRole("button", { name: "Сохранить изменения" }).click();
     // React may render the textarea's new value before the asynchronous
     // transaction resolves. A visible draft is never proof of persistence.
     try {
-      await originalCard.getByRole("status")
+      await noteWrapper.getByRole("status")
         .getByText("Изменения записи сохранены", { exact: true })
         .waitFor({ timeout: 30000 });
     } catch {
