@@ -223,6 +223,33 @@ async function runBrowserSuite() {
     // verify downloaded JSON covers all current UID-scoped collections.
     // Never print a private archive, user text, token, download path or code.
     await first.getByRole("button", { name: "Аккаунт и вход" }).click();
+    // Stage 03C: no white second page rail, only the themed internal modal.
+    // The close button must remain reachable even at the bottom of the card.
+    const scrollState = await first.evaluate(() => {
+      const panel = document.querySelector(".reflect-auth-card");
+      const overlay = document.querySelector(".reflect-auth-overlay");
+      const close = panel?.querySelector(".reflect-auth-close");
+      if (!panel || !overlay || !close) return null;
+      panel.scrollTop = panel.scrollHeight;
+      const box = panel.getBoundingClientRect();
+      return {
+        root: getComputedStyle(document.documentElement).overflow,
+        body: getComputedStyle(document.body).overflow,
+        overlay: getComputedStyle(overlay).overflow,
+        panel: getComputedStyle(panel).overflowY,
+        hasInternalScroll: panel.scrollHeight > panel.clientHeight,
+        reachedBottom: panel.scrollTop > 0,
+        closeTop: close.getBoundingClientRect().top,
+        panelTop: box.top
+      };
+    });
+    if (!scrollState || scrollState.root !== "hidden" ||
+        scrollState.body !== "hidden" || scrollState.overlay !== "hidden" ||
+        scrollState.panel !== "auto" || !scrollState.hasInternalScroll ||
+        !scrollState.reachedBottom || scrollState.closeTop > scrollState.panelTop + 64) {
+      throw new Error("Account dialog has competing scrollbars or inaccessible close button");
+    }
+    console.log("PASS: single themed account scroll surface with sticky close button");
     first.once("dialog", dialog => dialog.accept());
     const firstDownloadPromise = first.waitForEvent("download", { timeout: 30000 });
     await first.getByRole("button", { name: "Скачать мои данные (JSON)" }).click();
