@@ -326,3 +326,35 @@ npm run dev -- --strictPort
   publish API Key ID, secrets or other application logs.
 - **Drive mirror:** not confirmed updated; use the latest GitHub PR #34
   handoff as the source of truth for this checkpoint.
+
+
+### Owner xAI Usage screenshots — 2026-11-07 around 20:41–20:42 Yerevan
+
+- Owner supplied **two** xAI Console 'Usage' screenshots, selected window
+  **Nov 1–Nov 7, 2026**, 'Group by API Type', 'Granularity Day'.
+  **All keys:** Spend '$0.00', Tokens '0', Requests '0'.
+  **Filter to the same Reflect-dev API Key ID shown in the 19:05:30
+  log:** Spend '$0.00', Tokens '0', Requests '0'. Bottom-left displayed
+  remaining prepaid balance '$8.64' on both screenshots.
+- Verified fact: **at the instant of these screenshots, Usage Explorer
+  reports zero spend, tokens, and requests for the selected period/key**.
+  This **contradicts the existence of a visible provider-side Chat log
+  record** for the first attempt. Do not resolve the mismatch by
+  speculation; the UI can have reporting differences/delay. Zero in
+  the explorer is **NOT** confirmed cost '$0' for the particular call,
+  and it is not proof that a completed answer reached the proxy.
+- Existing prior diagnostic: local one-shot 'xai-http-error, HTTP 502'
+  on original user-owned code revision. Real upstream HTTP status remains
+  **unknown**. No new paid call is authorized. The provider-side log's
+  'HISTORY_STATUS_COMPLETE' is a request log field, not an HTTP code.
+- **NEXT OWNER ACTION:** inspect **Billing → API spend management**
+  (API console billing, **not** separate Grok consumer subscription),
+  screenshot of saved **Auto top-up** state/amount/monthly cap and
+  monthly **invoiced billing limit** if exposed. Do not turn on, pay,
+  modify another key or disclose payment card information. Prefer OFF
+  for auto top-up and '$0' invoiced billing until signed-off tests,
+  but actual saved values are not yet confirmed. Official reference:
+  https://docs.x.ai/console/billing (accessed 2026-11-07).
+- Stage04F Draft #34 remains **fixture/CI-verified only**. No release,
+  new credential, Firebase data, provider call, production deployment
+  or claim of working Grok reply. Google Drive copy not synced.
