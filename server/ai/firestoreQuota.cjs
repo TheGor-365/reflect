@@ -10,6 +10,12 @@ const { PolicyError, planQuotaReservation } = require("./policy.cjs");
 
 const DEMO_PROJECT = "demo-reflect-stage04b";
 const FIRESTORE_HOST = "127.0.0.1:19082";
+const STAGE04C_PROJECT = "demo-reflect-stage04c";
+const STAGE04C_FIRESTORE_HOST = "127.0.0.1:19083";
+const ISOLATED_PROJECTS = Object.freeze({
+  [DEMO_PROJECT]: FIRESTORE_HOST,
+  [STAGE04C_PROJECT]: STAGE04C_FIRESTORE_HOST
+});
 const APP_NAMESPACE = "reflect-8fdc8";
 const LEDGER_RETENTION_MS = 48 * 60 * 60 * 1000;
 const MAX_TIME = 8640000000000000;
@@ -19,8 +25,10 @@ const hash = value => createHash("sha256").update(value).digest("hex");
 const utcDay = time => new Date(time).toISOString().slice(0, 10);
 
 function assertIsolatedDemo() {
-  if (process.env.GCLOUD_PROJECT !== DEMO_PROJECT ||
-      process.env.FIRESTORE_EMULATOR_HOST !== FIRESTORE_HOST ||
+  if (!Object.prototype.hasOwnProperty.call(ISOLATED_PROJECTS,
+        process.env.GCLOUD_PROJECT) ||
+      process.env.FIRESTORE_EMULATOR_HOST !==
+        ISOLATED_PROJECTS[process.env.GCLOUD_PROJECT] ||
       process.env.GOOGLE_APPLICATION_CREDENTIALS) {
     fail("unsafe-environment");
   }
@@ -31,8 +39,10 @@ function createDemoFirestoreQuota(db) {
       typeof db.collection !== "function") fail("invalid-storage");
   // Environment variables alone are insufficient: a caller could inject a
   // Firestore Admin client bound to another project. Fail closed.
-  if (db.projectId !== DEMO_PROJECT) fail("unsafe-environment");
+  if (db.projectId !== process.env.GCLOUD_PROJECT) fail("unsafe-environment");
   const root = db.collection("_reflectStage04B").doc(APP_NAMESPACE);
+  const requireKillSwitch = process.env.GCLOUD_PROJECT === STAGE04C_PROJECT;
+  const killSwitch = root.collection("runtimeFlags").doc("ai");
   const ownerKey = uid => hash("reflect-user\0" + uid);
   const ledgerKey = (uid, requestId) =>
     hash("reflect-ledger\0" + uid + "\0" + requestId);
@@ -43,7 +53,8 @@ function createDemoFirestoreQuota(db) {
     return {
       user: root.collection("userBudgets").doc(ownerKey(uid)),
       project: root.collection("globalBudgets").doc(utcDay(nowMs)),
-      ledger: root.collection("idempotency").doc(ledgerKey(uid, requestId))
+      ledger: root.collection("idempotency").doc(ledgerKey(uid, requestId)),
+      killSwitch
     };
   };
 
@@ -53,9 +64,14 @@ function createDemoFirestoreQuota(db) {
     return db.runTransaction(async tx => {
       // Firestore reads ALL three documents before any write. A contention
       // retry repeats this pure callback; provider is never called here.
-      const [ownerSnap, globalSnap, ledgerSnap] = await Promise.all([
-        tx.get(user), tx.get(project), tx.get(ledger)
+      const [ownerSnap, globalSnap, ledgerSnap, flagSnap] = await Promise.all([
+        tx.get(user), tx.get(project), tx.get(ledger),
+        ...(requireKillSwitch ? [tx.get(killSwitch)] : [])
       ]);
+      // Stage04C requires server-owned flag=true at the same atomic snapshot
+      // as quota reservation; Stage04B has no flag and remains unchanged.
+      if (requireKillSwitch && (!flagSnap?.exists ||
+          flagSnap.data()?.enabled !== true)) fail("unavailable");
       if (ledgerSnap.exists) fail("already-exists");
       const projectState = globalSnap.exists ? globalSnap.data() : null;
       const projectReservedTokens = projectState
@@ -114,5 +130,5 @@ function createDemoFirestoreQuota(db) {
 
 module.exports = {
   createDemoFirestoreQuota, DEMO_PROJECT, FIRESTORE_HOST,
-  LEDGER_RETENTION_MS
+  STAGE04C_PROJECT, STAGE04C_FIRESTORE_HOST, LEDGER_RETENTION_MS
 };
