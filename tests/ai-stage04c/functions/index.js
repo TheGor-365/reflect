@@ -14,6 +14,8 @@ const {
 const { createMockCallable } = require("../../../server/ai/mockCallable.cjs");
 const { PolicyError } = require("../../../server/ai/policy.cjs");
 
+const STAGE04C_EXPECTED_APP = "stage04c-emulator-only-app";
+
 const ERROR_CODES = new Set([
   "invalid-argument", "permission-denied", "unauthenticated",
   "already-exists", "resource-exhausted", "deadline-exceeded",
@@ -54,7 +56,8 @@ exports.reflectMockReply = onCall({
   timeoutSeconds: 30
 }, async request => {
   enforceDisposableEnvironment();
-  if (!request.auth?.uid || !request.app?.appId ||
+  if (!request.auth?.uid ||
+      request.app?.appId !== STAGE04C_EXPECTED_APP ||
       request.app.alreadyConsumed === true) {
     throw new HttpsError("unauthenticated", "Verified sign-in and App Check required.");
   }
