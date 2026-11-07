@@ -2011,3 +2011,52 @@ html:has(.reflect-app[data-theme="light"])::-webkit-scrollbar-thumb {
   line-height: 1.6;
   color: var(--reflect-muted);
 }
+
+
+/* Stage04E — optional local-only synthetic Grok connector check. */
+.reflect-xai-local-diagnostic {
+  max-width: 650px;
+  margin: 14px auto;
+  border: 1px dashed var(--reflect-border);
+  border-radius: 12px;
+  padding: 9px 12px;
+  background: var(--reflect-card);
+  color: var(--reflect-muted);
+  font-size: 11px;
+}
+.reflect-xai-local-diagnostic summary {
+  cursor: pointer;
+  color: var(--reflect-accent);
+  font-weight: 700;
+}
+.reflect-xai-local-diagnostic-body {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+  line-height: 1.55;
+}
+.reflect-xai-local-diagnostic-body p { margin: 0; overflow-wrap: anywhere; }
+.reflect-xai-local-diagnostic-body label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.reflect-xai-local-diagnostic-body input { accent-color: var(--reflect-accent); }
+.reflect-xai-local-diagnostic-body button {
+  justify-self: start;
+  background: var(--reflect-accent);
+  color: #071222;
+  padding: 7px 12px;
+  border-radius: 9px;
+  font-weight: 700;
+}
+.reflect-xai-local-diagnostic-body button:disabled { opacity: .4; cursor: not-allowed; }
+.reflect-xai-local-error { color: #e89fa2; }
+.reflect-xai-local-success {
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--reflect-bg);
+  color: var(--reflect-ink);
+}
+.reflect-xai-local-success small { color: var(--reflect-muted); }

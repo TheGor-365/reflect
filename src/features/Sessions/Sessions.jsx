@@ -4,6 +4,7 @@ import { db, appId } from '../../firebase/config';
 import { AI_SESSION_ENABLED, getAnalysisFromAI } from '../../api/geminiService';
 import ChatMessage from './ChatMessage';
 import SessionComposer from './SessionComposer';
+import XaiDevSmoke from './XaiDevSmoke';
 import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
 import InfoCard from '../../components/common/InfoCard';
 import { useEntrySave } from '../../hooks/useEntrySave';
@@ -195,6 +196,7 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
 
         <div className="reflect-session-messages" role="log" aria-label="История сообщений" aria-live="polite">
           <div className="reflect-session-messages-inner">
+            <XaiDevSmoke />
             {isNewSessionView && messagesToDisplay.length === 0 && (
               <p className="reflect-session-welcome">
                 Начните с мысли или ситуации. Пока ИИ недоступен, запись можно сохранить в дневник.
