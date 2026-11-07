@@ -3,6 +3,9 @@ name: Reflect Stage04G hosted staging AI bridge (isolated fixtures)
 on:
   pull_request:
     paths:
+      - 'firebase.staging.json'
+      - '.env.staging.example'
+      - '.gitignore'
       - 'server/ai/**'
       - 'server/hosted/**'
       - 'tests/ai-stage04g/**'
@@ -47,6 +50,8 @@ jobs:
           node server/hosted/scripts/prepare-functions.cjs
           node --check server/hosted/functions/index.cjs
           node -e "require('./server/hosted/functions/index.cjs')"
+      - name: Verify staging-only Hosting config and App Check gating
+        run: node --test tests/ai-stage04g/hosting-config.test.cjs
       - name: Pure policy, provider cost and adapter tests
         run: |
           node --test server/ai/policy.test.cjs \
@@ -88,3 +93,13 @@ jobs:
           npm test
           npm run typecheck
           npm run build
+      - name: Build public staging shell with App Check but NO hosted AI calls
+        env:
+          VITE_FIREBASE_CONFIG: '{"apiKey":"staging-public-fixture-only","authDomain":"reflect-ai-staging.firebaseapp.com","projectId":"reflect-ai-staging","appId":"1:599679789981:web:d4d8743dbff0fe40af1d74","messagingSenderId":"599679789981"}'
+          VITE_APP_ID: reflect-8fdc8
+          VITE_USE_FIREBASE_EMULATORS: 'false'
+          VITE_ENABLE_STAGING_APP_CHECK: 'true'
+          VITE_ENABLE_REFLECT_CLOUD_AI: 'false'
+          VITE_AI_STAGING_PROJECT_ID: reflect-ai-staging
+          VITE_APP_CHECK_SITE_KEY: public-staging-fixture-site-key
+        run: npm run build -- --mode staging
