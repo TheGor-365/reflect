@@ -148,18 +148,26 @@ test("transport errors are always generic and never retried", async () => {
 });
 
 test("timeout abort is passed to transport, with no retry", async () => {
-  let calls = 0;
+  let calls = 0, aborted = false;
   const adapter = createXaiProviderAdapter({
     readSecret: () => FAKE_KEY, timeoutMs: 10,
     transport: (_url, options) => {
       calls++;
       return new Promise((_resolve, reject) => {
-        options.signal.addEventListener("abort", () =>
-          reject(new Error("SENSITIVE_ABORT_DETAIL")), { once: true });
+        // AbortSignal.timeout uses an unref timer. A small test-only watchdog
+        // keeps the Node test event loop alive until the synthetic abort.
+        const watchdog = setTimeout(() =>
+          reject(new Error("synthetic-timeout-watchdog")), 100);
+        options.signal.addEventListener("abort", () => {
+          aborted = true;
+          clearTimeout(watchdog);
+          reject(new Error("SENSITIVE_ABORT_DETAIL"));
+        }, { once: true });
       });
     }
   });
   await assert.rejects(adapter.invoke("Тест"), denied("unavailable"));
+  assert.equal(aborted, true, "The bounded abort must actually fire");
   assert.equal(calls, 1);
 });
 
