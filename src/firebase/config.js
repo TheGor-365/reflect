@@ -34,16 +34,23 @@ if (emulatorMode) {
 // Hosted AI is an explicit allowlisted STAGING capability, not a Vite
 // fallback to the existing Test or production Firebase project.
 const hostedAiRequested = import.meta.env.VITE_ENABLE_REFLECT_CLOUD_AI === 'true';
+// App Check is independently enabled for the first published staging
+// smoke test, BEFORE the billable AI function has been deployed.
+const appCheckRequested = import.meta.env.VITE_ENABLE_STAGING_APP_CHECK === 'true' ||
+  hostedAiRequested;
 const approvedStage = import.meta.env.VITE_AI_STAGING_PROJECT_ID || '';
 const appCheckSiteKey = import.meta.env.VITE_APP_CHECK_SITE_KEY || '';
-export const hostedAiEnabled = hostedAiRequested && !emulatorMode &&
+const stagingConfigValid = !emulatorMode &&
   /^(?:reflect-ai-staging|reflect-ai-stage-[a-z0-9-]{4,30})$/.test(approvedStage) &&
   firebaseConfig.projectId === approvedStage &&
   appNamespace === 'reflect-8fdc8' &&
   typeof appCheckSiteKey === 'string' && appCheckSiteKey.length > 10;
 
-if (hostedAiRequested && !hostedAiEnabled) {
-  throw new Error('Hosted AI requires a separate approved staging Firebase project and App Check.');
+export const stagingAppCheckEnabled = appCheckRequested && stagingConfigValid;
+export const hostedAiEnabled = hostedAiRequested && stagingConfigValid;
+
+if (appCheckRequested && !stagingConfigValid) {
+  throw new Error('Staging App Check requires a separately approved Firebase project and public site key.');
 }
 
 export const appId = appNamespace;
@@ -52,7 +59,7 @@ const app = initializeApp(firebaseConfig);
 // Initialize attestation BEFORE creating SDK clients or making API calls.
 // The reCAPTCHA Enterprise site key is public; xAI credentials remain in
 // Firebase Secret Manager and App Check debug tokens are not used here.
-if (hostedAiEnabled) {
+if (stagingAppCheckEnabled) {
   initializeAppCheck(app, {
     provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
     isTokenAutoRefreshEnabled: true
