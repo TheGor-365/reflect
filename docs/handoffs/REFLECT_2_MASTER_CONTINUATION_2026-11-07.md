@@ -265,3 +265,26 @@ npm run dev -- --strictPort
 - **All four triggered checks SUCCESS** for that exact commit: Stage04F adapter fixture+frontend+typecheck+build https://github.com/TheGor-365/reflect/actions/runs/42395112239; Stage04A pure policy, Stage04B isolated Firestore atomic quota, Stage04C Firebase v2 callable emulator. The first Stage04F run had a synthetic abort-test watchdog error; fixed in '293f195', retested green.
 - **Not proven:** successful provider response, exact upstream HTTP code for first paid smoke, saved billing constraints, signed App Check staging, deployed Secret Manager, real money cap. Root cause of original 502 is still blocked on evidence.
 - **Owner next single action:** recover existing first Chrome 'Network -> smoke -> Response' safe JSON containing 'providerHttpStatus', or provider key 'Reflect-dev' Logs around the prior test. Do not send headers, key or journal. **Do not restart localhost one-shot or submit another paid request.**
+
+
+### Owner xAI Console Logs screenshot — 2026-11-07, same first Stage04E test
+
+- A **single matching xAI Chat log row** at browser-shown 19:05:30,
+  model 'grok-4.3', temperature ~0.7, max 128 output tokens,
+  identical Reflect system instruction. Right panel visibly states
+  **Response · Completed**; the rendered response section is empty.
+- **Evidence classification:** request reached xAI and provider recorded
+  completed generation. Exact upstream HTTP status, response payload,
+  actual cost/token usage, client delivery and billing controls **remain
+  unverified**. Do not interpret 'Completed' as proof of HTTP 200.
+  Original old localhost UI showed 'xai-http-error, HTTP 502'; the local
+  gateway emitted that error for an upstream non-2xx response. No safe
+  root-cause fix can be selected yet.
+- **Next owner action:** on the existing log entry select the **Raw**
+  tab (not the browser Request Headers); share a **redacted screenshot**
+  showing HTTP/result status and usage if available, never key/token,
+  sensitive content or other apps. If not visible, look at Usage and
+  the old 'Network → smoke → Response' if retained.
+- Draft Stage04F implementation remains stacked PR #34, no real
+  provider calls or production deploy. Source screenshot preserved in
+  this chat only; no raw image, key ID or request ID uploaded to GitHub.
