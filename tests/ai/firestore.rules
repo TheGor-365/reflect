@@ -1,0 +1,10 @@
+// Isolated Stage04B demo: no browser may read/write server AI quota docs.
+// Firebase Admin in the disposable emulator bypasses these rules.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{anyPath=**} {
+      allow read, write: if false;
+    }
+  }
+}
