@@ -1,0 +1,61 @@
+name: Reflect Stage04E local in-app xAI smoke safety
+
+on:
+  pull_request:
+    paths:
+      - 'server/ai/localXaiSmoke*'
+      - 'scripts/start-xai-local-smoke.sh'
+      - 'src/features/Sessions/XaiDevSmoke.jsx'
+      - 'src/features/Sessions/Sessions.jsx'
+      - 'src/index.css'
+      - '.github/workflows/reflect-xai-local-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-smoke-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - name: Checkout exact PR revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked frontend dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Local synthetic-only HTTP gateway tests
+        run: node --test server/ai/localXaiSmoke.test.cjs
+      - name: Existing provider fixture and server policy tests
+        env:
+          REFLECT_XAI_FIXTURES_ONLY: 'yes'
+        run: node --test server/ai/xaiContract.test.cjs server/ai/policy.test.cjs
+      - name: Baseline app test suite
+        run: npm test
+      - name: Static type checks and production build
+        run: |
+          npm run typecheck
+          npm run build
+      - name: Reject any real provider key or live-call activation in frontend
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const browser = fs.readFileSync('src/features/Sessions/XaiDevSmoke.jsx','utf8');
+          const appAI = fs.readFileSync('src/api/geminiService.js','utf8');
+          const backend = fs.readFileSync('server/ai/localXaiSmoke.cjs','utf8');
+          if (!/^export const AI_SESSION_ENABLED = false;$/m.test(appAI) ||
+              !browser.includes('VITE_ENABLE_XAI_DEV_SMOKE') ||
+              !browser.includes('demo-reflect-auth-qa') ||
+              !backend.includes('FIXED_PROMPT') ||
+              !backend.includes('CREDENTIAL_PATH') ||
+              !backend.includes('one-shot-already-used') ||
+              browser.includes('XAI_API_KEY') ||
+              backend.includes('process.env.XAI_API_KEY') ||
+              fs.existsSync('firebase.json')) {
+            throw new Error('Stage04E local-only security boundary violated');
+          }
+          console.log('PASS: developer smoke only; no production/client key or AI activation');
+          NODE
