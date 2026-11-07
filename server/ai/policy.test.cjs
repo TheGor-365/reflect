@@ -161,6 +161,7 @@ test("corrupt stored quota state and untrusted clock fail closed", () => {
     assert.throws(() => reserve({}, state), reason("invalid-quota-state"));
   }
   assert.throws(() => reserve({ nowMs: Infinity }), reason("invalid-server-time"));
+  assert.throws(() => reserve({ nowMs: 9000000000000000 }), reason("invalid-server-time"));
 });
 
 test("policy has no logging, persistence, provider calls or imported user data", () => {
