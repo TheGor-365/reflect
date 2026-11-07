@@ -48,18 +48,19 @@ if (hostedAiRequested && !hostedAiEnabled) {
 
 export const appId = appNamespace;
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const aiFunctions = hostedAiEnabled ? getFunctions(app, 'us-central1') : null;
 
-// The site key is public; the xAI API key MUST remain server-side in
-// Firebase Secret Manager. No app-check debug token is accepted in staging.
+// Initialize attestation BEFORE creating SDK clients or making API calls.
+// The reCAPTCHA Enterprise site key is public; xAI credentials remain in
+// Firebase Secret Manager and App Check debug tokens are not used here.
 if (hostedAiEnabled) {
   initializeAppCheck(app, {
     provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
     isTokenAutoRefreshEnabled: true
   });
 }
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const aiFunctions = hostedAiEnabled ? getFunctions(app, 'us-central1') : null;
 
 if (emulatorMode) {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
