@@ -246,3 +246,14 @@ npm run dev -- --strictPort
 - New Draft patch: client renders the bounded upstream code separately from local proxy HTTP, accepts only a known diagnostic error code, does not display provider body. The server now has synthetic regression coverage for 400/401/403/404/422/429/500/503; frontend formatter has fixture tests. No provider request parameters, one-shot guard, Auth, Firebase data, production settings or secrets changed.
 - Root cause remains **BLOCKED ON EVIDENCE**: first Chrome `Network → smoke → Response` safe fields or xAI Console Logs, plus Usage/Billing and cap check. Don't ask for Request Headers, keys or private journal. Next paid synthetic attempt requires explicit new approval and no automation.
 - Official reference: https://docs.x.ai/developers/debugging and https://docs.x.ai/developers/rest-api-reference/inference/responses . Stage04F server-only adapter and real signed App Check staging remain future gates. This checkpoint does not certify a live Grok response or production readiness.
+
+
+---
+
+## CHECKPOINT — 2026-11-07, Stage04F server-only adapter draft
+
+- **Dependency:** PR #33, exact parent HEAD 'ea374013b343462557aa9a05d300fc464eabb084', 7/7 successful CI. New Stage04F implementation is on branch 'work/reflect-stage04f-server-xai-adapter-2026-11-07', stacked on #33 (not 'main').
+- **New code:** 'server/ai/xaiProviderAdapter.cjs' with explicitly injected transport and credential reader; fixed xAI model/endpoint, strict one-message contract, reasoning none, 20s timeout, 96KiB streamed response limit, redacted upstream/transport errors and **no automatic retries**. New 'xaiProviderAdapter.test.cjs' fixture tests, isolated Actions workflow and 'docs/roadmap/STAGE_04F_SERVER_XAI_ADAPTER_2026-11-07.md' technical gate. No secret manager provisioning, production callable, network calls or private data.
+- **Not yet delivered:** real signed Firebase App Check staging, server-side USD spending limits, irreversible idempotency/reservation design, production secret binding, per-message consent UI and live Grok answer. Mock quota and synthetic tests do not prove these.
+- **First live Stage04E error still unresolved:** proxy HTTP502 is known; xAI 'providerHttpStatus' and cost after the attempt unknown. Need original Chrome Network Response or xAI Console Logs, plus current Billing/Usage screenshot. Never rerun paid call without explicit new owner approval. Keep old local key and QA worktree untouched.
+- **Production:** blocked, no main merge or deployment. No claim that Google Drive Markdown has been updated; only GitHub branch document changes until separately verified.
