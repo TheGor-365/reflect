@@ -47,7 +47,8 @@ async function signup() {
   assert.equal(checked.uid, json.localId);
   return json;
 }
-async function invoke(payload, token = null, appCheck = true) {
+async function invoke(payload, token = null, appCheck = true,
+  appId = "stage04c-emulator-only-app") {
   const headers = { "Content-Type": "application/json" };
   if (token) headers.Authorization = "Bearer " + token;
   if (appCheck) {
@@ -60,10 +61,10 @@ async function invoke(payload, token = null, appCheck = true) {
       alg: "none", typ: "JWT"
     })).toString("base64url");
     const payload = Buffer.from(JSON.stringify({
-      app_id: "stage04c-emulator-only-app",
+      app_id: appId,
       iss: "https://firebaseappcheck.googleapis.com/" + STAGE04C_PROJECT,
       aud: ["projects/" + STAGE04C_PROJECT],
-      sub: "stage04c-emulator-only-app",
+      sub: appId,
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + 3600
     })).toString("base64url");
@@ -102,6 +103,14 @@ test("real v2 endpoint denies missing App Check even when Auth is valid", async 
 test("real v2 endpoint denies missing Auth even with test App Check header", async () => {
   await mustError("missing Firebase Auth",
     await invoke(data(2)), 401);
+  assert.equal((await ownerDocs().get()).size, 0);
+});
+
+test("valid Auth with an unapproved App Check app ID cannot reserve quota", async () => {
+  const user = await signup();
+  const denied = await invoke(data(13), user.idToken, true,
+    "another-emulator-app");
+  await mustError("App Check app identity not allowlisted", denied, 401);
   assert.equal((await ownerDocs().get()).size, 0);
 });
 
