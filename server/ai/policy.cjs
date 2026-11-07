@@ -24,7 +24,8 @@ const REDACTED_ERROR = "AI request rejected by server policy.";
 const plain = value => value !== null && typeof value === "object" &&
   !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
 const only = (value, keys) => Object.keys(value).every(k => keys.includes(k));
-const validTime = time => Number.isSafeInteger(time) && time >= 0;
+const validTime = time => Number.isSafeInteger(time) && time >= 0 &&
+  time <= 8640000000000000;
 const dayUTC = time => new Date(time).toISOString().slice(0, 10);
 const bytes = message => Buffer.byteLength(message, "utf8");
 const cleanMessage = value => typeof value === "string" &&
