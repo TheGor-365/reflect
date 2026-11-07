@@ -491,3 +491,10 @@ npm run dev -- --strictPort
   `reflect-8fdc8` and private journal data.
 - Stage04G remains stacked Draft PR #35. The GitHub master is
   updated; Drive Markdown mirror is not confirmed synced.
+
+### Staging Authentication enabled — 2026-11-07 owner screenshot
+
+- Firebase Console project `reflect-ai-staging` → Authentication → Sign-in method visibly lists **Anonymous: Enabled**. This is configuration evidence; no identity migration or live Grok backend connection is claimed.
+- Next stage: create isolated Cloud Firestore **Standard edition**, database **(default)**, **Production mode** (deny initial client access), with **us-central1 regional location** to co-locate the current hosted Functions v2 region. Database location is immutable. Test mode is unsafe for a private diary because it permits public database access. Do NOT create new records, set public rules, or touch `reflect-8fdc8`.
+- Firebase Spark plan remains the last observed billing tier. Cloud Function deployment and xAI secret binding still await separate Blaze/GCP billing review and owner approval.
+- Source: owner screenshot in this chat; no connected console changes were performed by the assistant. GitHub master updated, Drive mirror not confirmed synced.
