@@ -127,3 +127,49 @@ Check. The xAI wallet is shared with another application.
   the console Usage and saved billing limits. The static $8.64 balance
   shown in the screenshot does not establish the actual request cost
   or saved auto-top-up setting.
+
+
+## 2026-11-07 addendum: exact provider cost and fail-closed money planning
+
+Source: https://docs.x.ai/developers/cost-tracking (checked 2026-11-07).
+Responses API's 'usage.cost_in_usd_ticks' represents the provider's actual
+per-request billed cost, with 10,000,000,000 integer ticks = USD 1.
+**This is not the same as an estimate from published token rates.**
+
+- 'server/ai/xaiCost.cjs': 'readProviderCharge(usage)' parses exact
+  non-negative safe-integer tick charges; missing metadata yields
+  'actualUsdTicks: null'/'actualUsd: null', **never false zero**.
+  Bad fields fail with a generic policy error.
+- 'server/ai/xaiProviderAdapter.cjs': now returns the provider receipt
+  independently from the published-price estimate. A receipt **does not
+  retroactively prevent** a paid call.
+- 'planMoneyReservation' computes a pure per-request, per-owner-UTC-day
+  and per-project-UTC-day budget proposal using integer ticks, **only**
+  with explicitly provided server-owned limits and counters. It is
+  stateless and does not authorize any spending. Future staging must
+  read/write owner+global counters, independent cross-day idempotency
+  ledger and the server kill switch in the **same durable transaction**.
+  Neither a pure budget planner nor the old emulator quota enforces a
+  real USD limit until this integration exists.
+- For upstream failure, timeout, lost response or missing receipt:
+  preserve the reserved amount pending reconciliation from xAI Usage;
+  do not refund the budget reservation just because no reply arrived.
+  Never auto-repeat the request. A provider-side spending ceiling and
+  verified auto-top-up settings remain separate essential safeguards.
+- New synthetic-only fixtures: 'server/ai/xaiCost.test.cjs' plus adapter
+  receipt tests. The Stage04F Action runs them without a vendor secret.
+
+The owner supplied two screenshots of the **Raw** view of the existing
+xAI Console Chat log at 19:05:30. It shows only
+'logged.chat.request' containing the fixed synthetic prompt, 'grok-4.3',
+'maxTokens: 128', sampling temperature, top-p, tool-choice NONE and
+'historyStatus: HISTORY_STATUS_COMPLETE'. These are **request fields**,
+not a provider HTTP status, charged amount, or assistant result. The
+older Formatted panel claimed 'Response · Completed' but displayed
+no response text. Do not infer HTTP 200 or declare the old 502 fixed.
+
+**Next local evidence:** open xAI Console **Usage** on Nov 7
+for the Reflect-dev key, note cost/request and saved billing limits.
+If the original Chrome 'Network → smoke → Response' still exists,
+capture only the sanitized JSON error and 'providerHttpStatus'. Neither
+action makes a new paid request. Keep the team’s other API keys untouched.
