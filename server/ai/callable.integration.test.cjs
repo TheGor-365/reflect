@@ -124,16 +124,17 @@ test("v2 callable with Auth and test App Check succeeds only when switch enabled
 
 test("client cannot spoof UID, history or provider; no quota is reserved", async () => {
   const user = await signup();
-  for (const [n, malicious] of [
+  for (const [n, malicious, expectedStatus] of [
     [5, { uid: "foreign-synthetic-user" }],
     [6, { chatHistory: ["secret"] }],
     [7, { provider: "external-model" }],
     [8, { consent: { granted: false, version: CONSENT_VERSION,
-      scope: "one-message" } }],
+      scope: "one-message" } }, 403],
     [9, { message: "Z".repeat(LIMITS.maxMessageChars + 1) }]
   ]) {
     await mustError("unsafe client payload " + n,
-      await invoke(data(n, malicious), user.idToken), 400);
+      await invoke(data(n, malicious), user.idToken),
+      expectedStatus ?? 400);
   }
   // Only previous successful user should have allocated a quota document.
   assert.equal((await ownerDocs().get()).size, 1);
