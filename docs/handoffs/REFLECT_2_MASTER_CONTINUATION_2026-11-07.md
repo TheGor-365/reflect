@@ -559,3 +559,50 @@ npm run dev -- --strictPort
   security rules were already confirmed in this chat. Functions v2
   deployment still requires separate Blaze/GCP billing approval;
   no deployment/paid xAI request or production changes made.
+
+
+### 2026-11-08 Hosting CLI access + detached worktree verified, static stage configuration prepared
+
+- Owner Linux terminal returned Firebase CLI **15.34.2** and
+  `firebase projects:list` successfully showing exactly
+  `ilab-343511`, `reflect-8fdc8` and **`reflect-ai-staging`**
+  (number **599679789981**), establishing authenticated CLI access.
+  The owner also fetched
+  `work/reflect-stage04g-hosted-ai-bridge-2026-11-07` and created
+  an **independent** `~/reflect-stage35-hosted` detached worktree at
+  commit `ec6e447d7f0085cd0a45471b7260cadcf58cd5b6`.
+  This older code SHA does not include the newly authored Hosting
+  config; fetch/update this worktree after verifying it is clean.
+- Firebase Console shows wizard **Set up Firebase Hosting →
+  Initialize your project**, site URL context
+  `/project/reflect-ai-staging/hosting/sites/reflect-ai-staging`.
+  CLI is installed, **do not reinstall it** and **do not run
+  `firebase init`** on the existing worktree.
+- New Draft PR #35 files: root `firebase.staging.json`
+  contains only static Firebase Hosting for **site
+  `reflect-ai-staging`**, `dist/` Vite output, SPA rewrite; no
+  Functions or Firestore deploy config. `.env.staging.example`
+  includes public Web App config **placeholders**, approved project,
+  App ID and public site-key placeholder; `.env.staging.local` is
+  gitignored. `src/firebase/config.js` now initializes signed
+  App Check with `VITE_ENABLE_STAGING_APP_CHECK=true` while
+  `VITE_ENABLE_REFLECT_CLOUD_AI=false` keeps the hosted AI API
+  disabled until separate paid backend authorization. The original
+  app remains unaffected.
+- New no-network CI test
+  `tests/ai-stage04g/hosting-config.test.cjs` plus Stage04G
+  staging build fixture. Preparation commands and guarded Hosting-only
+  deploy command documented at
+  `docs/roadmap/STAGE_04G_STAGING_HOSTING_2026-11-08.md`.
+  Google/Firebase console remains source of truth for the live
+  Hosting site; **no React build has been deployed or observed**.
+- **Next owner actions (safe):** in `~/reflect-stage35-hosted`
+  check `git status --short` (must be empty), fetch and detach to
+  newest Draft #35 HEAD, run `firebase hosting:sites:list --project
+  reflect-ai-staging`, and report output. Then create local
+  `.env.staging.local` with ONLY public Firebase Web API config and
+  recaptcha site key, run stage build; deploy Hosting only after
+  those checks. Do not paste private xAI or service-account keys.
+- This GitHub master was updated; Google Drive mirror not confirmed
+  synced. Original `reflect-8fdc8`, iLab and old worktrees untouched.
+  Cloud Functions/Secret Manager/Blaze remain blocked separately.
