@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { collection, addDoc, setDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db, appId } from '../../firebase/config';
-import { AI_SESSION_ENABLED, getAnalysisFromAI } from '../../api/geminiService';
+import { AI_SESSION_ENABLED, getAnalysisFromAI } from '../../api/reflectAssistantService';
 import ChatMessage from './ChatMessage';
 import SessionComposer from './SessionComposer';
 import XaiDevSmoke from './XaiDevSmoke';
@@ -14,6 +14,10 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sendError, setSendError] = useState('');
+  const [consentForMessage, setConsentForMessage] = useState(false);
+  const [savingSession, setSavingSession] = useState(false);
+  const [sessionSaveError, setSessionSaveError] = useState('');
+  const sendLock = useRef(false);
   const noteSave = useEntrySave('diaryNotes', userId);
   const sessionDraftRef = useRef(null);
   const [isUserRecording, setIsUserRecording] = useState(false);
@@ -44,59 +48,82 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!AI_SESSION_ENABLED || !userInput.trim() || isLoading || !db || !userId) return;
-    setSendError('');
-
-    const userMessage = { role: 'user', content: userInput.trim(), id: `user-${Date.now()}`, timestamp: Timestamp.now() };
-    
-    // --- ИСПРАВЛЕНИЕ: Мгновенно добавляем сообщение пользователя в локальное состояние для отображения ---
-    if (isNewSessionView) {
-      setLocalMessages(prev => [...prev, userMessage]);
+    const message = userInput.trim();
+    if (!AI_SESSION_ENABLED || !message || isLoading || sendLock.current ||
+        !db || !userId) return;
+    if (!consentForMessage) {
+      setSendError('Перед отправкой подтвердите передачу только этого сообщения в Grok.');
+      return;
     }
-    
-    // Do not destroy a long personal reflection before AI + Firestore succeed.
+    if (message.length > 1400 || new TextEncoder().encode(message).length > 2000) {
+      setSendError('Сообщение превышает ограничение тестового AI-сервера (2000 байт).');
+      return;
+    }
+    sendLock.current = true;
     setIsLoading(true);
-    
-    // История для AI теперь включает и временные локальные сообщения
-    const chatHistory = activeSession ? [...activeSession.chatHistory, userMessage] : [...localMessages, userMessage];
-    
+    setSendError('');
+    // A new request ID is generated ONLY for an explicit click. Never auto
+    // retry after a timeout: the provider may have billed the first attempt.
+    const requestId = crypto.randomUUID();
     try {
-      const aiResponse = await getAnalysisFromAI(chatHistory, profile);
-      if (aiResponse.error) {
-        throw new Error(aiResponse.error);
-      }
-      
-      // No fabricated emotional health score: AI scores are not validated diagnostics.
-      const assistantMessage = { role: 'assistant', content: aiResponse.response, id: `asst-${Date.now()}`, timestamp: Timestamp.now() };
-      
-      const newChatHistory = [...chatHistory, assistantMessage];
-      const sessionPayload = { 
-        title: aiResponse.sessionTitle || `Сеанс от ${new Date().toLocaleString('ru-RU')}`, 
-        chatHistory: newChatHistory, 
-        recommendations: aiResponse.recommendations || [], 
-        exercises: aiResponse.exercises || [] 
+      const aiResponse = await getAnalysisFromAI(message, requestId);
+      const userMessage = {
+        role: 'user', content: message,
+        id: 'user-' + requestId, timestamp: Timestamp.now()
       };
-      
-      let sessionId = currentSessionId;
-      if (isNewSessionView) {
-        const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/sessions`), { ...sessionPayload, createdAt: serverTimestamp() });
-        sessionId = docRef.id;
-        // Устанавливаем ID нового сеанса, что приведет к обновлению UI и очистке localMessages
-        setCurrentSessionId(docRef.id); 
-      } else {
-        await setDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId), sessionPayload, { merge: true });
-      }
-
-      // AI suggestions are advisory only: never auto-create user goals.
-      await sessionDraftRef.current?.clearAfterCommit();
+      const assistantMessage = {
+        role: 'assistant', content: aiResponse.response,
+        id: 'assistant-' + requestId, timestamp: Timestamp.now()
+      };
+      // No Firebase write here. Answer is local until "Сохранить сеанс".
+      setLocalMessages(prev => [...prev, userMessage, assistantMessage]);
       setUserInput('');
-    } catch (error) {
-        console.error("Send Message Error:", error);
-        // Keep unsent message editable and do not present a failed write as sent.
-        setLocalMessages(prev => prev.filter(message => message.id !== userMessage.id));
-        setSendError('Не удалось отправить сообщение. Ваш текст сохранён в поле ввода — можно повторить попытку.');
+      await sessionDraftRef.current?.clearAfterCommit();
+      setConsentForMessage(false);
+    } catch {
+      // The input is still present in the controlled textarea and its
+      // protected draft. Do not leak user/provider text into console logs.
+      setSendError('Grok не вернул подтверждённый ответ. Текст сохранён в поле ввода. Не повторяйте запрос автоматически: он мог быть оплачен.');
+      setConsentForMessage(false);
     } finally {
-        setIsLoading(false);
+      sendLock.current = false;
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveSession = async () => {
+    if (!db || !userId || !localMessages.length || isLoading || savingSession) return;
+    setSavingSession(true);
+    setSessionSaveError('');
+    const existing = Array.isArray(activeSession?.chatHistory)
+      ? activeSession.chatHistory : [];
+    const payload = {
+      title: activeSession?.title || 'Сеанс от ' + new Date().toLocaleString('ru-RU'),
+      chatHistory: [...existing, ...localMessages],
+      recommendations: activeSession?.recommendations || [],
+      exercises: activeSession?.exercises || []
+    };
+    try {
+      if (isNewSessionView) {
+        const created = await addDoc(
+          collection(db, 'artifacts/' + appId + '/users/' + userId + '/sessions'),
+          { ...payload, createdAt: serverTimestamp() }
+        );
+        setLocalMessages([]);
+        setCurrentSessionId(created.id);
+      } else if (activeSession) {
+        await setDoc(
+          doc(db, 'artifacts/' + appId + '/users/' + userId + '/sessions',
+            currentSessionId),
+          payload, { merge: true }
+        );
+        setLocalMessages([]);
+      }
+    } catch {
+      // Preserve draft and local model answer for an explicit retry.
+      setSessionSaveError('Не удалось сохранить сеанс. Ответ остаётся в этом окне.');
+    } finally {
+      setSavingSession(false);
     }
   };
 
@@ -164,7 +191,7 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
   };
   
   // --- ИСПРАВЛЕНИЕ: Выбираем, какой массив сообщений отображать ---
-  const messagesToDisplay = activeSession ? (activeSession.chatHistory || []) : localMessages;
+  const messagesToDisplay = activeSession ? [...(activeSession.chatHistory || []), ...localMessages] : localMessages;
   const realRecommendations = activeSession?.recommendations || [];
   const realExercises = activeSession?.exercises || [];
   const hasContext = Boolean(activeSession && (realRecommendations.length || realExercises.length));
@@ -215,9 +242,29 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
         </div>
 
         <div className="reflect-session-compose-dock">
+          {AI_SESSION_ENABLED && (
+            <div className="reflect-ai-send-consent">
+              <label>
+                <input type="checkbox" checked={consentForMessage}
+                  disabled={isLoading}
+                  onChange={event => setConsentForMessage(event.target.checked)} />
+                Разрешаю передать только текущий текст в Grok. История и дневник не отправляются.
+              </label>
+              {localMessages.length > 0 && (
+                <div className="reflect-ai-session-unsaved">
+                  <span>Ответ AI пока не сохранён в Firebase.</span>
+                  <button type="button" onClick={handleSaveSession}
+                    disabled={savingSession || isLoading}>
+                    {savingSession ? 'Сохранение…' : 'Сохранить сеанс'}
+                  </button>
+                </div>
+              )}
+              {sessionSaveError && <p role="alert">{sessionSaveError}</p>}
+            </div>
+          )}
           <SessionComposer
             value={userInput}
-            onChange={(value) => { noteSave.clearFeedback(); setSendError(''); setUserInput(value); }}
+            onChange={(value) => { noteSave.clearFeedback(); setSendError(''); setConsentForMessage(false); setUserInput(value); }}
             onSubmit={handleSendMessage}
             onToggleRecording={handleToggleUserRecording}
             onSaveToDiary={handleSaveToDiary}
