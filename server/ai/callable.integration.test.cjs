@@ -53,7 +53,21 @@ async function invoke(payload, token = null, appCheck = true) {
   if (appCheck) {
     // Synthetic test-only attestation. Firebase emulator disables actual
     // signature verification; production is explicitly NOT proven here.
-    headers["X-Firebase-AppCheck"] = "local-stage04c-synthetic-token";
+    // Formatted but NOT SIGNED for production. Firebase Emulator
+    // explicitly skips signature verification; the app_id claim must be
+    // present for request.app.appId in the real v2 onCall context.
+    const header = Buffer.from(JSON.stringify({
+      alg: "none", typ: "JWT"
+    })).toString("base64url");
+    const payload = Buffer.from(JSON.stringify({
+      app_id: "stage04c-emulator-only-app",
+      iss: "https://firebaseappcheck.googleapis.com/" + STAGE04C_PROJECT,
+      aud: ["projects/" + STAGE04C_PROJECT],
+      sub: "stage04c-emulator-only-app",
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 3600
+    })).toString("base64url");
+    headers["X-Firebase-AppCheck"] = header + "." + payload + ".synthetic";
   }
   const result = await fetch(URL, {
     method: "POST", headers, body: JSON.stringify({ data: payload }),
