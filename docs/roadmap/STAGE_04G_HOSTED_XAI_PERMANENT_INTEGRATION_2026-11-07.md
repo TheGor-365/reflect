@@ -16,7 +16,7 @@ This is NOT the permanent integration architecture.
 
 ## Full hosted path
 
-1. A separately approved reflect-ai-stage-* Firebase Web App enables signed
+1. The separately created reflect-ai-staging Firebase Web App enables signed
    reCAPTCHA Enterprise App Check and a Firebase Functions client.
 2. React Sessions sends one selected message, a unique request ID, and explicit
    versioned consent through Firebase httpsCallable with limited-use App Check
