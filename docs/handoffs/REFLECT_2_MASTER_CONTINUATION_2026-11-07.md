@@ -288,3 +288,41 @@ npm run dev -- --strictPort
 - Draft Stage04F implementation remains stacked PR #34, no real
   provider calls or production deploy. Source screenshot preserved in
   this chat only; no raw image, key ID or request ID uploaded to GitHub.
+
+
+### Stage04F cost receipt + Raw xAI log checkpoint — 2026-11-07
+
+- **Owner evidence:** two screenshots on xAI Console 'Logs → Chat → Raw'
+  for the first 19:05:30 Reflect synthetic request. Visible
+  'logged.chat.request' has fixed Reflect system + test user prompt,
+  'grok-4.3', maxTokens 128, temperature ~0.7, topP ~0.95,
+  'TOOL_MODE_NONE', 'EFFORT_NONE' and
+  'historyStatus: HISTORY_STATUS_COMPLETE'. None of these fields
+  establishes upstream HTTP status or cost. Formatted view previously
+  showed 'Response · Completed' with empty output panel. The original
+  'xai-http-error, HTTP 502' from localhost remains **unresolved**.
+  No live re-test authorized, no second paid call made.
+- **New offline Stage04F code on PR #34:** 'server/ai/xaiCost.cjs'
+  parses exact billed 'usage.cost_in_usd_ticks' (10^10 ticks/USD);
+  unavailable receipt becomes **null, not free**. The
+  'xaiProviderAdapter.cjs' returns both independently labelled actual
+  charge and published-rate estimate. A pure integer USD-tick
+  'planMoneyReservation' verifies server-supplied per-call/owner/global
+  limits; no storage write or spending authorization is done. Synthetic
+  test 'server/ai/xaiCost.test.cjs', adapter receipt tests and Stage04F
+  CI are included. Official source:
+  https://docs.x.ai/developers/cost-tracking (2026-11-07).
+- **Important gate:** actual production hard cap awaits a real durable
+  transactional server store with per-owner/global money reservation,
+  idempotency ledger, crash reconciliation, authenticated per-message
+  consent, genuine App Check staging and provider-side controls.
+  No auto-retry, no private journal, no live provider call, no secret
+  provisioning, no main merge/deploy in this stage.
+- **Next owner action:** xAI Console Usage for Nov 7, ideally grouped by
+  Reflect-dev key, screenshot with USD cost/request information; also
+  verify saved Auto top-up and invoiced spending limit on Billing.
+  Existing Chrome Network original 'smoke' response, if preserved, is
+  the only direct source for the prior 'providerHttpStatus'. Do not
+  publish API Key ID, secrets or other application logs.
+- **Drive mirror:** not confirmed updated; use the latest GitHub PR #34
+  handoff as the source of truth for this checkpoint.
