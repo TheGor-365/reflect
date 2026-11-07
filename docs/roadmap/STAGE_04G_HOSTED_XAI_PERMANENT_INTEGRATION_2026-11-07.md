@@ -105,3 +105,35 @@ https://firebase.google.com/docs/app-check/cloud-functions
 https://firebase.google.com/docs/functions/config-env
 https://docs.x.ai/developers/rest-api-reference/inference/responses
 https://docs.x.ai/developers/cost-tracking
+
+
+## Stage-only Firestore Security Rules and real App Check
+
+The dedicated staging rules in server/hosted/firestore.rules permit only
+authenticated UID-owned artifacts/reflect-8fdc8/users/{uid}/... documents;
+they **deny all client reads and writes** to the protected
+_reflectAiPrivate tree, including kill switch, quota ledger and per-user
+budget counters. Admin SDK Cloud Functions bypass the client rules.
+Deploy only to the verified NEW staging project, in a separate owner-approved
+operation (the Functions-only deploy does NOT deploy rules):
+
+    cd server/hosted
+    firebase deploy --config firebase.json --project <STAGING_PROJECT_ID> --only firestore
+
+Check staged data/schema and deny rules before testing browser saving.
+Never point this command at the existing owner Test/production Firebase
+project, because a rules deploy replaces its existing rules.
+
+Official App Check guidance requires a score-based reCAPTCHA Enterprise
+Web key registered for the staging domain, with signed real attestation.
+Do not register localhost in a future production key. The site key can
+be public, but the xAI key is a server-only Secret Manager value.
+The limited-use App Check request option must match the function
+consumeAppCheckToken=true setting and its service account needs the
+required App Check Token Verifier permission. These are blocking
+release prerequisites, not assumptions proven by emulator CI.
+
+Official sources:
+https://firebase.google.com/docs/cli
+https://firebase.google.com/docs/app-check/web/recaptcha-enterprise-provider
+https://firebase.google.com/docs/app-check/cloud-functions
