@@ -368,3 +368,91 @@ npm run dev -- --strictPort
 - **New owner Linux runbook:** 'docs/roadmap/STAGE_04F_LIVE_SYNTHETIC_SESSIONS_2026-11-07.md'. Use a **new** ~/reflect-stage34-live worktree from the PR34 Draft branch, preserve historic ~/reflect-stage33-qa and Firebase emulators, restart only the old localhost Node proxy + Vite ports 19107/3100 via their own terminal Ctrl+C, reuse existing private key outside the repo, then click once inside Sessions. CLI, emulator secrets and all user data remain on owner's machine. The one paid request can only be initiated by owner.
 - **NOT done / blocked:** a successful provider reply inside the app has NOT been confirmed; staging with real signed App Check/Auth, durable USD quota/ledger, cloud-bound Secret Manager, actual user message consent/persistence and full production AI remain future engineering gates. Do not re-enable 'AI_SESSION_ENABLED' or merge to 'main' until verified staging.
 - **Future handoff:** check latest PR34 HEAD CI and owner screenshot of successful reply OR safe error/status + xAI cost. Never ask for key, Auth headers, card data, private diary or secrets. Confirmed Google Drive master sync does **not** exist; GitHub remains the authoritative updated checkpoint.
+
+
+---
+
+## CHECKPOINT — 2026-11-07, permanent hosted Grok bridge Stage04G (PR #35)
+
+- **Latest owner evidence:** on Linux, source worktree
+  ~/reflect-stage34-live at exact code 0e7a0a8, npm ci succeeded and new
+  React Sessions UI rendered. Starting the new Node proxy on
+  127.0.0.1:19107 failed EADDRINUSE; the old Stage04E proxy was still
+  listening. The new React client sent a scenario object; the old proxy
+  only accepted confirm=synthetic-only and returned local
+  HTTP 400 invalid-payload **before any xAI call**. This specific
+  failure is a version conflict on a local port, not a verified bad key.
+  The first earlier real provider xai-http-error/proxy 502 remains a
+  separate unresolved incident. The owner explicitly asked for a
+  persistent integration usable in the published app, not a one-shot
+  localhost test.
+- **Created stacked Draft PR #35:**
+  https://github.com/TheGor-365/reflect/pull/35
+  Branch work/reflect-stage04g-hosted-ai-bridge-2026-11-07,
+  base PR #34 branch (NOT main). No deployment, merge, paid xAI request,
+  secret upload, user data transfer or old-process termination occurred.
+- **Server implementation:** separate Firebase Functions v2 package
+  server/hosted/functions/index.cjs, actual onCall named reflectAiReply,
+  enforceAppCheck:true, consumeAppCheckToken:true, Firebase Auth, exact
+  registered appId, strict reflect-ai-stage-* allowlist and runtime
+  opt-in. xAI key is bound with Firebase defineSecret REFLECT_XAI_KEY
+  and never imported into Vite, git, logs or CI. A deterministic
+  source packaging script copies only vetted server/ai modules;
+  no root firebase.json or uncontrolled production fallback.
+- **Durable budget and security:** server/ai/hostedBudget.cjs atomically
+  checks server-owned Firestore flag (OFF unless enabled),
+  per-user/per-project daily token + USD tick budgets, and a
+  permanently retained hashed request-ID ledger. Provisional
+  reservation $0.01/request, $0.05/owner/day and $0.20/global/day;
+  these are NOT a guaranteed provider hard billing limit. On
+  failure/timeouts, reservations remain; no automatic retry. Actual
+  provider costs are recorded if available, and over-reservation
+  disables further requests. Private message and model output are
+  never stored in budget documents.
+- **Browser integration:** in src/firebase/config.js a dedicated
+  VITE AI staging flag enforces project allowlist and initializes
+  reCAPTCHA Enterprise App Check before Auth/Firestore/Functions clients.
+  src/api/reflectAssistantService.js uses httpsCallable with
+  limitedUseAppCheckTokens:true, exact consent version, bounded one
+  user-selected text and random request ID; no profile/archive/history.
+  Ordinary Sessions UI now sends directly to hosted AI only in an
+  explicitly configured staging preview; per-message checkbox
+  discloses xAI 30-day default audit retention. Responses stay local
+  until the user manually clicks Save Session. The previous
+  geminiService AI_SESSION_ENABLED remains false and no unapproved
+  production AI switch is enabled.
+- **Isolated tests:** real Firestore Emulator against independent
+  reflect-ai-stage-fixture01 and deny-all test rules. Covered signed
+  context placeholder (no forged App Check accepted by production),
+  policy, consent, kill switch, one successful response, replay after
+  success/failure and next UTC day, error redaction, overspend kill
+  switch and no prompt/UID in ledger. Frontend tests cover consent,
+  single-message-only data and explicit save. Dedicated workflow
+  reflect-ai-hosted-bridge.yml validates server packaging plus
+  existing UI, TypeScript and isolated Auth tests. **Do not call
+  emulator success a real signed staging attestation.**
+- **Staging rules:** server/hosted/firestore.rules allows only
+  UID-scoped user content for separate new staging project and
+  explicitly denies browser access to _reflectAiPrivate. It is NOT
+  deployed. The Functions and Firestore rules deploys require
+  separate, explicit owner review of the targeted stage project.
+- **Operational runbook:**
+  docs/roadmap/STAGE_04G_HOSTED_XAI_PERMANENT_INTEGRATION_2026-11-07.md
+  describes new separate Firebase staging project, real signed App
+  Check and Web App registration, GCP/Blaze costs, local-only secret
+  manager prompt, exact staging deployment config and Vercel Preview
+  public env variables. Firebase/GCP fees are separate from the
+  existing xAI $8.64 team wallet; xAI auto-topup $5 is enabled by
+  owner report, saved billing cap still unverified.
+- **User next action (1):** open Firebase Console and locate/create
+  a **separate** staging project, not the owner's existing Test or
+  live project; report its selected project ID and app registration
+  screenshot (without keys/secrets). Check Blaze billing before
+  confirming a charge. DO NOT ask the owner to reset old worktrees
+  or paste the xAI key here.
+- **Still BLOCKED:** actual deployed signed App Check negative QA,
+  hosted live grok-4.3 success, cross-project deployment permission,
+  secret provisioning, billable GCP project approval, verified
+  provider-side financial safeguards and subsequent production
+  release review. GitHub master is current; the Drive Markdown
+  mirror was not edited or verified during this turn.
