@@ -130,6 +130,5 @@ test("a reservation is never released by this pure planner on failure", () => {
       globalCommittedAndReservedTicks:
         first.globalCommittedAndReservedTicksAfter
     }
-  });
   }), denied("resource-exhausted"));
 });
