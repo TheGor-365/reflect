@@ -100,10 +100,8 @@ test("rejects missing/inconsistent/over-budget provider usage", () => {
 });
 
 test("published noncached token prices are a projection, not a billing cap", () => {
-  assert.equal(estimatePublishedUsd(1000000, 0),
-    1.25);
-  assert.equal(estimatePublishedUsd(0, 1000000),
-    2.5);
+  assert.equal(estimatePublishedUsd(100000, 0), 0.125);
+  assert.equal(estimatePublishedUsd(0, 100000), 0.25);
 });
 
 test("cost function accepts only nonnegative reasonable integer usage", () => {
