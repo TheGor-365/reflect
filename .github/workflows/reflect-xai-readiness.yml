@@ -1,0 +1,48 @@
+name: Reflect Stage04D xAI readiness, no live traffic
+
+on:
+  pull_request:
+    paths:
+      - 'server/ai/xaiContract.cjs'
+      - 'server/ai/xaiContract.test.cjs'
+      - '.github/workflows/reflect-xai-readiness.yml'
+      - 'src/api/geminiService.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-provider-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test old consent, validation and quota policy
+        run: node --test server/ai/policy.test.cjs
+      - name: Test xAI Responses API contract on synthetic fixtures only
+        env:
+          REFLECT_XAI_FIXTURES_ONLY: 'yes'
+        run: node --test server/ai/xaiContract.test.cjs
+      - name: Prove no active provider transport or client model integration
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const xai = fs.readFileSync('server/ai/xaiContract.cjs', 'utf8');
+          const browser = fs.readFileSync('src/api/geminiService.js', 'utf8');
+          const callable = fs.readFileSync('tests/ai-stage04c/functions/index.js','utf8');
+          if (!/^export const AI_SESSION_ENABLED = false;$/m.test(browser) ||
+              !callable.includes('createMockCallable') ||
+              callable.includes('xaiContract') ||
+              !xai.includes('REFLECT_XAI_FIXTURES_ONLY') ||
+              /(?:globalThis\.)?fetch\s*\(/.test(xai) ||
+              /process\.env\.XAI_API_KEY/.test(xai)) {
+            throw new Error('External xAI network use, secret or client AI guard changed');
+          }
+          console.log('PASS: xAI synthetic fixtures only; no real API key or network request');
+          NODE
