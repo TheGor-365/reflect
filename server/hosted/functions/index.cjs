@@ -2,7 +2,7 @@
 
 /**
  * Stage04G: deployable ONLY to an explicitly approved separate
- * reflect-ai-stage-* Firebase project. No production or demo fallback.
+ * reflect-ai-staging (or explicitly approved reflect-ai-stage-*) project. No production or demo fallback.
  * Do not enable or deploy until the owner has configured a real signed
  * App Check web app, spending limits and a separate secret.
  */
