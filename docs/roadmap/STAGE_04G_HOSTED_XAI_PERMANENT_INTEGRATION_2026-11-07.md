@@ -24,8 +24,9 @@ This is NOT the permanent integration architecture.
 3. A Functions v2 onCall function enforces App Check, consumes the limited-use
    token, requires Firebase Auth, checks the registered staging app ID, and
    binds the server-only REFLECT_XAI_KEY via Firebase Secret Manager.
-   It fails closed unless the actual project matches a separate approved
-   reflect-ai-stage-* ID AND REFLECT_AI_ENABLED=yes.
+   It fails closed unless the actual project matches the approved
+   reflect-ai-staging ID (or an explicit isolated reflect-ai-stage-* fixture)
+   AND REFLECT_AI_ENABLED=yes.
 4. The durable Firestore server-only ledger atomically reads a kill switch,
    user/day and project/day limits and a never-expiring hashed request ID.
    Failing/time-out requests keep their budget reservation; the same request
@@ -48,8 +49,8 @@ Manager may charge Google Cloud separately from existing xAI credits.
 
 ## Owner-owned staging deployment prerequisites
 
-Use a NEW Firebase project with a verified ID matching reflect-ai-stage-*,
-not the current live/Test project. Enable Auth, Firestore, Cloud Functions
+Use the NEW, owner-created Firebase project with ID reflect-ai-staging,
+not the current live/Test project reflect-8fdc8. Enable Auth, Firestore, Cloud Functions
 billing where required and register the intended staging Web App with real
 reCAPTCHA Enterprise App Check. Confirm GCP billing and roles before deploy.
 
@@ -62,7 +63,7 @@ Create locally in server/hosted/functions, never in Git, an environment
 file named .env.<STAGING_PROJECT_ID> containing:
 
     REFLECT_AI_ENABLED=yes
-    REFLECT_AI_APPROVED_PROJECT=<STAGING_PROJECT_ID>
+    REFLECT_AI_APPROVED_PROJECT=reflect-ai-staging
     REFLECT_AI_APP_CHECK_APP_ID=<REGISTERED_FIREBASE_WEB_APP_ID>
 
 Then only AFTER the owner approves this exact staging project and potential
@@ -81,7 +82,7 @@ For a separate Vercel Preview (not production), set these PUBLIC variables:
     VITE_APP_ID=reflect-8fdc8
     VITE_USE_FIREBASE_EMULATORS=false
     VITE_ENABLE_REFLECT_CLOUD_AI=true
-    VITE_AI_STAGING_PROJECT_ID=<STAGING_PROJECT_ID>
+    VITE_AI_STAGING_PROJECT_ID=reflect-ai-staging
     VITE_APP_CHECK_SITE_KEY=<PUBLIC_RECAPTCHA_ENTERPRISE_SITE_KEY>
 
 Register the Preview site as an App Check-approved domain and authorize it
@@ -137,3 +138,32 @@ Official sources:
 https://firebase.google.com/docs/cli
 https://firebase.google.com/docs/app-check/web/recaptcha-enterprise-provider
 https://firebase.google.com/docs/app-check/cloud-functions
+
+## Confirmed Firebase Console setup — 2026-11-07
+
+The owner provided the Firebase Console **created-project-ready** screen
+and the Reflect AI Staging Project Overview. The browser URL independently
+shows the exact real Project ID **reflect-ai-staging**, currently on
+**Spark**. Its overview displays **Add app**, with no web app shown yet.
+Do not recreate this project. The original project **reflect-8fdc8**
+and unrelated **ilab-343511** must remain untouched.
+
+Compatibility fix in this stacked Draft accepts this exact Project ID in
+the React staging gate and in the Node hosted server budget allowlist,
+while retaining explicit server environment verification and rejecting
+the original project. The isolated fixture project still works.
+
+**Next one user action:** on this new staging project's overview, click
+**Add app → Web (</>)**; register nickname **Reflect AI Staging Web**,
+leave the optional **Firebase Hosting** checkbox off, and click
+**Register app**. Then note the Firebase Web App ID (typically
+1:...:web:...), not the xAI key; do not publish or paste secrets.
+Create no Cloud Functions deployment or billing link in this step.
+
+Cloud Functions requires Blaze; the owner has not approved independent
+GCP charges yet. Later: Auth/Firestore, real signed App Check
+reCAPTCHA Enterprise, host allowlist, staging rules, server Secret
+Manager binding, transactional kill switch, Preview deployment and live QA.
+
+Official setup: https://firebase.google.com/docs/web/setup
+Firebase Cloud Functions pricing: https://firebase.google.com/docs/functions/quotas
