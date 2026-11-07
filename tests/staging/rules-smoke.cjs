@@ -120,14 +120,97 @@ async function main() {
   verify("profile deletion denied", await operation(profile, "DELETE", alice.token), 403);
   verify("unknown nested path denied", await operation(root + "goals/one/private/another",
     "PATCH", alice.token, { text: str("Synthetic") }), 403);
+  // The owner archive has zero mood/goal/session documents. These cases
+  // exercise the actual write-shapes from the app, not uninspected owner data.
+  // The current candidate intentionally gates these collections by UID only.
+  const time = { timestampValue: "2026-11-07T00:00:00Z" };
+  const arr = values => ({ arrayValue: { values } });
+  const map = fields => ({ mapValue: { fields } });
+  const yes = value => ({ booleanValue: value });
+  const integer = value => ({ integerValue: String(value) });
+
+  const moodId = root + "moods/synthetic-mood";
+  verify("mood real UI shape creates", await operation(moodId, "PATCH",
+    alice.token, {
+      mood: str("neutral"), intensity: integer(3),
+      comment: str("Synthetic"), createdAt: time
+    }), 200);
+  verify("owner reads mood", await operation(moodId, "GET", alice.token), 200);
+  verify("mood update preserves unrelated fields", await operation(moodId, "PATCH",
+    alice.token, { comment: str("Synthetic updated") }, ["comment"]), 200);
+  verify("other UID cannot read mood", await operation(moodId, "GET", bob.token), 403);
+  verify("other UID cannot update mood", await operation(moodId, "PATCH",
+    bob.token, { comment: str("unauthorized") }, ["comment"]), 403);
+  verify("anonymous cannot read mood", await operation(moodId), 403);
+  verify("other UID cannot delete mood", await operation(moodId, "DELETE", bob.token), 403);
+  verify("owner deletes own mood", await operation(moodId, "DELETE", alice.token), 200);
+  verify("deleted mood no longer exists", await operation(moodId, "GET", alice.token), 404);
+
+  const goalId = root + "goals/synthetic-goal";
+  const goalFields = {
+    text: str("Synthetic plan"), purpose: str("Synthetic purpose"),
+    type: str("checklist"), status: str("active"), completed: yes(false),
+    subItems: arr([map({ id: str("step-1"), text: str("Synthetic step"),
+      completed: yes(false) })]), reflections: arr([]), postponeCount: integer(0),
+    createdAt: time
+  };
+  verify("goal real create shape accepted", await operation(goalId, "PATCH",
+    alice.token, goalFields), 200);
+  verify("goal owner reads", await operation(goalId, "GET", alice.token), 200);
+  verify("goal pause status mutation accepted", await operation(goalId, "PATCH",
+    alice.token, { status: str("paused"), completed: yes(false) },
+    ["status", "completed"]), 200);
+  verify("goal subtask progress accepted", await operation(goalId, "PATCH",
+    alice.token, { subItems: arr([map({ id: str("step-1"),
+      text: str("Synthetic step"), completed: yes(true) })]) }, ["subItems"]), 200);
+  verify("other UID cannot read goal", await operation(goalId, "GET", bob.token), 403);
+  verify("other UID cannot change goal", await operation(goalId, "PATCH",
+    bob.token, { status: str("completed") }, ["status"]), 403);
+  verify("anonymous cannot read goal", await operation(goalId), 403);
+  verify("other UID cannot delete goal", await operation(goalId, "DELETE", bob.token), 403);
+  verify("owner can delete goal", await operation(goalId, "DELETE", alice.token), 200);
+
+  const sessionId = root + "sessions/synthetic-session";
+  const sessionHistory = arr([
+    map({ role: str("user"), content: str("Synthetic text"), id: str("user-msg") }),
+    map({ role: str("assistant"), content: str("Synthetic reply"), id: str("asst-msg") })
+  ]);
+  verify("session history create accepted", await operation(sessionId, "PATCH",
+    alice.token, {
+      title: str("Synthetic session"), chatHistory: sessionHistory,
+      recommendations: arr([]), exercises: arr([]), createdAt: time
+    }), 200);
+  verify("owner reads session", await operation(sessionId, "GET", alice.token), 200);
+  verify("owner appends to session history", await operation(sessionId, "PATCH",
+    alice.token, { chatHistory: arr([
+      ...sessionHistory.arrayValue.values,
+      map({ role: str("user"), content: str("Follow-up"), id: str("followup") })
+    ]) }, ["chatHistory"]), 200);
+  verify("other UID cannot read session", await operation(sessionId, "GET", bob.token), 403);
+  verify("other UID cannot edit session", await operation(sessionId, "PATCH",
+    bob.token, { title: str("Unauthorized") }, ["title"]), 403);
+  verify("anonymous cannot read session", await operation(sessionId), 403);
+  verify("other UID cannot delete session", await operation(sessionId, "DELETE", bob.token), 403);
+  verify("owner deletes session", await operation(sessionId, "DELETE", alice.token), 200);
+
+  // Legacy compatibility, not strict validation: document the intentionally
+  // open schema for these three collections until real owner audit data exists.
   for (const collection of ["moods", "goals", "sessions"]) {
-    const name = root + collection + "/synthetic";
-    verify("legacy-compatible " + collection, await operation(name, "PATCH",
-      alice.token, { legacyField: str("Synthetic") }), 200);
-    verify("cross-UID " + collection + " blocked",
+    const name = root + collection + "/synthetic-legacy";
+    verify("UID-only legacy compatibility remains for " + collection,
+      await operation(name, "PATCH", alice.token, {
+        legacyField: str("Synthetic")
+      }), 200);
+    verify("legacy " + collection + " is isolated from other UID",
       await operation(name, "GET", bob.token), 403);
   }
-  console.log("PASS: isolated staging-only Rules matrix, no live Firebase access");
+  verify("different namespace goals denied", await operation(
+    "artifacts/different-app/users/" + alice.uid + "/goals/forbidden",
+    "PATCH", alice.token, { text: str("Synthetic") }), 403);
+  verify("nested goals path denied", await operation(
+    goalId + "/nested/forbidden", "PATCH", alice.token,
+    { text: str("Synthetic") }), 403);
+  console.log("PASS: isolated UID-scoped mood/goal/session CRUD and legacy compatibility");
 }
 main().catch(error => {
   console.error("Staging Rules test failed:", error.message);
