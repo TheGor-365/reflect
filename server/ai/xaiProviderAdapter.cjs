@@ -14,6 +14,7 @@
  * NEVER import this module from src/ or expose it as a public route.
  */
 const { PolicyError } = require("./policy.cjs");
+const { readProviderCharge } = require("./xaiCost.cjs");
 const {
   MODEL, ENDPOINT, createSyntheticXaiRequest, extractXaiText,
   estimatePublishedUsd
@@ -156,8 +157,13 @@ function createXaiProviderAdapter({
       fail("invalid-provider-response");
     }
     const parsed = extractXaiText(payload);
+    // Provider-reported receipt is authoritative when available; the
+    // published token-rate projection is informational, never a charge.
+    // A missing receipt remains null, never $0 or an estimated debit.
+    const charge = readProviderCharge(payload.usage);
     return Object.freeze({
       model: MODEL,
+      ...charge,
       text: parsed.text,
       usage: parsed.usage,
       estimatedUsdFromPublishedRates: estimatePublishedUsd(
