@@ -1,4 +1,4 @@
-import { formatSmokeFailure } from './XaiDevSmoke';
+import { formatSmokeFailure, formatActualCost } from './XaiDevSmoke';
 
 test('shows upstream xAI status separately from local proxy 502', () => {
   const value = formatSmokeFailure(502, {
@@ -36,5 +36,25 @@ test('does not invent a provider status for transport errors or malformed payloa
     expect(value).toContain('Локальный proxy: HTTP 502');
     expect(value).not.toContain('Статус xAI upstream');
     expect(value).not.toContain('KEY=PRIVATE');
+  }
+});
+
+test('shows exact xAI cost only if receipt matches provider ticks', () => {
+  const result = formatActualCost({ actualUsdTicks: 1_585_000, actualUsd: 0.0001585 });
+  expect(result).toContain('0.00015850');
+  expect(result).toContain('Фактическая стоимость xAI');
+});
+
+test('unknown, malformed, inconsistent or missing provider cost is not labelled free', () => {
+  for (const payload of [
+    {}, null, { actualUsdTicks: null, actualUsd: null },
+    { actualUsdTicks: '0', actualUsd: 0 },
+    { actualUsdTicks: 100, actualUsd: 0 },
+    { actualUsdTicks: -1, actualUsd: 0 },
+    { actualUsdTicks: 1, actualUsd: Infinity }
+  ]) {
+    const label = formatActualCost(payload);
+    expect(label).toContain('не подтверждена');
+    expect(label).not.toContain('стоимость xAI: $0');
   }
 });
