@@ -1,0 +1,41 @@
+name: Reflect Stage04 AI server policy contract
+
+on:
+  pull_request:
+    paths:
+      - 'server/ai/**'
+      - 'src/api/geminiService.js'
+      - '.github/workflows/reflect-ai-contract-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  security-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact PR
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate server-only input and budget gates
+        run: node --test server/ai/policy.test.cjs
+      - name: Confirm real AI traffic remains disabled in browser
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const code = fs.readFileSync('src/api/geminiService.js', 'utf8');
+          if (!/^export const AI_SESSION_ENABLED = false;$/m.test(code) ||
+              !code.includes('getAnalysisFromAI')) {
+            throw new Error('Client AI disabled guard changed without approval');
+          }
+          const policy = fs.readFileSync('server/ai/policy.cjs', 'utf8');
+          if (/require\(['"](?:firebase-admin|firebase-functions|@google\/generative-ai|openai)['"]\)/.test(policy)) {
+            throw new Error('AI contract must remain provider-neutral and non-deployable');
+          }
+          console.log('PASS: no enabled browser AI or provider integration');
+          NODE
