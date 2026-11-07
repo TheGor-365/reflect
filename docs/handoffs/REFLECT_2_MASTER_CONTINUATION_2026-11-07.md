@@ -257,3 +257,11 @@ npm run dev -- --strictPort
 - **Not yet delivered:** real signed Firebase App Check staging, server-side USD spending limits, irreversible idempotency/reservation design, production secret binding, per-message consent UI and live Grok answer. Mock quota and synthetic tests do not prove these.
 - **First live Stage04E error still unresolved:** proxy HTTP502 is known; xAI 'providerHttpStatus' and cost after the attempt unknown. Need original Chrome Network Response or xAI Console Logs, plus current Billing/Usage screenshot. Never rerun paid call without explicit new owner approval. Keep old local key and QA worktree untouched.
 - **Production:** blocked, no main merge or deployment. No claim that Google Drive Markdown has been updated; only GitHub branch document changes until separately verified.
+
+
+### Stage04F verification, exact head 293f195 — 2026-11-07
+
+- **Draft PR #34:** https://github.com/TheGor-365/reflect/pull/34 — base #33; no merge or deployment. Current code HEAD before this docs-only checkpoint: '293f195c9bd562f96b64f16198eb47a7ec068733'.
+- **All four triggered checks SUCCESS** for that exact commit: Stage04F adapter fixture+frontend+typecheck+build https://github.com/TheGor-365/reflect/actions/runs/42395112239; Stage04A pure policy, Stage04B isolated Firestore atomic quota, Stage04C Firebase v2 callable emulator. The first Stage04F run had a synthetic abort-test watchdog error; fixed in '293f195', retested green.
+- **Not proven:** successful provider response, exact upstream HTTP code for first paid smoke, saved billing constraints, signed App Check staging, deployed Secret Manager, real money cap. Root cause of original 502 is still blocked on evidence.
+- **Owner next single action:** recover existing first Chrome 'Network -> smoke -> Response' safe JSON containing 'providerHttpStatus', or provider key 'Reflect-dev' Logs around the prior test. Do not send headers, key or journal. **Do not restart localhost one-shot or submit another paid request.**
