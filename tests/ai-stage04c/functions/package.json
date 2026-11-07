@@ -1,0 +1,14 @@
+{
+  "name": "reflect-stage04c-functions-emulator-only",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Disposable Firebase Functions v2 callable; never deploy to a cloud project",
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "dependencies": {
+    "firebase-admin": "13.4.0",
+    "firebase-functions": "7.4.0"
+  }
+}

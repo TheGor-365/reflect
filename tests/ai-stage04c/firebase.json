@@ -1,0 +1,28 @@
+{
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "reflect-stage04c"
+    }
+  ],
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "emulators": {
+    "auth": {
+      "host": "127.0.0.1",
+      "port": 19097
+    },
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 19083
+    },
+    "functions": {
+      "host": "127.0.0.1",
+      "port": 19005
+    },
+    "ui": {
+      "enabled": false
+    }
+  }
+}
