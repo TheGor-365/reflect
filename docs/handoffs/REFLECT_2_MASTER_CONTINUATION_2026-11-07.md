@@ -498,3 +498,11 @@ npm run dev -- --strictPort
 - Next stage: create isolated Cloud Firestore **Standard edition**, database **(default)**, **Production mode** (deny initial client access), with **us-central1 regional location** to co-locate the current hosted Functions v2 region. Database location is immutable. Test mode is unsafe for a private diary because it permits public database access. Do NOT create new records, set public rules, or touch `reflect-8fdc8`.
 - Firebase Spark plan remains the last observed billing tier. Cloud Function deployment and xAI secret binding still await separate Blaze/GCP billing review and owner approval.
 - Source: owner screenshot in this chat; no connected console changes were performed by the assistant. GitHub master updated, Drive mirror not confirmed synced.
+
+
+### 2026-11-07 Firestore database (default) created — screenshot evidence
+
+- Owner's Firebase Console screenshot in this conversation displays project **Reflect AI Staging** `reflect-ai-staging`, **Firestore → Data**, database **(default)** with empty collections and text "Your database is ready to go. Just add data." Billing plan shown **Spark**. This establishes the database exists, but not its stored region, currently published Security Rules or backup setting. The previous wizard had `nam5 (United States)` selected; the final database location is NOT independently revalidated on the Data screenshot.
+- Repo file `server/hosted/firestore.rules` in Draft PR #35 contains staging-specific UID-scoped read/write access to `artifacts/reflect-8fdc8/users/{uid}/...`, deny-all on `_reflectAiPrivate`, and deny-all catchall. Do not confuse the app namespace `reflect-8fdc8` (intentional shared collection name) with the actual **staging project ID** `reflect-ai-staging`; no data is shared between Firebase projects.
+- **Next owner action:** on `reflect-ai-staging` only, open Firestore → Rules, replace starter deny-all with the exact vetted `server/hosted/firestore.rules` code, **Publish**, then screenshot deployed rules. Never apply to the original `reflect-8fdc8` Firebase project. Existing data should remain empty.
+- Still unverified: rules publication, App Check registration, staging Cloud Functions/Secret Manager, Blaze/GCP budget approval and live provider reply. No claims of backend deployment or billing changes.
