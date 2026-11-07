@@ -530,3 +530,32 @@ npm run dev -- --strictPort
   `1:599679789981:web:d4d8743dbff0fe40af1d74`.
 - No change was performed in owner production Firebase
   `reflect-8fdc8`; no new provider request or secret exposure.
+
+
+### 2026-11-08 App Check registered (owner screenshots)
+
+- Firebase Console project `reflect-ai-staging` → App Check → Apps:
+  `Reflect AI Staging Web` now shows **Fraud Defense / Registered**,
+  green check. The previous screenshot showed the owner-entered public
+  reCAPTCHA Enterprise Site Key and default **1 hour** token TTL before
+  saving. This proves **App Check registration**, not real signed token
+  delivery from a published site nor enforced API gate.
+- The site key is publicly configured via
+  `VITE_APP_CHECK_SITE_KEY` in an isolated staging build; the xAI
+  secret must never enter any frontend variable. The React code already
+  calls `initializeAppCheck` with `ReCaptchaEnterpriseProvider`
+  only after matching approved staging project.
+- **Next owner-owned, no-billing step:** open **Hosting & Serverless →
+  Hosting → Get started** in the NEW project, check/create the default
+  Hosting site and verify its actual `.web.app` domain. Firebase
+  projects created after Oct 15 2026 defer default Hosting site
+  creation; do not assume site ID or blindly change another site.
+  Official reference:
+  https://firebase.google.com/docs/hosting/default-site .
+  Do not paste generic npm/Firebase CLI commands over the existing
+  React code, and do not deploy yet.
+- **No App Check Enforcement yet** until real signed tokens are
+  observed; Firebase Auth Anonymous, Firestore default and staging
+  security rules were already confirmed in this chat. Functions v2
+  deployment still requires separate Blaze/GCP billing approval;
+  no deployment/paid xAI request or production changes made.
