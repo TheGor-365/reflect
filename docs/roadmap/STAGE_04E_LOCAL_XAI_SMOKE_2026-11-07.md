@@ -94,3 +94,15 @@ Open `http://127.0.0.1:3100`, navigate **Сеансы → Новый сеанс 
 - Limits of this prototype: loopback + fixed synthetic text is appropriate for one local developer proof, not a multi-user or public AI API. It has no user Firebase auth at the smoke endpoint, no cloud billing ceiling, no full server Secret Manager and no persistent global budget; do not deploy or expose it.
 
 **Acceptance still pending:** owner must run the local app with their locally stored secret and report screenshot; no agent/CI holds the real key. CI only tests the synthetic network transport.
+
+## Addendum — 2026-11-07, first real xAI upstream failure
+
+Owner actually ran the isolated localhost workflow at code SHA `12ed13c`, accepted the one-shot synthetic paid attempt and saw `xai-http-error, HTTP 502` in React. This is the **proxy** HTTP 502; the upstream xAI status was already returned in JSON as `providerHttpStatus` but the original UI omitted it. No successful live xAI reply was observed. The team balance may have been charged; CI does not prove provider connectivity.
+
+A follow-up Draft change displays `Локальный proxy: HTTP 502` **separately** from `Статус xAI upstream: HTTP NNN`, but only when the server reports a bounded integer for `xai-http-error`. Unknown error codes and provider-body content are never rendered. Synthetic frontend and local HTTP status-matrix regression tests do not issue paid calls. Server wire request and one-shot lock remain unchanged.
+
+**Before any second paid call:** recover the **existing** first request in Chrome DevTools Network → `smoke` → Response (only safe fields; never Request Headers), or xAI Console Logs around 19:05 Armenia local time. Obtain the actual provider status, and inspect key-scoped Usage + saved auto-top-up cap + separate invoiced spending limit. Do not recreate/rotate the existing key or automatically restart port 19107 to bypass the one-shot lock. Owner must explicitly approve a second fixed-synthetic paid request.
+
+Status codes are troubleshooting categories, not diagnoses: xAI's [debugging guide](https://docs.x.ai/developers/debugging) lists 400/422 input validation, 401 authentication, 403 authorization, 404 model/route, 429 rate limit and 5xx upstream failures. The documented [Responses API](https://docs.x.ai/developers/rest-api-reference/inference/responses) and [Grok 4.3](https://docs.x.ai/developers/models/grok-4.3) accept the current conceptual contract; a real provider response or console logs are required before changing request parameters or ACL.
+
+**Release status:** Stage04E live provider `BLOCKED`, Stage04F genuine signed App Check staging `NOT VERIFIED`, production rollout `BLOCKED`. No real key or personal diary text is in this repository.

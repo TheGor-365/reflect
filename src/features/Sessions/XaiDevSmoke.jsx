@@ -16,6 +16,37 @@ const localOnly = typeof window !== 'undefined' &&
   })();
 
 /**
+ * Display only bounded, known error codes and an upstream HTTP status.
+ * Never render the provider response body, key, headers or arbitrary payload.
+ * The local proxy's 502 is separate from xAI's own non-2xx status.
+ */
+const SAFE_SMOKE_ERRORS = new Set([
+  'xai-http-error',
+  'xai-transport-or-response-invalid',
+  'provider-response-too-large',
+  'one-shot-already-used',
+  'key-file-missing-or-unsafe',
+  'invalid-payload',
+  'intent-denied',
+  'origin-denied',
+  'not-found'
+]);
+
+export function formatSmokeFailure(proxyStatus, payload) {
+  const code = SAFE_SMOKE_ERRORS.has(payload?.error) ? payload.error : 'unavailable';
+  const providerStatus = payload?.providerHttpStatus;
+  const upstream = code === 'xai-http-error' &&
+    Number.isInteger(providerStatus) &&
+    providerStatus >= 100 && providerStatus <= 599 &&
+    (providerStatus < 200 || providerStatus >= 300)
+    ? ' Статус xAI upstream: HTTP ' + providerStatus + '.'
+    : '';
+  return 'Тест не выполнен (' + code + '). Локальный proxy: HTTP ' +
+    proxyStatus + '.' + upstream +
+    ' Повторный платный запрос не запускается автоматически.';
+}
+
+/**
  * LOCAL DEVELOPMENT DIAGNOSTIC ONLY:
  * - Does not read or send the user's text, journals, profile, session or UID.
  * - Only a fixed synthetic prompt is sent by localhost-only Node backend.
@@ -46,11 +77,7 @@ export default function XaiDevSmoke() {
       });
       const payload = await response.json();
       if (!response.ok) {
-        const safeCode = typeof payload?.error === 'string' ? payload.error : 'unavailable';
-        setResult({
-          error: 'Тест не выполнен (' + safeCode + ', HTTP ' + response.status + '). ' +
-            'Проверьте локальный сервер и xAI; повторный вызов требует его перезапуска.'
-        });
+        setResult({ error: formatSmokeFailure(response.status, payload) });
         return;
       }
       setResult({ success: payload });

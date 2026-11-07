@@ -171,3 +171,23 @@ test("health status is restricted to the local approved origin", async t => {
   assert.equal(data.ready, true);
   assert.equal(data.promptKind, "fixed-synthetic-only");
 });
+
+test("for all documented upstream error classes, proxy returns only HTTP status and never provider body", async t => {
+  for (const upstreamStatus of [400, 401, 403, 404, 422, 429, 500, 503]) {
+    const s = await setup(t, {
+      response: async () => new Response(
+        JSON.stringify({ error: "PRIVATE_PROVIDER_BODY_NOT_FOR_BROWSER" }),
+        { status: upstreamStatus }
+      )
+    });
+    const first = await s.send();
+    assert.equal(first.status, 502);
+    const exposed = await first.text();
+    assert.deepEqual(JSON.parse(exposed),
+      { error: "xai-http-error", providerHttpStatus: upstreamStatus });
+    assert.equal(exposed.includes("PRIVATE_PROVIDER_BODY_NOT_FOR_BROWSER"), false);
+    const second = await s.send();
+    assert.equal(second.status, 409);
+    assert.equal(s.calls(), 1);
+  }
+});

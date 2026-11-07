@@ -237,3 +237,12 @@ npm run dev -- --strictPort
 **Правило очистки:** удалять только **точно проверенные дубли/obsolete handoff** после того, как содержимое и работающие ссылки заменены и зафиксирован архив. Запрет на удаление уникальных backup, auditing, recoverability, consent или branch-history документов. Пользователь просил очистить неактуальные мастера, **но это не разрешение уничтожать единственный источник сведений об истории/доказательствах**. У других проектов (`Turbo Chat`, `Cafe`, `AI Course` и т. д.) свои мастера, их НЕ ТРОГАТЬ.
 
 **Итоговая цель пользователя:** продолжить существующую разработку Ref­lect 2.0 автоматически, с безопасной приватной памятью, реальным серверным Grok и корректными затратами. Никаких фиктивных «готово», скрытого релиза, сброса истории или повторной выдачи уже созданного ключа.
+
+---
+
+## CHECKPOINT — 2026-11-07, Stage04E diagnostic visibility
+
+- Latest source-of-truth PR #33 before this patch: Draft, stacked on #32; HEAD `d0ed8c4cf186754fa409eb08e986b1574e56e8c9`, **7/7 workflows SUCCESS**. Historical owner runtime at `12ed13c` had one real xAI upstream non-2xx response, reported as proxy HTTP 502. The actual xAI `providerHttpStatus` **is still unknown**. No second paid request was made.
+- New Draft patch: client renders the bounded upstream code separately from local proxy HTTP, accepts only a known diagnostic error code, does not display provider body. The server now has synthetic regression coverage for 400/401/403/404/422/429/500/503; frontend formatter has fixture tests. No provider request parameters, one-shot guard, Auth, Firebase data, production settings or secrets changed.
+- Root cause remains **BLOCKED ON EVIDENCE**: first Chrome `Network → smoke → Response` safe fields or xAI Console Logs, plus Usage/Billing and cap check. Don't ask for Request Headers, keys or private journal. Next paid synthetic attempt requires explicit new approval and no automation.
+- Official reference: https://docs.x.ai/developers/debugging and https://docs.x.ai/developers/rest-api-reference/inference/responses . Stage04F server-only adapter and real signed App Check staging remain future gates. This checkpoint does not certify a live Grok response or production readiness.
