@@ -37,7 +37,7 @@ const hostedAiRequested = import.meta.env.VITE_ENABLE_REFLECT_CLOUD_AI === 'true
 const approvedStage = import.meta.env.VITE_AI_STAGING_PROJECT_ID || '';
 const appCheckSiteKey = import.meta.env.VITE_APP_CHECK_SITE_KEY || '';
 export const hostedAiEnabled = hostedAiRequested && !emulatorMode &&
-  /^reflect-ai-stage-[a-z0-9-]{4,30}$/.test(approvedStage) &&
+  /^(?:reflect-ai-staging|reflect-ai-stage-[a-z0-9-]{4,30})$/.test(approvedStage) &&
   firebaseConfig.projectId === approvedStage &&
   appNamespace === 'reflect-8fdc8' &&
   typeof appCheckSiteKey === 'string' && appCheckSiteKey.length > 10;
