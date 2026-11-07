@@ -28,12 +28,16 @@ vi.mock('../../hooks/useEntrySave', () => ({
     status: 'idle', save: mocks.save, clearFeedback: mocks.clearFeedback
   })
 }));
-vi.mock('../../components/common/ProtectedDraftControls', () => ({
-  default: React.forwardRef(function StubDraft(_props, ref) {
-    React.useImperativeHandle(ref, () => ({ clearAfterCommit: mocks.clear }));
-    return <span>Protected draft retained</span>;
-  })
-}));
+vi.mock('../../components/common/ProtectedDraftControls', async () => {
+  const ReactModule = await import('react');
+  const R = ReactModule.default;
+  return {
+    default: R.forwardRef(function StubDraft(_props, ref) {
+      R.useImperativeHandle(ref, () => ({ clearAfterCommit: mocks.clear }));
+      return R.createElement('span', null, 'Protected draft retained');
+    })
+  };
+});
 const defaultProps = {
   sessions: [], profile: { privateMemo: 'NO_PROFILE_FOR_AI' },
   userId: 'demo-owner', currentSessionId: 'new',
