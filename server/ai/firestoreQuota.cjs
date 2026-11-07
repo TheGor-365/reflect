@@ -29,6 +29,9 @@ function createDemoFirestoreQuota(db) {
   assertIsolatedDemo();
   if (!db || typeof db.runTransaction !== "function" ||
       typeof db.collection !== "function") fail("invalid-storage");
+  // Environment variables alone are insufficient: a caller could inject a
+  // Firestore Admin client bound to another project. Fail closed.
+  if (db.projectId !== DEMO_PROJECT) fail("unsafe-environment");
   const root = db.collection("_reflectStage04B").doc(APP_NAMESPACE);
   const ownerKey = uid => hash("reflect-user\0" + uid);
   const ledgerKey = (uid, requestId) =>
