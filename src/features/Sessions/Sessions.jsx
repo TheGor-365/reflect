@@ -248,7 +248,7 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
                 <input type="checkbox" checked={consentForMessage}
                   disabled={isLoading}
                   onChange={event => setConsentForMessage(event.target.checked)} />
-                Разрешаю передать только текущий текст в Grok. История и дневник не отправляются.
+                Разрешаю передать только текущий текст в Grok. История и дневник не отправляются; xAI может хранить API-запрос и ответ до 30 дней.
               </label>
               {localMessages.length > 0 && (
                 <div className="reflect-ai-session-unsaved">
