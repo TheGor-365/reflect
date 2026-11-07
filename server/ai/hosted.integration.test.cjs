@@ -95,7 +95,7 @@ test("only explicit one-message consent, no history/model/profile accepted", asy
   for (const overrides of [
     { consent: { granted: false, scope: "one-message", version: CONSENT_VERSION } },
     { history: [MESSAGE] }, { model: "other" }, { uid: UID },
-    { message: "A".repeat(1400) },
+    { message: "A".repeat(2200) },
     { message: "😀".repeat(1000) }
   ]) {
     const id = unique();
