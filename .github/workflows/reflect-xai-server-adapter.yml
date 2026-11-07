@@ -1,0 +1,62 @@
+name: Reflect Stage04F server-only xAI adapter (no provider traffic)
+
+on:
+  pull_request:
+    paths:
+      - 'server/ai/**'
+      - 'docs/roadmap/STAGE_04F_SERVER_XAI_ADAPTER_2026-11-07.md'
+      - '.github/workflows/reflect-xai-server-adapter.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  server-adapter-fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      REFLECT_XAI_FIXTURES_ONLY: 'yes'
+      VITE_FIREBASE_CONFIG: '{"apiKey":"demo-only-key","authDomain":"demo-reflect-auth-qa.firebaseapp.com","projectId":"demo-reflect-auth-qa","appId":"1:12345:web:demo"}'
+      VITE_APP_ID: reflect-8fdc8
+      VITE_USE_FIREBASE_EMULATORS: 'true'
+      VITE_ENABLE_XAI_DEV_SMOKE: 'false'
+    steps:
+      - name: Checkout exact stacked Draft revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Provider adapter and upstream policy fixtures
+        run: |
+          node --test \
+            server/ai/xaiProviderAdapter.test.cjs \
+            server/ai/xaiCost.test.cjs \
+            server/ai/xaiContract.test.cjs \
+            server/ai/localXaiSmoke.test.cjs \
+            server/ai/policy.test.cjs
+      - name: No client key, production callable or deployed Firebase root
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const adapter = fs.readFileSync('server/ai/xaiProviderAdapter.cjs', 'utf8');
+          const frontend = fs.readFileSync('src/api/geminiService.js', 'utf8');
+          if (!/^export const AI_SESSION_ENABLED = false;$/m.test(frontend) ||
+              fs.existsSync('functions/index.js') || fs.existsSync('firebase.json') ||
+              !adapter.includes('readSecret') ||
+              !adapter.includes('redirect: "error"') ||
+              !adapter.includes('MAX_RESPONSE_BYTES') ||
+              adapter.includes('process.env.XAI_API_KEY') ||
+              adapter.includes('globalThis.fetch') ||
+              adapter.includes('console.log(')) {
+            throw new Error('Stage04F server-only boundary failed');
+          }
+          console.log('PASS: independent server-only adapter; no real provider call');
+          NODE
+      - name: Locked frontend suite, types, build
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run typecheck
+          npm run build

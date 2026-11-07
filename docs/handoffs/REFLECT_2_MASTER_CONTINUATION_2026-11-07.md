@@ -246,3 +246,125 @@ npm run dev -- --strictPort
 - New Draft patch: client renders the bounded upstream code separately from local proxy HTTP, accepts only a known diagnostic error code, does not display provider body. The server now has synthetic regression coverage for 400/401/403/404/422/429/500/503; frontend formatter has fixture tests. No provider request parameters, one-shot guard, Auth, Firebase data, production settings or secrets changed.
 - Root cause remains **BLOCKED ON EVIDENCE**: first Chrome `Network → smoke → Response` safe fields or xAI Console Logs, plus Usage/Billing and cap check. Don't ask for Request Headers, keys or private journal. Next paid synthetic attempt requires explicit new approval and no automation.
 - Official reference: https://docs.x.ai/developers/debugging and https://docs.x.ai/developers/rest-api-reference/inference/responses . Stage04F server-only adapter and real signed App Check staging remain future gates. This checkpoint does not certify a live Grok response or production readiness.
+
+
+---
+
+## CHECKPOINT — 2026-11-07, Stage04F server-only adapter draft
+
+- **Dependency:** PR #33, exact parent HEAD 'ea374013b343462557aa9a05d300fc464eabb084', 7/7 successful CI. New Stage04F implementation is on branch 'work/reflect-stage04f-server-xai-adapter-2026-11-07', stacked on #33 (not 'main').
+- **New code:** 'server/ai/xaiProviderAdapter.cjs' with explicitly injected transport and credential reader; fixed xAI model/endpoint, strict one-message contract, reasoning none, 20s timeout, 96KiB streamed response limit, redacted upstream/transport errors and **no automatic retries**. New 'xaiProviderAdapter.test.cjs' fixture tests, isolated Actions workflow and 'docs/roadmap/STAGE_04F_SERVER_XAI_ADAPTER_2026-11-07.md' technical gate. No secret manager provisioning, production callable, network calls or private data.
+- **Not yet delivered:** real signed Firebase App Check staging, server-side USD spending limits, irreversible idempotency/reservation design, production secret binding, per-message consent UI and live Grok answer. Mock quota and synthetic tests do not prove these.
+- **First live Stage04E error still unresolved:** proxy HTTP502 is known; xAI 'providerHttpStatus' and cost after the attempt unknown. Need original Chrome Network Response or xAI Console Logs, plus current Billing/Usage screenshot. Never rerun paid call without explicit new owner approval. Keep old local key and QA worktree untouched.
+- **Production:** blocked, no main merge or deployment. No claim that Google Drive Markdown has been updated; only GitHub branch document changes until separately verified.
+
+
+### Stage04F verification, exact head 293f195 — 2026-11-07
+
+- **Draft PR #34:** https://github.com/TheGor-365/reflect/pull/34 — base #33; no merge or deployment. Current code HEAD before this docs-only checkpoint: '293f195c9bd562f96b64f16198eb47a7ec068733'.
+- **All four triggered checks SUCCESS** for that exact commit: Stage04F adapter fixture+frontend+typecheck+build https://github.com/TheGor-365/reflect/actions/runs/42395112239; Stage04A pure policy, Stage04B isolated Firestore atomic quota, Stage04C Firebase v2 callable emulator. The first Stage04F run had a synthetic abort-test watchdog error; fixed in '293f195', retested green.
+- **Not proven:** successful provider response, exact upstream HTTP code for first paid smoke, saved billing constraints, signed App Check staging, deployed Secret Manager, real money cap. Root cause of original 502 is still blocked on evidence.
+- **Owner next single action:** recover existing first Chrome 'Network -> smoke -> Response' safe JSON containing 'providerHttpStatus', or provider key 'Reflect-dev' Logs around the prior test. Do not send headers, key or journal. **Do not restart localhost one-shot or submit another paid request.**
+
+
+### Owner xAI Console Logs screenshot — 2026-11-07, same first Stage04E test
+
+- A **single matching xAI Chat log row** at browser-shown 19:05:30,
+  model 'grok-4.3', temperature ~0.7, max 128 output tokens,
+  identical Reflect system instruction. Right panel visibly states
+  **Response · Completed**; the rendered response section is empty.
+- **Evidence classification:** request reached xAI and provider recorded
+  completed generation. Exact upstream HTTP status, response payload,
+  actual cost/token usage, client delivery and billing controls **remain
+  unverified**. Do not interpret 'Completed' as proof of HTTP 200.
+  Original old localhost UI showed 'xai-http-error, HTTP 502'; the local
+  gateway emitted that error for an upstream non-2xx response. No safe
+  root-cause fix can be selected yet.
+- **Next owner action:** on the existing log entry select the **Raw**
+  tab (not the browser Request Headers); share a **redacted screenshot**
+  showing HTTP/result status and usage if available, never key/token,
+  sensitive content or other apps. If not visible, look at Usage and
+  the old 'Network → smoke → Response' if retained.
+- Draft Stage04F implementation remains stacked PR #34, no real
+  provider calls or production deploy. Source screenshot preserved in
+  this chat only; no raw image, key ID or request ID uploaded to GitHub.
+
+
+### Stage04F cost receipt + Raw xAI log checkpoint — 2026-11-07
+
+- **Owner evidence:** two screenshots on xAI Console 'Logs → Chat → Raw'
+  for the first 19:05:30 Reflect synthetic request. Visible
+  'logged.chat.request' has fixed Reflect system + test user prompt,
+  'grok-4.3', maxTokens 128, temperature ~0.7, topP ~0.95,
+  'TOOL_MODE_NONE', 'EFFORT_NONE' and
+  'historyStatus: HISTORY_STATUS_COMPLETE'. None of these fields
+  establishes upstream HTTP status or cost. Formatted view previously
+  showed 'Response · Completed' with empty output panel. The original
+  'xai-http-error, HTTP 502' from localhost remains **unresolved**.
+  No live re-test authorized, no second paid call made.
+- **New offline Stage04F code on PR #34:** 'server/ai/xaiCost.cjs'
+  parses exact billed 'usage.cost_in_usd_ticks' (10^10 ticks/USD);
+  unavailable receipt becomes **null, not free**. The
+  'xaiProviderAdapter.cjs' returns both independently labelled actual
+  charge and published-rate estimate. A pure integer USD-tick
+  'planMoneyReservation' verifies server-supplied per-call/owner/global
+  limits; no storage write or spending authorization is done. Synthetic
+  test 'server/ai/xaiCost.test.cjs', adapter receipt tests and Stage04F
+  CI are included. Official source:
+  https://docs.x.ai/developers/cost-tracking (2026-11-07).
+- **Important gate:** actual production hard cap awaits a real durable
+  transactional server store with per-owner/global money reservation,
+  idempotency ledger, crash reconciliation, authenticated per-message
+  consent, genuine App Check staging and provider-side controls.
+  No auto-retry, no private journal, no live provider call, no secret
+  provisioning, no main merge/deploy in this stage.
+- **Next owner action:** xAI Console Usage for Nov 7, ideally grouped by
+  Reflect-dev key, screenshot with USD cost/request information; also
+  verify saved Auto top-up and invoiced spending limit on Billing.
+  Existing Chrome Network original 'smoke' response, if preserved, is
+  the only direct source for the prior 'providerHttpStatus'. Do not
+  publish API Key ID, secrets or other application logs.
+- **Drive mirror:** not confirmed updated; use the latest GitHub PR #34
+  handoff as the source of truth for this checkpoint.
+
+
+### Owner xAI Usage screenshots — 2026-11-07 around 20:41–20:42 Yerevan
+
+- Owner supplied **two** xAI Console 'Usage' screenshots, selected window
+  **Nov 1–Nov 7, 2026**, 'Group by API Type', 'Granularity Day'.
+  **All keys:** Spend '$0.00', Tokens '0', Requests '0'.
+  **Filter to the same Reflect-dev API Key ID shown in the 19:05:30
+  log:** Spend '$0.00', Tokens '0', Requests '0'. Bottom-left displayed
+  remaining prepaid balance '$8.64' on both screenshots.
+- Verified fact: **at the instant of these screenshots, Usage Explorer
+  reports zero spend, tokens, and requests for the selected period/key**.
+  This **contradicts the existence of a visible provider-side Chat log
+  record** for the first attempt. Do not resolve the mismatch by
+  speculation; the UI can have reporting differences/delay. Zero in
+  the explorer is **NOT** confirmed cost '$0' for the particular call,
+  and it is not proof that a completed answer reached the proxy.
+- Existing prior diagnostic: local one-shot 'xai-http-error, HTTP 502'
+  on original user-owned code revision. Real upstream HTTP status remains
+  **unknown**. No new paid call is authorized. The provider-side log's
+  'HISTORY_STATUS_COMPLETE' is a request log field, not an HTTP code.
+- **NEXT OWNER ACTION:** inspect **Billing → API spend management**
+  (API console billing, **not** separate Grok consumer subscription),
+  screenshot of saved **Auto top-up** state/amount/monthly cap and
+  monthly **invoiced billing limit** if exposed. Do not turn on, pay,
+  modify another key or disclose payment card information. Prefer OFF
+  for auto top-up and '$0' invoiced billing until signed-off tests,
+  but actual saved values are not yet confirmed. Official reference:
+  https://docs.x.ai/console/billing (accessed 2026-11-07).
+- Stage04F Draft #34 remains **fixture/CI-verified only**. No release,
+  new credential, Firebase data, provider call, production deployment
+  or claim of working Grok reply. Google Drive copy not synced.
+
+
+## CHECKPOINT — 2026-11-07, owner authorizes one live synthetic AI turn in app
+
+- Owner stated: 'у меня есть 8 долларов и автопополнение на 5, поехали, подключаем приложение и тестируем боевые функции'. Interpreted as consent to **one** user-initiated, bounded **synthetic** paid test, not unconditional payments, recurring auto top-up spending, production deployment, or actual diary transfer. xAI shared team balance screenshot shows $8.64, Usage Nov1–7 shows $0.00/0 tokens/0 requests despite provider Chat Logs showing one first attempt. **The first proxy HTTP502 upstream code is still unknown**. Any remaining limit settings are NOT verified.
+- Latest **code** checkpoint '4200bdcc0cded3aaa265fc337f54b6a3700fdb7c': **8/8 GitHub Actions SUCCESS**, including React/Vite, TS, isolated Auth browser QA, Stage04A/B/C safety tests, Stage04E localhost gateway, Stage04F adapter. No provider credentials in CI and no live paid API request made by this chat.
+- **In-app trial implementation** on Draft #34: 'server/ai/localXaiSmoke.cjs' now permits exactly three server-pinned *synthetic* scenarios (reflections, fictional daily tasks, workday clarity), never arbitrary browser text, history, diary or UID. The existing private local key file is reused, port remains 127.0.0.1:19107, one attempt per server process, no auto retry, 128 max output tokens, no tools. React Sessions' 'XaiDevSmoke.jsx' offers scenario selection and explicit one-request consent, displays real Grok reply, bounded upstream HTTP code on provider failure, token counts, and **actual** per-request 'cost_in_usd_ticks' if returned separately from estimated tariff. Unknown cost is labelled unknown, never '$0'. Unit/integration tests assert allowlist, replay lock, redaction and receipt.
+- **New owner Linux runbook:** 'docs/roadmap/STAGE_04F_LIVE_SYNTHETIC_SESSIONS_2026-11-07.md'. Use a **new** ~/reflect-stage34-live worktree from the PR34 Draft branch, preserve historic ~/reflect-stage33-qa and Firebase emulators, restart only the old localhost Node proxy + Vite ports 19107/3100 via their own terminal Ctrl+C, reuse existing private key outside the repo, then click once inside Sessions. CLI, emulator secrets and all user data remain on owner's machine. The one paid request can only be initiated by owner.
+- **NOT done / blocked:** a successful provider reply inside the app has NOT been confirmed; staging with real signed App Check/Auth, durable USD quota/ledger, cloud-bound Secret Manager, actual user message consent/persistence and full production AI remain future engineering gates. Do not re-enable 'AI_SESSION_ENABLED' or merge to 'main' until verified staging.
+- **Future handoff:** check latest PR34 HEAD CI and owner screenshot of successful reply OR safe error/status + xAI cost. Never ask for key, Auth headers, card data, private diary or secrets. Confirmed Google Drive master sync does **not** exist; GitHub remains the authoritative updated checkpoint.

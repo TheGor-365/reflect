@@ -14,6 +14,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { createSyntheticXaiRequest, extractXaiText, estimatePublishedUsd } =
   require("./xaiContract.cjs");
+const { readProviderCharge } = require("./xaiCost.cjs");
 
 const HOST = "127.0.0.1";
 const PORT = 19107;
@@ -21,6 +22,13 @@ const ORIGIN = "http://127.0.0.1:3100";
 const FIXED_PROMPT =
   "Это синтетический тест подключения Reflect. " +
   "Ответь ровно одним коротким предложением по-русски о пользе записи мыслей.";
+// Only allow these owner-visible, synthetic examples; arbitrary session text
+// and personal diary data are never accepted by the development proxy.
+const SYNTHETIC_SCENARIOS = Object.freeze({
+  reflection: FIXED_PROMPT,
+  priorities: "Это тестовое сообщение Reflect. Помоги выбрать первый маленький шаг между двумя вымышленными задачами: чтение и прогулка. Ответь одним коротким предложением на русском.",
+  clarity: "Это тестовое сообщение Reflect. Сформулируй один нейтральный вопрос для размышления о вымышленном рабочем дне, без психологических диагнозов."
+});
 const MAX_RESPONSE_BYTES = 96 * 1024;
 const CREDENTIAL_PATH = path.join(os.homedir(), ".config", "reflect", "keys", "reflect-dev");
 const RESPONSE_HEADERS = Object.freeze({
@@ -102,6 +110,7 @@ function makeLocalSmokeServer({
     }
     // Never accept arbitrary prompt, provider model, API key or history.
     const chunks = [];
+    let scenario = "reflection";
     let size = 0;
     try {
       for await (const chunk of req) {
@@ -110,11 +119,17 @@ function makeLocalSmokeServer({
         chunks.push(chunk);
       }
       const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-      if (!body || Object.keys(body).length !== 1 ||
-          body.confirm !== "synthetic-only") {
+      const keys = body && typeof body === "object" && !Array.isArray(body)
+        ? Object.keys(body).sort().join(",") : "";
+      if (body?.confirm !== "synthetic-only" ||
+          !["confirm", "confirm,scenario"].includes(keys) ||
+          (keys === "confirm,scenario" &&
+           (typeof body.scenario !== "string" ||
+            !Object.prototype.hasOwnProperty.call(SYNTHETIC_SCENARIOS, body.scenario)))) {
         json(res, 400, { error: "invalid-payload" });
         return;
       }
+      if (keys === "confirm,scenario") scenario = body.scenario;
     } catch {
       json(res, 400, { error: "invalid-payload" });
       return;
@@ -134,7 +149,7 @@ function makeLocalSmokeServer({
     }
     attempted = true; // never repeat ambiguous paid requests
     try {
-      const request = createSyntheticXaiRequest(FIXED_PROMPT);
+      const request = createSyntheticXaiRequest(SYNTHETIC_SCENARIOS[scenario]);
       const body = {
         ...request.body,
         max_output_tokens: 128,
@@ -170,13 +185,18 @@ function makeLocalSmokeServer({
         json(res, 502, { error: "provider-response-too-large" });
         return;
       }
-      const result = extractXaiText(JSON.parse(raw));
+      const payload = JSON.parse(raw);
+      const result = extractXaiText(payload);
+      const charge = readProviderCharge(payload.usage);
       outcome = "success";
       json(res, 200, {
         mode: "xai-live-local-synthetic-smoke",
+        scenario,
         model: "grok-4.3",
         reply: result.text,
         usage: result.usage,
+        actualUsdTicks: charge.actualUsdTicks,
+        actualUsd: charge.actualUsd,
         estimatedUsd: estimatePublishedUsd(
           result.usage.inputTokens, result.usage.outputTokens
         )
@@ -203,5 +223,5 @@ function runServer() {
 if (require.main === module) runServer();
 module.exports = {
   makeLocalSmokeServer, gateAllowed, readPrivateKey,
-  FIXED_PROMPT, CREDENTIAL_PATH, PORT, ORIGIN
+  FIXED_PROMPT, SYNTHETIC_SCENARIOS, CREDENTIAL_PATH, PORT, ORIGIN
 };

@@ -1,6 +1,25 @@
 import React, { useState } from 'react';
 
 const service = 'http://127.0.0.1:19107';
+const SYNTHETIC_TRIALS = Object.freeze([
+  { id: 'reflection', label: 'Зачем записывать мысли',
+    preview: 'Чем помогает запись мыслей?' },
+  { id: 'priorities', label: 'Планирование дня',
+    preview: 'Выбрать первый маленький шаг между вымышленными задачами' },
+  { id: 'clarity', label: 'Прояснение мысли',
+    preview: 'Один нейтральный вопрос о вымышленном рабочем дне' }
+]);
+
+export function formatActualCost(payload) {
+  const ticks = payload?.actualUsdTicks;
+  const usd = payload?.actualUsd;
+  if (!Number.isSafeInteger(ticks) || ticks < 0 ||
+      typeof usd !== 'number' || !Number.isFinite(usd) ||
+      Math.abs((ticks / 1e10) - usd) > 1e-10) {
+    return 'Фактическая стоимость xAI не подтверждена; отсутствие данных не означает $0.';
+  }
+  return 'Фактическая стоимость xAI: $' + (ticks / 1e10).toFixed(8) + '.';
+}
 const localOnly = typeof window !== 'undefined' &&
   window.location.hostname === '127.0.0.1' &&
   window.location.port === '3100' &&
@@ -55,6 +74,7 @@ export function formatSmokeFailure(proxyStatus, payload) {
  */
 export default function XaiDevSmoke() {
   const [approved, setApproved] = useState(false);
+  const [scenario, setScenario] = useState('reflection');
   const [busy, setBusy] = useState(false);
   const [tried, setTried] = useState(false);
   const [result, setResult] = useState(null);
@@ -72,7 +92,7 @@ export default function XaiDevSmoke() {
           'Content-Type': 'application/json',
           'X-Reflect-Smoke': 'explicit-one-shot'
         },
-        body: JSON.stringify({ confirm: 'synthetic-only' }),
+        body: JSON.stringify({ confirm: 'synthetic-only', scenario }),
         cache: 'no-store'
       });
       const payload = await response.json();
@@ -92,18 +112,28 @@ export default function XaiDevSmoke() {
 
   return (
     <details className="reflect-xai-local-diagnostic">
-      <summary>Тест Grok 4.3 · локальная разработка</summary>
+      <summary>Пробный AI-сеанс · реальный Grok 4.3 (локально)</summary>
       <div className="reflect-xai-local-diagnostic-body">
-        <p>Отправляется только фиксированная синтетическая фраза, не ваш дневник.
-          Возможен небольшой расход общего баланса xAI. Один запрос на запуск сервера.</p>
+        <p>Выберите один из трёх безопасных примеров. Отправляется только
+          заранее подготовленный синтетический текст — не ваши записи.
+          Возможен расход общего баланса xAI. Один запрос на запуск сервера,
+          без автоматических повторов и сохранения в дневник.</p>
+        <label htmlFor="reflect-synthetic-scenario">Тестовый сценарий</label>
+        <select id="reflect-synthetic-scenario" value={scenario}
+          disabled={busy || tried} onChange={event => setScenario(event.target.value)}>
+          {SYNTHETIC_TRIALS.map(item => (
+            <option key={item.id} value={item.id}>{item.label}</option>
+          ))}
+        </select>
+        <p>Пример: {SYNTHETIC_TRIALS.find(item => item.id === scenario)?.preview}</p>
         <label>
           <input type="checkbox" checked={approved}
             disabled={busy || tried}
             onChange={event => setApproved(event.target.checked)} />
-          Разрешаю один платный тест на синтетическом тексте
+          Разрешаю один реальный платный запрос на выбранном синтетическом примере
         </label>
         <button type="button" onClick={handleTest} disabled={!approved || busy || tried}>
-          {busy ? 'Проверяем подключение…' : tried ? 'Тест уже запущен' : 'Проверить Grok'}
+          {busy ? 'Отправляем пробный запрос…' : tried ? 'Запрос уже отправлен' : 'Получить ответ Grok'}
         </button>
         {result?.error && <p role="alert" className="reflect-xai-local-error">{result.error}</p>}
         {result?.success && (
@@ -111,10 +141,11 @@ export default function XaiDevSmoke() {
             <strong>Ответ Grok (не сохранён в дневник):</strong>
             <p>{result.success.reply}</p>
             <small>Модель: {result.success.model}. Токены: {result.success.usage?.inputTokens} вход /
-              {' '}{result.success.usage?.outputTokens} выход.
-              {' '}Оценка по базовому тарифу: {'$'}{Number(
-                result.success.estimatedUsd || 0
-              ).toFixed(5)}. Фактическое списание проверяйте в xAI Usage.</small>
+              {' '}{result.success.usage?.outputTokens} выход.</small>
+            <small>{formatActualCost(result.success)}</small>
+            <small>Оценка по базовому тарифу: {'$'}{Number(
+              result.success.estimatedUsd || 0
+            ).toFixed(6)}. Сверьте фактическую стоимость с xAI Usage.</small>
           </div>
         )}
       </div>

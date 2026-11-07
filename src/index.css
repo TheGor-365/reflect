@@ -2060,3 +2060,24 @@ html:has(.reflect-app[data-theme="light"])::-webkit-scrollbar-thumb {
   color: var(--reflect-ink);
 }
 .reflect-xai-local-success small { color: var(--reflect-muted); }
+
+/* Stage04F — owner-approved, synthetic-only local AI turn. */
+.reflect-xai-local-diagnostic-body select {
+  min-width: 0;
+  width: min(100%, 360px);
+  padding: 9px 11px;
+  border: 1px solid var(--reflect-border);
+  border-radius: 9px;
+  background: var(--reflect-bg);
+  color: var(--reflect-ink);
+  font: inherit;
+}
+.reflect-xai-local-diagnostic-body select:disabled { opacity: .6; }
+.reflect-xai-local-diagnostic-body select:focus-visible {
+  outline: 2px solid var(--reflect-accent);
+  outline-offset: 2px;
+}
+.reflect-xai-local-success small {
+  display: block;
+  margin-top: 5px;
+}

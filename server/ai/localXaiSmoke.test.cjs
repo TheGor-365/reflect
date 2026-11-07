@@ -3,7 +3,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { once } = require("node:events");
 const {
-  makeLocalSmokeServer, gateAllowed, FIXED_PROMPT, ORIGIN
+  makeLocalSmokeServer, gateAllowed, FIXED_PROMPT, SYNTHETIC_SCENARIOS, ORIGIN
 } = require("./localXaiSmoke.cjs");
 
 const ENV = {
@@ -190,4 +190,71 @@ test("for all documented upstream error classes, proxy returns only HTTP status 
     assert.equal(second.status, 409);
     assert.equal(s.calls(), 1);
   }
+});
+
+
+test("owner can select one preapproved synthetic scenario without sending arbitrary diary text", async t => {
+  const s = await setup(t);
+  const r = await s.send({
+    body: JSON.stringify({ confirm: "synthetic-only", scenario: "priorities" })
+  });
+  assert.equal(r.status, 200);
+  const value = await r.json();
+  assert.equal(value.scenario, "priorities");
+  assert.equal(JSON.parse(s.request().options.body).input[1].content,
+    SYNTHETIC_SCENARIOS.priorities);
+  assert.equal(s.calls(), 1);
+  const again = await s.send({
+    body: JSON.stringify({ confirm: "synthetic-only", scenario: "clarity" })
+  });
+  assert.equal(again.status, 409);
+  assert.equal(s.calls(), 1);
+});
+
+test("unknown scenario, secret prompt and forbidden extra fields cannot charge provider", async t => {
+  const s = await setup(t);
+  for (const body of [
+    { confirm: "synthetic-only", scenario: "arbitrary" },
+    { confirm: "synthetic-only", scenario: "__proto__" },
+    { confirm: "synthetic-only", scenario: "reflection", text: "private diary" },
+    { confirm: "synthetic-only", prompt: "private diary" },
+    { confirm: "synthetic-only", scenario: 12 },
+    { confirm: "synthetic-only", scenario: null }
+  ]) {
+    const response = await s.send({ body: JSON.stringify(body) });
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: "invalid-payload" });
+  }
+  assert.equal(s.calls(), 0);
+});
+
+test("actual xAI charged ticks and published-price estimate appear separately", async t => {
+  const s = await setup(t, {
+    response: async () => new Response(
+      JSON.stringify({
+        ...fixture,
+        usage: {
+          ...fixture.usage, cost_in_usd_ticks: 1_585_000
+        }
+      }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    )
+  });
+  const r = await s.send();
+  assert.equal(r.status, 200);
+  const value = await r.json();
+  assert.equal(value.actualUsdTicks, 1_585_000);
+  assert.equal(value.actualUsd, 0.0001585);
+  assert.equal(value.usage.inputTokens, 120);
+  assert.notEqual(value.actualUsd, value.estimatedUsd);
+});
+
+test("missing provider billable ticks remain unknown, not zero", async t => {
+  const s = await setup(t);
+  const r = await s.send();
+  assert.equal(r.status, 200);
+  const value = await r.json();
+  assert.equal(value.actualUsdTicks, null);
+  assert.equal(value.actualUsd, null);
+  assert.ok(value.estimatedUsd > 0);
 });
