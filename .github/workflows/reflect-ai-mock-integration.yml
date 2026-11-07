@@ -1,0 +1,59 @@
+name: Reflect Stage04B isolated mock AI transactions
+
+on:
+  pull_request:
+    paths:
+      - 'server/**'
+      - 'tests/ai/**'
+      - '.github/workflows/reflect-ai-mock-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-mock-ai:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      GCLOUD_PROJECT: demo-reflect-stage04b
+    steps:
+      - name: Checkout candidate exact commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Java 21 for Firestore emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install pinned emulator tooling
+        run: npm install -g firebase-tools@15.34.2 --no-audit --no-fund
+      - name: Install isolated server Admin SDK
+        run: npm install --prefix server --no-audit --no-fund
+      - name: Standalone AI input, consent and budget policy tests
+        run: node --test server/ai/policy.test.cjs
+      - name: Check browser AI remains OFF and no deployable Cloud Function exists
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const browser = fs.readFileSync('src/api/geminiService.js', 'utf8');
+          if (!/^export const AI_SESSION_ENABLED = false;$/m.test(browser)) {
+            throw new Error('Browser AI flag changed unexpectedly');
+          }
+          if (fs.existsSync('server/index.js') || fs.existsSync('server/index.cjs') ||
+              fs.existsSync('server/ai/index.js')) {
+            throw new Error('Stage04B may not expose a deployable Function entrypoint');
+          }
+          console.log('PASS: no browser model traffic and no deployable backend entrypoint');
+          NODE
+      - name: Atomic demo Auth and Firestore isolated integration
+        working-directory: tests/ai
+        run: |
+          firebase emulators:exec \
+            --config firebase.json \
+            --project demo-reflect-stage04b \
+            --only auth,firestore \
+            "node ../../server/ai/integration.test.cjs"
