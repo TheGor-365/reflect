@@ -19,7 +19,7 @@ const LIMITS_TICKS = Object.freeze({
   maxOwnerDayTicks: 500_000_000,   // $0.05 reserved / owner / UTC day
   maxGlobalDayTicks: 2_000_000_000 // $0.20 reserved / staging project / UTC day
 });
-const STAGING_ID = /^reflect-ai-stage-[a-z0-9-]{4,30}$/;
+const STAGING_ID = /^(?:reflect-ai-staging|reflect-ai-stage-[a-z0-9-]{4,30})$/;
 const fail = code => { throw new PolicyError(code); };
 const hash = value => createHash("sha256").update(value).digest("hex");
 const int = value => Number.isSafeInteger(value) && value >= 0;
