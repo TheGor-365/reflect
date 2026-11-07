@@ -5,7 +5,7 @@ const { createHash } = require("node:crypto");
 const admin = require("firebase-admin");
 const { createHostedHandler } = require("./hostedHandler.cjs");
 const { PolicyError, CONSENT_VERSION } = require("./policy.cjs");
-const { ROOT, NAMESPACE, LIMITS_TICKS } = require("./hostedBudget.cjs");
+const { ROOT, NAMESPACE, LIMITS_TICKS, STAGING_ID } = require("./hostedBudget.cjs");
 
 const PROJECT = "reflect-ai-stage-fixture01";
 const APP_ID = "1:12345:web:stagingfixture";
@@ -195,6 +195,14 @@ test("financial overspend receipt disables further new reservations", async () =
   assert.equal(result.model, "grok-4.3");
   assert.equal((await flag.get()).data().enabled, false);
   await assert.rejects(handler(ctx(unique())), denied("unavailable"));
+});
+
+test("owner-created staging project is allowed, production and unrelated projects remain denied", () => {
+  assert.equal(STAGING_ID.test("reflect-ai-staging"), true);
+  assert.equal(STAGING_ID.test("reflect-ai-stage-fixture01"), true);
+  for (const other of ["reflect-8fdc8", "ilab-343511", "demo-reflect-auth-qa", "", "reflect-ai-staging-extra"]) {
+    assert.equal(STAGING_ID.test(other), false);
+  }
 });
 
 test("wrong project fails closed before contacting Firestore", () => {
