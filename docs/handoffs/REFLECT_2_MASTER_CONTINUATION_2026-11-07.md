@@ -456,3 +456,13 @@ npm run dev -- --strictPort
   provider-side financial safeguards and subsequent production
   release review. GitHub master is current; the Drive Markdown
   mirror was not edited or verified during this turn.
+
+
+### 2026-11-07 Owner Firebase STAGING project created
+
+- Owner provided screenshots in this conversation: Firebase Console success page for **Reflect AI Staging** and its Project Overview URL, showing **actual Project ID reflect-ai-staging** and **Spark plan**. App registration button **Add app** visible; no registered staging Web App confirmed yet.
+- **Do not recreate the project.** Existing original Firebase project **reflect-8fdc8** and unrelated iLab **ilab-343511** unchanged.
+- Stage04G code compatibility fixed in the existing **Draft PR #35**: browser staging allowlist plus server STAGING_ID regex now accept exact **reflect-ai-staging**, while still rejecting the original production/Test project; isolated fixture stage remains allowed. Added regression coverage of allowed real stage and denied existing projects.
+- Owner's next safe **single** operation in console: **Add app → Web**, nickname **Reflect AI Staging Web**, do NOT enable optional Hosting, choose **Register app**, screenshot showing the registered app's name / App ID. No xAI API key or Firebase private key required, do not post web config if it contains identifiers they prefer to mask. This remains free Spark setup; no paid Firebase deployment yet.
+- **Cloud Functions v2 requires Blaze** and separate GCP billing. No credit, saved monthly spending limit, new invoice, Secret Manager binding, App Check, live model invocation or production deployment confirmed or authorized at this checkpoint. Stage04G code changes remain Draft only.
+- Updated technical runbook docs/roadmap/STAGE_04G_HOSTED_XAI_PERMANENT_INTEGRATION_2026-11-07.md with the real project ID. GitHub is authoritative; the Google Drive Markdown mirror has not been synced.
