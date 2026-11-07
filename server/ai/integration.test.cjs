@@ -39,6 +39,14 @@ const create = (options = {}) => createMockCallable({
   store, clock: () => NOW, ...options
 });
 
+test("injected Admin Firestore client must match isolated demo project", () => {
+  assert.throws(() => createDemoFirestoreQuota({
+    projectId: "some-other-project",
+    runTransaction: async () => {},
+    collection: () => {}
+  }), policyReason("unsafe-environment"));
+});
+
 test("Auth Emulator can recover and validate a real synthetic ID token; client cannot read quota", async () => {
   const response = await fetch(
     "http://127.0.0.1:19098/identitytoolkit.googleapis.com/v1/accounts:signUp?key=synthetic-only", {
