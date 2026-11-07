@@ -2,6 +2,8 @@ import { initializeApp } from 'firebase/app';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
+import { getFunctions } from 'firebase/functions';
 
 // Explicit Vite-only public config. NEVER inherit Vercel's existing REACT_APP_*
 // Preview variables: they currently point at the real Firebase project.
@@ -29,10 +31,35 @@ if (emulatorMode) {
   }
 }
 
+// Hosted AI is an explicit allowlisted STAGING capability, not a Vite
+// fallback to the existing Test or production Firebase project.
+const hostedAiRequested = import.meta.env.VITE_ENABLE_REFLECT_CLOUD_AI === 'true';
+const approvedStage = import.meta.env.VITE_AI_STAGING_PROJECT_ID || '';
+const appCheckSiteKey = import.meta.env.VITE_APP_CHECK_SITE_KEY || '';
+export const hostedAiEnabled = hostedAiRequested && !emulatorMode &&
+  /^reflect-ai-stage-[a-z0-9-]{4,30}$/.test(approvedStage) &&
+  firebaseConfig.projectId === approvedStage &&
+  appNamespace === 'reflect-8fdc8' &&
+  typeof appCheckSiteKey === 'string' && appCheckSiteKey.length > 10;
+
+if (hostedAiRequested && !hostedAiEnabled) {
+  throw new Error('Hosted AI requires a separate approved staging Firebase project and App Check.');
+}
+
 export const appId = appNamespace;
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const aiFunctions = hostedAiEnabled ? getFunctions(app, 'us-central1') : null;
+
+// The site key is public; the xAI API key MUST remain server-side in
+// Firebase Secret Manager. No app-check debug token is accepted in staging.
+if (hostedAiEnabled) {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
+    isTokenAutoRefreshEnabled: true
+  });
+}
 
 if (emulatorMode) {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
