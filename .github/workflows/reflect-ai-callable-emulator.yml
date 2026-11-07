@@ -1,0 +1,66 @@
+name: Reflect Stage04C isolated real v2 callable gate
+
+on:
+  pull_request:
+    paths:
+      - 'tests/ai-stage04c/**'
+      - 'server/ai/**'
+      - '.github/workflows/reflect-ai-callable-emulator.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-callable-emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      GCLOUD_PROJECT: demo-reflect-stage04c
+      REFLECT_STAGE04C_MOCK_ONLY: 'yes'
+    steps:
+      - name: Checkout stacked PR
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Firestore Emulator Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Pin Firebase emulator CLI
+        run: npm install --global firebase-tools@15.34.2 --no-audit --no-fund
+      - name: Install isolated functions and integration SDKs
+        run: |
+          npm install --prefix tests/ai-stage04c/functions --no-audit --no-fund
+          npm install --prefix server --no-audit --no-fund
+      - name: Pure policy remains green
+        run: node --test server/ai/policy.test.cjs
+      - name: Validate fail-closed v2 callable contract and browser off
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const source = fs.readFileSync('tests/ai-stage04c/functions/index.js', 'utf8');
+          const browser = fs.readFileSync('src/api/geminiService.js', 'utf8');
+          if (!source.includes('enforceAppCheck: true') ||
+              !source.includes('REFLECT_STAGE04C_MOCK_ONLY') ||
+              !source.includes('FUNCTIONS_EMULATOR') ||
+              !/^export const AI_SESSION_ENABLED = false;$/m.test(browser)) {
+            throw new Error('Security gates or browser-disabled flag missing');
+          }
+          if (fs.existsSync('firebase.json') ||
+              fs.existsSync('functions/index.js')) {
+            throw new Error('Unexpected production deployable root config');
+          }
+          console.log('PASS: Stage04C isolated SDK enforcement enabled, client disabled');
+          NODE
+      - name: Real Functions v2 callable and transaction test against disposable emulators
+        working-directory: tests/ai-stage04c
+        run: |
+          firebase emulators:exec \
+            --config firebase.json \
+            --project demo-reflect-stage04c \
+            --only auth,firestore,functions \
+            "node ../../server/ai/callable.integration.test.cjs"
