@@ -32,6 +32,7 @@ jobs:
         run: |
           node --test \
             server/ai/xaiProviderAdapter.test.cjs \
+            server/ai/xaiCost.test.cjs \
             server/ai/xaiContract.test.cjs \
             server/ai/localXaiSmoke.test.cjs \
             server/ai/policy.test.cjs
