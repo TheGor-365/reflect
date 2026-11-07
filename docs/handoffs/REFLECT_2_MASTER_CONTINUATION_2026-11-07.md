@@ -506,3 +506,27 @@ npm run dev -- --strictPort
 - Repo file `server/hosted/firestore.rules` in Draft PR #35 contains staging-specific UID-scoped read/write access to `artifacts/reflect-8fdc8/users/{uid}/...`, deny-all on `_reflectAiPrivate`, and deny-all catchall. Do not confuse the app namespace `reflect-8fdc8` (intentional shared collection name) with the actual **staging project ID** `reflect-ai-staging`; no data is shared between Firebase projects.
 - **Next owner action:** on `reflect-ai-staging` only, open Firestore → Rules, replace starter deny-all with the exact vetted `server/hosted/firestore.rules` code, **Publish**, then screenshot deployed rules. Never apply to the original `reflect-8fdc8` Firebase project. Existing data should remain empty.
 - Still unverified: rules publication, App Check registration, staging Cloud Functions/Secret Manager, Blaze/GCP budget approval and live provider reply. No claims of backend deployment or billing changes.
+
+### 2026-11-07 Staging Firestore Security Rules published (owner screenshot)
+
+- Firebase Console `reflect-ai-staging` → Firestore (default) → Rules shows
+  a new version marked "Today 11:46 PM" and a green toast "Published
+  changes can take up to a minute to propagate". Visible rules deny
+  client read/write of `_reflectAiPrivate/{document=**}`, permit
+  `artifacts/reflect-8fdc8/users/{uid}/{document=**}` only for matching
+  authenticated UID, and deny all other paths. Published code
+  matches the staged policy in `server/hosted/firestore.rules`.
+- This verifies **rules publication** in the staging project, **not**
+  actual emulator/production negative-access tests or live cloud AI.
+  Billing remains Spark; functions, real secret and App Check are not
+  yet deployed/registered.
+- Next owner action: open **Security → App Check** in Firebase
+  project `reflect-ai-staging`; inspect the Web App row and supported
+  reCAPTCHA Enterprise registration flow. Do NOT toggle enforcement
+  before registering a score-based Web key for the final staging
+  preview domain and checking signed-token traffic. Official source:
+  https://firebase.google.com/docs/app-check/web/recaptcha-enterprise-provider .
+  Registered staging Web App ID remains
+  `1:599679789981:web:d4d8743dbff0fe40af1d74`.
+- No change was performed in owner production Firebase
+  `reflect-8fdc8`; no new provider request or secret exposure.
