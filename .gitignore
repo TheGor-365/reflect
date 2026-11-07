@@ -39,3 +39,8 @@ yarn-error.log*
 /tests/emulator/qa-state/
 /tests/emulator/emulator-data/
 /tests/emulator/firebase-export-metadata.json
+
+# Site-specific local environment values, including public Firebase IDs.
+# Keep all local overrides and generated hosted function .env out of Git.
+.env.*.local
+/server/hosted/functions/.env*
