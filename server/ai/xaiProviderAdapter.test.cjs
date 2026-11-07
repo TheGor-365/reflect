@@ -260,3 +260,47 @@ test("source contains no env credential fallback, default fetch, or real app wir
   assert.equal(source.includes("getItem("), false);
   assert.equal(source.includes("import.meta.env"), false);
 });
+
+
+test("reads exact provider-billed USD ticks separately from published estimate", async () => {
+  const adapter = createXaiProviderAdapter({
+    readSecret: () => FAKE_KEY,
+    transport: async () => success(reply({
+      usage: {
+        input_tokens: 210,
+        output_tokens: 28,
+        cost_in_usd_ticks: 1_585_000
+      }
+    }))
+  });
+  const response = await adapter.invoke("Тест");
+  assert.equal(response.actualUsdTicks, 1_585_000);
+  assert.equal(response.actualUsd, 0.0001585);
+  assert.ok(response.estimatedUsdFromPublishedRates > 0);
+  assert.notEqual(response.actualUsd, response.estimatedUsdFromPublishedRates);
+});
+
+test("missing provider receipt is not silently converted into a $0 charge", async () => {
+  const adapter = createXaiProviderAdapter({
+    readSecret: () => FAKE_KEY,
+    transport: async () => success()
+  });
+  const response = await adapter.invoke("Тест");
+  assert.equal(response.actualUsdTicks, null);
+  assert.equal(response.actualUsd, null);
+});
+
+test("malformed cost receipt is denied and never leaks user text", async () => {
+  const adapter = createXaiProviderAdapter({
+    readSecret: () => FAKE_KEY,
+    transport: async () => success(reply({
+      usage: {
+        input_tokens: 210, output_tokens: 28,
+        cost_in_usd_ticks: "PRIVATE_SYNTHETIC_INVALID_COST"
+      }
+    }))
+  });
+  await assert.rejects(adapter.invoke("Тест"), error =>
+    denied("invalid-provider-response")(error) &&
+    !error.message.includes("PRIVATE_SYNTHETIC_INVALID_COST"));
+});
