@@ -18,6 +18,11 @@ jobs:
   local-smoke-contract:
     runs-on: ubuntu-latest
     timeout-minutes: 9
+    env:
+      VITE_FIREBASE_CONFIG: '{"apiKey":"demo-only-key","authDomain":"demo-reflect-auth-qa.firebaseapp.com","projectId":"demo-reflect-auth-qa","appId":"1:12345:web:demo"}'
+      VITE_APP_ID: reflect-8fdc8
+      VITE_USE_FIREBASE_EMULATORS: 'true'
+      VITE_ENABLE_XAI_DEV_SMOKE: 'false'
     steps:
       - name: Checkout exact PR revision
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
