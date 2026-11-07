@@ -13,6 +13,12 @@ umask 077
 mkdir -p "$key_dir"
 chmod 700 "$key_dir"
 
+# Never chmod or read a symlink or non-regular secret file.
+if [ -L "$key_file" ] || { [ -e "$key_file" ] && [ ! -f "$key_file" ]; }; then
+  echo "Unsafe credential path. Refusing to alter it." >&2
+  exit 1
+fi
+
 if [ ! -f "$key_file" ]; then
   echo "One-time local setup: paste Reflect-dev xAI API key into THIS terminal only."
   echo "The key is hidden while typing, and will never be saved in GitHub or Vite."
