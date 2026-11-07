@@ -466,3 +466,28 @@ npm run dev -- --strictPort
 - Owner's next safe **single** operation in console: **Add app → Web**, nickname **Reflect AI Staging Web**, do NOT enable optional Hosting, choose **Register app**, screenshot showing the registered app's name / App ID. No xAI API key or Firebase private key required, do not post web config if it contains identifiers they prefer to mask. This remains free Spark setup; no paid Firebase deployment yet.
 - **Cloud Functions v2 requires Blaze** and separate GCP billing. No credit, saved monthly spending limit, new invoice, Secret Manager binding, App Check, live model invocation or production deployment confirmed or authorized at this checkpoint. Stage04G code changes remain Draft only.
 - Updated technical runbook docs/roadmap/STAGE_04G_HOSTED_XAI_PERMANENT_INTEGRATION_2026-11-07.md with the real project ID. GitHub is authoritative; the Google Drive Markdown mirror has not been synced.
+
+
+### 2026-11-07 Staging Web App registered — owner screenshots
+
+- On NEW Firebase project `reflect-ai-staging`, Web App registration
+  is completed. Screenshot shows Console **Add Firebase SDK** step,
+  registered Firebase public Web App ID
+  `1:599679789981:web:d4d8743dbff0fe40af1d74`,
+  public auth domain `reflect-ai-staging.firebaseapp.com`.
+  These are Firebase client config identifiers, **not the xAI secret**.
+  **Do not repeat Web App registration or npm install**; existing
+  React app already uses Firebase SDK. **Spark** plan was confirmed
+  on previous screenshot; no billing upgrade observed here.
+- Existing `src/hooks/useAuth.js` invokes `signInAnonymously`.
+  Next owner steps: **Continue to console**, then in the new
+  project **Security > Authentication > Get started >
+  Sign-in method > Anonymous > Enable > Save**. Screenshot the
+  provider enabled, without needing to reveal any private information.
+- Unverified: Anonymous Auth enabled, Firestore database and private
+  rules deployed, actual registered App Check, provider secret
+  bound, Cloud Functions deployment, GCP/Blaze paid billing,
+  xAI successful hosted reply. Avoid production original
+  `reflect-8fdc8` and private journal data.
+- Stage04G remains stacked Draft PR #35. The GitHub master is
+  updated; Drive Markdown mirror is not confirmed synced.
