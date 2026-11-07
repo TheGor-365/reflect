@@ -99,3 +99,31 @@ Check. The xAI wallet is shared with another application.
 - Grok 4.3: https://docs.x.ai/developers/models/grok-4.3-latest
 - Firebase Secrets: https://firebase.google.com/docs/functions/config-env#secret-parameters
 - Firebase App Check: https://firebase.google.com/docs/app-check/cloud-functions
+
+
+## Provider-side log evidence, owner screenshot 2026-11-07
+
+- The owner showed the **xAI Console → Logs → Chat** record with time
+  **Nov 7, 19:05:30** (as displayed in their browser), selected model
+  'grok-4.3', temperature approximately 0.7 and max tokens 128. Its
+  system instruction exactly matches the fixed Reflect request. The
+  console's **Response · Completed** label is visible. The screenshot
+  does **not** expose the HTTP status received by the localhost proxy,
+  the response text, usage tokens or billed amount. The side-panel
+  response area appears empty.
+- This is evidence that the authenticated request reached xAI inference
+  and that a generation record exists. It is **not proof** that the
+  original local HTTP exchange returned 200: the Stage04E gateway's
+  'xai-http-error' branch corresponds specifically to an upstream
+  non-2xx status and may represent a delivery/provider-layer failure.
+  Keep cause **unresolved**, do not guess 401/403, do not call it fixed,
+  and **do not issue another paid request**.
+- Next owner evidence, one screen at a time: select **Raw** for this
+  *same existing xAI log*, inspect only HTTP status, outcome, token
+  usage and safely synthetic response information; redact API Key ID,
+  any bearer value or unrelated application data before sharing.
+  Alternatively use original Chrome Network 'smoke' Response for
+  the bounded 'providerHttpStatus' field (if retained). Then inspect
+  the console Usage and saved billing limits. The static $8.64 balance
+  shown in the screenshot does not establish the actual request cost
+  or saved auto-top-up setting.
