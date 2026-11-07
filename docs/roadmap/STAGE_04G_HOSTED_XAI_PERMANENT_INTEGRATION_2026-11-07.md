@@ -167,3 +167,35 @@ Manager binding, transactional kill switch, Preview deployment and live QA.
 
 Official setup: https://firebase.google.com/docs/web/setup
 Firebase Cloud Functions pricing: https://firebase.google.com/docs/functions/quotas
+
+
+## Firebase Web App registered — 2026-11-07
+
+Owner-provided Firebase Console screenshots show that **the Web App
+registration has succeeded** in project `reflect-ai-staging`. The
+registered public Web App ID is
+`1:599679789981:web:d4d8743dbff0fe40af1d74`,
+public authDomain is `reflect-ai-staging.firebaseapp.com`, and
+messagingSenderId is `599679789981`. These are public Firebase Web
+configuration identifiers, NOT an xAI API key, Secret Manager value
+or evidence of deployed Cloud Functions. Firebase SDK is already
+installed in Reflect; **do not run npm install firebase again**.
+
+The Console currently displays the post-registration **Add Firebase SDK**
+screen. The next owner action is simply **Continue to console**.
+
+**Authentication prerequisite:** the existing React hook
+`src/hooks/useAuth.js` uses Firebase `signInAnonymously` and reuses
+an existing authenticated user. In the NEW `reflect-ai-staging`
+project, configure **Security > Authentication > Get started >
+Sign-in method > Anonymous > Enable > Save**. This action applies
+only to the new staging project; never disable/change providers in
+the original `reflect-8fdc8` project. Anonymous staging UID is new
+and isolated; old Reflect data is not automatically copied.
+
+Evidence classification: **Web App registered**; anonymous Auth,
+Firestore database, paid Blaze plan, reCAPTCHA Enterprise App Check,
+server-only secret and deployed Functions are **not yet confirmed**.
+No claim of working live Grok response. 
+Firebase official auth instructions:
+https://firebase.google.com/docs/auth/web/anonymous-auth
