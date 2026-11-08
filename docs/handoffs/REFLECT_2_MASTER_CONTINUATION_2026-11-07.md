@@ -606,3 +606,36 @@ npm run dev -- --strictPort
 - This GitHub master was updated; Google Drive mirror not confirmed
   synced. Original `reflect-8fdc8`, iLab and old worktrees untouched.
   Cloud Functions/Secret Manager/Blaze remain blocked separately.
+
+
+### 2026-11-08 Firebase Hosting successful staging deployment
+
+- Owner provided real Linux terminal output from isolated
+  `~/reflect-stage35-hosted`, clean Git detached at `4316a93`,
+  after updating `git/info/exclude` for local .env editor backup.
+  `npm run build -- --mode staging` returned **Vite v7.3.7 built in
+  4.77s**, generating `dist/index.html` and assets (3 files).
+  Warning about JS chunk over 500 kB is non-blocking.
+- `firebase deploy --config firebase.staging.json --project
+  reflect-ai-staging --only hosting` completed successfully:
+  **Hosting file upload complete, version finalized, release complete,
+  Deploy complete**. Provider-reported Hosting URL:
+  **https://reflect-ai-staging.web.app**. This is verified via user
+  CLI deployment log, but NOT yet via real browser rendering or real
+  signed App Check token verification.
+- Important release flags in compiled stage: public Firebase Web config
+  for isolated `reflect-ai-staging`; staging App Check initialized
+  (`VITE_ENABLE_STAGING_APP_CHECK=true`) and hosted AI **OFF**
+  (`VITE_ENABLE_REFLECT_CLOUD_AI=false`). Server xAI secret was never
+  included in browser; no provider request or Functions deployment.
+- Actual xAI server functionality, Firestore read/write under staged
+  browser Auth UID, signed App Check issuance/enforcement, and posted
+  AI reply remain unverified. **Next owner action:** visit
+  https://reflect-ai-staging.web.app and share screenshot of app or
+  exact browser error, without any browser token, request headers,
+  personal entries, or secret. Do not repeat Firebase setup or run
+  `firebase init`. Once stage UI loads, validate Auth and App Check
+  before enabling any backend deployment/billing.
+- Original `reflect-8fdc8` and iLab projects untouched; static Hosting
+  deployment affected **only** the new stage site. Keep PR #35 Draft
+  and Drive master mirror considered unsynced.
