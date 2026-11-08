@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // The AI spend ledger and server kill switch are intentionally
+    // outside the user namespace and are NEVER writable or readable
+    // from a browser, including signed-in users.
+    match /_reflectAiPrivate/{document=**} {
+      allow read, write: if false;
+    }
+
+    // Isolated STAGING user data; all documents are UID scoped.
+    // No global user enumeration or cross-account access.
+    match /artifacts/{appNamespace}/users/{uid}/{document=**} {
+      allow read, write: if appNamespace == 'reflect-8fdc8'
+        && request.auth != null && request.auth.uid == uid;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

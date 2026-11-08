@@ -1,0 +1,105 @@
+name: Reflect Stage04G hosted staging AI bridge (isolated fixtures)
+
+on:
+  pull_request:
+    paths:
+      - 'firebase.staging.json'
+      - '.env.staging.example'
+      - '.gitignore'
+      - 'server/ai/**'
+      - 'server/hosted/**'
+      - 'tests/ai-stage04g/**'
+      - 'src/firebase/**'
+      - 'src/api/reflectAssistantService.js'
+      - 'src/features/Sessions/**'
+      - '.github/workflows/reflect-ai-hosted-bridge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hosted-staging-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      VITE_FIREBASE_CONFIG: '{"apiKey":"demo-only-key","authDomain":"demo-reflect-auth-qa.firebaseapp.com","projectId":"demo-reflect-auth-qa","appId":"1:12345:web:demo"}'
+      VITE_APP_ID: reflect-8fdc8
+      VITE_USE_FIREBASE_EMULATORS: 'true'
+      VITE_ENABLE_REFLECT_CLOUD_AI: 'false'
+      REFLECT_XAI_FIXTURES_ONLY: 'yes'
+    steps:
+      - name: Checkout immutable PR revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Java 21 for isolated Firestore
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install locked Firebase CLI and isolated dependencies
+        run: |
+          npm install --global firebase-tools@15.34.2 --no-audit --no-fund
+          npm install --prefix server --no-audit --no-fund
+          npm install --prefix server/hosted/functions --no-audit --no-fund
+      - name: Prepare deployable source from exact vetted server files
+        run: |
+          node server/hosted/scripts/prepare-functions.cjs
+          node --check server/hosted/functions/index.cjs
+          node -e "require('./server/hosted/functions/index.cjs')"
+      - name: Verify staging-only Hosting config and App Check gating
+        run: node --test tests/ai-stage04g/hosting-config.test.cjs
+      - name: Pure policy, provider cost and adapter tests
+        run: |
+          node --test server/ai/policy.test.cjs \
+            server/ai/xaiContract.test.cjs \
+            server/ai/xaiCost.test.cjs \
+            server/ai/xaiProviderAdapter.test.cjs
+      - name: Transactional owner/global budget under real isolated Firestore
+        run: |
+          firebase emulators:exec \
+            --config tests/ai-stage04g/firebase.json \
+            --project reflect-ai-stage-fixture01 \
+            --only firestore \
+            "node server/ai/hosted.integration.test.cjs"
+      - name: Assert hosted boundary and production lockout
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const index = fs.readFileSync('server/hosted/functions/index.cjs','utf8');
+          const config = fs.readFileSync('src/firebase/config.js','utf8');
+          const browser = fs.readFileSync('src/api/geminiService.js','utf8');
+          const ai = fs.readFileSync('src/api/reflectAssistantService.js','utf8');
+          if (!index.includes('enforceAppCheck: true') ||
+              !index.includes('consumeAppCheckToken: true') ||
+              !index.includes('secrets: [XAI_KEY]') ||
+              !index.includes('verifyStaging()') ||
+              !config.includes('ReCaptchaEnterpriseProvider') ||
+              !ai.includes('limitedUseAppCheckTokens: true') ||
+              !ai.includes('scope:') ||
+              !/^export const AI_SESSION_ENABLED = false;$/m.test(browser) ||
+              fs.existsSync('firebase.json') || fs.existsSync('functions/index.js') ||
+              index.includes('process.env.XAI_API_KEY')) {
+            throw new Error('Stage04G hosted staging protection regression');
+          }
+          console.log('PASS: hosted staged secret/Auth/AppCheck, no root production deployment');
+          NODE
+      - name: Frontend unit suite, TS and Vite build
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run typecheck
+          npm run build
+      - name: Build public staging shell with App Check but NO hosted AI calls
+        env:
+          VITE_FIREBASE_CONFIG: '{"apiKey":"staging-public-fixture-only","authDomain":"reflect-ai-staging.firebaseapp.com","projectId":"reflect-ai-staging","appId":"1:599679789981:web:d4d8743dbff0fe40af1d74","messagingSenderId":"599679789981"}'
+          VITE_APP_ID: reflect-8fdc8
+          VITE_USE_FIREBASE_EMULATORS: 'false'
+          VITE_ENABLE_STAGING_APP_CHECK: 'true'
+          VITE_ENABLE_REFLECT_CLOUD_AI: 'false'
+          VITE_AI_STAGING_PROJECT_ID: reflect-ai-staging
+          VITE_APP_CHECK_SITE_KEY: public-staging-fixture-site-key
+        run: npm run build -- --mode staging

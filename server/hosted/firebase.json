@@ -1,0 +1,11 @@
+{
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "reflect-ai-staging"
+    }
+  ],
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}

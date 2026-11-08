@@ -368,3 +368,283 @@ npm run dev -- --strictPort
 - **New owner Linux runbook:** 'docs/roadmap/STAGE_04F_LIVE_SYNTHETIC_SESSIONS_2026-11-07.md'. Use a **new** ~/reflect-stage34-live worktree from the PR34 Draft branch, preserve historic ~/reflect-stage33-qa and Firebase emulators, restart only the old localhost Node proxy + Vite ports 19107/3100 via their own terminal Ctrl+C, reuse existing private key outside the repo, then click once inside Sessions. CLI, emulator secrets and all user data remain on owner's machine. The one paid request can only be initiated by owner.
 - **NOT done / blocked:** a successful provider reply inside the app has NOT been confirmed; staging with real signed App Check/Auth, durable USD quota/ledger, cloud-bound Secret Manager, actual user message consent/persistence and full production AI remain future engineering gates. Do not re-enable 'AI_SESSION_ENABLED' or merge to 'main' until verified staging.
 - **Future handoff:** check latest PR34 HEAD CI and owner screenshot of successful reply OR safe error/status + xAI cost. Never ask for key, Auth headers, card data, private diary or secrets. Confirmed Google Drive master sync does **not** exist; GitHub remains the authoritative updated checkpoint.
+
+
+---
+
+## CHECKPOINT — 2026-11-07, permanent hosted Grok bridge Stage04G (PR #35)
+
+- **Latest owner evidence:** on Linux, source worktree
+  ~/reflect-stage34-live at exact code 0e7a0a8, npm ci succeeded and new
+  React Sessions UI rendered. Starting the new Node proxy on
+  127.0.0.1:19107 failed EADDRINUSE; the old Stage04E proxy was still
+  listening. The new React client sent a scenario object; the old proxy
+  only accepted confirm=synthetic-only and returned local
+  HTTP 400 invalid-payload **before any xAI call**. This specific
+  failure is a version conflict on a local port, not a verified bad key.
+  The first earlier real provider xai-http-error/proxy 502 remains a
+  separate unresolved incident. The owner explicitly asked for a
+  persistent integration usable in the published app, not a one-shot
+  localhost test.
+- **Created stacked Draft PR #35:**
+  https://github.com/TheGor-365/reflect/pull/35
+  Branch work/reflect-stage04g-hosted-ai-bridge-2026-11-07,
+  base PR #34 branch (NOT main). No deployment, merge, paid xAI request,
+  secret upload, user data transfer or old-process termination occurred.
+- **Server implementation:** separate Firebase Functions v2 package
+  server/hosted/functions/index.cjs, actual onCall named reflectAiReply,
+  enforceAppCheck:true, consumeAppCheckToken:true, Firebase Auth, exact
+  registered appId, strict reflect-ai-stage-* allowlist and runtime
+  opt-in. xAI key is bound with Firebase defineSecret REFLECT_XAI_KEY
+  and never imported into Vite, git, logs or CI. A deterministic
+  source packaging script copies only vetted server/ai modules;
+  no root firebase.json or uncontrolled production fallback.
+- **Durable budget and security:** server/ai/hostedBudget.cjs atomically
+  checks server-owned Firestore flag (OFF unless enabled),
+  per-user/per-project daily token + USD tick budgets, and a
+  permanently retained hashed request-ID ledger. Provisional
+  reservation $0.01/request, $0.05/owner/day and $0.20/global/day;
+  these are NOT a guaranteed provider hard billing limit. On
+  failure/timeouts, reservations remain; no automatic retry. Actual
+  provider costs are recorded if available, and over-reservation
+  disables further requests. Private message and model output are
+  never stored in budget documents.
+- **Browser integration:** in src/firebase/config.js a dedicated
+  VITE AI staging flag enforces project allowlist and initializes
+  reCAPTCHA Enterprise App Check before Auth/Firestore/Functions clients.
+  src/api/reflectAssistantService.js uses httpsCallable with
+  limitedUseAppCheckTokens:true, exact consent version, bounded one
+  user-selected text and random request ID; no profile/archive/history.
+  Ordinary Sessions UI now sends directly to hosted AI only in an
+  explicitly configured staging preview; per-message checkbox
+  discloses xAI 30-day default audit retention. Responses stay local
+  until the user manually clicks Save Session. The previous
+  geminiService AI_SESSION_ENABLED remains false and no unapproved
+  production AI switch is enabled.
+- **Isolated tests:** real Firestore Emulator against independent
+  reflect-ai-stage-fixture01 and deny-all test rules. Covered signed
+  context placeholder (no forged App Check accepted by production),
+  policy, consent, kill switch, one successful response, replay after
+  success/failure and next UTC day, error redaction, overspend kill
+  switch and no prompt/UID in ledger. Frontend tests cover consent,
+  single-message-only data and explicit save. Dedicated workflow
+  reflect-ai-hosted-bridge.yml validates server packaging plus
+  existing UI, TypeScript and isolated Auth tests. **Do not call
+  emulator success a real signed staging attestation.**
+- **Staging rules:** server/hosted/firestore.rules allows only
+  UID-scoped user content for separate new staging project and
+  explicitly denies browser access to _reflectAiPrivate. It is NOT
+  deployed. The Functions and Firestore rules deploys require
+  separate, explicit owner review of the targeted stage project.
+- **Operational runbook:**
+  docs/roadmap/STAGE_04G_HOSTED_XAI_PERMANENT_INTEGRATION_2026-11-07.md
+  describes new separate Firebase staging project, real signed App
+  Check and Web App registration, GCP/Blaze costs, local-only secret
+  manager prompt, exact staging deployment config and Vercel Preview
+  public env variables. Firebase/GCP fees are separate from the
+  existing xAI $8.64 team wallet; xAI auto-topup $5 is enabled by
+  owner report, saved billing cap still unverified.
+- **User next action (1):** open Firebase Console and locate/create
+  a **separate** staging project, not the owner's existing Test or
+  live project; report its selected project ID and app registration
+  screenshot (without keys/secrets). Check Blaze billing before
+  confirming a charge. DO NOT ask the owner to reset old worktrees
+  or paste the xAI key here.
+- **Still BLOCKED:** actual deployed signed App Check negative QA,
+  hosted live grok-4.3 success, cross-project deployment permission,
+  secret provisioning, billable GCP project approval, verified
+  provider-side financial safeguards and subsequent production
+  release review. GitHub master is current; the Drive Markdown
+  mirror was not edited or verified during this turn.
+
+
+### 2026-11-07 Owner Firebase STAGING project created
+
+- Owner provided screenshots in this conversation: Firebase Console success page for **Reflect AI Staging** and its Project Overview URL, showing **actual Project ID reflect-ai-staging** and **Spark plan**. App registration button **Add app** visible; no registered staging Web App confirmed yet.
+- **Do not recreate the project.** Existing original Firebase project **reflect-8fdc8** and unrelated iLab **ilab-343511** unchanged.
+- Stage04G code compatibility fixed in the existing **Draft PR #35**: browser staging allowlist plus server STAGING_ID regex now accept exact **reflect-ai-staging**, while still rejecting the original production/Test project; isolated fixture stage remains allowed. Added regression coverage of allowed real stage and denied existing projects.
+- Owner's next safe **single** operation in console: **Add app → Web**, nickname **Reflect AI Staging Web**, do NOT enable optional Hosting, choose **Register app**, screenshot showing the registered app's name / App ID. No xAI API key or Firebase private key required, do not post web config if it contains identifiers they prefer to mask. This remains free Spark setup; no paid Firebase deployment yet.
+- **Cloud Functions v2 requires Blaze** and separate GCP billing. No credit, saved monthly spending limit, new invoice, Secret Manager binding, App Check, live model invocation or production deployment confirmed or authorized at this checkpoint. Stage04G code changes remain Draft only.
+- Updated technical runbook docs/roadmap/STAGE_04G_HOSTED_XAI_PERMANENT_INTEGRATION_2026-11-07.md with the real project ID. GitHub is authoritative; the Google Drive Markdown mirror has not been synced.
+
+
+### 2026-11-07 Staging Web App registered — owner screenshots
+
+- On NEW Firebase project `reflect-ai-staging`, Web App registration
+  is completed. Screenshot shows Console **Add Firebase SDK** step,
+  registered Firebase public Web App ID
+  `1:599679789981:web:d4d8743dbff0fe40af1d74`,
+  public auth domain `reflect-ai-staging.firebaseapp.com`.
+  These are Firebase client config identifiers, **not the xAI secret**.
+  **Do not repeat Web App registration or npm install**; existing
+  React app already uses Firebase SDK. **Spark** plan was confirmed
+  on previous screenshot; no billing upgrade observed here.
+- Existing `src/hooks/useAuth.js` invokes `signInAnonymously`.
+  Next owner steps: **Continue to console**, then in the new
+  project **Security > Authentication > Get started >
+  Sign-in method > Anonymous > Enable > Save**. Screenshot the
+  provider enabled, without needing to reveal any private information.
+- Unverified: Anonymous Auth enabled, Firestore database and private
+  rules deployed, actual registered App Check, provider secret
+  bound, Cloud Functions deployment, GCP/Blaze paid billing,
+  xAI successful hosted reply. Avoid production original
+  `reflect-8fdc8` and private journal data.
+- Stage04G remains stacked Draft PR #35. The GitHub master is
+  updated; Drive Markdown mirror is not confirmed synced.
+
+### Staging Authentication enabled — 2026-11-07 owner screenshot
+
+- Firebase Console project `reflect-ai-staging` → Authentication → Sign-in method visibly lists **Anonymous: Enabled**. This is configuration evidence; no identity migration or live Grok backend connection is claimed.
+- Next stage: create isolated Cloud Firestore **Standard edition**, database **(default)**, **Production mode** (deny initial client access), with **us-central1 regional location** to co-locate the current hosted Functions v2 region. Database location is immutable. Test mode is unsafe for a private diary because it permits public database access. Do NOT create new records, set public rules, or touch `reflect-8fdc8`.
+- Firebase Spark plan remains the last observed billing tier. Cloud Function deployment and xAI secret binding still await separate Blaze/GCP billing review and owner approval.
+- Source: owner screenshot in this chat; no connected console changes were performed by the assistant. GitHub master updated, Drive mirror not confirmed synced.
+
+
+### 2026-11-07 Firestore database (default) created — screenshot evidence
+
+- Owner's Firebase Console screenshot in this conversation displays project **Reflect AI Staging** `reflect-ai-staging`, **Firestore → Data**, database **(default)** with empty collections and text "Your database is ready to go. Just add data." Billing plan shown **Spark**. This establishes the database exists, but not its stored region, currently published Security Rules or backup setting. The previous wizard had `nam5 (United States)` selected; the final database location is NOT independently revalidated on the Data screenshot.
+- Repo file `server/hosted/firestore.rules` in Draft PR #35 contains staging-specific UID-scoped read/write access to `artifacts/reflect-8fdc8/users/{uid}/...`, deny-all on `_reflectAiPrivate`, and deny-all catchall. Do not confuse the app namespace `reflect-8fdc8` (intentional shared collection name) with the actual **staging project ID** `reflect-ai-staging`; no data is shared between Firebase projects.
+- **Next owner action:** on `reflect-ai-staging` only, open Firestore → Rules, replace starter deny-all with the exact vetted `server/hosted/firestore.rules` code, **Publish**, then screenshot deployed rules. Never apply to the original `reflect-8fdc8` Firebase project. Existing data should remain empty.
+- Still unverified: rules publication, App Check registration, staging Cloud Functions/Secret Manager, Blaze/GCP budget approval and live provider reply. No claims of backend deployment or billing changes.
+
+### 2026-11-07 Staging Firestore Security Rules published (owner screenshot)
+
+- Firebase Console `reflect-ai-staging` → Firestore (default) → Rules shows
+  a new version marked "Today 11:46 PM" and a green toast "Published
+  changes can take up to a minute to propagate". Visible rules deny
+  client read/write of `_reflectAiPrivate/{document=**}`, permit
+  `artifacts/reflect-8fdc8/users/{uid}/{document=**}` only for matching
+  authenticated UID, and deny all other paths. Published code
+  matches the staged policy in `server/hosted/firestore.rules`.
+- This verifies **rules publication** in the staging project, **not**
+  actual emulator/production negative-access tests or live cloud AI.
+  Billing remains Spark; functions, real secret and App Check are not
+  yet deployed/registered.
+- Next owner action: open **Security → App Check** in Firebase
+  project `reflect-ai-staging`; inspect the Web App row and supported
+  reCAPTCHA Enterprise registration flow. Do NOT toggle enforcement
+  before registering a score-based Web key for the final staging
+  preview domain and checking signed-token traffic. Official source:
+  https://firebase.google.com/docs/app-check/web/recaptcha-enterprise-provider .
+  Registered staging Web App ID remains
+  `1:599679789981:web:d4d8743dbff0fe40af1d74`.
+- No change was performed in owner production Firebase
+  `reflect-8fdc8`; no new provider request or secret exposure.
+
+
+### 2026-11-08 App Check registered (owner screenshots)
+
+- Firebase Console project `reflect-ai-staging` → App Check → Apps:
+  `Reflect AI Staging Web` now shows **Fraud Defense / Registered**,
+  green check. The previous screenshot showed the owner-entered public
+  reCAPTCHA Enterprise Site Key and default **1 hour** token TTL before
+  saving. This proves **App Check registration**, not real signed token
+  delivery from a published site nor enforced API gate.
+- The site key is publicly configured via
+  `VITE_APP_CHECK_SITE_KEY` in an isolated staging build; the xAI
+  secret must never enter any frontend variable. The React code already
+  calls `initializeAppCheck` with `ReCaptchaEnterpriseProvider`
+  only after matching approved staging project.
+- **Next owner-owned, no-billing step:** open **Hosting & Serverless →
+  Hosting → Get started** in the NEW project, check/create the default
+  Hosting site and verify its actual `.web.app` domain. Firebase
+  projects created after Oct 15 2026 defer default Hosting site
+  creation; do not assume site ID or blindly change another site.
+  Official reference:
+  https://firebase.google.com/docs/hosting/default-site .
+  Do not paste generic npm/Firebase CLI commands over the existing
+  React code, and do not deploy yet.
+- **No App Check Enforcement yet** until real signed tokens are
+  observed; Firebase Auth Anonymous, Firestore default and staging
+  security rules were already confirmed in this chat. Functions v2
+  deployment still requires separate Blaze/GCP billing approval;
+  no deployment/paid xAI request or production changes made.
+
+
+### 2026-11-08 Hosting CLI access + detached worktree verified, static stage configuration prepared
+
+- Owner Linux terminal returned Firebase CLI **15.34.2** and
+  `firebase projects:list` successfully showing exactly
+  `ilab-343511`, `reflect-8fdc8` and **`reflect-ai-staging`**
+  (number **599679789981**), establishing authenticated CLI access.
+  The owner also fetched
+  `work/reflect-stage04g-hosted-ai-bridge-2026-11-07` and created
+  an **independent** `~/reflect-stage35-hosted` detached worktree at
+  commit `ec6e447d7f0085cd0a45471b7260cadcf58cd5b6`.
+  This older code SHA does not include the newly authored Hosting
+  config; fetch/update this worktree after verifying it is clean.
+- Firebase Console shows wizard **Set up Firebase Hosting →
+  Initialize your project**, site URL context
+  `/project/reflect-ai-staging/hosting/sites/reflect-ai-staging`.
+  CLI is installed, **do not reinstall it** and **do not run
+  `firebase init`** on the existing worktree.
+- New Draft PR #35 files: root `firebase.staging.json`
+  contains only static Firebase Hosting for **site
+  `reflect-ai-staging`**, `dist/` Vite output, SPA rewrite; no
+  Functions or Firestore deploy config. `.env.staging.example`
+  includes public Web App config **placeholders**, approved project,
+  App ID and public site-key placeholder; `.env.staging.local` is
+  gitignored. `src/firebase/config.js` now initializes signed
+  App Check with `VITE_ENABLE_STAGING_APP_CHECK=true` while
+  `VITE_ENABLE_REFLECT_CLOUD_AI=false` keeps the hosted AI API
+  disabled until separate paid backend authorization. The original
+  app remains unaffected.
+- New no-network CI test
+  `tests/ai-stage04g/hosting-config.test.cjs` plus Stage04G
+  staging build fixture. Preparation commands and guarded Hosting-only
+  deploy command documented at
+  `docs/roadmap/STAGE_04G_STAGING_HOSTING_2026-11-08.md`.
+  Google/Firebase console remains source of truth for the live
+  Hosting site; **no React build has been deployed or observed**.
+- **Next owner actions (safe):** in `~/reflect-stage35-hosted`
+  check `git status --short` (must be empty), fetch and detach to
+  newest Draft #35 HEAD, run `firebase hosting:sites:list --project
+  reflect-ai-staging`, and report output. Then create local
+  `.env.staging.local` with ONLY public Firebase Web API config and
+  recaptcha site key, run stage build; deploy Hosting only after
+  those checks. Do not paste private xAI or service-account keys.
+- This GitHub master was updated; Google Drive mirror not confirmed
+  synced. Original `reflect-8fdc8`, iLab and old worktrees untouched.
+  Cloud Functions/Secret Manager/Blaze remain blocked separately.
+
+
+### 2026-11-08 Firebase Hosting successful staging deployment
+
+- Owner provided real Linux terminal output from isolated
+  `~/reflect-stage35-hosted`, clean Git detached at `4316a93`,
+  after updating `git/info/exclude` for local .env editor backup.
+  `npm run build -- --mode staging` returned **Vite v7.3.7 built in
+  4.77s**, generating `dist/index.html` and assets (3 files).
+  Warning about JS chunk over 500 kB is non-blocking.
+- `firebase deploy --config firebase.staging.json --project
+  reflect-ai-staging --only hosting` completed successfully:
+  **Hosting file upload complete, version finalized, release complete,
+  Deploy complete**. Provider-reported Hosting URL:
+  **https://reflect-ai-staging.web.app**. This is verified via user
+  CLI deployment log, but NOT yet via real browser rendering or real
+  signed App Check token verification.
+- Important release flags in compiled stage: public Firebase Web config
+  for isolated `reflect-ai-staging`; staging App Check initialized
+  (`VITE_ENABLE_STAGING_APP_CHECK=true`) and hosted AI **OFF**
+  (`VITE_ENABLE_REFLECT_CLOUD_AI=false`). Server xAI secret was never
+  included in browser; no provider request or Functions deployment.
+- Actual xAI server functionality, Firestore read/write under staged
+  browser Auth UID, signed App Check issuance/enforcement, and posted
+  AI reply remain unverified. **Next owner action:** visit
+  https://reflect-ai-staging.web.app and share screenshot of app or
+  exact browser error, without any browser token, request headers,
+  personal entries, or secret. Do not repeat Firebase setup or run
+  `firebase init`. Once stage UI loads, validate Auth and App Check
+  before enabling any backend deployment/billing.
+- Original `reflect-8fdc8` and iLab projects untouched; static Hosting
+  deployment affected **only** the new stage site. Keep PR #35 Draft
+  and Drive master mirror considered unsynced.
+
+
+### 2026-11-08 Public staging browser shows working Auth, but hosted AI is deliberately OFF
+
+- User-provided Chrome screenshots at **https://reflect-ai-staging.web.app/** show the real staging site renders the Diary and Sessions routes; bottom-left badge shows **Guest access**. This supports successful frontend display and anonymous guest sign-in UX, but does not by itself verify signed App Check token issuance or every Firestore transaction.
+- Sessions displayed `Пока ИИ недоступен`, and the send arrow remained inactive when a message was typed. This is **expected** with the deployed staging build's `VITE_ENABLE_REFLECT_CLOUD_AI=false`. No real model call was made from this UI. The original local port 19107 proxy is unrelated to the published stage.
+- **Next stage release gates:** owner approval of new-project-only **Firebase Blaze/GCP billing** (existing xAI USD 8.64 credits do not pay Firebase); provider-side safety and Cloud Functions spend cap/alert review; configure `REFLECT_XAI_KEY` via Secret Manager on staging, real signed App Check verification and Token Verifier role, deploy isolated Functions v2 codebase, create server-only Firestore runtime flag and verify backend reservations, redeploy **only staging Hosting** with `VITE_ENABLE_REFLECT_CLOUD_AI=true`; one consented synthetic live turn. Never activate ordinary AI before backend is ready. No production/real diary records or old Firebase projects changed.
+- 2026-11-08 Google/Firebase official docs note optional service-level **Cloud Functions spend cap budgets** versus alerts-only budgets; neither cap is instantaneous and delayed overages can be billed: https://firebase.google.com/docs/projects/billing/spend-caps and https://firebase.google.com/docs/projects/billing/budget-alerts .
+- Immediate owner step: open `reflect-ai-staging` **Spark -> Upgrade** and inspect displayed billing/Blaze requirements; do not complete payment authorization without review. GitHub Draft #35 remains unmerged, main untouched; cloud billing and deploy not performed.

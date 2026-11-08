@@ -2,6 +2,8 @@ import { initializeApp } from 'firebase/app';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
+import { getFunctions } from 'firebase/functions';
 
 // Explicit Vite-only public config. NEVER inherit Vercel's existing REACT_APP_*
 // Preview variables: they currently point at the real Firebase project.
@@ -29,10 +31,43 @@ if (emulatorMode) {
   }
 }
 
+// Hosted AI is an explicit allowlisted STAGING capability, not a Vite
+// fallback to the existing Test or production Firebase project.
+const hostedAiRequested = import.meta.env.VITE_ENABLE_REFLECT_CLOUD_AI === 'true';
+// App Check is independently enabled for the first published staging
+// smoke test, BEFORE the billable AI function has been deployed.
+const appCheckRequested = import.meta.env.VITE_ENABLE_STAGING_APP_CHECK === 'true' ||
+  hostedAiRequested;
+const approvedStage = import.meta.env.VITE_AI_STAGING_PROJECT_ID || '';
+const appCheckSiteKey = import.meta.env.VITE_APP_CHECK_SITE_KEY || '';
+const stagingConfigValid = !emulatorMode &&
+  /^(?:reflect-ai-staging|reflect-ai-stage-[a-z0-9-]{4,30})$/.test(approvedStage) &&
+  firebaseConfig.projectId === approvedStage &&
+  appNamespace === 'reflect-8fdc8' &&
+  typeof appCheckSiteKey === 'string' && appCheckSiteKey.length > 10;
+
+export const stagingAppCheckEnabled = appCheckRequested && stagingConfigValid;
+export const hostedAiEnabled = hostedAiRequested && stagingConfigValid;
+
+if (appCheckRequested && !stagingConfigValid) {
+  throw new Error('Staging App Check requires a separately approved Firebase project and public site key.');
+}
+
 export const appId = appNamespace;
 const app = initializeApp(firebaseConfig);
+
+// Initialize attestation BEFORE creating SDK clients or making API calls.
+// The reCAPTCHA Enterprise site key is public; xAI credentials remain in
+// Firebase Secret Manager and App Check debug tokens are not used here.
+if (stagingAppCheckEnabled) {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
+    isTokenAutoRefreshEnabled: true
+  });
+}
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const aiFunctions = hostedAiEnabled ? getFunctions(app, 'us-central1') : null;
 
 if (emulatorMode) {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });

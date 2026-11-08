@@ -2081,3 +2081,41 @@ html:has(.reflect-app[data-theme="light"])::-webkit-scrollbar-thumb {
   display: block;
   margin-top: 5px;
 }
+
+
+/* Stage04G: explicit consent and explicit persistence of hosted AI sessions. */
+.reflect-ai-send-consent {
+  display: grid;
+  gap: 6px;
+  padding: 8px 13px 10px;
+  font-size: 11px;
+  color: var(--reflect-muted);
+}
+.reflect-ai-send-consent label {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  line-height: 1.5;
+}
+.reflect-ai-send-consent input[type="checkbox"] {
+  margin-top: 2px;
+  accent-color: var(--reflect-accent);
+}
+.reflect-ai-session-unsaved {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+.reflect-ai-session-unsaved button {
+  border: 1px solid var(--reflect-border);
+  border-radius: 9px;
+  padding: 7px 10px;
+  background: var(--reflect-card);
+  color: var(--reflect-accent);
+  font-weight: 650;
+}
+.reflect-ai-session-unsaved button:disabled { opacity: .45; cursor: wait; }
+.reflect-ai-send-consent p[role="alert"] { color: #df999b; }

@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   ai: vi.fn()
 }));
 vi.mock('../../firebase/config', () => ({ db: {}, appId: 'reflect-8fdc8' }));
-vi.mock('../../api/geminiService', () => ({
+vi.mock('../../api/reflectAssistantService', () => ({
   AI_SESSION_ENABLED: false,
   getAnalysisFromAI: mocks.ai
 }));
