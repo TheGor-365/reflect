@@ -61,7 +61,10 @@ function createRequestListener({ ready, verifyAuth, verifyAppCheck, handleReply 
   }
   return async (req, res) => {
     const origin = req.headers.origin;
-    if (req.method === "GET" && req.url === "/healthz") {
+    // GET health endpoints may carry tracking/query parameters added by a
+    // browser link. Only health uses pathname; AI routes stay exact-match.
+    const pathname = (req.url || "").split("?", 1)[0];
+    if (req.method === "GET" && pathname === "/healthz") {
       return respond(res, 200, { status: "up", aiEnabled: ready() });
     }
     if (origin !== STAGE_ORIGIN) {
