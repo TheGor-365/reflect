@@ -41,6 +41,30 @@ test("AI defaults OFF; health does not depend on secrets", async () => {
     assert.equal((await send(url)).status, 503);
   });
 });
+test("healthcheck accepts browser tracking query without an Origin header, not near-miss paths", async () => {
+  await withServer(deps({ ready: () => false }), async url => {
+    const response = await fetch(url + "/healthz?utm_source=chatgpt.com");
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { status: "up", aiEnabled: false });
+    const invalid = await fetch(url + "/healthz-other?utm_source=chatgpt.com");
+    assert.equal(invalid.status, 403);
+    const method = await fetch(url + "/healthz?utm_source=chatgpt.com", { method: "POST" });
+    assert.equal(method.status, 403);
+  });
+});
+test("AI endpoint retains strict URL matching even with a query string", async () => {
+  let calls = 0;
+  await withServer(deps({ handleReply: async () => { calls++; return {}; } }), async url => {
+    const response = await fetch(url + "/v1/ai/reply?utm_source=chatgpt.com", {
+      method: "POST", headers: {
+        origin: STAGE_ORIGIN, authorization: "Bearer " + TOKEN,
+        "x-firebase-appcheck": TOKEN, "content-type": "application/json"
+      }, body: JSON.stringify(payload)
+    });
+    assert.equal(response.status, 404);
+    assert.equal(calls, 0);
+  });
+});
 test("cross-project Origin is rejected before any token verification", async () => {
   let verified = 0;
   await withServer(deps({ verifyAuth: async () => { verified++; return { uid: UID }; } }), async url => {
