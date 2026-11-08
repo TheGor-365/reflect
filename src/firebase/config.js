@@ -59,8 +59,9 @@ const app = initializeApp(firebaseConfig);
 // Initialize attestation BEFORE creating SDK clients or making API calls.
 // The reCAPTCHA Enterprise site key is public; xAI credentials remain in
 // Firebase Secret Manager and App Check debug tokens are not used here.
+export let appCheckClient = null;
 if (stagingAppCheckEnabled) {
-  initializeAppCheck(app, {
+  appCheckClient = initializeAppCheck(app, {
     provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
     isTokenAutoRefreshEnabled: true
   });
