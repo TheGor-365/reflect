@@ -639,3 +639,12 @@ npm run dev -- --strictPort
 - Original `reflect-8fdc8` and iLab projects untouched; static Hosting
   deployment affected **only** the new stage site. Keep PR #35 Draft
   and Drive master mirror considered unsynced.
+
+
+### 2026-11-08 Public staging browser shows working Auth, but hosted AI is deliberately OFF
+
+- User-provided Chrome screenshots at **https://reflect-ai-staging.web.app/** show the real staging site renders the Diary and Sessions routes; bottom-left badge shows **Guest access**. This supports successful frontend display and anonymous guest sign-in UX, but does not by itself verify signed App Check token issuance or every Firestore transaction.
+- Sessions displayed `Пока ИИ недоступен`, and the send arrow remained inactive when a message was typed. This is **expected** with the deployed staging build's `VITE_ENABLE_REFLECT_CLOUD_AI=false`. No real model call was made from this UI. The original local port 19107 proxy is unrelated to the published stage.
+- **Next stage release gates:** owner approval of new-project-only **Firebase Blaze/GCP billing** (existing xAI USD 8.64 credits do not pay Firebase); provider-side safety and Cloud Functions spend cap/alert review; configure `REFLECT_XAI_KEY` via Secret Manager on staging, real signed App Check verification and Token Verifier role, deploy isolated Functions v2 codebase, create server-only Firestore runtime flag and verify backend reservations, redeploy **only staging Hosting** with `VITE_ENABLE_REFLECT_CLOUD_AI=true`; one consented synthetic live turn. Never activate ordinary AI before backend is ready. No production/real diary records or old Firebase projects changed.
+- 2026-11-08 Google/Firebase official docs note optional service-level **Cloud Functions spend cap budgets** versus alerts-only budgets; neither cap is instantaneous and delayed overages can be billed: https://firebase.google.com/docs/projects/billing/spend-caps and https://firebase.google.com/docs/projects/billing/budget-alerts .
+- Immediate owner step: open `reflect-ai-staging` **Spark -> Upgrade** and inspect displayed billing/Blaze requirements; do not complete payment authorization without review. GitHub Draft #35 remains unmerged, main untouched; cloud billing and deploy not performed.
