@@ -12,25 +12,16 @@ import Goals from './features/Goals/Goals';
 import Sessions from './features/Sessions/Sessions';
 import SessionSchema from './features/SessionSchema/SessionSchema';
 import Loader from './components/common/Loader';
+import AppFailureView from './components/common/AppFailureView';
 import ProfileModal from './components/modals/ProfileModal';
 import AccountAccess from './components/modals/AccountAccess';
 import ContentModal from './components/modals/ContentModal';
 import ReflectionModal from './components/modals/ReflectionModal';
 import ChecklistFeedbackModal from './components/modals/ChecklistFeedbackModal';
 
+// Keep the same Midnight Aurora error treatment for auth and Firestore faults.
 function LoadErrorView({ message }) {
-  return (
-    <main role="alert" className="min-h-screen bg-stone-50 flex items-center justify-center p-6">
-      <div className="max-w-md w-full rounded-xl border border-red-200 bg-white p-6 shadow-sm">
-        <h1 className="text-xl font-semibold text-stone-900 mb-3">Не удалось загрузить данные</h1>
-        <p className="text-sm text-stone-700 mb-5">{message}</p>
-        <button type="button" onClick={() => window.location.reload()}
-          className="rounded-lg bg-teal-600 px-4 py-2 text-white hover:bg-teal-700">
-          Повторить загрузку
-        </button>
-      </div>
-    </main>
-  );
+  return <AppFailureView code={503} message={message} />;
 }
 
 export default function App() {
@@ -70,6 +61,8 @@ export default function App() {
   });
 
   useEffect(() => {
+    // Persist the theme and keep pre-React/loader/error screens in sync.
+    document.documentElement.dataset.reflectTheme = theme;
     try { window.localStorage.setItem('reflect-theme', theme); }
     catch { /* Browser storage is optional; never block journal access. */ }
   }, [theme]);
