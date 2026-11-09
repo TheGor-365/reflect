@@ -4,7 +4,7 @@ import AccountAccess from './AccountAccess';
 import {
   registerCurrentAnonymous, signInExisting, signOutRegistered,
   requestPasswordReset, requestEmailVerification, refreshVerificationStatus,
-  requestEmailChange
+  requestEmailChange, reauthenticateAndRequestEmailChange
 } from '../../hooks/accountAccess';
 
 // AccountAccess tests exercise account interactions, not owner export or
@@ -18,6 +18,7 @@ vi.mock('../../hooks/accountAccess', () => ({
   signOutRegistered: vi.fn(),
   requestPasswordReset: vi.fn(), requestEmailVerification: vi.fn(),
   refreshVerificationStatus: vi.fn(), requestEmailChange: vi.fn(),
+  reauthenticateAndRequestEmailChange: vi.fn(),
   accountErrorMessage: vi.fn(e => e.message || 'Ошибка авторизации')
 }));
 
@@ -213,6 +214,51 @@ test('linked account can safely request changing inaccessible email without losi
   await waitFor(() => expect(requestEmailChange).toHaveBeenCalledWith('new@example.test'));
   expect(screen.getByRole('status')).toHaveTextContent('До подтверждения прежний email');
   expect(onAccountChanged).not.toHaveBeenCalled();
+  expect(signOutRegistered).not.toHaveBeenCalled();
+});
+
+test('Firebase recent-login requirement asks for current password inline without signout', async () => {
+  requestEmailChange.mockRejectedValueOnce({ code: 'auth/requires-recent-login' });
+  reauthenticateAndRequestEmailChange.mockResolvedValueOnce(true);
+  const original = { uid: 'original-uid', isAnonymous: false,
+    email: 'old@example.test', emailVerified: false };
+  render(<AccountAccess user={original} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Изменить email' }));
+  fireEvent.change(screen.getByLabelText('Новый email'), {
+    target: { value: 'new@example.test' }
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Подтвердить новый email' }));
+  await waitFor(() => expect(screen.getByLabelText('Пароль текущего аккаунта')).toBeInTheDocument());
+  expect(screen.getByText(/выходить из приложения не нужно/i)).toBeInTheDocument();
+  expect(signOutRegistered).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText('Пароль текущего аккаунта'), {
+    target: { value: 'synthetic-current-password' }
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Подтвердить личность и отправить письмо' }));
+  await waitFor(() => expect(reauthenticateAndRequestEmailChange)
+    .toHaveBeenCalledWith('new@example.test', 'synthetic-current-password'));
+  expect(screen.getByRole('status')).toHaveTextContent('Письмо отправлено');
+  expect(screen.queryByLabelText('Пароль текущего аккаунта')).toBeNull();
+  expect(signOutRegistered).not.toHaveBeenCalled();
+});
+
+test('wrong current password keeps same account and clears password input', async () => {
+  requestEmailChange.mockRejectedValueOnce({ code: 'auth/requires-recent-login' });
+  reauthenticateAndRequestEmailChange.mockRejectedValueOnce({ code: 'auth/invalid-credential' });
+  render(<AccountAccess user={{ uid: 'original', isAnonymous: false, email: 'old@example.test' }} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Изменить email' }));
+  fireEvent.change(screen.getByLabelText('Новый email'), {
+    target: { value: 'new@example.test' }
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Подтвердить новый email' }));
+  await screen.findByLabelText('Пароль текущего аккаунта');
+  fireEvent.change(screen.getByLabelText('Пароль текущего аккаунта'), {
+    target: { value: 'wrong-password' }
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Подтвердить личность и отправить письмо' }));
+  await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+  expect(screen.getByLabelText('Пароль текущего аккаунта')).toHaveValue('');
+  expect(screen.getByLabelText('Новый email')).toHaveValue('new@example.test');
   expect(signOutRegistered).not.toHaveBeenCalled();
 });
 
