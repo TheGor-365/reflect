@@ -10,6 +10,7 @@ const payload = { requestId: "A".repeat(18), message: "Синтетически�
   consent: { granted: true, version: "2026-11-07", scope: "one-message" } };
 const deps = (overrides = {}) => ({
   ready: () => true,
+  allowProvider: () => true,
   verifyAuth: async () => ({ uid: UID }),
   verifyAppCheck: async () => ({
     app_id: "1:599679789981:web:d4d8743dbff0fe40af1d74",
@@ -65,7 +66,22 @@ test("AI endpoint retains strict URL matching even with a query string", async (
     assert.equal(calls, 0);
   });
 });
-test("cross-project Origin is rejected before any token verification", async () => {
+test("with valid signed tokens the independent xAI egress switch remains OFF", async () => {
+  let calls = 0;
+  await withServer(deps({
+    allowProvider: () => false,
+    handleReply: async () => { calls++; return {}; }
+  }), async url => {
+    const health = await fetch(url + "/healthz?utm_source=chatgpt.com");
+    assert.equal(health.status, 200);
+    assert.deepEqual(await health.json(), { status: "up", aiEnabled: false });
+    const response = await send(url);
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { error: "provider-disabled" });
+  });
+  assert.equal(calls, 0);
+});
+test("cross-project Origin is rejected before any token verification", async () {
   let verified = 0;
   await withServer(deps({ verifyAuth: async () => { verified++; return { uid: UID }; } }), async url => {
     const response = await send(url, { headers: { origin: "https://reflect-three.vercel.app" } });
