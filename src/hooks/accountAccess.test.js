@@ -39,7 +39,30 @@ describe('Firebase account linking and sign-in safeguards', () => {
     expect(EmailAuthProvider.credential).toHaveBeenCalledWith('qa@example.test', 'very-strong-qa-password!');
     expect(linkWithCredential).toHaveBeenCalledWith(auth.currentUser, expect.anything());
     expect(result.uid).toBe('synthetic-legacy-uid');
+    expect(sendEmailVerification).toHaveBeenCalledWith(result);
     expect(signInWithEmailAndPassword).not.toHaveBeenCalled();
+  });
+
+  it('keeps verified UID and permanent account when verification delivery is unavailable', async () => {
+    linkWithCredential.mockResolvedValue({
+      user: { uid: 'synthetic-legacy-uid', isAnonymous: false,
+        email: 'qa@example.test', emailVerified: false }
+    });
+    sendEmailVerification.mockRejectedValueOnce({ code: 'auth/too-many-requests' });
+    const user = await registerCurrentAnonymous('qa@example.test', 'very-strong-qa-password!');
+    expect(user.uid).toBe('synthetic-legacy-uid');
+    expect(sendEmailVerification).toHaveBeenCalledTimes(1);
+    expect(linkWithCredential).toHaveBeenCalledTimes(1);
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it('never resends verification for an already verified linked account', async () => {
+    linkWithCredential.mockResolvedValue({
+      user: { uid: 'synthetic-legacy-uid', isAnonymous: false,
+        email: 'qa@example.test', emailVerified: true }
+    });
+    await registerCurrentAnonymous('qa@example.test', 'very-strong-qa-password!');
+    expect(sendEmailVerification).not.toHaveBeenCalled();
   });
 
   it('does not switch to a different UID when a link result violates continuity', async () => {
