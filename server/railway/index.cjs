@@ -7,6 +7,7 @@
 const http = require("node:http");
 const { PolicyError } = require("../ai/policy.cjs");
 const { createHostedHandler } = require("../ai/hostedHandler.cjs");
+const { createStagingEntitlementVerifier } = require("../ai/stagingEntitlement.cjs");
 const STAGE_PROJECT = "reflect-ai-staging";
 const STAGE_APP_ID = "1:599679789981:web:d4d8743dbff0fe40af1d74";
 const STAGE_ORIGIN = "https://reflect-ai-staging.web.app";
@@ -54,9 +55,9 @@ async function readSmallJson(req) {
   }
 }
 
-function createRequestListener({ ready, allowProvider, authorizeOwner, verifyAuth, verifyAppCheck, handleReply }) {
+function createRequestListener({ ready, allowProvider, authorizeAccount, verifyAuth, verifyAppCheck, handleReply }) {
   if (typeof ready !== "function" || typeof allowProvider !== "function" ||
-      typeof authorizeOwner !== "function" ||
+      typeof authorizeAccount !== "function" ||
       typeof verifyAuth !== "function" ||
       typeof verifyAppCheck !== "function" || typeof handleReply !== "function") {
     throw Error("Stage04H requires explicit injected server dependencies");
@@ -96,9 +97,9 @@ function createRequestListener({ ready, allowProvider, authorizeOwner, verifyAut
       if (!auth?.uid || app?.appId !== STAGE_APP_ID || app?.alreadyConsumed === true) {
         throw new PolicyError("unauthenticated");
       }
-      // The browser can create Firebase anonymous accounts. Before any
-      // billable traffic, restrict staging to the single owner-approved UID.
-      if (allowProvider() && !authorizeOwner(auth.uid)) {
+      // Current verified Firebase account + short-lived private entitlement;
+      // no browser-supplied role or recurring Railway UID variable.
+      if (allowProvider() && !(await authorizeAccount(auth))) {
         throw new PolicyError("permission-denied");
       }
       // A second independent, default-OFF egress gate protects real
@@ -125,17 +126,14 @@ function createRequestListener({ ready, allowProvider, authorizeOwner, verifyAut
 function createRuntime() {
   const enabled = process.env.REFLECT_AI_ENABLED === "yes";
   const outboundEnabled = process.env.REFLECT_XAI_OUTBOUND_ENABLED === "yes";
-  const ownerUid = process.env.REFLECT_AI_ALLOWED_UID || "";
   const valid = process.env.REFLECT_AI_APPROVED_PROJECT === STAGE_PROJECT &&
     process.env.REFLECT_AI_APP_CHECK_APP_ID === STAGE_APP_ID &&
     process.env.REFLECT_AI_ALLOWED_ORIGIN === STAGE_ORIGIN;
   if (enabled && !valid) throw Error("Stage04H refuses unsafe Firebase project/app/origin");
   if (outboundEnabled && (!enabled || !valid)) throw Error("Stage04H refuses xAI egress without trusted staging runtime");
-  if (outboundEnabled && (!/^[A-Za-z0-9_-]{6,128}$/.test(ownerUid))) {
-    throw Error("Stage04H requires one explicitly allowlisted staging Firebase UID");
-  }
   let verifyAuth = async () => { throw new Error("AI disabled"); };
   let verifyAppCheck = async () => { throw new Error("AI disabled"); };
+  let authorizeAccount = async () => false;
   let handleReply = async () => { throw new Error("AI disabled"); };
   let ready = false;
   if (enabled) {
@@ -159,14 +157,17 @@ function createRuntime() {
       db, projectId: STAGE_PROJECT, appId: STAGE_APP_ID,
       readSecret: () => providerKey, transport: fetch
     });
-    verifyAuth = token => getAuth(app).verifyIdToken(token);
+    authorizeAccount = createStagingEntitlementVerifier({
+      db, projectId: STAGE_PROJECT, getUser: uid => getAuth(app).getUser(uid)
+    });
+    verifyAuth = token => getAuth(app).verifyIdToken(token, true);
     verifyAppCheck = token => getAppCheck(app).verifyToken(token, { consume: true });
     handleReply = handler;
     ready = true;
   }
   return createRequestListener({
     ready: () => ready, allowProvider: () => outboundEnabled,
-    authorizeOwner: uid => uid === ownerUid,
+    authorizeAccount,
     verifyAuth, verifyAppCheck, handleReply
   });
 }
