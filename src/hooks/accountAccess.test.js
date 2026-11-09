@@ -2,14 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, signOut,
   sendPasswordResetEmail, sendEmailVerification, reload, confirmPasswordReset,
-  applyActionCode
+  applyActionCode, verifyBeforeUpdateEmail
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
 import { clearExplicitlySignedOut, isExplicitlySignedOut, setExplicitlySignedOut } from './accountSession';
 import {
   accountErrorMessage, normalizeEmail, registerCurrentAnonymous,
   signInExisting, signOutRegistered, requestPasswordReset, requestEmailVerification,
-  refreshVerificationStatus, completePasswordReset, completeEmailVerification
+  refreshVerificationStatus, completePasswordReset, completeEmailVerification,
+  requestEmailChange
 } from './accountAccess';
 
 vi.mock('../firebase/config', () => ({ auth: { currentUser: null } }));
@@ -19,7 +20,8 @@ vi.mock('firebase/auth', () => ({
   signInWithEmailAndPassword: vi.fn(),
   signOut: vi.fn(),
   sendPasswordResetEmail: vi.fn(), sendEmailVerification: vi.fn(),
-  reload: vi.fn(), confirmPasswordReset: vi.fn(), applyActionCode: vi.fn()
+  reload: vi.fn(), confirmPasswordReset: vi.fn(), applyActionCode: vi.fn(),
+  verifyBeforeUpdateEmail: vi.fn()
 }));
 
 beforeEach(() => {
@@ -184,6 +186,42 @@ describe('email verification and password recovery boundaries', () => {
     auth.currentUser.emailVerified = true;
     await requestEmailVerification();
     expect(sendEmailVerification).toHaveBeenCalledTimes(1);
+  });
+
+  it('changes unreachable email by sending verified link without replacing UID', async () => {
+    auth.currentUser = { uid: 'registered-synthetic', isAnonymous: false,
+      email: 'old@example.test', emailVerified: false };
+    const before = auth.currentUser;
+    verifyBeforeUpdateEmail.mockResolvedValue(undefined);
+    await requestEmailChange('  NEW@EXAMPLE.TEST ');
+    expect(verifyBeforeUpdateEmail).toHaveBeenCalledWith(
+      before, 'new@example.test'
+    );
+    expect(auth.currentUser).toBe(before);
+    expect(signOut).not.toHaveBeenCalled();
+    expect(signInWithEmailAndPassword).not.toHaveBeenCalled();
+  });
+
+  it('rejects changing email when anonymous or same address', async () => {
+    await expect(requestEmailChange('new@example.test'))
+      .rejects.toThrow('зарегистрированный аккаунт');
+    expect(verifyBeforeUpdateEmail).not.toHaveBeenCalled();
+    auth.currentUser = { uid: 'linked', isAnonymous: false,
+      email: 'old@example.test' };
+    await expect(requestEmailChange('OLD@example.test'))
+      .rejects.toThrow('должен отличаться');
+    expect(verifyBeforeUpdateEmail).not.toHaveBeenCalled();
+  });
+
+  it('keeps registered user unchanged when new email verification is rejected', async () => {
+    auth.currentUser = { uid: 'linked', isAnonymous: false,
+      email: 'old@example.test' };
+    const original = auth.currentUser;
+    verifyBeforeUpdateEmail.mockRejectedValueOnce({ code: 'auth/email-already-in-use' });
+    await expect(requestEmailChange('used@example.test'))
+      .rejects.toMatchObject({ code: 'auth/email-already-in-use' });
+    expect(auth.currentUser).toBe(original);
+    expect(signOut).not.toHaveBeenCalled();
   });
 
   it('refreshes verified state only for the same Firebase UID', async () => {
