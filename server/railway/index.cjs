@@ -54,8 +54,9 @@ async function readSmallJson(req) {
   }
 }
 
-function createRequestListener({ ready, verifyAuth, verifyAppCheck, handleReply }) {
-  if (typeof ready !== "function" || typeof verifyAuth !== "function" ||
+function createRequestListener({ ready, allowProvider, verifyAuth, verifyAppCheck, handleReply }) {
+  if (typeof ready !== "function" || typeof allowProvider !== "function" ||
+      typeof verifyAuth !== "function" ||
       typeof verifyAppCheck !== "function" || typeof handleReply !== "function") {
     throw Error("Stage04H requires explicit injected server dependencies");
   }
@@ -65,7 +66,7 @@ function createRequestListener({ ready, verifyAuth, verifyAppCheck, handleReply 
     // browser link. Only health uses pathname; AI routes stay exact-match.
     const pathname = (req.url || "").split("?", 1)[0];
     if (req.method === "GET" && pathname === "/healthz") {
-      return respond(res, 200, { status: "up", aiEnabled: ready() });
+      return respond(res, 200, { status: "up", aiEnabled: ready() && allowProvider() });
     }
     if (origin !== STAGE_ORIGIN) {
       return respond(res, 403, { error: "forbidden" });
@@ -94,6 +95,12 @@ function createRequestListener({ ready, verifyAuth, verifyAppCheck, handleReply 
       if (!auth?.uid || app?.app_id !== STAGE_APP_ID || app?.alreadyConsumed === true) {
         throw new PolicyError("unauthenticated");
       }
+      // A second independent, default-OFF egress gate protects real
+      // credentials even if a private Firestore runtime flag were mis-set.
+      // Only verified Firebase Auth + consumable App Check can reach here.
+      if (!allowProvider()) {
+        return respond(res, 503, { error: "provider-disabled" }, origin);
+      }
       const output = await handleReply({
         auth: { uid: auth.uid },
         app: { appId: app.app_id, alreadyConsumed: app.alreadyConsumed },
@@ -111,10 +118,12 @@ function createRequestListener({ ready, verifyAuth, verifyAppCheck, handleReply 
 
 function createRuntime() {
   const enabled = process.env.REFLECT_AI_ENABLED === "yes";
+  const outboundEnabled = process.env.REFLECT_XAI_OUTBOUND_ENABLED === "yes";
   const valid = process.env.REFLECT_AI_APPROVED_PROJECT === STAGE_PROJECT &&
     process.env.REFLECT_AI_APP_CHECK_APP_ID === STAGE_APP_ID &&
     process.env.REFLECT_AI_ALLOWED_ORIGIN === STAGE_ORIGIN;
   if (enabled && !valid) throw Error("Stage04H refuses unsafe Firebase project/app/origin");
+  if (outboundEnabled && (!enabled || !valid)) throw Error("Stage04H refuses xAI egress without trusted staging runtime");
   let verifyAuth = async () => { throw new Error("AI disabled"); };
   let verifyAppCheck = async () => { throw new Error("AI disabled"); };
   let handleReply = async () => { throw new Error("AI disabled"); };
@@ -146,7 +155,8 @@ function createRuntime() {
     ready = true;
   }
   return createRequestListener({
-    ready: () => ready, verifyAuth, verifyAppCheck, handleReply
+    ready: () => ready, allowProvider: () => outboundEnabled,
+    verifyAuth, verifyAppCheck, handleReply
   });
 }
 
