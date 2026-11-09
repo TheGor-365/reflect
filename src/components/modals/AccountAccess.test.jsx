@@ -42,6 +42,54 @@ test('register action safely links the current guest and closes only on success'
   expect(onClose).toHaveBeenCalledOnce();
 });
 
+test('signed-out user sees login without automatic guest creation or UID switching', async () => {
+  const onAccountChanged = vi.fn();
+  signInExisting.mockResolvedValue({
+    uid: 'registered-user', email: 'qa@example.test', isAnonymous: false
+  });
+  render(<AccountAccess user={null} signedOut onAccountChanged={onAccountChanged}
+    onGuest={vi.fn()}/>);
+  expect(screen.getByRole('heading', { name: 'С возвращением' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Регистрация' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Закрыть' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Начать новый гостевой профиль' })).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'qa@example.test' } });
+  fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'synthetic-pass-2026' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
+  await waitFor(() => expect(signInExisting)
+    .toHaveBeenCalledWith('qa@example.test', 'synthetic-pass-2026', { hasLocalData: false }));
+  expect(onAccountChanged).toHaveBeenCalledWith(
+    expect.objectContaining({ uid: 'registered-user' })
+  );
+  expect(registerCurrentAnonymous).not.toHaveBeenCalled();
+});
+
+test('profile-only guest can switch account after explicit acknowledgement', async () => {
+  signInExisting.mockResolvedValue({ uid: 'restored-user', isAnonymous: false });
+  render(<AccountAccess user={{ uid: 'guest-profile-uid', isAnonymous: true }}
+    guestProfileOnly />);
+  fireEvent.click(screen.getByRole('button', { name: 'Вход' }));
+  const signIn = screen.getByRole('button', { name: 'Войти' });
+  expect(signIn).toBeDisabled();
+  expect(screen.getByRole('checkbox')).not.toBeChecked();
+  fireEvent.click(screen.getByRole('checkbox'));
+  expect(signIn).not.toBeDisabled();
+  fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'qa@example.test' } });
+  fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'synthetic-password' } });
+  fireEvent.click(signIn);
+  await waitFor(() => expect(signInExisting).toHaveBeenCalledWith(
+    'qa@example.test', 'synthetic-password', { hasLocalData: false }
+  ));
+});
+
+test('signed-out visitor enters guest mode only by pressing the explicit button', async () => {
+  const onGuest = vi.fn(async () => {});
+  render(<AccountAccess user={null} signedOut onGuest={onGuest} />);
+  expect(onGuest).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Начать новый гостевой профиль' }));
+  await waitFor(() => expect(onGuest).toHaveBeenCalledTimes(1));
+});
+
 test('login blocked when guest already owns data, without calling Firebase', () => {
   render(<AccountAccess user={{ uid: 'anon', isAnonymous: true }}
     hasLocalData />);
