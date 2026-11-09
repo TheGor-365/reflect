@@ -5,8 +5,9 @@
  */
 import { httpsCallable } from 'firebase/functions';
 import { aiFunctions, hostedAiEnabled } from '../firebase/config';
+import { railwayAiEnabled, getRailwayAnalysis } from './reflectRailwayService';
 
-export const AI_SESSION_ENABLED = hostedAiEnabled;
+export const AI_SESSION_ENABLED = hostedAiEnabled || railwayAiEnabled;
 export const CONSENT_VERSION = '2026-11-07';
 
 export function createRequestBody(message, requestId) {
@@ -24,18 +25,20 @@ export function createRequestBody(message, requestId) {
 }
 
 export async function getAnalysisFromAI(message, requestId) {
-  if (!AI_SESSION_ENABLED || !aiFunctions) {
-    throw new Error('ai-disabled');
-  }
+  if (!AI_SESSION_ENABLED) throw new Error('ai-disabled');
   const payload = createRequestBody(message, requestId);
-  // Recreate no provider call on errors. Each explicit user action needs a
-  // fresh requestId; backend tracks immutable ids across UTC day rollover.
-  const callable = httpsCallable(aiFunctions, 'reflectAiReply', {
-    timeout: 45000,
-    limitedUseAppCheckTokens: true
-  });
-  const result = await callable(payload);
-  const data = result?.data;
+  // No automatic retries. The Railway path is isolated from Firebase Functions.
+  let data;
+  if (railwayAiEnabled) {
+    data = await getRailwayAnalysis(payload);
+  } else {
+    if (!aiFunctions) throw new Error('ai-disabled');
+    const callable = httpsCallable(aiFunctions, 'reflectAiReply', {
+      timeout: 45000, limitedUseAppCheckTokens: true
+    });
+    const result = await callable(payload);
+    data = result?.data;
+  }
   if (!data || typeof data.text !== 'string' ||
       !data.text.trim() || data.text.length > 2400 ||
       data.model !== 'grok-4.3') {

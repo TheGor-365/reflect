@@ -1,0 +1,63 @@
+name: Reflect Stage04H Railway Grok staging bridge (no provider traffic)
+on:
+  pull_request:
+    paths:
+      - 'server/railway/**'
+      - 'server/ai/**'
+      - 'src/api/**'
+      - 'src/firebase/**'
+      - '.env.staging.example'
+      - 'tests/ai-stage04g/**'
+      - '.github/workflows/reflect-railway-bridge.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  railway-staging-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VITE_FIREBASE_CONFIG: '{"apiKey":"demo-only-key","authDomain":"demo-reflect-auth-qa.firebaseapp.com","projectId":"demo-reflect-auth-qa","appId":"1:12345:web:demo"}'
+      VITE_APP_ID: reflect-8fdc8
+      VITE_USE_FIREBASE_EMULATORS: 'true'
+      VITE_ENABLE_REFLECT_CLOUD_AI: 'false'
+      VITE_ENABLE_REFLECT_RAILWAY_AI: 'false'
+      REFLECT_AI_ENABLED: 'no'
+      REFLECT_XAI_OUTBOUND_ENABLED: 'no'
+      REFLECT_AI_ALLOWED_UID: ''
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static Railway gate and no browser secrets
+        run: |
+          node --check server/railway/index.cjs
+          node --check server/railway/index.test.cjs
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const server = fs.readFileSync('server/railway/index.cjs','utf8');
+          const client = fs.readFileSync('src/api/reflectRailwayService.js','utf8');
+          const env = fs.readFileSync('.env.staging.example','utf8');
+          if (!server.includes('verifyIdToken(token)') ||
+              !server.includes('verifyToken(token, { consume: true })') ||
+              !server.includes('createHostedHandler') ||
+              !server.includes('REFLECT_AI_ENABLED') ||
+              !server.includes('REFLECT_XAI_OUTBOUND_ENABLED') ||
+              !server.includes('REFLECT_AI_ALLOWED_UID') ||
+              !client.includes('getLimitedUseToken') ||
+              !client.includes('X-Firebase-AppCheck') ||
+              !env.includes('VITE_ENABLE_REFLECT_RAILWAY_AI=false') ||
+              env.includes('REFLECT_XAI_KEY=') ||
+              env.includes('REFLECT_FIREBASE_SERVICE_ACCOUNT_JSON=')) {
+            throw Error('Railway Auth/AppCheck/secret boundary regression');
+          }
+          NODE
+      - name: HTTP boundary unit fixtures (no secrets/network to xAI)
+        run: node --test server/railway/index.test.cjs
+      - name: Full frontend unit / TypeScript / build
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run typecheck
+          npm run build

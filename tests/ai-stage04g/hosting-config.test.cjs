@@ -31,7 +31,7 @@ test("local staging config is ignored and AI stays OFF while App Check initializ
   assert.match(env, /^VITE_APP_ID=reflect-8fdc8$/m);
   assert.match(client, /export const stagingAppCheckEnabled = appCheckRequested && stagingConfigValid;/);
   assert.match(client, /export const hostedAiEnabled = hostedAiRequested && stagingConfigValid;/);
-  assert.match(client, /if \(stagingAppCheckEnabled\) \{\s*initializeAppCheck\(app,/);
+  assert.match(client, /if \(stagingAppCheckEnabled\) \{\s*appCheckClient = initializeAppCheck\(app,/);
   assert.doesNotMatch(env, /^XAI_API_KEY=/m);
   assert.doesNotMatch(env, /^REFLECT_XAI_KEY=/m);
 });
