@@ -16,7 +16,10 @@ const MAX_AUTH_HEADER = 8192;
 const ERROR_STATUS = Object.freeze({
   "invalid-argument": 400, "permission-denied": 403,
   "unauthenticated": 401, "already-exists": 409,
-  "resource-exhausted": 429, "unavailable": 503
+  "resource-exhausted": 429, "unavailable": 503,
+  "reauthentication-required": 401, "auth-permission-missing": 503,
+  "auth-verification-unavailable": 503,
+  "attestation-unavailable": 503
 });
 
 function respond(res, status, data, origin = "") {
@@ -55,9 +58,27 @@ async function readSmallJson(req) {
   }
 }
 
-function createRequestListener({ ready, allowProvider, authorizeAccount, verifyAuth, verifyAppCheck, handleReply }) {
+// Only stable error *codes* cross this boundary; no raw SDK messages, UID or tokens.
+function mapAuthError(error) {
+  switch (error?.code) {
+    case "auth/id-token-revoked":
+      return new PolicyError("reauthentication-required");
+    case "auth/id-token-expired":
+    case "auth/invalid-id-token":
+    case "auth/argument-error":
+    case "auth/user-disabled":
+    case "auth/user-not-found":
+      return new PolicyError("unauthenticated");
+    case "auth/insufficient-permission":
+      return new PolicyError("auth-permission-missing");
+    default:
+      return new PolicyError("auth-verification-unavailable");
+  }
+}
+
+function createRequestListener({ ready, allowProvider, authorizeAccount, verifyAuth, verifyAppCheck, checkRuntime, handleReply }) {
   if (typeof ready !== "function" || typeof allowProvider !== "function" ||
-      typeof authorizeAccount !== "function" ||
+      typeof authorizeAccount !== "function" || typeof checkRuntime !== "function" ||
       typeof verifyAuth !== "function" ||
       typeof verifyAppCheck !== "function" || typeof handleReply !== "function") {
     throw Error("Stage04H requires explicit injected server dependencies");
@@ -73,10 +94,12 @@ function createRequestListener({ ready, allowProvider, authorizeAccount, verifyA
     if (origin !== STAGE_ORIGIN) {
       return respond(res, 403, { error: "forbidden" });
     }
-    if (req.method === "OPTIONS" && req.url === "/v1/ai/reply") {
+    const diagnostics = req.url === "/v1/ai/diagnostics";
+    if (req.method === "OPTIONS" && (req.url === "/v1/ai/reply" || diagnostics)) {
       return respond(res, 204, {}, origin);
     }
-    if (req.method !== "POST" || req.url !== "/v1/ai/reply") {
+    if (req.method !== "POST" ||
+        (req.url !== "/v1/ai/reply" && !diagnostics)) {
       return respond(res, 404, { error: "not-found" }, origin);
     }
     if (!ready()) {
@@ -92,15 +115,40 @@ function createRequestListener({ ready, allowProvider, authorizeAccount, verifyA
     }
     try {
       const data = await readSmallJson(req);
-      const auth = await verifyAuth(bearer.slice(7));
-      const app = await verifyAppCheck(appCheckToken);
+      if (diagnostics && (data === null || typeof data !== "object" ||
+          Array.isArray(data) || Object.keys(data).length !== 0)) {
+        throw new PolicyError("invalid-argument");
+      }
+      let auth;
+      try {
+        auth = await verifyAuth(bearer.slice(7));
+      } catch (error) {
+        throw mapAuthError(error);
+      }
+      let app;
+      try {
+        app = await verifyAppCheck(appCheckToken);
+      } catch {
+        throw new PolicyError("attestation-unavailable");
+      }
       if (!auth?.uid || app?.appId !== STAGE_APP_ID || app?.alreadyConsumed === true) {
         throw new PolicyError("unauthenticated");
       }
       // Current verified Firebase account + short-lived private entitlement;
       // no browser-supplied role or recurring Railway UID variable.
-      if (allowProvider() && !(await authorizeAccount(auth))) {
+      if ((allowProvider() || diagnostics) && !(await authorizeAccount(auth))) {
         throw new PolicyError("permission-denied");
+      }
+      // This diagnostics route tests the same signed Auth, consumable App Check,
+      // private account entitlement and Firestore runtime gate, but NEVER invokes
+      // the paid provider or reserves a request ID. No diary or message body.
+      if (diagnostics) {
+        const privateEnabled = await checkRuntime();
+        return respond(res, 200, {
+          status: !privateEnabled ? "runtime-disabled" :
+            !allowProvider() ? "outbound-disabled" : "ready",
+          model: "grok-4.3"
+        }, origin);
       }
       // A second independent, default-OFF egress gate protects real
       // credentials even if a private Firestore runtime flag were mis-set.
@@ -134,6 +182,7 @@ function createRuntime() {
   let verifyAuth = async () => { throw new Error("AI disabled"); };
   let verifyAppCheck = async () => { throw new Error("AI disabled"); };
   let authorizeAccount = async () => false;
+  let checkRuntime = async () => false;
   let handleReply = async () => { throw new Error("AI disabled"); };
   let ready = false;
   if (enabled) {
@@ -160,6 +209,11 @@ function createRuntime() {
     authorizeAccount = createStagingEntitlementVerifier({
       db, projectId: STAGE_PROJECT, getUser: uid => getAuth(app).getUser(uid)
     });
+    checkRuntime = async () => {
+      const snapshot = await db.collection("_reflectAiPrivate")
+        .doc("reflect-8fdc8").collection("runtimeFlags").doc("ai").get();
+      return snapshot.exists && snapshot.data()?.enabled === true;
+    };
     verifyAuth = token => getAuth(app).verifyIdToken(token, true);
     verifyAppCheck = token => getAppCheck(app).verifyToken(token, { consume: true });
     handleReply = handler;
@@ -167,7 +221,7 @@ function createRuntime() {
   }
   return createRequestListener({
     ready: () => ready, allowProvider: () => outboundEnabled,
-    authorizeAccount,
+    authorizeAccount, checkRuntime,
     verifyAuth, verifyAppCheck, handleReply
   });
 }
