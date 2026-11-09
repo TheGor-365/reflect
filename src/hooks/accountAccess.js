@@ -1,7 +1,7 @@
 import {
   EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, signOut,
   sendPasswordResetEmail, sendEmailVerification, reload, confirmPasswordReset,
-  applyActionCode
+  applyActionCode, verifyBeforeUpdateEmail
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
 import { applyAuthEmailLocale } from '../i18n/authEmailLocale';
@@ -126,6 +126,32 @@ export async function requestEmailVerification() {
   if (current.emailVerified) return;
   applyAuthEmailLocale(auth);
   await sendEmailVerification(current);
+}
+
+/**
+ * Change a registered user's unreachable address WITHOUT switching UID or
+ * touching Firestore data. Firebase first verifies the destination email;
+ * until the action link is consumed the previous sign-in email remains.
+ */
+export async function requestEmailChange(nextEmail) {
+  const current = auth.currentUser;
+  if (!current?.uid || current.isAnonymous || !current.email) {
+    throw new Error('Сначала войдите в зарегистрированный аккаунт.');
+  }
+  const normalized = normalizeEmail(nextEmail);
+  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalized)) {
+    throw new Error('Введите корректный новый email.');
+  }
+  if (normalized === normalizeEmail(current.email)) {
+    throw new Error('Новый email должен отличаться от текущего.');
+  }
+  const previousUid = current.uid;
+  applyAuthEmailLocale(auth);
+  await verifyBeforeUpdateEmail(current, normalized);
+  if (auth.currentUser?.uid !== previousUid) {
+    throw new Error('Изменился идентификатор аккаунта. Не продолжайте работу до проверки доступа.');
+  }
+  return true;
 }
 
 export async function refreshVerificationStatus() {
