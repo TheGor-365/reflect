@@ -81,7 +81,7 @@ test("with valid signed tokens the independent xAI egress switch remains OFF", a
   });
   assert.equal(calls, 0);
 });
-test("cross-project Origin is rejected before any token verification", async () {
+test("cross-project Origin is rejected before any token verification", async () => {
   let verified = 0;
   await withServer(deps({ verifyAuth: async () => { verified++; return { uid: UID }; } }), async url => {
     const response = await send(url, { headers: { origin: "https://reflect-three.vercel.app" } });
