@@ -5,6 +5,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
 import { applyAuthEmailLocale } from '../i18n/authEmailLocale';
+import { clearExplicitlySignedOut, isExplicitlySignedOut, setExplicitlySignedOut } from './accountSession';
 
 /**
  * Account upgrade preserves the active anonymous Firebase UID and its Firestore
@@ -80,14 +81,26 @@ export async function signInExisting(email, password, { hasLocalData = false } =
   if (hasLocalData) {
     throw new Error('В этом гостевом аккаунте уже есть записи. Сначала привяжите к нему email: вход в другой UID может сделать эти данные недоступными.');
   }
-  return (await signInWithEmailAndPassword(auth, normalizeEmail(email), password)).user;
+  const account = (await signInWithEmailAndPassword(auth, normalizeEmail(email), password)).user;
+  clearExplicitlySignedOut();
+  return account;
 }
 
 export async function signOutRegistered() {
   if (!auth.currentUser || auth.currentUser.isAnonymous) {
     throw new Error('Гостевой аккаунт нельзя отключать: его данные могут стать недоступны.');
   }
-  await signOut(auth);
+  // Mark the intent before Firebase emits its null Auth event, so the
+  // listener renders a sign-in screen rather than creating a new guest.
+  const wasSignedOut = isExplicitlySignedOut();
+  setExplicitlySignedOut();
+  try {
+    await signOut(auth);
+  } catch (error) {
+    // If Auth rejected sign-out, preserve the live registered session.
+    if (!wasSignedOut) clearExplicitlySignedOut();
+    throw error;
+  }
 }
 
 
