@@ -3,7 +3,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import AccountAccess from './AccountAccess';
 import {
   registerCurrentAnonymous, signInExisting, signOutRegistered,
-  requestPasswordReset, requestEmailVerification, refreshVerificationStatus
+  requestPasswordReset, requestEmailVerification, refreshVerificationStatus,
+  requestEmailChange
 } from '../../hooks/accountAccess';
 
 // AccountAccess tests exercise account interactions, not owner export or
@@ -16,7 +17,7 @@ vi.mock('../../hooks/accountAccess', () => ({
   signInExisting: vi.fn(),
   signOutRegistered: vi.fn(),
   requestPasswordReset: vi.fn(), requestEmailVerification: vi.fn(),
-  refreshVerificationStatus: vi.fn(),
+  refreshVerificationStatus: vi.fn(), requestEmailChange: vi.fn(),
   accountErrorMessage: vi.fn(e => e.message || 'Ошибка авторизации')
 }));
 
@@ -195,6 +196,39 @@ test('linked account can verify email, then refresh verified status on same UID'
   }} onAccountChanged={onAccountChanged} />);
   expect(screen.getByText('Email подтверждён')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Отправить подтверждение email' })).toBeNull();
+});
+
+test('linked account can safely request changing inaccessible email without losing UID', async () => {
+  requestEmailChange.mockResolvedValue(true);
+  const onAccountChanged = vi.fn();
+  render(<AccountAccess user={{ uid: 'linked', isAnonymous: false,
+    email: 'old@example.test', emailVerified: false }}
+    onAccountChanged={onAccountChanged} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Изменить email' }));
+  expect(screen.getByRole('heading', { name: 'Изменить email' })).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Новый email'), {
+    target: { value: 'new@example.test' }
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Подтвердить новый email' }));
+  await waitFor(() => expect(requestEmailChange).toHaveBeenCalledWith('new@example.test'));
+  expect(screen.getByRole('status')).toHaveTextContent('До подтверждения прежний email');
+  expect(onAccountChanged).not.toHaveBeenCalled();
+  expect(signOutRegistered).not.toHaveBeenCalled();
+});
+
+test('failed email change preserves account and allows a retry', async () => {
+  requestEmailChange.mockRejectedValueOnce(new Error('Повторите попытку.'));
+  render(<AccountAccess user={{ uid: 'linked', isAnonymous: false,
+    email: 'old@example.test', emailVerified: false }} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Изменить email' }));
+  fireEvent.change(screen.getByLabelText('Новый email'), {
+    target: { value: 'unavailable@example.test' }
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Подтвердить новый email' }));
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Повторите попытку.'));
+  expect(screen.getByLabelText('Новый email')).toHaveValue('unavailable@example.test');
+  fireEvent.click(screen.getByRole('button', { name: 'Вернуться к аккаунту' }));
+  expect(screen.getByText('Аккаунт подключён')).toBeInTheDocument();
 });
 
 test('linked user may open password recovery without signing out', () => {
