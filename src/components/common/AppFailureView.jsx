@@ -34,7 +34,7 @@ export default function AppFailureView({ code = 500, message, onRetry }) {
 
   return (
     <main className="reflect-failure" role="main">
-      <div className="reflect-failure-card">
+      <div className="reflect-failure-card" role="alert">
         <div className="reflect-failure-brand" aria-label="Reflect">
           <span className="reflect-failure-mark" aria-hidden="true">R</span>
           <span>reflect<span className="reflect-failure-dot">.</span></span>
