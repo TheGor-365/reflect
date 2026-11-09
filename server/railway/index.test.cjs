@@ -12,6 +12,7 @@ const deps = (overrides = {}) => ({
   ready: () => true,
   allowProvider: () => true,
   authorizeAccount: async auth => auth.uid === UID,
+  checkRuntime: async () => true,
   verifyAuth: async () => ({ uid: UID }),
   verifyAppCheck: async () => ({
     // Actual Firebase Admin verifyToken() response uses appId at the top
@@ -120,6 +121,106 @@ test("private Auth/Firestore lookup outage is safely redacted", async () => {
     assert.deepEqual(await response.json(), { error: "request-failed" });
   });
   assert.equal(calls, 0);
+});
+
+test("signed diagnostics probes Auth, App Check, private entitlement and runtime only", async () => {
+  let calls = 0, checks = 0;
+  await withServer(deps({
+    checkRuntime: async () => { checks++; return true; },
+    handleReply: async () => { calls++; throw Error("must-not-reach-provider"); }
+  }), async url => {
+    const reply = await fetch(url + "/v1/ai/diagnostics", {
+      method: "POST",
+      headers: {
+        origin: STAGE_ORIGIN, authorization: "Bearer " + TOKEN,
+        "x-firebase-appcheck": TOKEN, "content-type": "application/json"
+      },
+      body: "{}"
+    });
+    assert.equal(reply.status, 200);
+    assert.deepEqual(await reply.json(), { status: "ready", model: "grok-4.3" });
+  });
+  assert.equal(calls, 0);
+  assert.equal(checks, 1);
+});
+test("diagnostics do not spend when provider switch is off or private flag is off", async () => {
+  for (const options of [
+    { allowProvider: () => false, checkRuntime: async () => true, status: "outbound-disabled" },
+    { allowProvider: () => true, checkRuntime: async () => false, status: "runtime-disabled" }
+  ]) {
+    let calls = 0;
+    await withServer(deps({
+      allowProvider: options.allowProvider, checkRuntime: options.checkRuntime,
+      handleReply: async () => { calls++; }
+    }), async url => {
+      const result = await fetch(url + "/v1/ai/diagnostics", {
+        method: "POST", headers: {
+          origin: STAGE_ORIGIN, authorization: "Bearer " + TOKEN,
+          "x-firebase-appcheck": TOKEN, "content-type": "application/json"
+        }, body: "{}"
+      });
+      assert.equal(result.status, 200);
+      assert.equal((await result.json()).status, options.status);
+    });
+    assert.equal(calls, 0);
+  }
+});
+test("revoked account token returns reauthentication-required without a provider call", async () => {
+  let calls = 0, attested = 0;
+  await withServer(deps({
+    verifyAuth: async () => { throw Object.assign(Error("SECRET"), { code: "auth/id-token-revoked" }); },
+    verifyAppCheck: async () => { attested++; },
+    handleReply: async () => { calls++; }
+  }), async url => {
+    const reply = await send(url);
+    assert.equal(reply.status, 401);
+    assert.deepEqual(await reply.json(), { error: "reauthentication-required" });
+  });
+  assert.equal(attested, 0);
+  assert.equal(calls, 0);
+});
+test("missing Firebase Auth privileges returns specific redacted service error", async () => {
+  let calls = 0;
+  await withServer(deps({
+    verifyAuth: async () => {
+      throw Object.assign(Error("PRIVATE_CREDENTIALS"), { code: "auth/insufficient-permission" });
+    },
+    handleReply: async () => { calls++; }
+  }), async url => {
+    const reply = await fetch(url + "/v1/ai/diagnostics", {
+      method: "POST", headers: {
+        origin: STAGE_ORIGIN, authorization: "Bearer " + TOKEN,
+        "x-firebase-appcheck": TOKEN, "content-type": "application/json"
+      }, body: "{}"
+    });
+    assert.equal(reply.status, 503);
+    assert.deepEqual(await reply.json(), { error: "auth-permission-missing" });
+  });
+  assert.equal(calls, 0);
+});
+test("diagnostics require exactly empty JSON, signed tokens and approved origin", async () => {
+  let calls = 0, authCalls = 0;
+  await withServer(deps({
+    verifyAuth: async () => { authCalls++; return { uid: UID }; },
+    handleReply: async () => { calls++; }
+  }), async url => {
+    const headers = {
+      origin: STAGE_ORIGIN, authorization: "Bearer " + TOKEN,
+      "x-firebase-appcheck": TOKEN, "content-type": "application/json"
+    };
+    for (const [body, status] of [['{"message":"private"}',400],['[]',400]]) {
+      const result = await fetch(url + "/v1/ai/diagnostics", {
+        method: "POST", headers, body
+      });
+      assert.equal(result.status, status);
+    }
+    const cross = await fetch(url + "/v1/ai/diagnostics", {
+      method:"POST", headers:{...headers,origin:"https://reflect-three.vercel.app"},body:"{}"
+    });
+    assert.equal(cross.status,403);
+  });
+  assert.equal(calls,0);
+  assert.equal(authCalls,0);
 });
 test("cross-project Origin is rejected before any token verification", async () => {
   let verified = 0;
