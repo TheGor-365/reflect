@@ -24,7 +24,6 @@ jobs:
       VITE_ENABLE_REFLECT_RAILWAY_AI: 'false'
       REFLECT_AI_ENABLED: 'no'
       REFLECT_XAI_OUTBOUND_ENABLED: 'no'
-      REFLECT_AI_ALLOWED_UID: ''
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-node@v4
@@ -34,17 +33,21 @@ jobs:
         run: |
           node --check server/railway/index.cjs
           node --check server/railway/index.test.cjs
+          node --check server/ai/stagingEntitlement.cjs
+          node --check server/ai/stagingEntitlement.test.cjs
           node - <<'NODE'
           const fs = require('node:fs');
           const server = fs.readFileSync('server/railway/index.cjs','utf8');
           const client = fs.readFileSync('src/api/reflectRailwayService.js','utf8');
           const env = fs.readFileSync('.env.staging.example','utf8');
-          if (!server.includes('verifyIdToken(token)') ||
+          if (!server.includes('verifyIdToken(token, true)') ||
               !server.includes('verifyToken(token, { consume: true })') ||
               !server.includes('createHostedHandler') ||
               !server.includes('REFLECT_AI_ENABLED') ||
               !server.includes('REFLECT_XAI_OUTBOUND_ENABLED') ||
-              !server.includes('REFLECT_AI_ALLOWED_UID') ||
+              !server.includes('createStagingEntitlementVerifier') ||
+              !server.includes('getUser(uid)') ||
+              !server.includes('authorizeAccount(auth)') ||
               !client.includes('getLimitedUseToken') ||
               !client.includes('X-Firebase-AppCheck') ||
               !env.includes('VITE_ENABLE_REFLECT_RAILWAY_AI=false') ||
@@ -54,7 +57,7 @@ jobs:
           }
           NODE
       - name: HTTP boundary unit fixtures (no secrets/network to xAI)
-        run: node --test server/railway/index.test.cjs
+        run: node --test server/railway/index.test.cjs server/ai/stagingEntitlement.test.cjs
       - name: Full frontend unit / TypeScript / build
         run: |
           npm ci --no-audit --no-fund
