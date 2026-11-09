@@ -5,6 +5,7 @@ import {
   applyActionCode
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
+import { clearExplicitlySignedOut, isExplicitlySignedOut, setExplicitlySignedOut } from './accountSession';
 import {
   accountErrorMessage, normalizeEmail, registerCurrentAnonymous,
   signInExisting, signOutRegistered, requestPasswordReset, requestEmailVerification,
@@ -22,9 +23,12 @@ vi.mock('firebase/auth', () => ({
 }));
 
 beforeEach(() => {
+  clearExplicitlySignedOut();
   vi.clearAllMocks();
   auth.currentUser = { uid: 'synthetic-legacy-uid', isAnonymous: true };
 });
+
+afterEach(() => clearExplicitlySignedOut());
 
 describe('Firebase account linking and sign-in safeguards', () => {
   it('normalizes email without retaining a password', () => {
@@ -96,7 +100,9 @@ describe('Firebase account linking and sign-in safeguards', () => {
 
   it('signs into a previous registered account only if guest data is empty', async () => {
     signInWithEmailAndPassword.mockResolvedValue({ user: { uid: 'existing-account' } });
+    setExplicitlySignedOut();
     const result = await signInExisting('QA@EXAMPLE.TEST', 'short', { hasLocalData: false });
+    expect(isExplicitlySignedOut()).toBe(false);
     expect(signInWithEmailAndPassword)
       .toHaveBeenCalledWith(auth, 'qa@example.test', 'short');
     expect(result.uid).toBe('existing-account');
@@ -120,6 +126,26 @@ describe('Firebase account linking and sign-in safeguards', () => {
     signOut.mockResolvedValue(undefined);
     await signOutRegistered();
     expect(signOut).toHaveBeenCalledWith(auth);
+    expect(isExplicitlySignedOut()).toBe(true);
+  });
+
+  it('restores the registered session when Firebase sign-out fails', async () => {
+    auth.currentUser = { uid: 'registered-uid', isAnonymous: false };
+    signOut.mockRejectedValueOnce({ code: 'auth/network-request-failed' });
+    await expect(signOutRegistered()).rejects.toMatchObject({
+      code: 'auth/network-request-failed'
+    });
+    expect(isExplicitlySignedOut()).toBe(false);
+    expect(auth.currentUser.uid).toBe('registered-uid');
+  });
+
+  it('a failed existing-account login cannot silently dismiss signed-out state', async () => {
+    setExplicitlySignedOut();
+    signInWithEmailAndPassword.mockRejectedValueOnce({ code: 'auth/invalid-credential' });
+    await expect(signInExisting('qa@example.test', 'wrong')).rejects.toMatchObject({
+      code: 'auth/invalid-credential'
+    });
+    expect(isExplicitlySignedOut()).toBe(true);
   });
 
   it('does not expose raw Firebase error messages in the UI', () => {
