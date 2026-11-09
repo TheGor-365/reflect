@@ -6,6 +6,7 @@ import ChatMessage from './ChatMessage';
 import SessionComposer from './SessionComposer';
 import XaiDevSmoke from './XaiDevSmoke';
 import RailwayAuthCheck from './RailwayAuthCheck';
+import RailwayReadinessCheck from './RailwayReadinessCheck';
 import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
 import InfoCard from '../../components/common/InfoCard';
 import { useEntrySave } from '../../hooks/useEntrySave';
@@ -81,10 +82,21 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
       setUserInput('');
       await sessionDraftRef.current?.clearAfterCommit();
       setConsentForMessage(false);
-    } catch {
-      // The input is still present in the controlled textarea and its
-      // protected draft. Do not leak user/provider text into console logs.
-      setSendError('Grok не вернул подтверждённый ответ. Текст сохранён в поле ввода. Не повторяйте запрос автоматически: он мог быть оплачен.');
+    } catch (error) {
+      // Known server Auth errors occur before xAI invocation and can be fixed
+      // without paid retries. Do not show raw SDK messages or credentials.
+      const code = error?.message;
+      const authErrors = {
+        'reauthentication-required': 'Firebase отклонил прежнюю сессию после смены данных входа. Войдите заново в существующий аккаунт. Сообщение не было отправлено Grok.',
+        'unauthenticated': 'Firebase не подтвердил вход. Повторно войдите в существующий аккаунт. Сообщение не было отправлено Grok.',
+        'auth-permission-missing': 'Серверу не хватает прав чтения Firebase Authentication. Проверьте доступ service account в staging. Grok не вызывался.',
+        'auth-verification-unavailable': 'Сервер не смог проверить Firebase Authentication. Grok не вызывался.',
+        'attestation-unavailable': 'Проверка Firebase App Check недоступна. Grok не вызывался.',
+        'permission-denied': 'Аккаунт не имеет действующего приватного доступа к Grok. Запрос не дошёл до модели.'
+      };
+      setSendError(Object.hasOwn(authErrors, code)
+        ? authErrors[code]
+        : 'Grok не вернул подтверждённый ответ. Текст сохранён в поле ввода. Не повторяйте запрос автоматически: он мог быть оплачен.');
       setConsentForMessage(false);
     } finally {
       sendLock.current = false;
@@ -226,6 +238,7 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
           <div className="reflect-session-messages-inner">
             <XaiDevSmoke />
             <RailwayAuthCheck />
+            <RailwayReadinessCheck />
             {isNewSessionView && messagesToDisplay.length === 0 && (
               <p className="reflect-session-welcome">
                 Начните с мысли или ситуации. Пока ИИ недоступен, запись можно сохранить в дневник.
