@@ -26,7 +26,7 @@ function LoadErrorView({ message }) {
 
 export default function App() {
   // --- Auth & Core Data ---
-  const { user, isAuthReady, authError, refreshUser } = useAuth();
+  const { user, isAuthReady, authError, signedOut, refreshUser, startGuestSession } = useAuth();
   const userId = user?.uid;
 
   const { data: sessions, loading: sessionsLoading, error: sessionsError } = useFirestore('sessions', userId);
@@ -201,6 +201,15 @@ export default function App() {
 
   if (!isAuthReady) return <Loader />;
 
+  if (signedOut && !userId) {
+    return (
+      <div className="reflect-app" data-theme={theme}>
+        <AccountAccess user={null} signedOut onGuest={startGuestSession}
+          onAccountChanged={account => refreshUser?.(account)} />
+      </div>
+    );
+  }
+
   if (!userId) {
     return <LoadErrorView message={authError || 'Авторизация пока недоступна. Повторите попытку позже.'} />;
   }
@@ -209,8 +218,13 @@ export default function App() {
 
   if (readError) return <LoadErrorView message={readError} />;
 
-  const hasLocalData = Boolean(profile) ||
-    sessions.length > 0 || goals.length > 0 || moods.length > 0 || diaryNotes.length > 0;
+  // A profile is not the same as authored diary/goal/session content.
+  // Never silently abandon authored guest records. For a profile-only guest,
+  // the sign-in dialog requires explicit acknowledgment that its profile
+  // stays behind, rather than trapping the user behind a disabled button.
+  const hasLocalData = sessions.length > 0 || goals.length > 0 ||
+    moods.length > 0 || diaryNotes.length > 0;
+  const guestProfileOnly = Boolean(user?.isAnonymous && profile && !hasLocalData);
 
   if (showProfileModal && user.isAnonymous && !profile && !allowGuestProfile) {
     return (
@@ -286,6 +300,7 @@ export default function App() {
     <div className="reflect-app min-h-screen font-sans" data-theme={theme}>
       {showAccountModal && (
         <AccountAccess user={user} hasLocalData={hasLocalData}
+          guestProfileOnly={guestProfileOnly}
           onClose={() => setShowAccountModal(false)}
           onAccountChanged={account => refreshUser?.(account)} />
       )}
