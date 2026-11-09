@@ -139,7 +139,7 @@ export async function requestEmailChange(nextEmail) {
     throw new Error('Сначала войдите в зарегистрированный аккаунт.');
   }
   const normalized = normalizeEmail(nextEmail);
-  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalized)) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
     throw new Error('Введите корректный новый email.');
   }
   if (normalized === normalizeEmail(current.email)) {
