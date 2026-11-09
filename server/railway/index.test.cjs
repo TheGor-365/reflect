@@ -11,6 +11,7 @@ const payload = { requestId: "A".repeat(18), message: "Синтетически�
 const deps = (overrides = {}) => ({
   ready: () => true,
   allowProvider: () => true,
+  authorizeOwner: uid => uid === UID,
   verifyAuth: async () => ({ uid: UID }),
   verifyAppCheck: async () => ({
     app_id: "1:599679789981:web:d4d8743dbff0fe40af1d74",
@@ -80,6 +81,18 @@ test("with valid signed tokens the independent xAI egress switch remains OFF", a
     assert.deepEqual(await response.json(), { error: "provider-disabled" });
   });
   assert.equal(calls, 0);
+});
+test("a different signed staging user cannot spend provider credits", async () => {
+  let providerCalls = 0;
+  await withServer(deps({
+    authorizeOwner: uid => uid === "approved-uid-only",
+    handleReply: async () => { providerCalls++; return {}; }
+  }), async url => {
+    const result = await send(url);
+    assert.equal(result.status, 403);
+    assert.deepEqual(await result.json(), { error: "permission-denied" });
+  });
+  assert.equal(providerCalls, 0);
 });
 test("cross-project Origin is rejected before any token verification", async () => {
   let verified = 0;
