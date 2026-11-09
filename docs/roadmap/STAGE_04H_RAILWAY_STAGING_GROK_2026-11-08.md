@@ -17,6 +17,7 @@ Healthcheck: /healthz
 Railway non-secret environment variables:
 - REFLECT_AI_ENABLED=no
 - REFLECT_XAI_OUTBOUND_ENABLED=no (independent paid-request gate, OFF by default)
+- REFLECT_AI_ALLOWED_UID=(empty until owner chooses test Firebase UID; required when paid egress enabled)
 - REFLECT_AI_APPROVED_PROJECT=reflect-ai-staging
 - REFLECT_AI_APP_CHECK_APP_ID=1:599679789981:web:d4d8743dbff0fe40af1d74
 - REFLECT_AI_ALLOWED_ORIGIN=https://reflect-ai-staging.web.app
@@ -58,3 +59,5 @@ Reference: https://docs.railway.com/pricing
 
 
 **2026-11-09:** Firebase Auth runtime may be enabled with `REFLECT_AI_ENABLED=yes` for negative authorization/attestation tests. Do not set `REFLECT_XAI_OUTBOUND_ENABLED=yes` or private Firestore runtimeFlags/ai enabled until explicit owner approval of a paid synthetic message. Even with valid Auth and App Check, HTTP returns `503 provider-disabled` while egress gate is OFF.
+
+**Paid staging owner gate:** The public Firebase staging site may issue anonymous Firebase accounts. Auth + App Check are not an owner approval. The Railway HTTP bridge requires REFLECT_AI_ALLOWED_UID to equal the single signed-in staging owner UID before any provider call; if the value is absent, REFLECT_XAI_OUTBOUND_ENABLED=yes prevents startup. Owner copies UID privately from Firebase Auth → Users to Railway Variables, never into GitHub, source code or public Vite config. Keep outbound OFF during browser Auth/AppCheck QA.
