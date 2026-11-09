@@ -238,7 +238,6 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
           <div className="reflect-session-messages-inner">
             <XaiDevSmoke />
             <RailwayAuthCheck />
-            <RailwayReadinessCheck />
             {isNewSessionView && messagesToDisplay.length === 0 && (
               <p className="reflect-session-welcome">
                 Начните с мысли или ситуации. Пока ИИ недоступен, запись можно сохранить в дневник.
@@ -257,6 +256,7 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
         </div>
 
         <div className="reflect-session-compose-dock">
+          <RailwayReadinessCheck />
           {AI_SESSION_ENABLED && (
             <div className="reflect-ai-send-consent">
               <label>
