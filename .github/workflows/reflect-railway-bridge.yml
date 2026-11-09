@@ -24,6 +24,7 @@ jobs:
       VITE_ENABLE_REFLECT_RAILWAY_AI: 'false'
       REFLECT_AI_ENABLED: 'no'
       REFLECT_XAI_OUTBOUND_ENABLED: 'no'
+      REFLECT_AI_ALLOWED_UID: ''
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-node@v4
@@ -43,6 +44,7 @@ jobs:
               !server.includes('createHostedHandler') ||
               !server.includes('REFLECT_AI_ENABLED') ||
               !server.includes('REFLECT_XAI_OUTBOUND_ENABLED') ||
+              !server.includes('REFLECT_AI_ALLOWED_UID') ||
               !client.includes('getLimitedUseToken') ||
               !client.includes('X-Firebase-AppCheck') ||
               !env.includes('VITE_ENABLE_REFLECT_RAILWAY_AI=false') ||
