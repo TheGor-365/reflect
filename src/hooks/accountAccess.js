@@ -4,6 +4,7 @@ import {
   applyActionCode
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
+import { applyAuthEmailLocale } from '../i18n/authEmailLocale';
 
 /**
  * Account upgrade preserves the active anonymous Firebase UID and its Firestore
@@ -65,7 +66,10 @@ export async function registerCurrentAnonymous(email, password) {
   // Do not surface a false registration failure or attempt a second link.
   // The existing account UI offers an explicit resend/recheck action.
   if (!result.user.emailVerified) {
-    try { await sendEmailVerification(result.user); }
+    try {
+      applyAuthEmailLocale(auth);
+      await sendEmailVerification(result.user);
+    }
     catch { /* Account is linked; email can be resent in Account & Sign in. */ }
   }
   return result.user;
@@ -97,6 +101,7 @@ export async function requestPasswordReset(email) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
     throw new Error('Введите корректный email.');
   }
+  applyAuthEmailLocale(auth);
   await sendPasswordResetEmail(auth, normalized);
 }
 
@@ -106,6 +111,7 @@ export async function requestEmailVerification() {
     throw new Error('Сначала войдите в зарегистрированный аккаунт.');
   }
   if (current.emailVerified) return;
+  applyAuthEmailLocale(auth);
   await sendEmailVerification(current);
 }
 
