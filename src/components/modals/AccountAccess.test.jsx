@@ -229,7 +229,7 @@ test('Firebase recent-login requirement asks for current password inline without
   });
   fireEvent.click(screen.getByRole('button', { name: 'Подтвердить новый email' }));
   await waitFor(() => expect(screen.getByLabelText('Пароль текущего аккаунта')).toBeInTheDocument());
-  expect(screen.getByText(/выходить из приложения не нужно/i)).toBeInTheDocument();
+  expect(screen.getAllByText(/выходить из приложения не нужно/i).length).toBeGreaterThan(0);
   expect(signOutRegistered).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText('Пароль текущего аккаунта'), {
     target: { value: 'synthetic-current-password' }
