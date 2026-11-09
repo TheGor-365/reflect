@@ -3,7 +3,8 @@ import OwnerDataExport from './OwnerDataExport';
 import { ArrowRight, KeyRound, LockKeyhole, Mail, ShieldCheck, UserRound, X } from 'lucide-react';
 import {
   accountErrorMessage, registerCurrentAnonymous, signInExisting, signOutRegistered,
-  requestPasswordReset, requestEmailVerification, refreshVerificationStatus
+  requestPasswordReset, requestEmailVerification, refreshVerificationStatus,
+  requestEmailChange
 } from '../../hooks/accountAccess';
 
 /**
@@ -115,6 +116,24 @@ export default function AccountAccess({
     }
   };
 
+  const handleEmailChange = async event => {
+    event.preventDefault();
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      await requestEmailChange(email);
+      setNotice('Ссылка отправлена на новый email. Откройте письмо и подтвердите адрес. До подтверждения прежний email остаётся привязанным к аккаунту. Не выходите из приложения.');
+    } catch (failure) {
+      setError(accountErrorMessage(failure));
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  };
+
   const handleVerificationRequest = async () => {
     if (busyRef.current) return;
     busyRef.current = true;
@@ -194,10 +213,12 @@ export default function AccountAccess({
         <div className="reflect-auth-mark" aria-hidden="true"><span>R</span></div>
         <p className="reflect-auth-eyebrow">REFLECT · ЛИЧНОЕ ПРОСТРАНСТВО</p>
         <h1 id="reflect-auth-title">
-          {mode === 'recover' ? 'Восстановление доступа' : linked ? 'Ваш аккаунт' : signedOut ? 'С возвращением' : welcome ? 'Ваше пространство начинается здесь' : 'Защитите свой дневник'}
+          {mode === 'change-email' ? 'Изменить email' : mode === 'recover' ? 'Восстановление доступа' : linked ? 'Ваш аккаунт' : signedOut ? 'С возвращением' : welcome ? 'Ваше пространство начинается здесь' : 'Защитите свой дневник'}
         </h1>
         <p id="reflect-auth-intro" className="reflect-auth-intro">
-          {mode === 'recover'
+          {mode === 'change-email'
+            ? 'Укажите адрес, к которому у вас есть доступ. Firebase сначала подтвердит новый email — UID и ваши записи останутся прежними.'
+            : mode === 'recover'
             ? 'Запросите ссылку для смены пароля. Мы не будем переключать текущий аккаунт или изменять записи дневника.'
             : linked
             ? 'Вход привязан к email. История дневника остаётся связанной с вашим UID.'
@@ -206,7 +227,29 @@ export default function AccountAccess({
             : 'Сохраните доступ к своим записям на разных устройствах. Регистрация привяжет текущий гостевой UID, не создавая новую историю.'}
         </p>
 
-        {mode === 'recover' ? (
+        {mode === 'change-email' && linked ? (
+          <form className="reflect-auth-form" onSubmit={handleEmailChange}>
+            <label htmlFor="reflect-new-email">Новый email
+              <span className="reflect-auth-field"><Mail size={19} aria-hidden="true" />
+                <input id="reflect-new-email" type="email" autoComplete="email"
+                  required maxLength={254} value={email} disabled={busy}
+                  onChange={event => setEmail(event.target.value)}
+                  placeholder="Ваш действующий email" />
+              </span>
+            </label>
+            {error && <p className="reflect-auth-error" role="alert">{error}</p>}
+            <button className="reflect-auth-primary" disabled={busy} type="submit">
+              {busy ? 'Отправляем подтверждение…' : 'Подтвердить новый email'}
+            </button>
+            <button type="button" disabled={busy} className="reflect-auth-secondary"
+              onClick={() => changeMode('register')}>Вернуться к аккаунту</button>
+            <p className="reflect-auth-notice">
+              Смена email проходит через подтверждение нового адреса. Пока вы
+              не откроете ссылку из письма, текущий аккаунт не изменится.
+              Пароль, UID и история дневника сохраняются.
+            </p>
+          </form>
+        ) : mode === 'recover' ? (
           <form className="reflect-auth-form" onSubmit={handleResetRequest}>
             <label htmlFor="reflect-recovery-email">Email для восстановления
               <span className="reflect-auth-field"><Mail size={19} aria-hidden="true" />
@@ -254,6 +297,8 @@ export default function AccountAccess({
                   onClick={handleVerificationRefresh}>Проверить подтверждение</button>
               </div>
             )}
+            <button type="button" className="reflect-auth-secondary" disabled={busy}
+              onClick={() => changeMode('change-email')}>Изменить email</button>
             <button type="button" className="reflect-auth-secondary" disabled={busy}
               onClick={() => changeMode('recover')}>Восстановить пароль</button>
             <button type="button" className="reflect-auth-secondary" disabled={busy}
