@@ -61,6 +61,13 @@ export async function registerCurrentAnonymous(email, password) {
   if (result.user.isAnonymous || normalizeEmail(result.user.email) !== normalizeEmail(email)) {
     throw new Error('Привязка email не подтверждена. Не выходите из гостевого аккаунта; повторите проверку доступа.');
   }
+  // A successful account link is permanent even if verification mail fails.
+  // Do not surface a false registration failure or attempt a second link.
+  // The existing account UI offers an explicit resend/recheck action.
+  if (!result.user.emailVerified) {
+    try { await sendEmailVerification(result.user); }
+    catch { /* Account is linked; email can be resent in Account & Sign in. */ }
+  }
   return result.user;
 }
 
