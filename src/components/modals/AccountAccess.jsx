@@ -4,7 +4,7 @@ import { ArrowRight, KeyRound, LockKeyhole, Mail, ShieldCheck, UserRound, X } fr
 import {
   accountErrorMessage, registerCurrentAnonymous, signInExisting, signOutRegistered,
   requestPasswordReset, requestEmailVerification, refreshVerificationStatus,
-  requestEmailChange
+  requestEmailChange, reauthenticateAndRequestEmailChange
 } from '../../hooks/accountAccess';
 
 /**
@@ -23,6 +23,7 @@ export default function AccountAccess({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [acceptGuestProfileSwitch, setAcceptGuestProfileSwitch] = useState(false);
+  const [emailChangeNeedsReauth, setEmailChangeNeedsReauth] = useState(false);
   const busyRef = useRef(false);
   const linked = Boolean(user && !user.isAnonymous);
 
@@ -63,6 +64,7 @@ export default function AccountAccess({
     setError('');
     setNotice('');
     setAcceptGuestProfileSwitch(false);
+    setEmailChangeNeedsReauth(false);
   };
 
   const handleSubmit = async (event) => {
@@ -124,11 +126,24 @@ export default function AccountAccess({
     setError('');
     setNotice('');
     try {
-      await requestEmailChange(email);
-      setNotice('Ссылка отправлена на новый email. Откройте письмо и подтвердите адрес. До подтверждения прежний email остаётся привязанным к аккаунту. Не выходите из приложения.');
+      if (emailChangeNeedsReauth) {
+        await reauthenticateAndRequestEmailChange(email, password);
+      } else {
+        await requestEmailChange(email);
+      }
+      setEmailChangeNeedsReauth(false);
+      setNotice('Письмо отправлено на новый email. Подтвердите адрес по ссылке, затем вернитесь в приложение. До подтверждения текущая сессия, UID и записи остаются прежними.');
     } catch (failure) {
-      setError(accountErrorMessage(failure));
+      if (failure?.code === 'auth/requires-recent-login') {
+        // Firebase explicitly requests fresh credentials. Stay in this dialog,
+        // without signing out, switching UID, or persisting the password.
+        setEmailChangeNeedsReauth(true);
+        setNotice('Firebase просит подтвердить личность для смены email. Введите пароль текущего аккаунта ниже — выходить из приложения не нужно.');
+      } else {
+        setError(accountErrorMessage(failure));
+      }
     } finally {
+      setPassword('');
       busyRef.current = false;
       setBusy(false);
     }
@@ -237,9 +252,33 @@ export default function AccountAccess({
                   placeholder="Ваш действующий email" />
               </span>
             </label>
+            {emailChangeNeedsReauth && (
+              <>
+                <p className="reflect-auth-notice" role="status">
+                  Для защиты аккаунта требуется текущий пароль. Это не повторный
+                  вход: ваша сессия, UID и записи остаются на месте.
+                </p>
+                <label htmlFor="reflect-current-password">Пароль текущего аккаунта
+                  <span className="reflect-auth-field">
+                    <KeyRound size={19} aria-hidden="true" />
+                    <input id="reflect-current-password" type="password"
+                      autoComplete="current-password" required value={password}
+                      disabled={busy}
+                      onChange={event => setPassword(event.target.value)}
+                      placeholder="Введите текущий пароль" />
+                  </span>
+                </label>
+                <p className="reflect-auth-notice">
+                  Забыли пароль, а старый email недоступен? Не выходите из
+                  приложения: стандартное восстановление через него невозможно.
+                  Для такого случая нужна отдельная защищённая процедура.
+                </p>
+              </>
+            )}
             {error && <p className="reflect-auth-error" role="alert">{error}</p>}
             <button className="reflect-auth-primary" disabled={busy} type="submit">
-              {busy ? 'Отправляем подтверждение…' : 'Подтвердить новый email'}
+              {busy ? 'Проверяем…' : emailChangeNeedsReauth
+                ? 'Подтвердить личность и отправить письмо' : 'Подтвердить новый email'}
             </button>
             <button type="button" disabled={busy} className="reflect-auth-secondary"
               onClick={() => changeMode('register')}>Вернуться к аккаунту</button>
