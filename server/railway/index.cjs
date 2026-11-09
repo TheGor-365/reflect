@@ -93,7 +93,7 @@ function createRequestListener({ ready, allowProvider, authorizeOwner, verifyAut
       const data = await readSmallJson(req);
       const auth = await verifyAuth(bearer.slice(7));
       const app = await verifyAppCheck(appCheckToken);
-      if (!auth?.uid || app?.app_id !== STAGE_APP_ID || app?.alreadyConsumed === true) {
+      if (!auth?.uid || app?.appId !== STAGE_APP_ID || app?.alreadyConsumed === true) {
         throw new PolicyError("unauthenticated");
       }
       // The browser can create Firebase anonymous accounts. Before any
@@ -109,7 +109,7 @@ function createRequestListener({ ready, allowProvider, authorizeOwner, verifyAut
       }
       const output = await handleReply({
         auth: { uid: auth.uid },
-        app: { appId: app.app_id, alreadyConsumed: app.alreadyConsumed },
+        app: { appId: app.appId, alreadyConsumed: app.alreadyConsumed },
         data
       });
       return respond(res, 200, output, origin);
