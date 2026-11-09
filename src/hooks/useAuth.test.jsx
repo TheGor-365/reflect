@@ -2,6 +2,7 @@ import React from 'react';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { useAuth } from './useAuth';
+import { clearExplicitlySignedOut, setExplicitlySignedOut } from './accountSession';
 
 vi.mock('../firebase/config', () => ({ auth: {} }));
 vi.mock('firebase/auth', () => ({
@@ -10,11 +11,13 @@ vi.mock('firebase/auth', () => ({
 }));
 
 function AuthHarness() {
-  const { user, isAuthReady, authError } = useAuth();
+  const { user, isAuthReady, authError, signedOut, startGuestSession } = useAuth();
   return (
     <div>
       <span data-testid="uid">{user?.uid || 'none'}</span>
       <span data-testid="ready">{isAuthReady ? 'ready' : 'pending'}</span>
+      <span data-testid="signed-out">{signedOut ? 'yes' : 'no'}</span>
+      <button type="button" onClick={startGuestSession}>Start guest</button>
       {authError && <p role="alert">{authError}</p>}
     </div>
   );
@@ -23,12 +26,49 @@ function AuthHarness() {
 let onChange;
 let onError;
 beforeEach(() => {
+  clearExplicitlySignedOut();
   vi.clearAllMocks();
   onAuthStateChanged.mockImplementation((_auth, callback, errorCallback) => {
     onChange = callback;
     onError = errorCallback;
     return vi.fn();
   });
+});
+
+afterEach(() => clearExplicitlySignedOut());
+
+test('explicit signout shows a stable login gate, never creates a replacement guest', () => {
+  setExplicitlySignedOut();
+  render(<AuthHarness />);
+  act(() => onChange(null));
+  expect(screen.getByTestId('ready')).toHaveTextContent('ready');
+  expect(screen.getByTestId('signed-out')).toHaveTextContent('yes');
+  expect(screen.getByTestId('uid')).toHaveTextContent('none');
+  expect(signInAnonymously).not.toHaveBeenCalled();
+});
+
+test('on refresh a persisted signout still does not mint a guest', () => {
+  setExplicitlySignedOut();
+  const first = render(<AuthHarness />);
+  act(() => onChange(null));
+  first.unmount();
+  render(<AuthHarness />);
+  act(() => onChange(null));
+  expect(signInAnonymously).not.toHaveBeenCalled();
+  expect(screen.getByTestId('signed-out')).toHaveTextContent('yes');
+});
+
+test('explicitly choosing guest starts a new anonymous identity', async () => {
+  setExplicitlySignedOut();
+  signInAnonymously.mockResolvedValue({
+    user: { uid: 'new-explicit-guest', isAnonymous: true }
+  });
+  render(<AuthHarness />);
+  act(() => onChange(null));
+  await act(async () => { screen.getByRole('button', { name: 'Start guest' }).click(); });
+  expect(screen.getByTestId('uid')).toHaveTextContent('new-explicit-guest');
+  expect(screen.getByTestId('signed-out')).toHaveTextContent('no');
+  expect(signInAnonymously).toHaveBeenCalledTimes(1);
 });
 
 test('restored auth identity is reused without anonymous sign-in', () => {
