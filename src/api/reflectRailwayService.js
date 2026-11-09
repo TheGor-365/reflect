@@ -164,3 +164,55 @@ export async function checkRailwayReadiness() {
     clearTimeout(timer);
   }
 }
+
+/**
+ * Read-only xAI catalog probe. The user clicks explicitly; the server checks
+ * Firebase Auth, App Check, private entitlement and the private runtime flag.
+ * Requests GET /v1/models/grok-4.3, NEVER POST /v1/responses.
+ * No prompt, diary, profile, payment details, or credentials sent to the UI.
+ */
+export async function checkRailwayProviderAccess() {
+  if (!railwayAiEnabled || !appCheckClient || !auth.currentUser) {
+    throw new Error("attestation-unavailable");
+  }
+  const [idToken, appCheck] = await Promise.all([
+    auth.currentUser.getIdToken(),
+    getLimitedUseToken(appCheckClient)
+  ]);
+  if (!idToken || !appCheck?.token) throw new Error("attestation-unavailable");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(origin + "/v1/ai/provider-diagnostics", {
+      method: "POST", mode: "cors", cache: "no-store", credentials: "omit",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + idToken,
+        "X-Firebase-AppCheck": appCheck.token
+      },
+      body: "{}", signal: controller.signal
+    });
+    const result = await response.json().catch(() => null);
+    if (response.status !== 200) {
+      const safeCodes = [
+        "reauthentication-required", "unauthenticated",
+        "auth-permission-missing", "auth-verification-unavailable",
+        "attestation-unavailable", "permission-denied", "invalid-argument"
+      ];
+      throw new Error(safeCodes.includes(result?.error)
+        ? result.error : "diagnostics-unavailable");
+    }
+    const allowedStatuses = [
+      "model-accessible", "credentials-unavailable",
+      "credentials-rejected", "access-denied", "model-unavailable",
+      "provider-rate-limited", "provider-unavailable", "runtime-disabled"
+    ];
+    if (result?.model !== "grok-4.3" ||
+        !allowedStatuses.includes(result?.status)) {
+      throw new Error("diagnostics-unavailable");
+    }
+    return result.status;
+  } finally {
+    clearTimeout(timer);
+  }
+}
