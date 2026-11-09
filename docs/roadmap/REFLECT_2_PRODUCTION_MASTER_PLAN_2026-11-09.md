@@ -90,3 +90,12 @@ A completely new user can register, verify and return to a **persistent** accoun
 
 ## J. Working cadence and decisions
 Work in small stacked Draft PRs; inspect exact branch SHA and CI after each code change. The assistant modifies code, tests and docs through GitHub; owner performs local terminal/browser/console operations only when necessary. Send 1–3 actions per screenshot, do not request credentials or UID in chat. Checkpoint each meaningful step in PR and master roadmap. Priority: **live registered user → live Grok reply → refine product**. No production mutations, full AI rollout or destructive data migrations until owner release approval.
+
+## L. 2026-11-09 Account signout and safe switching hotfix (Stage05A)
+**Reproduced:** after clicking registered **Выйти**, Firebase emitted null and the old `useAuth` instantly created a new anonymous UID. An onboarding profile was then treated as user-authored diary records, disabling **Вход** and trapping an ordinary returning user.
+
+**Fix in Draft PR #37:** explicit signout intent flag (`reflect-explicitly-signed-out`, non-sensitive; never contains UID/email/password), set before Firebase signOut; a signed-out browser displays a dedicated returning-user login panel and stays on that panel across refresh; no implicit guest creation. A new guest identity is created only after the user explicitly clicks its action. Successful Firebase sign-in clears the flag; a failed sign-out restores previous state; a failed login preserves the signed-out gate. Existing browser session and data are never deleted.
+
+For an **anonymous guest with an existing profile but no authored notes/goals/moods/sessions**, switching to a previously registered account is possible only after checking the on-screen notice that the guest profile stays behind under its UID. If actual authored documents exist, switching remains blocked until they are securely linked to an email. No silent Firestore deletes or cross-user data merge.
+
+**Acceptance required on staging:** register/restore real email account → sign out → no auto guest even after refresh → explicit login succeeds → saved records are recovered; test one profile-only guest with informed switch confirmation; ensure a guest with authored documents stays blocked; verify production untouched. Merely having a green mocked test suite is not a live browser acceptance.
