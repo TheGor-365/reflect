@@ -139,6 +139,10 @@ export default function AccountAccess({
         // without signing out, switching UID, or persisting the password.
         setEmailChangeNeedsReauth(true);
         setNotice('Firebase просит подтвердить личность для смены email. Введите пароль текущего аккаунта ниже — выходить из приложения не нужно.');
+      } else if (emailChangeNeedsReauth &&
+        ['auth/invalid-credential', 'auth/wrong-password', 'auth/user-mismatch']
+          .includes(failure?.code)) {
+        setError('Не удалось подтвердить текущий пароль. Вы остались в аккаунте; проверьте пароль и повторите попытку.');
       } else {
         setError(accountErrorMessage(failure));
       }
