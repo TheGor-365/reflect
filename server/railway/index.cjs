@@ -8,6 +8,7 @@ const http = require("node:http");
 const { PolicyError } = require("../ai/policy.cjs");
 const { createHostedHandler } = require("../ai/hostedHandler.cjs");
 const { createStagingEntitlementVerifier } = require("../ai/stagingEntitlement.cjs");
+const { createXaiProviderProbe } = require("../ai/xaiProviderProbe.cjs");
 const STAGE_PROJECT = "reflect-ai-staging";
 const STAGE_APP_ID = "1:599679789981:web:d4d8743dbff0fe40af1d74";
 const STAGE_ORIGIN = "https://reflect-ai-staging.web.app";
@@ -76,9 +77,10 @@ function mapAuthError(error) {
   }
 }
 
-function createRequestListener({ ready, allowProvider, authorizeAccount, verifyAuth, verifyAppCheck, checkRuntime, handleReply }) {
+function createRequestListener({ ready, allowProvider, authorizeAccount, verifyAuth, verifyAppCheck, checkRuntime, checkProvider, handleReply }) {
   if (typeof ready !== "function" || typeof allowProvider !== "function" ||
       typeof authorizeAccount !== "function" || typeof checkRuntime !== "function" ||
+      typeof checkProvider !== "function" ||
       typeof verifyAuth !== "function" ||
       typeof verifyAppCheck !== "function" || typeof handleReply !== "function") {
     throw Error("Stage04H requires explicit injected server dependencies");
@@ -95,11 +97,13 @@ function createRequestListener({ ready, allowProvider, authorizeAccount, verifyA
       return respond(res, 403, { error: "forbidden" });
     }
     const diagnostics = req.url === "/v1/ai/diagnostics";
-    if (req.method === "OPTIONS" && (req.url === "/v1/ai/reply" || diagnostics)) {
+    const providerDiagnostics = req.url === "/v1/ai/provider-diagnostics";
+    if (req.method === "OPTIONS" &&
+        (req.url === "/v1/ai/reply" || diagnostics || providerDiagnostics)) {
       return respond(res, 204, {}, origin);
     }
     if (req.method !== "POST" ||
-        (req.url !== "/v1/ai/reply" && !diagnostics)) {
+        (req.url !== "/v1/ai/reply" && !diagnostics && !providerDiagnostics)) {
       return respond(res, 404, { error: "not-found" }, origin);
     }
     if (!ready()) {
@@ -115,7 +119,8 @@ function createRequestListener({ ready, allowProvider, authorizeAccount, verifyA
     }
     try {
       const data = await readSmallJson(req);
-      if (diagnostics && (data === null || typeof data !== "object" ||
+      if ((diagnostics || providerDiagnostics) &&
+          (data === null || typeof data !== "object" ||
           Array.isArray(data) || Object.keys(data).length !== 0)) {
         throw new PolicyError("invalid-argument");
       }
@@ -136,7 +141,8 @@ function createRequestListener({ ready, allowProvider, authorizeAccount, verifyA
       }
       // Current verified Firebase account + short-lived private entitlement;
       // no browser-supplied role or recurring Railway UID variable.
-      if ((allowProvider() || diagnostics) && !(await authorizeAccount(auth))) {
+      if ((allowProvider() || diagnostics || providerDiagnostics) &&
+          !(await authorizeAccount(auth))) {
         throw new PolicyError("permission-denied");
       }
       // This diagnostics route tests the same signed Auth, consumable App Check,
@@ -149,6 +155,13 @@ function createRequestListener({ ready, allowProvider, authorizeAccount, verifyA
             !allowProvider() ? "outbound-disabled" : "ready",
           model: "grok-4.3"
         }, origin);
+      }
+      if (providerDiagnostics) {
+        // Owner-authorized read-only xAI GET /models; never /responses.
+        // The process caches the safe status, never model data or secrets.
+        const privateEnabled = await checkRuntime();
+        const status = privateEnabled ? await checkProvider() : "runtime-disabled";
+        return respond(res, 200, { status, model: "grok-4.3" }, origin);
       }
       // A second independent, default-OFF egress gate protects real
       // credentials even if a private Firestore runtime flag were mis-set.
@@ -183,6 +196,7 @@ function createRuntime() {
   let verifyAppCheck = async () => { throw new Error("AI disabled"); };
   let authorizeAccount = async () => false;
   let checkRuntime = async () => false;
+  let checkProvider = async () => "provider-unavailable";
   let handleReply = async () => { throw new Error("AI disabled"); };
   let ready = false;
   if (enabled) {
@@ -209,6 +223,7 @@ function createRuntime() {
     authorizeAccount = createStagingEntitlementVerifier({
       db, projectId: STAGE_PROJECT, getUser: uid => getAuth(app).getUser(uid)
     });
+    checkProvider = createXaiProviderProbe({ readSecret: () => providerKey, transport: fetch });
     checkRuntime = async () => {
       const snapshot = await db.collection("_reflectAiPrivate")
         .doc("reflect-8fdc8").collection("runtimeFlags").doc("ai").get();
@@ -221,7 +236,7 @@ function createRuntime() {
   }
   return createRequestListener({
     ready: () => ready, allowProvider: () => outboundEnabled,
-    authorizeAccount, checkRuntime,
+    authorizeAccount, checkRuntime, checkProvider,
     verifyAuth, verifyAppCheck, handleReply
   });
 }
