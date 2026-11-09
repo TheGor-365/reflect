@@ -1,7 +1,7 @@
 import {
   EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, signOut,
   sendPasswordResetEmail, sendEmailVerification, reload, confirmPasswordReset,
-  applyActionCode, verifyBeforeUpdateEmail
+  applyActionCode, verifyBeforeUpdateEmail, reauthenticateWithCredential
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
 import { applyAuthEmailLocale } from '../i18n/authEmailLocale';
@@ -41,7 +41,8 @@ export function accountErrorMessage(error) {
     'auth/network-request-failed': 'Нет соединения с сервисом авторизации. Проверьте сеть и повторите.',
     'auth/weak-password': 'Слишком простой пароль. Используйте более длинную уникальную комбинацию.',
     'auth/operation-not-allowed': 'Вход по email сейчас не включён в Firebase Authentication.',
-    'auth/requires-recent-login': 'Для операции необходимо повторно войти в аккаунт.'
+    'auth/requires-recent-login': 'Для смены email подтвердите личность текущим паролем. Выходить из аккаунта не нужно.',
+    'auth/user-mismatch': 'Пароль относится к другому аккаунту. Текущая сессия не изменена.'
   };
   return known[code] || 'Не удалось выполнить операцию с аккаунтом. Повторите попытку.';
 }
@@ -152,6 +153,31 @@ export async function requestEmailChange(nextEmail) {
     throw new Error('Изменился идентификатор аккаунта. Не продолжайте работу до проверки доступа.');
   }
   return true;
+}
+
+/**
+ * Reauthenticate an ALREADY SIGNED-IN account in place, only after Firebase
+ * explicitly returned auth/requires-recent-login. Never call signOut or
+ * signInWithEmailAndPassword here: the user keeps the exact same UID and docs.
+ * The UI passes a transient password and clears it after this Promise settles.
+ */
+export async function reauthenticateAndRequestEmailChange(nextEmail, currentPassword) {
+  const current = auth.currentUser;
+  if (!current?.uid || current.isAnonymous || !current.email) {
+    throw new Error('Для смены email нужен текущий зарегистрированный аккаунт.');
+  }
+  if (typeof currentPassword !== 'string' || currentPassword.length === 0) {
+    throw new Error('Введите текущий пароль аккаунта для подтверждения личности.');
+  }
+  const originalUid = current.uid;
+  const credential = EmailAuthProvider.credential(
+    normalizeEmail(current.email), currentPassword
+  );
+  await reauthenticateWithCredential(current, credential);
+  if (auth.currentUser?.uid !== originalUid) {
+    throw new Error('Изменился идентификатор аккаунта. Смена email отменена.');
+  }
+  return requestEmailChange(nextEmail);
 }
 
 export async function refreshVerificationStatus() {
