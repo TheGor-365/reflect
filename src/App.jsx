@@ -63,6 +63,9 @@ export default function App() {
   useEffect(() => {
     // Persist the theme and keep pre-React/loader/error screens in sync.
     document.documentElement.dataset.reflectTheme = theme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute(
+      'content', theme === 'light' ? '#f4f7fc' : '#0a1020'
+    );
     try { window.localStorage.setItem('reflect-theme', theme); }
     catch { /* Browser storage is optional; never block journal access. */ }
   }, [theme]);
