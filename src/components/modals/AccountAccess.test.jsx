@@ -94,7 +94,7 @@ test('login blocked when guest already owns data, without calling Firebase', () 
   render(<AccountAccess user={{ uid: 'anon', isAnonymous: true }}
     hasLocalData />);
   fireEvent.click(screen.getByRole('button', { name: 'Вход' }));
-  expect(screen.getByRole('status')).toHaveTextContent('гостевой профиль уже содержит записи');
+  expect(screen.getByRole('status')).toHaveTextContent('В гостевом аккаунте есть записи дневника');
   expect(screen.getByRole('button', { name: 'Войти' })).toBeDisabled();
   expect(signInExisting).not.toHaveBeenCalled();
 });
