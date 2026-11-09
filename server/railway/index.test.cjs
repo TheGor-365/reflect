@@ -11,7 +11,7 @@ const payload = { requestId: "A".repeat(18), message: "Синтетически�
 const deps = (overrides = {}) => ({
   ready: () => true,
   allowProvider: () => true,
-  authorizeOwner: uid => uid === UID,
+  authorizeAccount: async auth => auth.uid === UID,
   verifyAuth: async () => ({ uid: UID }),
   verifyAppCheck: async () => ({
     // Actual Firebase Admin verifyToken() response uses appId at the top
@@ -88,7 +88,7 @@ test("with valid signed tokens the independent xAI egress switch remains OFF", a
 test("a different signed staging user cannot spend provider credits", async () => {
   let providerCalls = 0;
   await withServer(deps({
-    authorizeOwner: uid => uid === "approved-uid-only",
+    authorizeAccount: async auth => auth.uid === "approved-uid-only",
     handleReply: async () => { providerCalls++; return {}; }
   }), async url => {
     const result = await send(url);
@@ -96,6 +96,30 @@ test("a different signed staging user cannot spend provider credits", async () =
     assert.deepEqual(await result.json(), { error: "permission-denied" });
   });
   assert.equal(providerCalls, 0);
+});
+test("missing private entitlement is rejected before provider egress", async () => {
+  let calls = 0;
+  await withServer(deps({
+    authorizeAccount: async () => false,
+    handleReply: async () => { calls++; return {}; }
+  }), async url => {
+    const response = await send(url);
+    assert.equal(response.status, 403);
+    assert.deepEqual(await response.json(), { error: "permission-denied" });
+  });
+  assert.equal(calls, 0);
+});
+test("private Auth/Firestore lookup outage is safely redacted", async () => {
+  let calls = 0;
+  await withServer(deps({
+    authorizeAccount: async () => { throw Error("PRIVATE_ACCOUNT_LOOKUP_FAILURE"); },
+    handleReply: async () => { calls++; return {}; }
+  }), async url => {
+    const response = await send(url);
+    assert.equal(response.status, 500);
+    assert.deepEqual(await response.json(), { error: "request-failed" });
+  });
+  assert.equal(calls, 0);
 });
 test("cross-project Origin is rejected before any token verification", async () => {
   let verified = 0;
