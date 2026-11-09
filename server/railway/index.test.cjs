@@ -13,6 +13,7 @@ const deps = (overrides = {}) => ({
   allowProvider: () => true,
   authorizeAccount: async auth => auth.uid === UID,
   checkRuntime: async () => true,
+  checkProvider: async () => "model-accessible",
   verifyAuth: async () => ({ uid: UID }),
   verifyAppCheck: async () => ({
     // Actual Firebase Admin verifyToken() response uses appId at the top
@@ -142,6 +143,68 @@ test("signed diagnostics probes Auth, App Check, private entitlement and runtime
   });
   assert.equal(calls, 0);
   assert.equal(checks, 1);
+});
+test("signed xAI model GET probe is separate from paid /reply and works with outbound OFF", async () => {
+  let called = 0, paid = 0;
+  await withServer(deps({
+    allowProvider: () => false,
+    checkProvider: async () => { called++; return "model-accessible"; },
+    handleReply: async () => { paid++; throw Error("must not call /responses"); }
+  }), async url => {
+    const response = await fetch(url + "/v1/ai/provider-diagnostics", {
+      method: "POST",
+      headers: {
+        origin: STAGE_ORIGIN, authorization: "Bearer " + TOKEN,
+        "x-firebase-appcheck": TOKEN, "content-type": "application/json"
+      },
+      body: "{}"
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      status: "model-accessible", model: "grok-4.3"
+    });
+  });
+  assert.equal(called, 1);
+  assert.equal(paid, 0);
+});
+test("provider model diagnostic denies unauthenticated or non-entitled callers", async () => {
+  let calls = 0;
+  await withServer(deps({
+    authorizeAccount: async () => false,
+    checkProvider: async () => { calls++; return "model-accessible"; }
+  }), async url => {
+    const response = await fetch(url + "/v1/ai/provider-diagnostics", {
+      method: "POST",
+      headers: {
+        origin: STAGE_ORIGIN, authorization: "Bearer " + TOKEN,
+        "x-firebase-appcheck": TOKEN, "content-type": "application/json"
+      },
+      body: "{}"
+    });
+    assert.equal(response.status,403);
+  });
+  assert.equal(calls,0);
+});
+test("provider model diagnostic does not call xAI if private runtime is off", async () => {
+  let called=0;
+  await withServer(deps({
+    checkRuntime: async () => false,
+    checkProvider: async () => {called++; return "model-accessible";}
+  }), async url => {
+    const response = await fetch(url + "/v1/ai/provider-diagnostics", {
+      method: "POST",
+      headers: {
+        origin: STAGE_ORIGIN, authorization: "Bearer " + TOKEN,
+        "x-firebase-appcheck": TOKEN, "content-type": "application/json"
+      },
+      body: "{}"
+    });
+    assert.equal(response.status,200);
+    assert.deepEqual(await response.json(),{
+      status:"runtime-disabled",model:"grok-4.3"
+    });
+  });
+  assert.equal(called,0);
 });
 test("diagnostics do not spend when provider switch is off or private flag is off", async () => {
   for (const options of [
