@@ -61,3 +61,17 @@ Reference: https://docs.railway.com/pricing
 **2026-11-09:** Firebase Auth runtime may be enabled with `REFLECT_AI_ENABLED=yes` for negative authorization/attestation tests. Do not set `REFLECT_XAI_OUTBOUND_ENABLED=yes` or private Firestore runtimeFlags/ai enabled until explicit owner approval of a paid synthetic message. Even with valid Auth and App Check, HTTP returns `503 provider-disabled` while egress gate is OFF.
 
 **Paid staging owner gate:** The public Firebase staging site may issue anonymous Firebase accounts. Auth + App Check are not an owner approval. The Railway HTTP bridge requires REFLECT_AI_ALLOWED_UID to equal the single signed-in staging owner UID before any provider call; if the value is absent, REFLECT_XAI_OUTBOUND_ENABLED=yes prevents startup. Owner copies UID privately from Firebase Auth → Users to Railway Variables, never into GitHub, source code or public Vite config. Keep outbound OFF during browser Auth/AppCheck QA.
+
+## 2026-11-09 — Safe signed browser QA before any paid AI
+
+Owner's Linux Mint curl evidence at 2026-11-09 13:39 UTC:
+- GET https://reflect-ai-api-staging.up.railway.app/healthz returned HTTP 200, `{"status":"up","aiEnabled":false}`.
+- POST /v1/ai/reply with correct Origin, JSON {}, no token returned HTTP 401, `{"error":"unauthenticated"}`.
+
+**Independent browser signed precheck:** PR #36 now contains a staging-only diagnostic UI in Sessions. It is OFF by default and does not enable the normal AI send button. To activate in an isolated **local** staging build only, keep `VITE_ENABLE_REFLECT_CLOUD_AI=false`, `VITE_ENABLE_REFLECT_RAILWAY_AI=false`, set `VITE_ENABLE_REFLECT_RAILWAY_PRECHECK=true` and `VITE_REFLECT_RAILWAY_AI_ORIGIN=https://reflect-ai-api-staging.up.railway.app`. Keep all existing public Firebase config / App Check site key. No server-only secrets in Vite variables.
+
+The one-shot button sends exactly `{}` to /v1/ai/reply with a signed Firebase Auth ID token and consumable App Check token, and validates **only** HTTP 503 `{"error":"provider-disabled"}` as signed-auth success. HTTP 401/403/500 or a generic 503 is a failure. A successful QA response means Auth + App Check server gates were passed; xAI provider egress remains forcibly disabled and no session content is transferred.
+
+**Important:** Because the Railway API enforces exact browser Origin, a local `http://127.0.0.1:3100` build cannot prove this endpoint as signed staging browser QA. Publish only the reviewed **Hosting** bundle to `reflect-ai-staging` after explicit owner preview/release review; never merge to main or deploy production. Firestore private kill switch remains OFF. Real Grok calls and session-saving are separate acceptance stages requiring owner approval.
+
+Keep the xAI outbound flag `REFLECT_XAI_OUTBOUND_ENABLED=no` throughout this precheck; do not enable `VITE_ENABLE_REFLECT_RAILWAY_AI` until signed precheck succeeds and separately approved one synthetic paid request is ready.
