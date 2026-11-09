@@ -6,6 +6,11 @@ import {
   requestPasswordReset, requestEmailVerification, refreshVerificationStatus
 } from '../../hooks/accountAccess';
 
+// AccountAccess tests exercise account interactions, not owner export or
+// Firebase initialization. OwnerDataExport has its own dedicated tests.
+// Mock this child to keep the strict production Firebase config guard intact.
+vi.mock('./OwnerDataExport', () => ({ default: () => null }));
+
 vi.mock('../../hooks/accountAccess', () => ({
   registerCurrentAnonymous: vi.fn(),
   signInExisting: vi.fn(),
