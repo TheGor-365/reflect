@@ -14,7 +14,10 @@ const deps = (overrides = {}) => ({
   authorizeOwner: uid => uid === UID,
   verifyAuth: async () => ({ uid: UID }),
   verifyAppCheck: async () => ({
-    app_id: "1:599679789981:web:d4d8743dbff0fe40af1d74",
+    // Actual Firebase Admin verifyToken() response uses appId at the top
+    // level, not app_id (which is nested in the decoded token).
+    appId: "1:599679789981:web:d4d8743dbff0fe40af1d74",
+    token: { app_id: "1:599679789981:web:d4d8743dbff0fe40af1d74" },
     alreadyConsumed: false
   }),
   handleReply: async () => ({ text: "Ответ модели", model: "grok-4.3", actualUsdTicks: null }),
@@ -106,13 +109,39 @@ test("cross-project Origin is rejected before any token verification", async () 
 test("invalid or consumed App Check and missing tokens cannot reach model", async () => {
   let sent = 0;
   await withServer(deps({
-    verifyAppCheck: async () => ({ app_id: "another-project", alreadyConsumed: true }),
+    verifyAppCheck: async () => ({ appId: "another-project", alreadyConsumed: true }),
     handleReply: async () => { sent++; return {}; }
   }), async url => {
     assert.equal((await send(url)).status, 401);
     assert.equal((await send(url, { headers: { authorization: "Bearer short" } })).status, 401);
   });
   assert.equal(sent, 0);
+});
+test("App Check claim app_id alone is not the SDK response and must be rejected", async () => {
+  let calls = 0;
+  await withServer(deps({
+    verifyAppCheck: async () => ({
+      app_id: "1:599679789981:web:d4d8743dbff0fe40af1d74",
+      alreadyConsumed: false
+    }),
+    handleReply: async () => { calls++; return {}; }
+  }), async url => {
+    assert.equal((await send(url)).status, 401);
+  });
+  assert.equal(calls, 0);
+});
+test("consumed SDK App Check response is rejected even with a matching appId", async () => {
+  let calls = 0;
+  await withServer(deps({
+    verifyAppCheck: async () => ({
+      appId: "1:599679789981:web:d4d8743dbff0fe40af1d74",
+      alreadyConsumed: true
+    }),
+    handleReply: async () => { calls++; return {}; }
+  }), async url => {
+    assert.equal((await send(url)).status, 401);
+  });
+  assert.equal(calls, 0);
 });
 test("authenticated and attested one-message request reaches only injected handler", async () => {
   let calls = 0;
