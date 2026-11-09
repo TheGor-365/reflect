@@ -212,7 +212,7 @@ test('linked account can safely request changing inaccessible email without losi
   });
   fireEvent.click(screen.getByRole('button', { name: 'Подтвердить новый email' }));
   await waitFor(() => expect(requestEmailChange).toHaveBeenCalledWith('new@example.test'));
-  expect(screen.getByRole('status')).toHaveTextContent('До подтверждения прежний email');
+  expect(screen.getByRole('status')).toHaveTextContent('До подтверждения текущая сессия, UID и записи остаются прежними');
   expect(onAccountChanged).not.toHaveBeenCalled();
   expect(signOutRegistered).not.toHaveBeenCalled();
 });
