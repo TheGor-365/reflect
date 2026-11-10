@@ -2791,7 +2791,11 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
   .reflect-app .reflect-diary-actions {
     width: 100%; justify-content: flex-start;
   }
-  .reflect-app .reflect-diary-type-switch { flex: none; }
+  .reflect-app .reflect-diary-type-switch {
+    flex: 1 1 auto; min-width: 0; overflow-x: auto;
+    scrollbar-width: none; overscroll-behavior-inline: contain;
+  }
+  .reflect-app .reflect-diary-type-switch::-webkit-scrollbar { display: none; }
   .reflect-app .reflect-diary-type-switch button { width: 34px; height: 35px; }
 }
 @media (max-width: 390px) {
