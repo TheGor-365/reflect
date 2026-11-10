@@ -40,7 +40,7 @@ function evaluateRecommendationReadiness({
   if (!enabled) return base("disabled");
   if (!consentGranted) return base("needs-consent");
   if (!riskReviewed) return base("needs-safety-review");
-  if (!KEY.test(topicKey || "") || !Number.isSafeInteger(nowMs) ||
+  if (typeof topicKey !== "string" || !KEY.test(topicKey) || !Number.isSafeInteger(nowMs) ||
       nowMs < 0 || !Array.isArray(selectedExcerpts) ||
       selectedExcerpts.length > 12 || !Array.isArray(signals) ||
       signals.length > MAX_SIGNAL_COUNT ||
