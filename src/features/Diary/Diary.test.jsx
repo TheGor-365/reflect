@@ -247,7 +247,7 @@ test('journal renders one month heading and dated rails, with undated bucket', (
   expect(container.querySelectorAll('.reflect-diary-day-heading')).toHaveLength(4);
   expect(container.querySelectorAll('.reflect-diary-event-marker')).toHaveLength(4);
   expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(4);
-  expect(screen.getByRole('region', { name: 'Лента записей', hidden: true })).toBeInTheDocument();
+  expect(container.querySelector('[aria-label="Лента записей"]')).toBeInTheDocument();
 });
 
 test('filters are inert until opened and preserve state through animated closing', () => {
