@@ -1,14 +1,15 @@
 import React from 'react';
-import { Menu, Moon, Sun } from 'lucide-react';
+import { Menu, Moon, Sun, SlidersHorizontal } from 'lucide-react';
 
 export const SECTION_TITLES = Object.freeze({
   diary: 'Дневник',
   sessions: 'Сеансы',
   goals: 'Цели',
-  sessionSchema: 'Схема сеансов'
+  sessionSchema: 'Схема сеансов',
+  aiSettings: 'Настройки AI'
 });
 
-const Header = ({ onMenuClick, activeTab, theme, onToggleTheme }) => (
+const Header = ({ onMenuClick, activeTab, theme, onToggleTheme, onOpenAiSettings }) => (
   <header className="reflect-topbar">
     <div className="reflect-topbar-inner">
       <div className="reflect-topbar-heading">
@@ -23,6 +24,12 @@ const Header = ({ onMenuClick, activeTab, theme, onToggleTheme }) => (
       </div>
       <div className="reflect-topbar-actions">
         <span className="reflect-topbar-caption">Reflect 2.0</span>
+        <button type="button" className="reflect-icon-button"
+          aria-label="Настройки AI" title="Настройки AI"
+          aria-current={activeTab === 'aiSettings' ? 'page' : undefined}
+          onClick={onOpenAiSettings}>
+          <SlidersHorizontal size={19} aria-hidden="true"/>
+        </button>
         <button type="button" className="reflect-icon-button"
           aria-label={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}
           title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}

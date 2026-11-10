@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, GitBranch, MessageSquare, Plus, Target, User, ShieldCheck, X } from 'lucide-react';
+import { BookOpen, GitBranch, MessageSquare, Plus, Target, User, ShieldCheck, SlidersHorizontal, X } from 'lucide-react';
 import NavItem from './NavItem';
 import { sessionDisplayTitle, sessionExcerpt } from '../../features/Diary/diaryPresentation';
 
@@ -34,6 +34,7 @@ const Sidebar = ({
           <NavItem tabName="sessions" icon={<MessageSquare size={20} />} label="Сеансы" activeTab={activeTab} changeTab={changeTab} />
           <NavItem tabName="goals" icon={<Target size={20} />} label="Цели" activeTab={activeTab} changeTab={changeTab} />
           <NavItem tabName="sessionSchema" icon={<GitBranch size={20} />} label="Схема сеансов" activeTab={activeTab} changeTab={changeTab} />
+          <NavItem tabName="aiSettings" icon={<SlidersHorizontal size={20} />} label="Настройки AI" activeTab={activeTab} changeTab={changeTab} />
         </nav>
 
         <button type="button" className="reflect-new-session" onClick={handleNewSession}>
