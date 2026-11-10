@@ -47,20 +47,40 @@ export default function ContextConsentPanel({ userId, sessions = [] }) {
         // Refresh from server rather than assuming a grant was committed.
         const current = await requestContextConsent({ action: 'list' });
         if (generation.current !== ownerGeneration) return;
-        setGrants(current.grants);
+        // A successful write/revoke response alone is not enough to show
+        // success. Re-check exactly this grant on the authenticated server.
+        const serverGrants = current.grants;
+        if (!Array.isArray(serverGrants)) {
+          throw new Error('consent-unavailable');
+        }
+        if (action === 'grant' && !serverGrants.some(g =>
+          g.grantId === payload.grantId &&
+          g.sourceId === payload.sourceId &&
+          g.scope === CONTEXT_SCOPE &&
+          Number.isSafeInteger(g.expiresAtMs) &&
+          g.expiresAtMs > Date.now())) {
+          throw new Error('grant-readback-mismatch');
+        }
+        if (action === 'revoke' && serverGrants.some(g =>
+          g.grantId === payload.grantId)) {
+          throw new Error('revoke-readback-mismatch');
+        }
+        setGrants(serverGrants);
         setLoaded(true);
         setConfirmed(false);
         setMessage(action === 'grant'
-          ? 'Разрешение выдано на 15 минут. Передача истории в Grok ещё выключена.'
-          : 'Доступ отозван. История в Grok не передавалась.');
+          ? 'Разрешение подтверждено сервером на 15 минут. Передача истории в Grok ещё выключена.'
+          : 'Отзыв доступа подтверждён сервером. История в Grok не передавалась.');
       }
     } catch (error) {
       if (generation.current !== ownerGeneration) return;
       setMessage('Не удалось подтвердить операцию (код: ' +
         (['unauthenticated', 'reauthentication-required', 'permission-denied',
           'not-found', 'already-exists', 'resource-exhausted', 'invalid-argument',
-          'unavailable', 'consent-unavailable'].includes(error?.message)
-          ? error.message : 'consent-unavailable') + ').');
+          'unavailable', 'consent-unavailable', 'grant-readback-mismatch',
+          'revoke-readback-mismatch'].includes(error?.message)
+          ? error.message : 'consent-unavailable') +
+        '). Проверьте действующие разрешения: операция могла выполниться, даже если подтверждение не удалось.');
       // On ambiguous errors do not imply grant or revoke succeeded.
       setLoaded(false);
       setGrants([]);
