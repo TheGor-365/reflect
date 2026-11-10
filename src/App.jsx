@@ -8,6 +8,7 @@ import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import MobileDock from './components/layout/MobileDock';
 import Diary from './features/Diary/Diary';
+import AISettings from './features/AISettings/AISettings';
 import Goals from './features/Goals/Goals';
 import Sessions from './features/Sessions/Sessions';
 import SessionSchema from './features/SessionSchema/SessionSchema';
@@ -297,6 +298,8 @@ export default function App() {
               onOpenJourney={id => { setCurrentSessionId(id); setActiveTab('sessionSchema'); }}
               isLoading={isLoadingData}
           />;
+      case 'aiSettings':
+        return <AISettings key={userId} userId={userId}/>;
       case 'goals':
         return <Goals 
           goals={goals} 
