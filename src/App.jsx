@@ -368,6 +368,7 @@ export default function App() {
           onMenuClick={() => setIsSidebarOpen(true)}
           theme={theme}
           onToggleTheme={() => setTheme(current => current === 'dark' ? 'light' : 'dark')}
+          onOpenAiSettings={() => changeTab('aiSettings')}
         />
         <main className={`reflect-main reflect-workspace ${activeTab === 'sessions' ? 'reflect-main--sessions' : ''}`} id="reflect-main" tabIndex={-1}>
           {renderActiveTab()}
