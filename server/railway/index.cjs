@@ -209,17 +209,23 @@ function createRequestListener({ ready, allowProvider, authorizeAccount, verifyA
 function createRuntime() {
   const enabled = process.env.REFLECT_AI_ENABLED === "yes";
   const outboundEnabled = process.env.REFLECT_XAI_OUTBOUND_ENABLED === "yes";
+  // This is distinct from the paid Grok toggle and OFF unless explicitly approved.
+  const consentEnabled = process.env.REFLECT_CONTEXT_CONSENT_API_ENABLED === "yes";
   const valid = process.env.REFLECT_AI_APPROVED_PROJECT === STAGE_PROJECT &&
     process.env.REFLECT_AI_APP_CHECK_APP_ID === STAGE_APP_ID &&
     process.env.REFLECT_AI_ALLOWED_ORIGIN === STAGE_ORIGIN;
   if (enabled && !valid) throw Error("Stage04H refuses unsafe Firebase project/app/origin");
   if (outboundEnabled && (!enabled || !valid)) throw Error("Stage04H refuses xAI egress without trusted staging runtime");
+  if (consentEnabled && (!enabled || !valid)) {
+    throw Error("Context consent API requires isolated, authenticated staging runtime");
+  }
   let verifyAuth = async () => { throw new Error("AI disabled"); };
   let verifyAppCheck = async () => { throw new Error("AI disabled"); };
   let authorizeAccount = async () => false;
   let checkRuntime = async () => false;
   let checkProvider = async () => "provider-unavailable";
   let handleReply = async () => { throw new Error("AI disabled"); };
+  let consentRoute = null;
   let ready = false;
   if (enabled) {
     const secretJson = process.env.REFLECT_FIREBASE_SERVICE_ACCOUNT_JSON || "";
@@ -254,13 +260,33 @@ function createRuntime() {
     verifyAuth = token => getAuth(app).verifyIdToken(token, true);
     verifyAppCheck = token => getAppCheck(app).verifyToken(token, { consume: true });
     handleReply = handler;
+    // No new API exists unless the owner deliberately opts into an isolated
+    // staging deployment AND sets the dedicated server-only feature flag.
+    // The existing AI reply handler remains strictly one-message-only.
+    if (consentEnabled) {
+      const { createContextConsentStore } = require("../privacy/contextConsent.cjs");
+      const { createConsentHttpListener } = require("../privacy/contextConsentHttp.cjs");
+      const consentStore = createContextConsentStore({ db, projectId: STAGE_PROJECT });
+      consentRoute = createConsentHttpListener({
+        verifyAuth, verifyAppCheck, authorizeAccount,
+        execute: (command, principal) => consentStore.execute(command, principal),
+        list: principal => consentStore.list(principal)
+      });
+    }
     ready = true;
   }
-  return createRequestListener({
+  const aiRoute = createRequestListener({
     ready: () => ready, allowProvider: () => outboundEnabled,
     authorizeAccount, checkRuntime, checkProvider,
     verifyAuth, verifyAppCheck, handleReply
   });
+  return (req, res) => {
+    // Exact route match; no wildcard routes, query strings, or fallthrough.
+    if (consentRoute && req.url === "/v1/privacy/context-consent") {
+      return consentRoute(req, res);
+    }
+    return aiRoute(req, res);
+  };
 }
 
 if (require.main === module) {
