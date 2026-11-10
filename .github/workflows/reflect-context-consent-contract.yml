@@ -1,0 +1,44 @@
+name: Reflect AI-01F private context consent contract
+
+on:
+  pull_request:
+    paths:
+      - 'server/privacy/**'
+      - '.github/workflows/reflect-context-consent-contract.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deny-by-default-consent:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact PR code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Run tests under supported Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify isolated consent contract and negative cases
+        run: node --test server/privacy/contextConsent.test.cjs
+      - name: Verify no active runtime or browser integration
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          for (const file of [
+            'src/features/AISettings/AISettings.jsx',
+            'src/api/geminiService.js',
+            'server/railway/index.cjs',
+            'server/ai/hostedHandler.cjs'
+          ]) {
+            const source = fs.readFileSync(file, 'utf8');
+            if (source.includes('contextConsent.cjs') ||
+                source.includes('createContextConsentStore')) {
+              throw Error('Grant or memory read was wired to active runtime without approval');
+            }
+          }
+          console.log('PASS: context consent is isolated, no active issue/read routes');
+          NODE
