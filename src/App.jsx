@@ -195,7 +195,7 @@ export default function App() {
     if (!db || !userId || !sessions.some(item => item.id === sessionId) ||
         !/^[a-zA-Z0-9_-]{1,128}$/.test(sessionId) ||
         !cleaned || cleaned.length > 100 ||
-        /[\\u0000-\\u001f\\u007f]/.test(cleaned)) {
+        /[\u0000-\u001f\u007f]/.test(cleaned)) {
       throw new Error('invalid-session-title');
     }
     // Only the title field is updated; no transcript, event history or
