@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  ArrowRight, BookOpenText, CalendarDays, GitBranch,
+  ArrowRight, BookOpen, CalendarDays, GitBranch,
   MessageCircle, PenLine, Search, Sparkles
 } from 'lucide-react';
 import { buildSessionLibrary, searchSessionLibrary } from './sessionLibrary';
@@ -19,7 +19,7 @@ export default function SessionLibrary({
       <header className="reflect-session-library-header">
         <div>
           <p className="reflect-session-library-eyebrow">
-            <BookOpenText size={17} aria-hidden="true" /> Ваши размышления
+            <BookOpen size={17} aria-hidden="true" /> Ваши размышления
           </p>
           <h2>История размышлений</h2>
           <p>Начатые беседы, вопросы и ответы Reflect — возвращайтесь к важным темам, когда захотите.</p>
@@ -120,7 +120,7 @@ export default function SessionLibrary({
           <h3>Здесь появится ваша история</h3>
           <p>После первого сохранённого диалога можно будет открыть его, продолжить и просмотреть хронологию.</p>
           <button type="button" className="reflect-session-library-open" onClick={onNewSession}>
-            Начать первый сеанс <ArrowRight size={17} aria-hidden="true"/>
+            Начать новый сеанс <ArrowRight size={17} aria-hidden="true"/>
           </button>
         </div>
       )}
