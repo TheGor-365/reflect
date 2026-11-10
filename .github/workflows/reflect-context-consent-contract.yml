@@ -1,44 +1,55 @@
-name: Reflect AI-01F private context consent contract
+name: Reflect AI-01G isolated context consent security
 
 on:
   pull_request:
     paths:
       - 'server/privacy/**'
+      - 'server/railway/index.cjs'
+      - 'src/features/AISettings/**'
+      - 'src/api/contextConsentService.js'
+      - '.env.staging.example'
       - '.github/workflows/reflect-context-consent-contract.yml'
 
 permissions:
   contents: read
 
 jobs:
-  deny-by-default-consent:
+  consent-deny-by-default:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - name: Checkout exact PR code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
-      - name: Run tests under supported Node.js 22
+      - name: Use supported Node 22
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verify isolated consent contract and negative cases
-        run: node --test server/privacy/contextConsent.test.cjs
-      - name: Verify no active runtime or browser integration
+      - name: Isolated unit and HTTP Auth/AppCheck contract
+        run: node --test server/privacy/contextConsent.test.cjs server/privacy/contextConsentHttp.test.cjs server/railway/index.test.cjs
+      - name: Assert no historical AI access and separate staging flags
         run: |
           node - <<'NODE'
           const fs = require('node:fs');
-          for (const file of [
-            'src/features/AISettings/AISettings.jsx',
-            'src/api/geminiService.js',
-            'server/railway/index.cjs',
-            'server/ai/hostedHandler.cjs'
-          ]) {
-            const source = fs.readFileSync(file, 'utf8');
-            if (source.includes('contextConsent.cjs') ||
-                source.includes('createContextConsentStore')) {
-              throw Error('Grant or memory read was wired to active runtime without approval');
-            }
+          const server = fs.readFileSync('server/railway/index.cjs', 'utf8');
+          const provider = fs.readFileSync('server/ai/hostedHandler.cjs', 'utf8');
+          const policy = fs.readFileSync('server/ai/policy.cjs', 'utf8');
+          const client = fs.readFileSync('src/api/contextConsentService.js', 'utf8');
+          const config = fs.readFileSync('src/features/AISettings/AISettings.jsx', 'utf8');
+          const http = fs.readFileSync('server/privacy/contextConsentHttp.cjs', 'utf8');
+          if (!server.includes('REFLECT_CONTEXT_CONSENT_API_ENABLED === "yes"') ||
+              !server.includes('if (consentEnabled && (!enabled || !valid))') ||
+              !server.includes('verifyIdToken(token, true)') ||
+              !server.includes('verifyToken(token, { consume: true })') ||
+              !client.includes('VITE_ENABLE_REFLECT_CONTEXT_CONSENT === "true"') ||
+              !http.includes('authorizeAccount(auth)') ||
+              !http.includes('parseContextConsentCommand(body, principal)') ||
+              !config.includes('<ContextConsentPanel') ||
+              provider.includes('contextConsent') ||
+              provider.includes('sessionHistory') ||
+              !policy.includes('body.consent.scope !== "one-message"')) {
+            throw Error('AI history grant safety boundary regression');
           }
-          console.log('PASS: context consent is isolated, no active issue/read routes');
+          console.log('PASS: grant route independently disabled, one-message model unchanged');
           NODE
