@@ -1,6 +1,7 @@
 import React from 'react';
 import { GitBranch } from 'lucide-react';
 import SessionTable from './SessionTable';
+import { sessionDisplayTitle } from '../Diary/diaryPresentation';
 
 /** Read-only chronology; the richer journey-map is a separate planned stage. */
 const SessionSchema = ({ sessions = [], goals = [], onViewContent }) => (
@@ -11,8 +12,8 @@ const SessionSchema = ({ sessions = [], goals = [], onViewContent }) => (
     </header>
     {sessions.length > 0 ? sessions.map(session => (
       <section key={session.id} className="reflect-session-schema-group"
-        aria-label={session.title || 'Сеанс без названия'}>
-        <h3>{session.title || 'Сеанс без названия'}</h3>
+        aria-label={sessionDisplayTitle(session)}>
+        <h3>{sessionDisplayTitle(session)}</h3>
         <SessionTable session={session} goals={goals} onViewContent={onViewContent} />
       </section>
     )) : (
