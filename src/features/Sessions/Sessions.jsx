@@ -237,7 +237,9 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
           <div className="reflect-session-messages-inner">
             {isNewSessionView && messagesToDisplay.length === 0 && (
               <p className="reflect-session-welcome">
-                Начните с мысли или ситуации. Пока ИИ недоступен, запись можно сохранить в дневник.
+                {AI_SESSION_ENABLED
+                  ? 'Напишите, что вас беспокоит. Grok поможет разобраться в мысли или ситуации.'
+                  : 'Начните с мысли или ситуации. Пока ИИ недоступен, запись можно сохранить в дневник.'}
               </p>
             )}
 
@@ -278,6 +280,7 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
             isLoading={isLoading}
             isRecording={isUserRecording}
             aiAvailable={AI_SESSION_ENABLED}
+            privacyNoticeId={AI_SESSION_ENABLED ? 'reflect-session-send-privacy' : undefined}
             error={sendError}
             draftControls={
               <ProtectedDraftControls compact ref={sessionDraftRef} userId={userId}
