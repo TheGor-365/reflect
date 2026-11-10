@@ -104,7 +104,10 @@ function createConsentHttpListener({
       let check;
       try { check = await verifyAppCheck(appCheckToken); }
       catch { reject("unauthenticated"); }
-      if (!auth?.uid || check?.appId !== APP_ID || check?.alreadyConsumed === true) {
+      // A verifier that was accidentally switched to consume:false omits
+      // alreadyConsumed. Accept ONLY the explicit first-use result.
+      if (!auth?.uid || check?.appId !== APP_ID ||
+          check?.alreadyConsumed !== false) {
         reject("unauthenticated");
       }
       // Only issuance requires paid-account entitlement. Listing and revoking
