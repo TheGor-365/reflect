@@ -19,7 +19,7 @@ const ERROR_CODES = [
 const deny = code => { throw new Error(ERROR_CODES.includes(code)
   ? code : 'consent-audit-unavailable'); };
 
-async function post(command, headers = {}) {
+async function post(command, headers = {}, probeId = null) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
@@ -47,7 +47,9 @@ async function post(command, headers = {}) {
           typeof item.sourceId === 'string' &&
           item.scope === 'session-turns' &&
           Number.isSafeInteger(item.expiresAtMs)),
-      revoked: value?.status === 'revoked'
+      revoked: value?.status === 'revoked',
+      probeCollision: Array.isArray(value?.grants) &&
+        value.grants.some(item => item?.grantId === probeId)
     };
   } catch {
     deny('consent-audit-unavailable');
@@ -86,6 +88,13 @@ export async function auditStagingConsentEndpoint() {
   if (!railwayAiEnabled || !appCheckClient || !auth.currentUser ||
       !globalThis.crypto?.randomUUID) deny('unauthenticated');
 
+  const randomPart = globalThis.crypto.randomUUID();
+  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i
+    .test(randomPart)) deny('consent-audit-unavailable');
+  // Existing UI grants use raw UUIDs; this QA-prefixed identifier is
+  // additionally checked against the private list before its no-op revoke.
+  const unknownId = 'qa-consent-probe-' + randomPart;
+
   const unsigned = await post({ action: 'list' });
   if (unsigned.status !== 401 || unsigned.error !== 'unauthenticated') {
     deny('consent-audit-unavailable');
@@ -93,8 +102,8 @@ export async function auditStagingConsentEndpoint() {
 
   const principal = auth.currentUser;
   const signed = await signedHeaders(principal);
-  const listing = await post({ action: 'list' }, signed);
-  if (listing.status !== 200 || !listing.validList) {
+  const listing = await post({ action: 'list' }, signed, unknownId);
+  if (listing.status !== 200 || !listing.validList || listing.probeCollision) {
     deny(listing.error);
   }
 
@@ -105,11 +114,8 @@ export async function auditStagingConsentEndpoint() {
   }
 
   const fresh = await signedHeaders(principal);
-  // UUIDv4 is unguessable; revoking an unknown ID is an idempotent no-op.
-  // No user data and no existing grant IDs are used as inputs.
-  const unknownId = globalThis.crypto.randomUUID();
-  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i
-    .test(unknownId)) deny('consent-audit-unavailable');
+  // Verified absent from the earlier list; the server's unknown-ID revoke
+  // is an idempotent no-op. It cannot grant access to any session.
   const revoked = await post({
     action: 'revoke', grantId: unknownId
   }, fresh);
