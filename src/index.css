@@ -2201,3 +2201,144 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
   .reflect-failure-action { transition: none; }
   .reflect-failure-action:hover { transform: none; }
 }
+
+
+/* UX-01A Midnight Aurora semantic contrast: journal detail + session chronology.
+   All colors are scoped; avoid global Tailwind overrides or persisted-data changes. */
+.reflect-app .reflect-journal-content-title {
+  margin: 0 0 8px; color: var(--reflect-ink);
+  font-size: 16px; font-weight: 700; line-height: 1.45;
+}
+.reflect-app .reflect-journal-content-meta {
+  margin: 0 0 10px; font-size: 12px; font-weight: 400; color: var(--reflect-muted);
+}
+.reflect-app .reflect-journal-speaker-block {
+  padding: 12px 15px; border: 1px solid var(--reflect-border);
+  border-radius: 12px; background: rgba(97, 122, 188, .10); color: var(--reflect-ink);
+}
+.reflect-app .reflect-journal-speaker-block--user {
+  background: rgba(65, 179, 170, .11); border-color: rgba(96, 201, 190, .28);
+}
+.reflect-app .reflect-journal-speaker-label {
+  margin: 0 0 6px; font-size: 12px; font-weight: 650; color: var(--reflect-muted);
+}
+.reflect-app .reflect-journal-speaker-text {
+  margin: 0; white-space: pre-wrap; overflow-wrap: anywhere;
+  font-size: 14px; line-height: 1.65; color: var(--reflect-ink);
+}
+.reflect-app .reflect-journal-detail {
+  padding: 12px 14px; border-radius: 11px; color: var(--reflect-ink);
+  border: 1px solid var(--reflect-border); background: rgba(112, 139, 194, .08);
+}
+.reflect-app .reflect-journal-detail--reflection { border-left: 3px solid var(--reflect-accent); }
+.reflect-app .reflect-journal-detail--feedback { border-left: 3px solid #79c5a4; }
+.reflect-app .reflect-journal-append-button {
+  display: inline-flex; align-items: center; min-height: 40px;
+  margin-top: 10px; padding: 9px 13px; border-radius: 11px;
+  font-size: 13px; font-weight: 650; background: var(--reflect-accent);
+  color: var(--reflect-accent-ink);
+}
+.reflect-app .reflect-journal-entry-footer {
+  display: flex; justify-content: flex-end;
+  margin-top: 18px; padding-top: 9px; border-top: 1px solid var(--reflect-border);
+  color: var(--reflect-muted); font-size: 11px; font-weight: 400;
+}
+
+/* Reusable themed disclosure; staged animation refinements belong to UX-01B. */
+.reflect-app .reflect-disclosure { margin-top: 9px; min-width: 0; }
+.reflect-app .reflect-disclosure-trigger {
+  display: inline-flex; gap: 7px; align-items: center; min-height: 37px;
+  padding: 6px 0; font-size: 13px; font-weight: 650;
+  color: var(--reflect-accent); background: transparent; text-align: left;
+}
+.reflect-app .reflect-disclosure-chevron { transition: transform 180ms ease; }
+.reflect-app .reflect-disclosure-chevron.is-open { transform: rotate(180deg); }
+.reflect-app .reflect-disclosure-panel {
+  margin-top: 7px; padding: 12px; border-radius: 12px;
+  border: 1px solid var(--reflect-border);
+  background: rgba(98, 123, 177, .09); color: var(--reflect-ink);
+  overflow-wrap: anywhere;
+}
+.reflect-app[data-theme="light"] .reflect-disclosure-panel {
+  background: #eef3fa;
+}
+
+/* Read-only Session Schema: themed replacement for the legacy white table. */
+.reflect-app .reflect-session-schema {
+  width: min(100%, 1160px); margin: 0 auto;
+  min-width: 0; color: var(--reflect-ink);
+}
+.reflect-app .reflect-session-schema-header { margin-bottom: 23px; }
+.reflect-app .reflect-session-schema-header h2 {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 0 8px; font-size: clamp(22px, 2.7vw, 30px);
+  line-height: 1.3; font-weight: 750; color: var(--reflect-ink);
+}
+.reflect-app .reflect-session-schema-header h2 svg { color: var(--reflect-accent); }
+.reflect-app .reflect-session-schema-header p {
+  margin: 0; color: var(--reflect-muted); font-size: 13px;
+}
+.reflect-app .reflect-session-schema-group { min-width: 0; margin-bottom: 26px; }
+.reflect-app .reflect-session-schema-group > h3 {
+  margin: 0 0 12px; font-size: clamp(16px, 2vw, 20px);
+  font-weight: 700; line-height: 1.4; color: var(--reflect-ink);
+  overflow-wrap: anywhere;
+}
+.reflect-app .reflect-session-schema-empty,
+.reflect-app .reflect-session-event-panel {
+  min-width: 0; padding: clamp(14px, 2.4vw, 22px);
+  border: 1px solid var(--reflect-border); border-radius: 17px;
+  color: var(--reflect-ink); background: var(--reflect-card);
+}
+.reflect-app .reflect-session-schema-empty { color: var(--reflect-muted); }
+.reflect-app .reflect-session-event-panel > h4 {
+  margin: 0 0 14px; font-size: 15px; font-weight: 700; color: var(--reflect-ink);
+}
+.reflect-app .reflect-session-event-scroll {
+  max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain;
+}
+.reflect-app .reflect-session-event-table {
+  width: 100%; min-width: 610px; border-collapse: collapse; text-align: left;
+  color: var(--reflect-ink); font-size: 13px;
+}
+.reflect-app .reflect-session-event-table thead { background: rgba(107, 128, 174, .14); }
+.reflect-app .reflect-session-event-table th {
+  padding: 11px 14px; font-size: 11px; font-weight: 700;
+  color: var(--reflect-muted); text-transform: uppercase; letter-spacing: .05em;
+}
+.reflect-app .reflect-session-event-table td {
+  padding: 12px 14px; border-bottom: 1px solid var(--reflect-border);
+  vertical-align: top; color: var(--reflect-ink);
+}
+.reflect-app .reflect-session-event-table tbody tr:last-child td { border-bottom: 0; }
+.reflect-app .reflect-session-event-table tbody tr:hover { background: rgba(108, 138, 183, .07); }
+.reflect-app .reflect-session-event-date {
+  width: 190px; white-space: nowrap; color: var(--reflect-muted) !important;
+  font-size: 12px; font-weight: 400;
+}
+.reflect-app .reflect-session-event-table td:nth-child(2) { width: 132px; }
+.reflect-app .reflect-session-event-pill {
+  display: inline-flex; padding: 4px 9px; border-radius: 9px;
+  border: 1px solid var(--reflect-border); font-size: 11px; font-weight: 650;
+  background: rgba(126, 138, 193, .18); color: var(--reflect-ink);
+}
+.reflect-app .reflect-session-event-pill[data-role="user"] { border-color: rgba(93, 196, 187, .42); }
+.reflect-app .reflect-session-event-pill[data-role="assistant"] { border-color: rgba(160, 144, 238, .55); }
+.reflect-app .reflect-session-event-pill[data-role="completed"] { border-color: rgba(95, 190, 145, .6); }
+.reflect-app .reflect-session-event-content {
+  margin: 0; white-space: pre-wrap; overflow-wrap: anywhere;
+  line-height: 1.6; color: var(--reflect-ink);
+}
+.reflect-app .reflect-session-event-more {
+  color: var(--reflect-accent); font-weight: 650; text-decoration: underline;
+  text-underline-offset: 3px; padding: 4px 1px;
+}
+.reflect-app .reflect-session-event-empty { color: var(--reflect-muted); font-size: 13px; }
+@media (max-width: 430px) {
+  .reflect-app .reflect-session-schema-header { margin-bottom: 16px; }
+  .reflect-app .reflect-session-schema-group { margin-bottom: 19px; }
+  .reflect-app .reflect-session-event-panel { padding: 12px 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reflect-app .reflect-disclosure-chevron { transition: none; }
+}
