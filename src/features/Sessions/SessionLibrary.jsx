@@ -8,7 +8,7 @@ import { buildSessionLibrary, searchSessionLibrary } from './sessionLibrary';
 /** Saved owner-scoped threads only. No inferred session state or paid AI calls. */
 export default function SessionLibrary({
   sessions = [], activeSessionId, onSelectSession, onViewJourney, onNewSession,
-  onBackToConversation
+  onBackToConversation, warning
 }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
@@ -34,6 +34,7 @@ export default function SessionLibrary({
           </button>
         </div>
       </header>
+      {warning && <p className="reflect-session-navigation-warning" role="alert">{warning}</p>}
 
       {items.length > 0 ? (
         <>
