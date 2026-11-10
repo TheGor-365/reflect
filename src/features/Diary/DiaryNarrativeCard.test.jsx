@@ -78,3 +78,44 @@ test('history icon expands all immutable versions, default is closed', () => {
   expect(section).toHaveTextContent('Версия 3 · текущая');
   expect(section).toHaveTextContent('Нынешний текст');
 });
+
+
+test('session details keep original dialogue readable without legacy light-only blocks', () => {
+  const session = entry({
+    type: 'session', sourceKind: 'session', sourceId: 's1',
+    displayAt: new Date('2026-11-10T14:24:00Z'),
+    data: {
+      title: 'Почему полезно записывать мысли',
+      chatHistory: [
+        { role: 'user', content: 'Первый вопрос' },
+        { role: 'assistant', content: 'Рефлексия от Reflect' }
+      ]
+    }
+  });
+  const { container } = render(<div className="reflect-app" data-theme="dark">
+    <DiaryNarrativeCard entry={session}/>
+  </div>);
+  expect(container.querySelector('.reflect-journal-content-title')).toHaveTextContent(
+    'Почему полезно записывать мысли'
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Показать детали сеанса' }));
+  expect(screen.getByText('Первый вопрос')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Показать ответ ассистента' }));
+  expect(screen.getByText('Рефлексия от Reflect')).toBeInTheDocument();
+  expect(container.querySelector('.bg-blue-50, .bg-stone-50, .text-stone-800')).not.toBeInTheDocument();
+  expect(container.querySelector('.reflect-journal-entry-footer time')).toBeInTheDocument();
+});
+
+test('mood and goal cards reuse Midnight Aurora semantic title and muted date', () => {
+  const goal = entry({ type: 'goal', sourceKind: 'goal', sourceId: 'g1',
+    data: { text: 'Сформулировать цель', purpose: 'Важная причина', completed: false } });
+  const mood = entry({ type: 'mood', sourceKind: 'mood', sourceId: 'm1',
+    data: { mood: 'content', intensity: 3, comment: 'Спокойно' } });
+  const view = render(<div className="reflect-app" data-theme="light">
+    <DiaryNarrativeCard entry={goal}/><DiaryNarrativeCard entry={mood}/>
+  </div>);
+  expect(screen.getByText('Цель: Сформулировать цель')).toHaveClass('reflect-journal-content-title');
+  expect(screen.getByText('Запись о настроении')).toHaveClass('reflect-journal-content-title');
+  expect(screen.getAllByRole('time')).toHaveLength(2);
+  expect(view.container.querySelector('.text-stone-500, .text-stone-800')).not.toBeInTheDocument();
+});
