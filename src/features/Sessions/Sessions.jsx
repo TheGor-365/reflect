@@ -249,15 +249,13 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
 
   if ((!activeSession && !isNewSessionView) || showLibrary || libraryRequested) {
     return (
-      <>
-        {navigationWarning && <p className="reflect-session-navigation-warning" role="alert">{navigationWarning}</p>}
-        <SessionLibrary sessions={sessions} activeSessionId={currentSessionId}
-          onSelectSession={selectFromLibrary} onNewSession={startFromLibrary}
-          onViewJourney={onOpenJourney ? journeyFromLibrary : undefined}
-          onBackToConversation={(activeSession || isNewSessionView) ? () => {
-            setShowLibrary(false); setNavigationWarning(''); onCloseLibrary?.();
-          } : undefined}/>
-      </>
+      <SessionLibrary sessions={sessions} activeSessionId={currentSessionId}
+        warning={navigationWarning}
+        onSelectSession={selectFromLibrary} onNewSession={startFromLibrary}
+        onViewJourney={onOpenJourney ? journeyFromLibrary : undefined}
+        onBackToConversation={(activeSession || isNewSessionView) ? () => {
+          setShowLibrary(false); setNavigationWarning(''); onCloseLibrary?.();
+        } : undefined}/>
     );
   }
 
