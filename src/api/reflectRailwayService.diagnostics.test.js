@@ -99,3 +99,21 @@ test('provider failure is only a bounded status, never raw upstream text',async(
   expect(result).toBe('credentials-rejected');
   expect(result).not.toContain('EXPOSED_TOKEN');
 });
+
+test.each([
+  ['xai-invalid-request', 502],
+  ['xai-forbidden', 502],
+  ['xai-rate-limited', 502],
+  ['xai-upstream-error', 502]
+])('signed paid transport shows bounded error %s without leaking provider response', async (status, httpStatus) => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({
+    status: httpStatus,
+    json: async () => ({ error: status, raw_provider_error: 'TOKEN_OR_USER_TEXT_SHOULD_NOT_APPEAR' })
+  })));
+  const { getRailwayAnalysis } = await import('./reflectRailwayService');
+  await expect(getRailwayAnalysis({
+    requestId: 'AAAABBBBCCCCDDDDEEEEFFFF',
+    message: 'Синтетический тест',
+    consent: { granted: true, version: '2026-11-07', scope: 'one-message' }
+  })).rejects.toThrow(status);
+});
