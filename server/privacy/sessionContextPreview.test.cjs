@@ -28,7 +28,10 @@ const transcript = () => [
 const path = (uid = UID, source = SOURCE) =>
   `artifacts/${NAMESPACE}/users/${uid}/sessions/${source}`;
 
-function fakeStore({ history = transcript(), owner = UID, check } = {}) {
+function fakeStore(options = {}) {
+  const history = Object.hasOwn(options, 'history') ? options.history : transcript();
+  const owner = options.owner ?? UID;
+  const check = options.check;
   const reads = [];
   const checks = [];
   let active = true;
