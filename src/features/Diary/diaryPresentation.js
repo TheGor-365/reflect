@@ -2,7 +2,11 @@
 const DATE_TITLE = /^Сеанс от\s+\d{1,2}[./]\d{1,2}[./]\d{4}/i;
 
 export function sessionDisplayTitle(session = {}) {
-  for (const value of [session.manualTitle, session.aiTitle, session.title]) {
+  // Manual renaming always wins over a later model suggestion.
+  const choices = session.titleSource === 'user'
+    ? [session.title, session.manualTitle, session.aiTitle]
+    : [session.manualTitle, session.aiTitle, session.title];
+  for (const value of choices) {
     if (typeof value !== 'string') continue;
     const cleaned = value.trim();
     if (cleaned && !DATE_TITLE.test(cleaned)) return cleaned;
