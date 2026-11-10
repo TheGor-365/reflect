@@ -254,7 +254,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
         <SessionLibrary sessions={sessions} activeSessionId={currentSessionId}
           onSelectSession={selectFromLibrary} onNewSession={startFromLibrary}
           onViewJourney={onOpenJourney ? journeyFromLibrary : undefined}
-          onBackToConversation={activeSession ? () => {
+          onBackToConversation={(activeSession || isNewSessionView) ? () => {
             setShowLibrary(false); setNavigationWarning(''); onCloseLibrary?.();
           } : undefined}/>
       </>
