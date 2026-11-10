@@ -192,7 +192,11 @@ function createRequestListener({ ready, allowProvider, authorizeAccount, verifyA
         });
         const safe = categories[upstream] ||
           (upstream >= 500 ? "xai-upstream-error" : "xai-unavailable");
-        return respond(res, 502, { error: safe }, origin);
+        // Numeric status only for the ambiguous request-shape failures.
+        // The signed owner may inspect it in Network; no upstream body escapes.
+        const requestStatus = upstream === 400 || upstream === 422
+          ? { upstreamStatus: upstream } : {};
+        return respond(res, 502, { error: safe, ...requestStatus }, origin);
       }
       const code = error instanceof PolicyError && ERROR_STATUS[error.code]
         ? error.code : "internal";
