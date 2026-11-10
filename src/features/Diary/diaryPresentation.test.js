@@ -12,6 +12,8 @@ describe('editorial journal display policy', () => {
       .toBe('Когда мысли становятся яснее');
     expect(sessionDisplayTitle({ title: 'Предварительная тема', aiTitle: 'Тема от AI',
       manualTitle: 'Мой заголовок' })).toBe('Мой заголовок');
+    expect(sessionDisplayTitle({ title: 'Мой проверенный заголовок',
+      titleSource: 'user', aiTitle: 'Новая идея модели' })).toBe('Мой проверенный заголовок');
   });
 
   it('makes the actual assistant reply primary while retaining question and transcript', () => {
