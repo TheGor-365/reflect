@@ -308,6 +308,7 @@ export default function App() {
           currentSessionId={currentSessionId}
           setCurrentSessionId={setCurrentSessionId}
           onStartNewSession={handleNewSession}
+          onOpenJourney={id => { setCurrentSessionId(id); setActiveTab('sessionSchema'); }}
         />;
       default:
           return <Diary />;
