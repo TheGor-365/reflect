@@ -12,30 +12,21 @@ import Goals from './features/Goals/Goals';
 import Sessions from './features/Sessions/Sessions';
 import SessionSchema from './features/SessionSchema/SessionSchema';
 import Loader from './components/common/Loader';
+import AppFailureView from './components/common/AppFailureView';
 import ProfileModal from './components/modals/ProfileModal';
 import AccountAccess from './components/modals/AccountAccess';
 import ContentModal from './components/modals/ContentModal';
 import ReflectionModal from './components/modals/ReflectionModal';
 import ChecklistFeedbackModal from './components/modals/ChecklistFeedbackModal';
 
+// Keep the same Midnight Aurora error treatment for auth and Firestore faults.
 function LoadErrorView({ message }) {
-  return (
-    <main role="alert" className="min-h-screen bg-stone-50 flex items-center justify-center p-6">
-      <div className="max-w-md w-full rounded-xl border border-red-200 bg-white p-6 shadow-sm">
-        <h1 className="text-xl font-semibold text-stone-900 mb-3">Не удалось загрузить данные</h1>
-        <p className="text-sm text-stone-700 mb-5">{message}</p>
-        <button type="button" onClick={() => window.location.reload()}
-          className="rounded-lg bg-teal-600 px-4 py-2 text-white hover:bg-teal-700">
-          Повторить загрузку
-        </button>
-      </div>
-    </main>
-  );
+  return <AppFailureView code={503} message={message} />;
 }
 
 export default function App() {
   // --- Auth & Core Data ---
-  const { user, isAuthReady, authError, refreshUser } = useAuth();
+  const { user, isAuthReady, authError, signedOut, refreshUser, startGuestSession } = useAuth();
   const userId = user?.uid;
 
   const { data: sessions, loading: sessionsLoading, error: sessionsError } = useFirestore('sessions', userId);
@@ -70,6 +61,11 @@ export default function App() {
   });
 
   useEffect(() => {
+    // Persist the theme and keep pre-React/loader/error screens in sync.
+    document.documentElement.dataset.reflectTheme = theme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute(
+      'content', theme === 'light' ? '#f4f7fc' : '#0a1020'
+    );
     try { window.localStorage.setItem('reflect-theme', theme); }
     catch { /* Browser storage is optional; never block journal access. */ }
   }, [theme]);
@@ -205,6 +201,15 @@ export default function App() {
 
   if (!isAuthReady) return <Loader />;
 
+  if (signedOut && !userId) {
+    return (
+      <div className="reflect-app" data-theme={theme}>
+        <AccountAccess user={null} signedOut onGuest={startGuestSession}
+          onAccountChanged={account => refreshUser?.(account)} />
+      </div>
+    );
+  }
+
   if (!userId) {
     return <LoadErrorView message={authError || 'Авторизация пока недоступна. Повторите попытку позже.'} />;
   }
@@ -213,8 +218,13 @@ export default function App() {
 
   if (readError) return <LoadErrorView message={readError} />;
 
-  const hasLocalData = Boolean(profile) ||
-    sessions.length > 0 || goals.length > 0 || moods.length > 0 || diaryNotes.length > 0;
+  // A profile is not the same as authored diary/goal/session content.
+  // Never silently abandon authored guest records. For a profile-only guest,
+  // the sign-in dialog requires explicit acknowledgment that its profile
+  // stays behind, rather than trapping the user behind a disabled button.
+  const hasLocalData = sessions.length > 0 || goals.length > 0 ||
+    moods.length > 0 || diaryNotes.length > 0;
+  const guestProfileOnly = Boolean(user?.isAnonymous && profile && !hasLocalData);
 
   if (showProfileModal && user.isAnonymous && !profile && !allowGuestProfile) {
     return (
@@ -290,6 +300,7 @@ export default function App() {
     <div className="reflect-app min-h-screen font-sans" data-theme={theme}>
       {showAccountModal && (
         <AccountAccess user={user} hasLocalData={hasLocalData}
+          guestProfileOnly={guestProfileOnly}
           onClose={() => setShowAccountModal(false)}
           onAccountChanged={account => refreshUser?.(account)} />
       )}

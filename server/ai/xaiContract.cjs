@@ -41,12 +41,10 @@ function createSyntheticXaiRequest(message) {
       Object.freeze({ role: "system", content: SYSTEM_INSTRUCTION }),
       Object.freeze({ role: "user", content: message.trim() })
     ]),
+    // Match the documented minimal Responses payload: no tool, stream or
+    // truncation overrides are necessary for this stateless text request.
     store: false,
-    max_output_tokens: LIMITS.maxOutputTokens,
-    tools: Object.freeze([]),
-    tool_choice: "none",
-    stream: false,
-    truncation: "disabled"
+    max_output_tokens: LIMITS.maxOutputTokens
   });
   return Object.freeze({
     endpoint: ENDPOINT,

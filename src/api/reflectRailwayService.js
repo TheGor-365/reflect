@@ -46,7 +46,22 @@ export async function getRailwayAnalysis(payload) {
       signal: controller.signal
     });
     // Never surface raw upstream bodies or tokens in UI/debug output.
-    if (response.status !== 200) throw new Error("ai-request-not-completed");
+    if (response.status !== 200) {
+      // Auth failures happen BEFORE the provider is invoked. Only accept
+      // whitelisted server error codes; no raw upstream bodies or tokens.
+      const error = await response.json().catch(() => null);
+      const safeCodes = [
+        "reauthentication-required", "unauthenticated",
+        "auth-permission-missing", "auth-verification-unavailable",
+        "attestation-unavailable", "permission-denied",
+        "xai-invalid-request", "xai-unauthorized", "xai-forbidden",
+        "xai-endpoint-not-found", "xai-upstream-timeout",
+        "xai-request-too-large", "xai-rate-limited",
+        "xai-upstream-error", "xai-unavailable"
+      ];
+      throw new Error(safeCodes.includes(error?.error)
+        ? error.error : "ai-request-not-completed");
+    }
     const data = await response.json();
     if (!data || typeof data.text !== "string" ||
         !data.text.trim() || data.text.length > 2400 ||
@@ -102,6 +117,105 @@ export async function checkRailwayAttestation() {
     return true;
   } catch {
     throw new Error("attestation-failed");
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Non-billable staging probe for the existing registered account.
+ * Submits EXACTLY {}, after signed Auth + consumable App Check.
+ * Does not call Grok, reserve money, send diary text or retry automatically.
+ */
+export async function checkRailwayReadiness() {
+  if (!railwayAiEnabled || !appCheckClient || !auth.currentUser) {
+    throw new Error("attestation-unavailable");
+  }
+  const [idToken, appCheck] = await Promise.all([
+    auth.currentUser.getIdToken(),
+    getLimitedUseToken(appCheckClient)
+  ]);
+  if (!idToken || !appCheck?.token) throw new Error("attestation-unavailable");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(origin + "/v1/ai/diagnostics", {
+      method: "POST",
+      mode: "cors", cache: "no-store", credentials: "omit",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + idToken,
+        "X-Firebase-AppCheck": appCheck.token
+      },
+      body: "{}", signal: controller.signal
+    });
+    const result = await response.json().catch(() => null);
+    if (response.status !== 200) {
+      const safeCodes = [
+        "reauthentication-required", "unauthenticated",
+        "auth-permission-missing", "auth-verification-unavailable",
+        "attestation-unavailable", "permission-denied", "invalid-argument"
+      ];
+      throw new Error(safeCodes.includes(result?.error)
+        ? result.error : "diagnostics-unavailable");
+    }
+    if (result?.model !== "grok-4.3" ||
+        !["ready", "outbound-disabled", "runtime-disabled"].includes(result?.status)) {
+      throw new Error("diagnostics-unavailable");
+    }
+    return result.status;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Read-only xAI catalog probe. The user clicks explicitly; the server checks
+ * Firebase Auth, App Check, private entitlement and the private runtime flag.
+ * Requests GET /v1/models/grok-4.3, NEVER POST /v1/responses.
+ * No prompt, diary, profile, payment details, or credentials sent to the UI.
+ */
+export async function checkRailwayProviderAccess() {
+  if (!railwayAiEnabled || !appCheckClient || !auth.currentUser) {
+    throw new Error("attestation-unavailable");
+  }
+  const [idToken, appCheck] = await Promise.all([
+    auth.currentUser.getIdToken(),
+    getLimitedUseToken(appCheckClient)
+  ]);
+  if (!idToken || !appCheck?.token) throw new Error("attestation-unavailable");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(origin + "/v1/ai/provider-diagnostics", {
+      method: "POST", mode: "cors", cache: "no-store", credentials: "omit",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + idToken,
+        "X-Firebase-AppCheck": appCheck.token
+      },
+      body: "{}", signal: controller.signal
+    });
+    const result = await response.json().catch(() => null);
+    if (response.status !== 200) {
+      const safeCodes = [
+        "reauthentication-required", "unauthenticated",
+        "auth-permission-missing", "auth-verification-unavailable",
+        "attestation-unavailable", "permission-denied", "invalid-argument"
+      ];
+      throw new Error(safeCodes.includes(result?.error)
+        ? result.error : "diagnostics-unavailable");
+    }
+    const allowedStatuses = [
+      "model-accessible", "credentials-unavailable",
+      "credentials-rejected", "access-denied", "model-unavailable",
+      "provider-rate-limited", "provider-unavailable", "runtime-disabled"
+    ];
+    if (result?.model !== "grok-4.3" ||
+        !allowedStatuses.includes(result?.status)) {
+      throw new Error("diagnostics-unavailable");
+    }
+    return result.status;
   } finally {
     clearTimeout(timer);
   }

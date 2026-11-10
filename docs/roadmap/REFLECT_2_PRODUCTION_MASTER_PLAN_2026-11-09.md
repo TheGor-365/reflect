@@ -1,0 +1,115 @@
+# Reflect 2.0 — Product-to-Production Master Roadmap
+**Version:** 2026-11-09 · **Product owner priority:** working account → real AI → product QA/refinement → release.
+
+This document supersedes the *execution order* in older technical roadmaps, not completed work or privacy/safety constraints. Source of truth: historical Reflect 2.0 Stage00–06 plan; `docs/roadmap/STAGE_02_PRODUCT_UX_MASTER.md`; Stage04H runbook; owner's verified staging browser/HTTP/CI acceptance on 2026-11-09. This is a **plan**, not evidence that unfinished features are deployed.
+
+## A. Product contract and boundaries
+Reflect is a private personal-reflection product: diary/timeline, user-entered mood, goals with steps, sessions with optional Grok AI support and explicit save. Not clinical diagnosis, psychotherapy or fabricated mental-health scores. One continuous user experience across desktop and mobile.
+
+Approved design: **Midnight Aurora** (dark default + persisted light preference), teal / cyan / indigo accents, Russian UI, crisp content-first hierarchy, mobile-first, accessible focus and reduced motion. Avoid fallback white Stone/Tailwind pages or loaders. Preserve real user data, anonymous UID on upgrade, history and backups.
+
+**Core loop:** sign in → write or choose a session → optional informed consent to send only one message to AI → see a real model response → explicitly save session or a note → derive optional actions/goals via user review → review history and progress.
+
+**No repeated manual service wiring:** user configures a permanent account once; platform manages Firebase tokens/App Check and server authorization silently for every session. The transient `REFLECT_AI_ALLOWED_UID` staging QA gate is **not** the long-term entitlement model. Replace it with persistent account-level authorization / verified-email / plan policy before general rollout; do not simply remove payment access controls. Do not require owner to copy a UID at every demo.
+
+**Environment boundary:**
+- Current production: Vercel `reflect-three.vercel.app`, Firebase `reflect-8fdc8`, historic `main` — protected, not a release target until approval.
+- Current staging: Firebase Hosting `reflect-ai-staging.web.app`, Firebase project `reflect-ai-staging`, Railway `reflect-ai-api-staging.up.railway.app`.
+- GitHub stacked Draft PR #36 (Stage04H) and next Stage05A. PRs are not merged to main by merely passing CI. No secret JSON/key, user data, billing, or UIDs in GitHub, browser bundle or public documentation.
+
+## B. Evidence checkpoint, 2026-11-09
+**Verified:** staging API healthy 200 with `aiEnabled:false`; missing credentials POST 401; browser signed Firebase Auth + consumable App Check produced expected 503 `provider-disabled` after SDK `appId` bug fix. Railway deployed commit `1f3dd2c`, sealed Firebase Admin + xAI secret variables, paid egress OFF. Public staging browser built and deployed by owner from Stage04H; local Vitest 209 + Node QA 13 PASS; 7/7 CI on exact PR #36 HEAD.
+
+**In code / unproven as live user journey:** Firebase anonymous-to-email link, email/password sign-in, reset/verification, Firestore owner-scoped saves, local encrypted drafts, goals, mood insights, export and demo-only recovery. These have unit/mock/emulator coverage but no complete production acceptance. Existing staging Firebase email/password provider availability remains **unverified**.
+
+**Not verified:** true Grok 4.3 response through Railway, provider cost/usage receipt, persisted multi-device registered login, real session save after AI, recovery/delete data lifecycle, full 404/500 UI, favicon, themed bootstrap loader, production deployment and monitoring.
+
+## C. Stage 05A: Account / permanent identity — P0
+**Goal:** a real, self-service registration and sign-in, no mandatory manual UID onboarding.
+1. Keep guest-first access optional, but show prominent Register / Sign in. Do not force a new UID when upgrading: Firebase `linkWithCredential` preserves guest content.
+2. Enable Email/Password provider in **isolated staging Firebase Console once**; verify real sign-up → email verification → sign out/in → refresh → second browser/device → same UID and data. A one-time console setting is distinct from repeated account wiring.
+3. Test existing-account sign-in with empty guest state; when guest has data, prevent silent data loss and offer link/migrate strategy requiring explicit owner decision (no implicit merge).
+4. Password reset deep link/action handler, verification refresh, account-state feedback, good password guidance without exposing credentials, errors/lockouts/rate-limits, keyboard accessibility.
+5. Server `verifyIdToken`; require verified linked email and persistent AI entitlement/plan record (independently of UI), not arbitrary anonymous Firebase account for paid use. Provision first staging tester once through a controlled approval flow; invite/onboarding or admin provisioning may be added if needed, but normal returning users never re-enter technical IDs.
+6. UX: polished login/register/verification/recovery forms and empty/loading/errors consistent with Midnight Aurora. Separate public route vs account dialog only if user experience benefits.
+**Acceptance:** account survives refresh; new device authenticates into same UID and sees previously saved synthetic notes; reset/verify flows function; guest history not lost; unauthorized/other UID cannot read data; logout and return behavior is predictable.
+
+## D. Stage 05B: Real Grok 4.3 conversation — P0
+**Goal:** one guarded real response, then normal signed-in chat without staging-only controls.
+1. Server-only secret in Railway, fixed selected model, no key in Vite/HTML/source; signed Auth ID token, consumable App Check, exact origin, explicit per-message consent, canonical request ID and replay lock.
+2. Entitlement authorization via verified account + private server-side access state, no public guest paid usage and no client-controlled privilege. Keep independent egress stop, private Firestore kill switch, atomic quota ledger.
+3. Verify staging Firestore transaction permissions and private runtime flag OFF, reservation and replay handling; budget caps: provisional reserve USD $0.01/request, $0.05/user/day, $0.20/project/day (not absolute provider billing caps). Keep visible xAI platform spend controls. Do not assume that top-up limits are spend caps.
+4. Enable access for one registered and verified staging tester through the durable account policy. Owner explicitly agrees to one non-personal synthetic paid model call; never automatically retry ambiguous or billed calls. Record provider model, success/error HTTP class and xAI Usage receipt; never log body/keys/tokens.
+5. Confirm actual xAI Responses API schema/parser and reply shows in Sessions; no hallucinated success message or UI sample substitution. Then enable normal staging AI send for verified entitled accounts.
+6. Consent for **current message only**, no whole diary/profile/history sent unless separately approved. Maintain local draft on error; explicit `Сохранить сеанс` persists original/user/AI messages to correct owner collection; reload/multi-device parity. No silent AI auto-save or psychiatric diagnosis.
+7. Handle provider timeout, 401/403/429/5xx, insufficient credit, quota exhausted, revoked user, wrong App Check and repeated request ID.
+**Acceptance:** controlled real response + traceable cost/usage; correct model response; safety/permissions; user-verified data flow, reload and ownership; repeat requests denied or idempotent.
+
+## E. Stage 05C: Unified Midnight Aurora presentation — parallel P1
+1. Brand icon favicon SVG and browser title/meta/theme-color; later PNG/Apple Touch icon and webmanifest/PWA.
+2. First-paint HTML splash and React loader share tokens/layout and respect saved light/dark theme; no white screen, white spinner or style flash on refresh. Provide accessible live region, reduced motion and no fake indefinite progress percentage.
+3. Unified error component 404 (unrecognized routes), 500 (unexpected client exception), 503 (dependency/service temporarily unavailable) and no-data/network/permission states. Explain distinction between visual SPA 404 and real HTTP status from Hosting; do not claim 500 HTTP for a client-side crash.
+4. ErrorBoundary with safe recovery; never leak Firebase exceptions, credentials or user content. Network retry preserves user drafts; offline indicators and refresh controls.
+5. QA desktop 1280/1440/1920 and mobile 320/360/390/430, including input keyboard, dark/light, modal overlays, screen reader labels, focus order, reduce motion. Contrast WCAG 2.2 AA is a goal to test, not a certification.
+**Acceptance:** favicon visible, no theme flicker on cold/refresh, branded loader/error states, no broken navigation or data loss.
+
+## F. Stage 05D: Full functional acceptance — P1
+- Diary: safe notes, timeline, title, versions, date grouping, filters/search, retry/failure, reopen after reload.
+- Moods: self-rated scale, saved check-ins, weekly review derived from actual entries, zero fake clinical scores.
+- Goals: create, nested steps, progress/status, due dates, postpone, link to accepted session suggestions.
+- Sessions: new/existing, streaming optional future, user input draft, AI answer, save, list/scroll, text-to-speech/microphone graceful fallback.
+- Profile & data: update, export, verification/reset, deletion request (real account and Firestore cleanup), backup/recovery design and retention policy. Do **not** upload private backups as QA fixtures.
+- Performance/accessibility: code splitting to reduce 664kB staging JS, keyboard/mobile QA, browser support, readable errors, no sensitive logs.
+**Acceptance:** test matrix with screenshots and expected Firebase persisted results, no unintended writes to another UID.
+
+## G. Stage 05E: Security, observability and release engineering — P0 for public
+- Verify cross-user Firestore Rules, real signed/consumed App Check, scoped service account, private quota docs deny rules, rate-limit by UID/IP as available, abuse handling, account enumeration protection and content retention boundaries.
+- Data export and deletion, privacy policy/user consent including third-party xAI retention, terms/disclaimers; accessibility and incident response; key rotation and revoke leaked legacy browser Gemini credential.
+- Monitor health, provider error classes, aggregate latency/token/cost, non-sensitive request IDs only. Alerts on exhausted credits, increase in 401/429/5xx, crash/restarts; documented rollback/kill switch.
+- CI gates: unit, integration/emulator, signed staging browser E2E, bundle and routing checks, dependency audit; snapshot/restore preflight. Plan safe stacked PR flatten/merge, branch-by-branch review and production rollback rehearsal.
+- Deploy only after owner approval to Vercel production + production Firebase with distinct credentials, verified billing/service entitlement and rules; one smoke for registered test user, confirm real use and monitor.
+
+## H. Stage 06: Product evolution / revenue after stable V1 — NOT MVP blockers
+- PWA install and offline draft improvements; EN localization; optional voice input/output; Mindspace and BodyMap after privacy/UX specification.
+- Journal intelligence, opt-in weekly AI summaries, verified personalized exercise suggestions, respectful reminders.
+- Native iOS/Android, Rails API service only if justified by architecture/business economics (not an immediate migration away from working Firebase/React).
+- User interviews, funnels, retention, pricing tiers and unit economics of xAI, legal payment/payout feasibility before subscriptions, expert sessions, white-label or marketplace.
+- No invented engagement claims, subscriptions, expert features or clinical outcomes in release materials.
+
+## I. Definition of Done for V1
+A completely new user can register, verify and return to a **persistent** account on another device; create diary entries, mood and goal, enter Sessions, deliberately share exactly one message with a real Grok 4.3 backend, see actual model response, explicitly save and reopen it, export/delete their information, and recover from poor connectivity. No fallback styles or blank/error pages, no cross-user leakage, bounded provider expenditure, supported rollback/monitoring; production release checks are documented and owner-approved.
+
+## K. Three-language product and account email localization (owner decision, 2026-11-09)
+- Reflect must ship in **three UI languages**. Russian is active now; the exact two additional locales are to be approved alongside the eventual i18n rollout. Do not guess a user’s intended language from Armenia/Russia, nationality, IP address, GPS, or payment country.
+- **Email language = selected app UI language.** Precedence: persisted account preference → on-device app setting (`reflect-locale`) → Russian fallback. A language change updates account Auth `languageCode` before each verification, password-reset or email-change action. The Firebase email-action `lang` param and Reflect's branded action page must use that same language.
+- Code in `src/i18n/authEmailLocale.js` and `src/hooks/accountAccess.js` now implements a safe Russian fallback and the app-setting hook for outgoing Firebase Auth emails. It is not yet a full three-language UI or a multi-device profile locale sync; those need actual persisted account preferences and translation dictionaries.
+- Current staging console screenshot: **Template language Russian**, and red provider banner: **“Email template updates are currently unavailable for this project. For assistance with template changes, contact Firebase Support.”** This is an account/project restriction, not an HTML/CSS bug. Do not claim custom Firebase sender, subject or message edits are saved, and do not repeatedly retry or enable SMTP without a verified sender/provider.
+- Firebase built-in templates may still generate localized action emails with `auth.languageCode` when their platform supports the requested locale; **actual delivery and selected language require live QA**. Their branding/HTML control is restricted; full Midnight Aurora mail layout requires a separately approved email provider / SMTP and server-generated Firebase Admin action links. Private SMTP credentials belong to sealed server-only configuration.
+- Brand **email pages** separately from **email body**. The final /auth/action handler must securely handle verifyEmail, resetPassword, recoverEmail, expired/invalid links, `oobCode` single use, and localization from trusted UI/user setting or Firebase `lang`; never disclose action codes or passwords to third parties, analytics or logs. Built-in Firebase action URL must stay unchanged until the replacement is implemented, reviewed, hosted and tested.
+- Acceptance: three selected locales each produce the correct text on pages and actual messages (not region-dependent), with intact links, successful verification/reset, appropriate language fallback; then fully branded HTML mail and sender domain after delivery infrastructure is justified.
+
+## J. Working cadence and decisions
+Work in small stacked Draft PRs; inspect exact branch SHA and CI after each code change. The assistant modifies code, tests and docs through GitHub; owner performs local terminal/browser/console operations only when necessary. Send 1–3 actions per screenshot, do not request credentials or UID in chat. Checkpoint each meaningful step in PR and master roadmap. Priority: **live registered user → live Grok reply → refine product**. No production mutations, full AI rollout or destructive data migrations until owner release approval.
+
+## L. 2026-11-09 Account signout and safe switching hotfix (Stage05A)
+**Reproduced:** after clicking registered **Выйти**, Firebase emitted null and the old `useAuth` instantly created a new anonymous UID. An onboarding profile was then treated as user-authored diary records, disabling **Вход** and trapping an ordinary returning user.
+
+**Fix in Draft PR #37:** explicit signout intent flag (`reflect-explicitly-signed-out`, non-sensitive; never contains UID/email/password), set before Firebase signOut; a signed-out browser displays a dedicated returning-user login panel and stays on that panel across refresh; no implicit guest creation. A new guest identity is created only after the user explicitly clicks its action. Successful Firebase sign-in clears the flag; a failed sign-out restores previous state; a failed login preserves the signed-out gate. Existing browser session and data are never deleted.
+
+For an **anonymous guest with an existing profile but no authored notes/goals/moods/sessions**, switching to a previously registered account is possible only after checking the on-screen notice that the guest profile stays behind under its UID. If actual authored documents exist, switching remains blocked until they are securely linked to an email. No silent Firestore deletes or cross-user data merge.
+
+**Acceptance required on staging:** register/restore real email account → sign out → no auto guest even after refresh → explicit login succeeds → saved records are recovered; test one profile-only guest with informed switch confirmation; ensure a guest with authored documents stays blocked; verify production untouched. Merely having a green mocked test suite is not a live browser acceptance.
+
+## M. 2026-11-09 Live registration checkpoint and unreachable email
+Owner's staging screenshot confirms the Firebase account was successfully linked to an email: **Аккаунт подключён**, **Email ещё не подтверждён**. The displayed address is an IANA documentation `example.com` address, unsuitable for receiving real verification emails. Do **not** log out, clear site storage or create a second UID in order to correct this.
+
+Stage05A now adds `requestEmailChange(newEmail)` using Firebase `verifyBeforeUpdateEmail(currentUser, newEmail)`, which sends an action to the **new address** before changing the existing email. It requires a signed-in registered user, validates different email, applies the app's preferred email language, never invokes signOut/signIn, never modifies Firestore owner paths and checks that UID remains unchanged. A Midnight Aurora **Изменить email** form in AccountAccess handles delivery, errors and a safe return to the unchanged account. Firebase may require recent reauthentication; do not bypass. This replaces ad hoc deletion/manual admin editing and makes account recovery a permanent product feature. Covered by SDK mock and UI tests; **not live verified or deployed** until the owner publishes the reviewed staging build.
+
+After deployment: open **Аккаунт и вход → Изменить email**, privately input a real controlled mailbox, verify the email-action link, return to Reflect, click **Проверить подтверждение** to refresh the same UID; then test logout/login and data continuity. Do not paste passwords, action URLs, codes, or private email into PR comments. The paid Grok gate remains OFF until real verified login and consented provider QA.
+
+## N. 2026-11-09 Email-change recent-auth UX correction
+**Owner live staging reproduction:** account is currently logged in with a linked but unverified email; clicking **Изменить email → Подтвердить новый email** yields a raw business-level message equivalent to Firebase `auth/requires-recent-login` ("Для операции необходимо повторно войти в аккаунт"). No change link was sent, email remains unchanged. This is expected Firebase recent-credential enforcement, **not** permission to bypass it or create a new UID.
+
+Stage05A Draft patch: when `requestEmailChange` yields that exact Firebase error, reveal an in-dialog **Пароль текущего аккаунта** field, explain that this is **not** an app sign-out/sign-in, and retry via `reauthenticateWithCredential(currentUser, EmailAuthProvider.credential(currentUser.email, password))`. Assert exact current UID before then calling `verifyBeforeUpdateEmail`. UI clears typed password after each attempt; neither credentials nor new email are persisted in Firestore, localStorage, browser logs, GitHub or chats. Wrong password fails closed, does not send email, and stays signed in on the original UID. Tests cover normal/pass/failure/UID mismatch states.
+
+**Recovery limitation:** user previously indicated uncertainty about the original password and the current old address shown in staging is an `example.com` demonstration domain. A Firebase password reset to a non-receiving mailbox cannot recover the password. Do not tell the user to log out or delete the linked user to fix this. If the password is genuinely unavailable, a secure administrative recovery requiring independent identity proof and explicit owner approval would need separate design; for ordinary disposable staging testing the simplest alternative is a **separate new account created with an actually reachable email, in a separate browser profile**, retaining the old linked UID and contents unchanged. Do not suggest any cross-UID migration without review and explicit consent.

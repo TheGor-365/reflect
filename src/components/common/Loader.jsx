@@ -1,10 +1,24 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
 
-const Loader = () => (
-  <div className="flex items-center justify-center h-screen bg-stone-50">
-    <Loader2 className="w-12 h-12 text-teal-600 animate-spin" />
-  </div>
-);
-
-export default Loader;
+/**
+ * Shared Midnight Aurora boot state. CSS and the first-paint HTML shell use
+ * the same palette so hydration/auth/Firestore loading never flashes white.
+ * The animated line is indeterminate, not a false loading percentage.
+ */
+export default function Loader() {
+  return (
+    <main className="reflect-boot" role="status" aria-live="polite"
+      aria-label="Загружаем Reflect">
+      <div className="reflect-boot-content">
+        <span className="reflect-boot-mark" aria-hidden="true">R</span>
+        <div className="reflect-boot-wordmark" aria-hidden="true">
+          reflect<span>.</span>
+        </div>
+        <p className="reflect-boot-message">Подготавливаем ваше пространство</p>
+        <div className="reflect-boot-track" aria-hidden="true">
+          <span className="reflect-boot-track-bar" />
+        </div>
+      </div>
+    </main>
+  );
+}

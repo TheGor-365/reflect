@@ -17,6 +17,7 @@ const SessionComposer = ({
   isRecording = false,
   error = '',
   aiAvailable = false,
+  privacyNoticeId,
   draftControls = null
 }) => {
   const textareaRef = useRef(null);
@@ -53,7 +54,9 @@ const SessionComposer = ({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={handleKeyDown}
-          aria-describedby="reflect-session-message-hint"
+          aria-describedby={privacyNoticeId
+            ? `reflect-session-message-hint ${privacyNoticeId}`
+            : 'reflect-session-message-hint'}
           placeholder="Опишите ситуацию, мысль или чувство…"
           rows={1}
           className="reflect-session-textarea"

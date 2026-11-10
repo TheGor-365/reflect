@@ -1,9 +1,11 @@
 import {
   EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, signOut,
   sendPasswordResetEmail, sendEmailVerification, reload, confirmPasswordReset,
-  applyActionCode
+  applyActionCode, verifyBeforeUpdateEmail, reauthenticateWithCredential
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
+import { applyAuthEmailLocale } from '../i18n/authEmailLocale';
+import { clearExplicitlySignedOut, isExplicitlySignedOut, setExplicitlySignedOut } from './accountSession';
 
 /**
  * Account upgrade preserves the active anonymous Firebase UID and its Firestore
@@ -39,7 +41,8 @@ export function accountErrorMessage(error) {
     'auth/network-request-failed': 'Нет соединения с сервисом авторизации. Проверьте сеть и повторите.',
     'auth/weak-password': 'Слишком простой пароль. Используйте более длинную уникальную комбинацию.',
     'auth/operation-not-allowed': 'Вход по email сейчас не включён в Firebase Authentication.',
-    'auth/requires-recent-login': 'Для операции необходимо повторно войти в аккаунт.'
+    'auth/requires-recent-login': 'Для смены email подтвердите личность текущим паролем. Выходить из аккаунта не нужно.',
+    'auth/user-mismatch': 'Пароль относится к другому аккаунту. Текущая сессия не изменена.'
   };
   return known[code] || 'Не удалось выполнить операцию с аккаунтом. Повторите попытку.';
 }
@@ -61,6 +64,16 @@ export async function registerCurrentAnonymous(email, password) {
   if (result.user.isAnonymous || normalizeEmail(result.user.email) !== normalizeEmail(email)) {
     throw new Error('Привязка email не подтверждена. Не выходите из гостевого аккаунта; повторите проверку доступа.');
   }
+  // A successful account link is permanent even if verification mail fails.
+  // Do not surface a false registration failure or attempt a second link.
+  // The existing account UI offers an explicit resend/recheck action.
+  if (!result.user.emailVerified) {
+    try {
+      applyAuthEmailLocale(auth);
+      await sendEmailVerification(result.user);
+    }
+    catch { /* Account is linked; email can be resent in Account & Sign in. */ }
+  }
   return result.user;
 }
 
@@ -69,14 +82,26 @@ export async function signInExisting(email, password, { hasLocalData = false } =
   if (hasLocalData) {
     throw new Error('В этом гостевом аккаунте уже есть записи. Сначала привяжите к нему email: вход в другой UID может сделать эти данные недоступными.');
   }
-  return (await signInWithEmailAndPassword(auth, normalizeEmail(email), password)).user;
+  const account = (await signInWithEmailAndPassword(auth, normalizeEmail(email), password)).user;
+  clearExplicitlySignedOut();
+  return account;
 }
 
 export async function signOutRegistered() {
   if (!auth.currentUser || auth.currentUser.isAnonymous) {
     throw new Error('Гостевой аккаунт нельзя отключать: его данные могут стать недоступны.');
   }
-  await signOut(auth);
+  // Mark the intent before Firebase emits its null Auth event, so the
+  // listener renders a sign-in screen rather than creating a new guest.
+  const wasSignedOut = isExplicitlySignedOut();
+  setExplicitlySignedOut();
+  try {
+    await signOut(auth);
+  } catch (error) {
+    // If Auth rejected sign-out, preserve the live registered session.
+    if (!wasSignedOut) clearExplicitlySignedOut();
+    throw error;
+  }
 }
 
 
@@ -90,6 +115,7 @@ export async function requestPasswordReset(email) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
     throw new Error('Введите корректный email.');
   }
+  applyAuthEmailLocale(auth);
   await sendPasswordResetEmail(auth, normalized);
 }
 
@@ -99,7 +125,59 @@ export async function requestEmailVerification() {
     throw new Error('Сначала войдите в зарегистрированный аккаунт.');
   }
   if (current.emailVerified) return;
+  applyAuthEmailLocale(auth);
   await sendEmailVerification(current);
+}
+
+/**
+ * Change a registered user's unreachable address WITHOUT switching UID or
+ * touching Firestore data. Firebase first verifies the destination email;
+ * until the action link is consumed the previous sign-in email remains.
+ */
+export async function requestEmailChange(nextEmail) {
+  const current = auth.currentUser;
+  if (!current?.uid || current.isAnonymous || !current.email) {
+    throw new Error('Сначала войдите в зарегистрированный аккаунт.');
+  }
+  const normalized = normalizeEmail(nextEmail);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+    throw new Error('Введите корректный новый email.');
+  }
+  if (normalized === normalizeEmail(current.email)) {
+    throw new Error('Новый email должен отличаться от текущего.');
+  }
+  const previousUid = current.uid;
+  applyAuthEmailLocale(auth);
+  await verifyBeforeUpdateEmail(current, normalized);
+  if (auth.currentUser?.uid !== previousUid) {
+    throw new Error('Изменился идентификатор аккаунта. Не продолжайте работу до проверки доступа.');
+  }
+  return true;
+}
+
+/**
+ * Reauthenticate an ALREADY SIGNED-IN account in place, only after Firebase
+ * explicitly returned auth/requires-recent-login. Never call signOut or
+ * signInWithEmailAndPassword here: the user keeps the exact same UID and docs.
+ * The UI passes a transient password and clears it after this Promise settles.
+ */
+export async function reauthenticateAndRequestEmailChange(nextEmail, currentPassword) {
+  const current = auth.currentUser;
+  if (!current?.uid || current.isAnonymous || !current.email) {
+    throw new Error('Для смены email нужен текущий зарегистрированный аккаунт.');
+  }
+  if (typeof currentPassword !== 'string' || currentPassword.length === 0) {
+    throw new Error('Введите текущий пароль аккаунта для подтверждения личности.');
+  }
+  const originalUid = current.uid;
+  const credential = EmailAuthProvider.credential(
+    normalizeEmail(current.email), currentPassword
+  );
+  await reauthenticateWithCredential(current, credential);
+  if (auth.currentUser?.uid !== originalUid) {
+    throw new Error('Изменился идентификатор аккаунта. Смена email отменена.');
+  }
+  return requestEmailChange(nextEmail);
 }
 
 export async function refreshVerificationStatus() {

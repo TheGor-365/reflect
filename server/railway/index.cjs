@@ -7,6 +7,8 @@
 const http = require("node:http");
 const { PolicyError } = require("../ai/policy.cjs");
 const { createHostedHandler } = require("../ai/hostedHandler.cjs");
+const { createStagingEntitlementVerifier } = require("../ai/stagingEntitlement.cjs");
+const { createXaiProviderProbe } = require("../ai/xaiProviderProbe.cjs");
 const STAGE_PROJECT = "reflect-ai-staging";
 const STAGE_APP_ID = "1:599679789981:web:d4d8743dbff0fe40af1d74";
 const STAGE_ORIGIN = "https://reflect-ai-staging.web.app";
@@ -15,7 +17,10 @@ const MAX_AUTH_HEADER = 8192;
 const ERROR_STATUS = Object.freeze({
   "invalid-argument": 400, "permission-denied": 403,
   "unauthenticated": 401, "already-exists": 409,
-  "resource-exhausted": 429, "unavailable": 503
+  "resource-exhausted": 429, "unavailable": 503,
+  "reauthentication-required": 401, "auth-permission-missing": 503,
+  "auth-verification-unavailable": 503,
+  "attestation-unavailable": 503
 });
 
 function respond(res, status, data, origin = "") {
@@ -54,9 +59,28 @@ async function readSmallJson(req) {
   }
 }
 
-function createRequestListener({ ready, allowProvider, authorizeOwner, verifyAuth, verifyAppCheck, handleReply }) {
+// Only stable error *codes* cross this boundary; no raw SDK messages, UID or tokens.
+function mapAuthError(error) {
+  switch (error?.code) {
+    case "auth/id-token-revoked":
+      return new PolicyError("reauthentication-required");
+    case "auth/id-token-expired":
+    case "auth/invalid-id-token":
+    case "auth/argument-error":
+    case "auth/user-disabled":
+    case "auth/user-not-found":
+      return new PolicyError("unauthenticated");
+    case "auth/insufficient-permission":
+      return new PolicyError("auth-permission-missing");
+    default:
+      return new PolicyError("auth-verification-unavailable");
+  }
+}
+
+function createRequestListener({ ready, allowProvider, authorizeAccount, verifyAuth, verifyAppCheck, checkRuntime, checkProvider, handleReply }) {
   if (typeof ready !== "function" || typeof allowProvider !== "function" ||
-      typeof authorizeOwner !== "function" ||
+      typeof authorizeAccount !== "function" || typeof checkRuntime !== "function" ||
+      typeof checkProvider !== "function" ||
       typeof verifyAuth !== "function" ||
       typeof verifyAppCheck !== "function" || typeof handleReply !== "function") {
     throw Error("Stage04H requires explicit injected server dependencies");
@@ -72,10 +96,14 @@ function createRequestListener({ ready, allowProvider, authorizeOwner, verifyAut
     if (origin !== STAGE_ORIGIN) {
       return respond(res, 403, { error: "forbidden" });
     }
-    if (req.method === "OPTIONS" && req.url === "/v1/ai/reply") {
+    const diagnostics = req.url === "/v1/ai/diagnostics";
+    const providerDiagnostics = req.url === "/v1/ai/provider-diagnostics";
+    if (req.method === "OPTIONS" &&
+        (req.url === "/v1/ai/reply" || diagnostics || providerDiagnostics)) {
       return respond(res, 204, {}, origin);
     }
-    if (req.method !== "POST" || req.url !== "/v1/ai/reply") {
+    if (req.method !== "POST" ||
+        (req.url !== "/v1/ai/reply" && !diagnostics && !providerDiagnostics)) {
       return respond(res, 404, { error: "not-found" }, origin);
     }
     if (!ready()) {
@@ -91,15 +119,49 @@ function createRequestListener({ ready, allowProvider, authorizeOwner, verifyAut
     }
     try {
       const data = await readSmallJson(req);
-      const auth = await verifyAuth(bearer.slice(7));
-      const app = await verifyAppCheck(appCheckToken);
+      if ((diagnostics || providerDiagnostics) &&
+          (data === null || typeof data !== "object" ||
+          Array.isArray(data) || Object.keys(data).length !== 0)) {
+        throw new PolicyError("invalid-argument");
+      }
+      let auth;
+      try {
+        auth = await verifyAuth(bearer.slice(7));
+      } catch (error) {
+        throw mapAuthError(error);
+      }
+      let app;
+      try {
+        app = await verifyAppCheck(appCheckToken);
+      } catch {
+        throw new PolicyError("attestation-unavailable");
+      }
       if (!auth?.uid || app?.appId !== STAGE_APP_ID || app?.alreadyConsumed === true) {
         throw new PolicyError("unauthenticated");
       }
-      // The browser can create Firebase anonymous accounts. Before any
-      // billable traffic, restrict staging to the single owner-approved UID.
-      if (allowProvider() && !authorizeOwner(auth.uid)) {
+      // Current verified Firebase account + short-lived private entitlement;
+      // no browser-supplied role or recurring Railway UID variable.
+      if ((allowProvider() || diagnostics || providerDiagnostics) &&
+          !(await authorizeAccount(auth))) {
         throw new PolicyError("permission-denied");
+      }
+      // This diagnostics route tests the same signed Auth, consumable App Check,
+      // private account entitlement and Firestore runtime gate, but NEVER invokes
+      // the paid provider or reserves a request ID. No diary or message body.
+      if (diagnostics) {
+        const privateEnabled = await checkRuntime();
+        return respond(res, 200, {
+          status: !privateEnabled ? "runtime-disabled" :
+            !allowProvider() ? "outbound-disabled" : "ready",
+          model: "grok-4.3"
+        }, origin);
+      }
+      if (providerDiagnostics) {
+        // Owner-authorized read-only xAI GET /models; never /responses.
+        // The process caches the safe status, never model data or secrets.
+        const privateEnabled = await checkRuntime();
+        const status = privateEnabled ? await checkProvider() : "runtime-disabled";
+        return respond(res, 200, { status, model: "grok-4.3" }, origin);
       }
       // A second independent, default-OFF egress gate protects real
       // credentials even if a private Firestore runtime flag were mis-set.
@@ -114,6 +176,28 @@ function createRequestListener({ ready, allowProvider, authorizeOwner, verifyAut
       });
       return respond(res, 200, output, origin);
     } catch (error) {
+      // The provider adapter attaches only a numeric upstream HTTP status
+      // as non-enumerable internal metadata. The exact user-facing category
+      // is returned only after signed Auth + consumable App Check + ACL gate.
+      // Never return raw xAI body, headers, prompts, secrets or internal trace.
+      if (error instanceof PolicyError &&
+          error.code === "unavailable" &&
+          Number.isInteger(error.upstreamHttpStatus)) {
+        const upstream = error.upstreamHttpStatus;
+        const categories = Object.freeze({
+          400: "xai-invalid-request", 401: "xai-unauthorized",
+          403: "xai-forbidden", 404: "xai-endpoint-not-found",
+          408: "xai-upstream-timeout", 413: "xai-request-too-large",
+          422: "xai-invalid-request", 429: "xai-rate-limited"
+        });
+        const safe = categories[upstream] ||
+          (upstream >= 500 ? "xai-upstream-error" : "xai-unavailable");
+        // Numeric status only for the ambiguous request-shape failures.
+        // The signed owner may inspect it in Network; no upstream body escapes.
+        const requestStatus = upstream === 400 || upstream === 422
+          ? { upstreamStatus: upstream } : {};
+        return respond(res, 502, { error: safe, ...requestStatus }, origin);
+      }
       const code = error instanceof PolicyError && ERROR_STATUS[error.code]
         ? error.code : "internal";
       return respond(res, ERROR_STATUS[code] || 500,
@@ -125,17 +209,16 @@ function createRequestListener({ ready, allowProvider, authorizeOwner, verifyAut
 function createRuntime() {
   const enabled = process.env.REFLECT_AI_ENABLED === "yes";
   const outboundEnabled = process.env.REFLECT_XAI_OUTBOUND_ENABLED === "yes";
-  const ownerUid = process.env.REFLECT_AI_ALLOWED_UID || "";
   const valid = process.env.REFLECT_AI_APPROVED_PROJECT === STAGE_PROJECT &&
     process.env.REFLECT_AI_APP_CHECK_APP_ID === STAGE_APP_ID &&
     process.env.REFLECT_AI_ALLOWED_ORIGIN === STAGE_ORIGIN;
   if (enabled && !valid) throw Error("Stage04H refuses unsafe Firebase project/app/origin");
   if (outboundEnabled && (!enabled || !valid)) throw Error("Stage04H refuses xAI egress without trusted staging runtime");
-  if (outboundEnabled && (!/^[A-Za-z0-9_-]{6,128}$/.test(ownerUid))) {
-    throw Error("Stage04H requires one explicitly allowlisted staging Firebase UID");
-  }
   let verifyAuth = async () => { throw new Error("AI disabled"); };
   let verifyAppCheck = async () => { throw new Error("AI disabled"); };
+  let authorizeAccount = async () => false;
+  let checkRuntime = async () => false;
+  let checkProvider = async () => "provider-unavailable";
   let handleReply = async () => { throw new Error("AI disabled"); };
   let ready = false;
   if (enabled) {
@@ -159,14 +242,23 @@ function createRuntime() {
       db, projectId: STAGE_PROJECT, appId: STAGE_APP_ID,
       readSecret: () => providerKey, transport: fetch
     });
-    verifyAuth = token => getAuth(app).verifyIdToken(token);
+    authorizeAccount = createStagingEntitlementVerifier({
+      db, projectId: STAGE_PROJECT, getUser: uid => getAuth(app).getUser(uid)
+    });
+    checkProvider = createXaiProviderProbe({ readSecret: () => providerKey, transport: fetch });
+    checkRuntime = async () => {
+      const snapshot = await db.collection("_reflectAiPrivate")
+        .doc("reflect-8fdc8").collection("runtimeFlags").doc("ai").get();
+      return snapshot.exists && snapshot.data()?.enabled === true;
+    };
+    verifyAuth = token => getAuth(app).verifyIdToken(token, true);
     verifyAppCheck = token => getAppCheck(app).verifyToken(token, { consume: true });
     handleReply = handler;
     ready = true;
   }
   return createRequestListener({
     ready: () => ready, allowProvider: () => outboundEnabled,
-    authorizeOwner: uid => uid === ownerUid,
+    authorizeAccount, checkRuntime, checkProvider,
     verifyAuth, verifyAppCheck, handleReply
   });
 }

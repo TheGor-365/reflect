@@ -75,3 +75,16 @@ The one-shot button sends exactly `{}` to /v1/ai/reply with a signed Firebase Au
 **Important:** Because the Railway API enforces exact browser Origin, a local `http://127.0.0.1:3100` build cannot prove this endpoint as signed staging browser QA. Publish only the reviewed **Hosting** bundle to `reflect-ai-staging` after explicit owner preview/release review; never merge to main or deploy production. Firestore private kill switch remains OFF. Real Grok calls and session-saving are separate acceptance stages requiring owner approval.
 
 Keep the xAI outbound flag `REFLECT_XAI_OUTBOUND_ENABLED=no` throughout this precheck; do not enable `VITE_ENABLE_REFLECT_RAILWAY_AI` until signed precheck succeeds and separately approved one synthetic paid request is ready.
+
+
+## Stage05B transition — private account entitlement (2026-11-09)
+
+**Superseding design in Draft PR #37, not deployed:** the temporary
+`REFLECT_AI_ALLOWED_UID` environment-variable gate described above is for the
+old Stage04H Railway runtime. The proposed Stage05B code no longer reads that
+variable; access requires a current verified Firebase account and a private,
+expiring Firestore document. Read
+`docs/roadmap/STAGE_05B_SERVER_ENTITLEMENT_2026-11-09.md` for the exact
+schema, staging-only client-Rules verification, safety checks and rollout.
+Do not infer a Railway deploy, a granted entitlement or an xAI response from
+the GitHub commit. Paid egress remains off until owner-approved controlled QA.

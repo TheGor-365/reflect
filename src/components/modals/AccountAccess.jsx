@@ -3,7 +3,8 @@ import OwnerDataExport from './OwnerDataExport';
 import { ArrowRight, KeyRound, LockKeyhole, Mail, ShieldCheck, UserRound, X } from 'lucide-react';
 import {
   accountErrorMessage, registerCurrentAnonymous, signInExisting, signOutRegistered,
-  requestPasswordReset, requestEmailVerification, refreshVerificationStatus
+  requestPasswordReset, requestEmailVerification, refreshVerificationStatus,
+  requestEmailChange, reauthenticateAndRequestEmailChange
 } from '../../hooks/accountAccess';
 
 /**
@@ -12,14 +13,17 @@ import {
  * Neither the password nor auth error details enter Firestore or localStorage.
  */
 export default function AccountAccess({
-    user, hasLocalData = false, welcome = false, onGuest, onClose, onContinue, onAccountChanged
+    user, hasLocalData = false, guestProfileOnly = false, welcome = false,
+    signedOut = false, onGuest, onClose, onContinue, onAccountChanged
 }) {
-  const [mode, setMode] = useState('register');
+  const [mode, setMode] = useState(signedOut ? 'login' : 'register');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [acceptGuestProfileSwitch, setAcceptGuestProfileSwitch] = useState(false);
+  const [emailChangeNeedsReauth, setEmailChangeNeedsReauth] = useState(false);
   const busyRef = useRef(false);
   const linked = Boolean(user && !user.isAnonymous);
 
@@ -39,7 +43,7 @@ export default function AccountAccess({
   }, []);
 
   useEffect(() => {
-    if (busy || (welcome && !linked)) return undefined;
+    if (busy || signedOut || (welcome && !linked)) return undefined;
     const close = welcome ? onContinue : onClose;
     if (!close) return undefined;
     const onKeyDown = event => {
@@ -50,7 +54,7 @@ export default function AccountAccess({
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [busy, welcome, linked, onContinue, onClose]);
+  }, [busy, signedOut, welcome, linked, onContinue, onClose]);
 
   const changeMode = nextMode => {
     if (busyRef.current) return;
@@ -59,6 +63,8 @@ export default function AccountAccess({
     setPassword('');
     setError('');
     setNotice('');
+    setAcceptGuestProfileSwitch(false);
+    setEmailChangeNeedsReauth(false);
   };
 
   const handleSubmit = async (event) => {
@@ -69,6 +75,9 @@ export default function AccountAccess({
     setError('');
     setNotice('');
     try {
+      if (mode === 'login' && guestProfileOnly && !acceptGuestProfileSwitch) {
+        throw new Error('Подтвердите, что гостевой профиль останется отдельно.');
+      }
       const account = mode === 'register'
         ? await registerCurrentAnonymous(email, password)
         : await signInExisting(email, password, { hasLocalData });
@@ -104,6 +113,41 @@ export default function AccountAccess({
         setError(accountErrorMessage(failure));
       }
     } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  };
+
+  const handleEmailChange = async event => {
+    event.preventDefault();
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      if (emailChangeNeedsReauth) {
+        await reauthenticateAndRequestEmailChange(email, password);
+      } else {
+        await requestEmailChange(email);
+      }
+      setEmailChangeNeedsReauth(false);
+      setNotice('Письмо отправлено на новый email. Подтвердите адрес по ссылке, затем вернитесь в приложение. До подтверждения текущая сессия, UID и записи остаются прежними.');
+    } catch (failure) {
+      if (failure?.code === 'auth/requires-recent-login') {
+        // Firebase explicitly requests fresh credentials. Stay in this dialog,
+        // without signing out, switching UID, or persisting the password.
+        setEmailChangeNeedsReauth(true);
+        setNotice('Firebase просит подтвердить личность для смены email. Введите пароль текущего аккаунта ниже — выходить из приложения не нужно.');
+      } else if (emailChangeNeedsReauth &&
+        ['auth/invalid-credential', 'auth/wrong-password', 'auth/user-mismatch']
+          .includes(failure?.code)) {
+        setError('Не удалось подтвердить текущий пароль. Вы остались в аккаунте; проверьте пароль и повторите попытку.');
+      } else {
+        setError(accountErrorMessage(failure));
+      }
+    } finally {
+      setPassword('');
       busyRef.current = false;
       setBusy(false);
     }
@@ -146,6 +190,21 @@ export default function AccountAccess({
     }
   };
 
+  const handleGuestContinuation = async () => {
+    if (busyRef.current || !onGuest) return;
+    busyRef.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      await onGuest();
+    } catch {
+      setError('Не удалось открыть новый гостевой профиль. Повторите попытку.');
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  };
+
   const handleSignOut = async () => {
     if (busyRef.current) return;
     busyRef.current = true;
@@ -166,24 +225,74 @@ export default function AccountAccess({
     <div className="reflect-auth-overlay">
       <section className="reflect-auth-card" role="dialog" aria-modal="true"
         aria-labelledby="reflect-auth-title" aria-describedby="reflect-auth-intro">
-        {(!welcome || linked) && (
+        {!signedOut && (!welcome || linked) && (
           <button type="button" className="reflect-auth-close" aria-label="Закрыть"
             disabled={busy} onClick={welcome ? onContinue : onClose}><X size={19} /></button>
         )}
         <div className="reflect-auth-mark" aria-hidden="true"><span>R</span></div>
         <p className="reflect-auth-eyebrow">REFLECT · ЛИЧНОЕ ПРОСТРАНСТВО</p>
         <h1 id="reflect-auth-title">
-          {mode === 'recover' ? 'Восстановление доступа' : linked ? 'Ваш аккаунт' : welcome ? 'Ваше пространство начинается здесь' : 'Защитите свой дневник'}
+          {mode === 'change-email' ? 'Изменить email' : mode === 'recover' ? 'Восстановление доступа' : linked ? 'Ваш аккаунт' : signedOut ? 'С возвращением' : welcome ? 'Ваше пространство начинается здесь' : 'Защитите свой дневник'}
         </h1>
         <p id="reflect-auth-intro" className="reflect-auth-intro">
-          {mode === 'recover'
+          {mode === 'change-email'
+            ? 'Укажите адрес, к которому у вас есть доступ. Firebase сначала подтвердит новый email — UID и ваши записи останутся прежними.'
+            : mode === 'recover'
             ? 'Запросите ссылку для смены пароля. Мы не будем переключать текущий аккаунт или изменять записи дневника.'
             : linked
             ? 'Вход привязан к email. История дневника остаётся связанной с вашим UID.'
+            : signedOut
+            ? 'Вы вышли из аккаунта. Войдите по email и паролю — ваши записи останутся в прежнем аккаунте.'
             : 'Сохраните доступ к своим записям на разных устройствах. Регистрация привяжет текущий гостевой UID, не создавая новую историю.'}
         </p>
 
-        {mode === 'recover' ? (
+        {mode === 'change-email' && linked ? (
+          <form className="reflect-auth-form" onSubmit={handleEmailChange}>
+            <label htmlFor="reflect-new-email">Новый email
+              <span className="reflect-auth-field"><Mail size={19} aria-hidden="true" />
+                <input id="reflect-new-email" type="email" autoComplete="email"
+                  required maxLength={254} value={email} disabled={busy}
+                  onChange={event => setEmail(event.target.value)}
+                  placeholder="Ваш действующий email" />
+              </span>
+            </label>
+            {emailChangeNeedsReauth && (
+              <>
+                <p className="reflect-auth-notice" role="status">
+                  Для защиты аккаунта требуется текущий пароль. Это не повторный
+                  вход: ваша сессия, UID и записи остаются на месте.
+                </p>
+                <label htmlFor="reflect-current-password">Пароль текущего аккаунта
+                  <span className="reflect-auth-field">
+                    <KeyRound size={19} aria-hidden="true" />
+                    <input id="reflect-current-password" type="password"
+                      autoComplete="current-password" required value={password}
+                      disabled={busy}
+                      onChange={event => setPassword(event.target.value)}
+                      placeholder="Введите текущий пароль" />
+                  </span>
+                </label>
+                <p className="reflect-auth-notice">
+                  Забыли пароль, а старый email недоступен? Не выходите из
+                  приложения: стандартное восстановление через него невозможно.
+                  Для такого случая нужна отдельная защищённая процедура.
+                </p>
+              </>
+            )}
+            {error && <p className="reflect-auth-error" role="alert">{error}</p>}
+            <button className="reflect-auth-primary" disabled={busy} type="submit">
+              {busy ? 'Проверяем…' : emailChangeNeedsReauth
+                ? 'Подтвердить личность и отправить письмо' : 'Подтвердить новый email'}
+            </button>
+            <button type="button" disabled={busy} className="reflect-auth-secondary"
+              onClick={() => changeMode('register')}>Вернуться к аккаунту</button>
+            <p className="reflect-auth-notice">
+              Смена email проходит через подтверждение нового адреса. Пока вы
+              не откроете ссылку из письма, текущий аккаунт не изменится.
+              Пароль, UID и история дневника сохраняются.
+            </p>
+          </form>
+        ) : mode === 'recover' ? (
           <form className="reflect-auth-form" onSubmit={handleResetRequest}>
             <label htmlFor="reflect-recovery-email">Email для восстановления
               <span className="reflect-auth-field"><Mail size={19} aria-hidden="true" />
@@ -232,6 +341,8 @@ export default function AccountAccess({
               </div>
             )}
             <button type="button" className="reflect-auth-secondary" disabled={busy}
+              onClick={() => changeMode('change-email')}>Изменить email</button>
+            <button type="button" className="reflect-auth-secondary" disabled={busy}
               onClick={() => changeMode('recover')}>Восстановить пароль</button>
             <button type="button" className="reflect-auth-secondary" disabled={busy}
               onClick={handleSignOut}>Выйти из аккаунта</button>
@@ -239,12 +350,12 @@ export default function AccountAccess({
           </div>
         ) : (
           <>
-            <div className="reflect-auth-tabs" role="group" aria-label="Способ доступа">
+            {!signedOut && <div className="reflect-auth-tabs" role="group" aria-label="Способ доступа">
               <button type="button" aria-pressed={mode === 'register'}
                 onClick={() => changeMode('register')}>Регистрация</button>
               <button type="button" aria-pressed={mode === 'login'}
                 onClick={() => changeMode('login')}>Вход</button>
-            </div>
+            </div>}
             <form className="reflect-auth-form" onSubmit={handleSubmit}>
               <label htmlFor="reflect-email">Email
                 <span className="reflect-auth-field"><Mail size={19} aria-hidden="true" />
@@ -266,13 +377,24 @@ export default function AccountAccess({
               {mode === 'login' && hasLocalData && (
                 <p className="reflect-auth-warning" role="status">
                   <LockKeyhole size={17} aria-hidden="true" />
-                  Этот гостевой профиль уже содержит записи. Сначала зарегистрируйте его;
-                  переход на другой аккаунт заблокирован для защиты данных.
+                  В гостевом аккаунте есть записи дневника, цели или сеансы.
+                  Сначала привяжите к нему email; вход в другой аккаунт
+                  заблокирован для защиты данных.
                 </p>
+              )}
+              {mode === 'login' && guestProfileOnly && !hasLocalData && (
+                <label className="reflect-auth-warning">
+                  <input type="checkbox" checked={acceptGuestProfileSwitch}
+                    disabled={busy} onChange={e => setAcceptGuestProfileSwitch(e.target.checked)}/>
+                  <span>Гостевой профиль останется в прежнем UID и не
+                    перенесётся при входе. Я понимаю и хочу войти
+                    в существующий аккаунт.</span>
+                </label>
               )}
               {error && <p className="reflect-auth-error" role="alert">{error}</p>}
               <button type="submit" className="reflect-auth-primary"
-                disabled={busy || (mode === 'login' && hasLocalData)}>
+                disabled={busy || (mode === 'login' &&
+                  (hasLocalData || (guestProfileOnly && !acceptGuestProfileSwitch)))}>
                 {busy ? 'Проверяем…' : mode === 'register' ? 'Создать аккаунт' : 'Войти'}
                 {!busy && <ArrowRight size={19} aria-hidden="true" />}
               </button>
@@ -293,13 +415,14 @@ export default function AccountAccess({
           <p className="reflect-auth-error" role="alert">{error}</p>
         )}
         {notice && <p className="reflect-auth-notice" role="status">{notice}</p>}
-        {welcome && !linked && mode !== 'recover' && (
+        {(signedOut || (welcome && !linked)) && mode !== 'recover' && (
           <button type="button" className="reflect-auth-guest" disabled={busy}
-            onClick={onGuest}><UserRound size={17} aria-hidden="true" />
-            Продолжить без регистрации
+            onClick={signedOut ? handleGuestContinuation : onGuest}>
+            <UserRound size={17} aria-hidden="true" />
+            {signedOut ? 'Начать новый гостевой профиль' : 'Продолжить без регистрации'}
           </button>
         )}
-        {!welcome && mode !== 'recover' && user?.uid && (
+        {!welcome && !signedOut && mode !== 'recover' && user?.uid && (
           <OwnerDataExport userId={user.uid} />
         )}
         <p className="reflect-auth-footer">Личный дневник · приватность прежде всего</p>
