@@ -130,11 +130,12 @@ export default function AISettings({ userId }) {
   };
 
   const busy = status === 'loading' || status === 'saving';
-  const dirty = !settingsEqual(draft, saved) || status === 'invalid';
+  const hasUnsavedChanges = !settingsEqual(draft, saved);
+  const dirty = hasUnsavedChanges || status === 'invalid';
   const disabled = busy || status === 'load-error';
 
   useEffect(() => {
-    if (!dirty || !userId || !['ready', 'invalid', 'save-error'].includes(status)) {
+    if (!hasUnsavedChanges || !userId || !['ready', 'invalid', 'save-error'].includes(status)) {
       return undefined;
     }
     // The native browser confirmation is best-effort (browser-dependent).
@@ -144,7 +145,7 @@ export default function AISettings({ userId }) {
     };
     window.addEventListener('beforeunload', warnBeforeReload);
     return () => window.removeEventListener('beforeunload', warnBeforeReload);
-  }, [dirty, status, userId]);
+  }, [hasUnsavedChanges, status, userId]);
 
   return (
     <section className="reflect-ai-settings" aria-label="Настройки AI">
@@ -232,7 +233,7 @@ export default function AISettings({ userId }) {
             className={status === 'save-error' ? 'reflect-ai-settings-error' : 'reflect-ai-settings-feedback'}>
             {status === 'ready' && <Check size={16} aria-hidden="true"/>}{feedback}
           </p>}
-          {dirty && status !== 'saving' && (
+          {hasUnsavedChanges && status !== 'saving' && (
             <p role="status" className="reflect-ai-settings-feedback">
               Есть несохранённые изменения. Нажмите «Сохранить настройки» до обновления страницы.
             </p>
