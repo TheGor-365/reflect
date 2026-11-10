@@ -367,7 +367,10 @@ test("upstream xAI failure statuses expose only bounded category after signed ga
     }), async url => {
       const response = await send(url);
       assert.equal(response.status, 502);
-      assert.deepEqual(await response.json(), { error: expected });
+      const expectedBody = status === 400 || status === 422
+        ? { error: expected, upstreamStatus: status }
+        : { error: expected };
+      assert.deepEqual(await response.json(), expectedBody);
     });
   }
 });
