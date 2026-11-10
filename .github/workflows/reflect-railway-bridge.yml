@@ -35,6 +35,8 @@ jobs:
           node --check server/railway/index.test.cjs
           node --check server/ai/stagingEntitlement.cjs
           node --check server/ai/stagingEntitlement.test.cjs
+          node --check server/ai/xaiProviderProbe.cjs
+          node --check server/ai/xaiProviderProbe.test.cjs
           node - <<'NODE'
           const fs = require('node:fs');
           const server = fs.readFileSync('server/railway/index.cjs','utf8');
@@ -47,6 +49,9 @@ jobs:
               !server.includes('REFLECT_XAI_OUTBOUND_ENABLED') ||
               !server.includes('createStagingEntitlementVerifier') ||
               !server.includes('getUser(uid)') ||
+              !server.includes('createXaiProviderProbe') ||
+              !server.includes('/v1/ai/provider-diagnostics') ||
+              !client.includes('/v1/ai/provider-diagnostics') ||
               !server.includes('authorizeAccount(auth)') ||
               !client.includes('getLimitedUseToken') ||
               !client.includes('X-Firebase-AppCheck') ||
@@ -57,7 +62,7 @@ jobs:
           }
           NODE
       - name: HTTP boundary unit fixtures (no secrets/network to xAI)
-        run: node --test server/railway/index.test.cjs server/ai/stagingEntitlement.test.cjs
+        run: node --test server/railway/index.test.cjs server/ai/stagingEntitlement.test.cjs server/ai/xaiProviderProbe.test.cjs
       - name: Full frontend unit / TypeScript / build
         run: |
           npm ci --no-audit --no-fund
