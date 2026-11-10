@@ -79,6 +79,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', onEscape);
   }, [isSidebarOpen]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [sessionLibraryRequested, setSessionLibraryRequested] = useState(true);
 
   // --- Modal State ---
   const [viewingContent, setViewingContent] = useState(null);
@@ -205,9 +206,18 @@ export default function App() {
     });
   };
 
-  const changeTab = (tab) => { setActiveTab(tab); setIsSidebarOpen(false); };
-  const selectSession = (id) => { setCurrentSessionId(id); setActiveTab('sessions'); setIsSidebarOpen(false); };
-  const handleNewSession = () => { setCurrentSessionId('new'); setActiveTab('sessions'); setIsSidebarOpen(false); };
+  const changeTab = (tab) => {
+    if (tab === 'sessions') setSessionLibraryRequested(true);
+    setActiveTab(tab); setIsSidebarOpen(false);
+  };
+  const selectSession = (id) => {
+    setSessionLibraryRequested(false);
+    setCurrentSessionId(id); setActiveTab('sessions'); setIsSidebarOpen(false);
+  };
+  const handleNewSession = () => {
+    setSessionLibraryRequested(false);
+    setCurrentSessionId('new'); setActiveTab('sessions'); setIsSidebarOpen(false);
+  };
 
   // --- Render Logic ---
   const profileIsLoading = profileState.uid !== userId || profileState.status === 'loading';
@@ -299,6 +309,7 @@ export default function App() {
           sessions={sessions} 
           goals={goals} 
           onViewContent={setViewingContent}
+          selectedSessionId={currentSessionId}
         />;
       case 'sessions':
         return <Sessions 
@@ -308,6 +319,10 @@ export default function App() {
           currentSessionId={currentSessionId}
           setCurrentSessionId={setCurrentSessionId}
           onStartNewSession={handleNewSession}
+          libraryRequested={sessionLibraryRequested}
+          onCloseLibrary={() => setSessionLibraryRequested(false)}
+          onOpenLibrary={() => setSessionLibraryRequested(true)}
+          onOpenJourney={id => { setCurrentSessionId(id); setActiveTab('sessionSchema'); }}
         />;
       default:
           return <Diary />;

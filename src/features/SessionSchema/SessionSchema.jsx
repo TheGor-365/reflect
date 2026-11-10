@@ -4,13 +4,15 @@ import SessionTable from './SessionTable';
 import { sessionDisplayTitle } from '../Diary/diaryPresentation';
 
 /** Read-only chronology; the richer journey-map is a separate planned stage. */
-const SessionSchema = ({ sessions = [], goals = [], onViewContent }) => (
+const SessionSchema = ({ sessions = [], goals = [], onViewContent, selectedSessionId }) => (
   <section className="reflect-session-schema" aria-label="Схема сеансов">
     <header className="reflect-session-schema-header">
       <h2><GitBranch size={24} aria-hidden="true" /> Схема сеансов</h2>
       <p>Вопросы, ответы и связанные цели в хронологическом порядке.</p>
     </header>
-    {sessions.length > 0 ? sessions.map(session => (
+    {sessions.length > 0 ? [...sessions].sort((a, b) =>
+      Number(b.id === selectedSessionId) - Number(a.id === selectedSessionId)
+    ).map(session => (
       <section key={session.id} className="reflect-session-schema-group"
         aria-label={sessionDisplayTitle(session)}>
         <h3>{sessionDisplayTitle(session)}</h3>

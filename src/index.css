@@ -2560,3 +2560,155 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
   font-size: 11px; line-height: 1.5; font-weight: 400;
   color: #9aabc8; opacity: .88;
 }
+
+
+
+/* UX-01C: Sessions is a searchable personal story library, not a blank chat landing. */
+.reflect-app .reflect-session-library {
+  height: 100%; min-width: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: clamp(22px, 3vw, 42px) clamp(16px, 4vw, 52px) 70px;
+  scrollbar-width: thin;
+}
+.reflect-app .reflect-session-library-header {
+  display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;
+  gap: 22px; margin: 0 0 24px;
+}
+.reflect-app .reflect-session-library-eyebrow {
+  display: flex; align-items: center; gap: 9px; margin: 0 0 13px;
+  color: var(--reflect-accent); font-size: 12px; font-weight: 650;
+}
+.reflect-app .reflect-session-library-header h2 {
+  margin: 0 0 12px; color: var(--reflect-ink);
+  font-size: clamp(23px, 2.8vw, 31px); font-weight: 760; letter-spacing: -.035em;
+}
+.reflect-app .reflect-session-library-header > div:first-child > p:last-child {
+  margin: 0; color: var(--reflect-muted); max-width: 59ch;
+  font-size: 13px; line-height: 1.75;
+}
+.reflect-app .reflect-session-library-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+.reflect-app .reflect-session-library-new, .reflect-app .reflect-session-library-secondary,
+.reflect-app .reflect-session-library-open, .reflect-app .reflect-session-library-journey {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 9px; min-height: 42px; padding: 9px 14px; border-radius: 12px;
+  font-weight: 660; font-size: 12px; text-decoration: none;
+  transition: transform var(--reflect-motion-quick) ease, background var(--reflect-motion-quick) ease;
+}
+.reflect-app .reflect-session-library-new, .reflect-app .reflect-session-library-open {
+  color: var(--reflect-accent-ink); background: var(--reflect-accent);
+}
+.reflect-app .reflect-session-library-secondary, .reflect-app .reflect-session-library-journey {
+  border: 1px solid var(--reflect-border); color: var(--reflect-ink);
+  background: rgba(104, 135, 179, .07);
+}
+.reflect-app .reflect-session-library-actions button:hover,
+.reflect-app .reflect-session-library-card-actions button:hover { transform: translateY(-1px); }
+.reflect-app .reflect-session-library-toolbar {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 0 0 12px;
+}
+.reflect-app .reflect-session-library-search {
+  display: flex; align-items: center; gap: 10px;
+  flex: 1 1 240px; max-width: 440px; min-height: 44px;
+  padding: 0 13px; border: 1px solid var(--reflect-border); border-radius: 13px;
+  background: var(--reflect-card); color: var(--reflect-muted);
+}
+.reflect-app .reflect-session-library-search input {
+  border: 0; padding: 9px 0; outline: none; flex: 1;
+  min-width: 0; background: transparent; color: var(--reflect-ink);
+  font-size: 13px;
+}
+.reflect-app .reflect-session-library-search:focus-within { outline: 2px solid var(--reflect-accent); outline-offset: 2px; }
+.reflect-app .reflect-session-library-search input:focus-visible { outline: none; }
+.reflect-app .reflect-session-library-search input::placeholder { color: var(--reflect-muted); }
+.reflect-app .reflect-session-library-filters { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+.reflect-app .reflect-session-library-filters button {
+  min-height: 36px; border: 1px solid var(--reflect-border);
+  padding: 7px 11px; border-radius: 999px;
+  color: var(--reflect-muted); background: transparent; font-size: 11px; font-weight: 600;
+}
+.reflect-app .reflect-session-library-filters button.is-active {
+  background: rgba(98, 199, 186, .12); border-color: var(--reflect-accent);
+  color: var(--reflect-accent);
+}
+.reflect-app .reflect-session-library-count { margin: 6px 0 17px; color: var(--reflect-muted); font-size: 11px; }
+.reflect-app .reflect-session-library-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  align-items: stretch; gap: 15px;
+}
+.reflect-app .reflect-session-library-card {
+  display: flex; flex-direction: column; min-width: 0; gap: 11px;
+  padding: clamp(17px, 2vw, 23px);
+  border-radius: 18px; border: 1px solid var(--reflect-border);
+  background: linear-gradient(130deg, rgba(131, 115, 206, .055), transparent 65%), var(--reflect-card);
+}
+.reflect-app .reflect-session-library-card.is-selected { border-color: var(--reflect-accent); }
+.reflect-app .reflect-session-library-card-top {
+  display: flex; align-items: center; gap: 9px; font-size: 11px; color: var(--reflect-muted);
+}
+.reflect-app .reflect-session-library-type-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; flex: none; border-radius: 12px;
+  background: rgba(164, 148, 234, .13); color: #ae9cf2;
+}
+.reflect-app .reflect-session-library-status { font-size: 11px; }
+.reflect-app .reflect-session-library-card h3 {
+  font-size: 18px; font-weight: 730; line-height: 1.45; margin: 0;
+  letter-spacing: -.02em; color: var(--reflect-ink); overflow-wrap: anywhere;
+}
+.reflect-app .reflect-session-library-question, .reflect-app .reflect-session-library-reflection {
+  font-size: 13px; line-height: 1.75; margin: 0;
+  color: var(--reflect-ink); overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+}
+.reflect-app .reflect-session-library-question { color: var(--reflect-muted); }
+.reflect-app .reflect-session-library-question span,
+.reflect-app .reflect-session-library-reflection span {
+  display: block; font-size: 10px; letter-spacing: .025em;
+  font-weight: 650; color: var(--reflect-muted); margin-bottom: 4px;
+}
+.reflect-app .reflect-session-library-meta {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 14px; margin-top: auto;
+  padding-top: 6px; font-size: 11px; color: var(--reflect-muted);
+}
+.reflect-app .reflect-session-library-meta span { display: inline-flex; align-items: center; gap: 5px; }
+.reflect-app .reflect-session-library-card-actions { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 5px; }
+.reflect-app .reflect-session-library-journey { font-weight: 550; }
+.reflect-app .reflect-session-library-empty, .reflect-app .reflect-session-library-no-results {
+  display: flex; flex-direction: column; gap: 10px;
+  align-items: flex-start; max-width: 620px;
+  margin: 35px 0; padding: clamp(23px, 4vw, 40px);
+  border: 1px solid var(--reflect-border); border-radius: 20px;
+  background: var(--reflect-card); color: var(--reflect-muted);
+}
+.reflect-app .reflect-session-library-empty-icon {
+  display: grid; place-items: center; width: 54px; height: 54px;
+  border-radius: 17px; background: rgba(91, 200, 184, .14); color: var(--reflect-accent);
+}
+.reflect-app .reflect-session-library-empty h3 { margin: 0; font-size: 20px; color: var(--reflect-ink); }
+.reflect-app .reflect-session-library-empty p { margin: 0 0 8px; font-size: 13px; line-height: 1.7; }
+.reflect-app .reflect-session-conversation-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+.reflect-app .reflect-session-library-toggle {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 36px;
+  padding: 7px 11px; border: 1px solid var(--reflect-border); border-radius: 11px;
+  font-size: 12px; color: var(--reflect-ink); background: rgba(113, 139, 178, .07);
+}
+.reflect-app .reflect-session-navigation-warning {
+  padding: 9px 15px; margin: 8px auto 0; width: calc(100% - 32px);
+  border: 1px solid #d7957e; border-radius: 12px; color: var(--reflect-ink);
+  background: var(--reflect-card); font-size: 12px;
+}
+@media (max-width: 600px) {
+  .reflect-app .reflect-session-library { padding: 21px 7px 90px; }
+  .reflect-app .reflect-session-library-header { gap: 15px; }
+  .reflect-app .reflect-session-library-toolbar { align-items: stretch; }
+  .reflect-app .reflect-session-library-search { max-width: none; }
+  .reflect-app .reflect-session-library-card-actions button { flex: 1 1 auto; }
+  .reflect-app .reflect-session-conversation-bar { flex-wrap: wrap; gap: 8px; }
+  .reflect-app .reflect-session-conversation-actions { width: 100%; justify-content: space-between; }
+  .reflect-app .reflect-session-library-toggle { font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reflect-app .reflect-session-library-actions button,
+  .reflect-app .reflect-session-library-card-actions button { transition: none; }
+  .reflect-app .reflect-session-library-actions button:hover,
+  .reflect-app .reflect-session-library-card-actions button:hover { transform: none; }
+}

@@ -3,15 +3,18 @@ import { collection, addDoc, setDoc, doc, serverTimestamp, Timestamp } from 'fir
 import { db, appId } from '../../firebase/config';
 import { AI_SESSION_ENABLED, getAnalysisFromAI } from '../../api/reflectAssistantService';
 import ChatMessage from './ChatMessage';
+import SessionLibrary from './SessionLibrary';
 import { sessionDisplayTitle } from '../Diary/diaryPresentation';
 import SessionComposer from './SessionComposer';
 import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
 import InfoCard from '../../components/common/InfoCard';
 import { useEntrySave } from '../../hooks/useEntrySave';
-import { BookOpen, BarChart2, MessageSquareText, PenLine, ShieldCheck } from 'lucide-react';
+import { BookOpen, BarChart2, MessageSquareText, ShieldCheck } from 'lucide-react';
 
-const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession }) => {
+const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
   const [userInput, setUserInput] = useState('');
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [navigationWarning, setNavigationWarning] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sendError, setSendError] = useState('');
   const [savingSession, setSavingSession] = useState(false);
@@ -209,17 +212,50 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
   const realExercises = activeSession?.exercises || [];
   const hasContext = Boolean(activeSession && (realRecommendations.length || realExercises.length));
 
-  if (!activeSession && !isNewSessionView) {
+  // Switching threads must not silently discard an unsaved paid response or typed draft.
+  const canLeaveConversation = () => {
+    if (localMessages.length || userInput.trim() || isLoading || savingSession) {
+      setNavigationWarning('Сначала сохраните ответ или текст текущего сеанса. Несохранённая переписка не будет перенесена в другую беседу.');
+      return false;
+    }
+    setNavigationWarning('');
+    return true;
+  };
+  const selectFromLibrary = id => {
+    if (id !== currentSessionId && !canLeaveConversation()) return;
+    setCurrentSessionId(id);
+    setNavigationWarning('');
+    setShowLibrary(false);
+    onCloseLibrary?.();
+  };
+  const startFromLibrary = () => {
+    if (!canLeaveConversation()) return;
+    setShowLibrary(false);
+    setNavigationWarning('');
+    onCloseLibrary?.();
+    onStartNewSession?.();
+  };
+  const journeyFromLibrary = id => {
+    if (!canLeaveConversation()) return;
+    setNavigationWarning('');
+    onOpenJourney?.(id);
+  };
+
+  // Sidebar selection changes the active ID externally. Respect that navigation.
+  useEffect(() => {
+    setShowLibrary(false);
+    setNavigationWarning('');
+  }, [currentSessionId]);
+
+  if ((!activeSession && !isNewSessionView) || showLibrary || libraryRequested) {
     return (
-      <section className="reflect-session-empty" aria-label="Выбор сеанса">
-        <span className="reflect-session-empty-icon"><MessageSquareText size={30} aria-hidden="true" /></span>
-        <p className="reflect-session-kicker">Пространство для размышлений</p>
-        <h2>Ваш следующий сеанс начинается здесь</h2>
-        <p>Выберите существующий сеанс или начните новый. Предыдущие записи сохраняются отдельно в дневнике.</p>
-        <button type="button" onClick={onStartNewSession} className="reflect-session-start">
-          <PenLine size={19} aria-hidden="true" /> Начать новый сеанс
-        </button>
-      </section>
+      <SessionLibrary sessions={sessions} activeSessionId={currentSessionId}
+        warning={navigationWarning}
+        onSelectSession={selectFromLibrary} onNewSession={startFromLibrary}
+        onViewJourney={onOpenJourney ? journeyFromLibrary : undefined}
+        onBackToConversation={(activeSession || isNewSessionView) ? () => {
+          setShowLibrary(false); setNavigationWarning(''); onCloseLibrary?.();
+        } : undefined}/>
     );
   }
 
@@ -227,11 +263,19 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
     <section className={`reflect-session-screen ${hasContext ? 'reflect-session-screen--context' : ''}`} aria-label="Рабочее пространство сеанса">
       <div className="reflect-session-chat">
         <div className="reflect-session-conversation-bar">
-          <div>
-            <p className="reflect-session-kicker">Личное пространство</p>
-            <h2>{isNewSessionView ? 'Новый сеанс' : sessionDisplayTitle(activeSession)}</h2>
+          <h2>{isNewSessionView ? 'Новый сеанс' : sessionDisplayTitle(activeSession)}</h2>
+          <div className="reflect-session-conversation-actions">
+            {sessions.length > 0 && (
+              <button type="button" className="reflect-session-library-toggle"
+                onClick={() => { setShowLibrary(true); setNavigationWarning(''); onOpenLibrary?.(); }}
+                aria-label="Показать все сеансы">
+                <BookOpen size={17} aria-hidden="true"/> Все сеансы
+              </button>
+            )}
+            <span className="reflect-session-privacy">
+              <ShieldCheck size={16} aria-hidden="true" /> Личные записи
+            </span>
           </div>
-          <span className="reflect-session-privacy"><ShieldCheck size={16} aria-hidden="true" /> Личные записи</span>
         </div>
 
         <div className="reflect-session-messages" role="log" aria-label="История сообщений" aria-live="polite">
