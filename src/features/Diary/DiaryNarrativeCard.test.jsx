@@ -100,7 +100,7 @@ test('session card reads as a reflection with optional source details', () => {
   </div>);
   expect(screen.getByRole('heading', { name: 'Размышление с Reflect' })).toBeInTheDocument();
   expect(screen.queryByText('Сеанс от 10.11.2026, 14:26:14')).not.toBeInTheDocument();
-  expect(screen.getByText('Рефлексия от Reflect')).toHaveClass('reflect-journal-ai-thought');
+  expect(container.querySelector('.reflect-journal-ai-thought')).toHaveTextContent('Рефлексия от Reflect');
   expect(screen.getByRole('button', { name: 'Исходный вопрос' })).toHaveAttribute('aria-expanded', 'false');
   fireEvent.click(screen.getByRole('button', { name: 'Исходный вопрос' }));
   expect(screen.getAllByText('Первый вопрос').length).toBeGreaterThan(0);
