@@ -228,13 +228,13 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
     setShowLibrary(false);
   };
   const startFromLibrary = () => {
-    if (currentSessionId && currentSessionId !== 'new' && !canLeaveConversation()) return;
+    if (!canLeaveConversation()) return;
     setShowLibrary(false);
     setNavigationWarning('');
     onStartNewSession?.();
   };
   const journeyFromLibrary = id => {
-    if (id !== currentSessionId && !canLeaveConversation()) return;
+    if (!canLeaveConversation()) return;
     setNavigationWarning('');
     onOpenJourney?.(id);
   };
