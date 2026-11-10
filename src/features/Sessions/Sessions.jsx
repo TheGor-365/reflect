@@ -9,7 +9,7 @@ import SessionComposer from './SessionComposer';
 import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
 import InfoCard from '../../components/common/InfoCard';
 import { useEntrySave } from '../../hooks/useEntrySave';
-import { BookOpen, BarChart2, MessageSquareText, ShieldCheck, LibraryBig } from 'lucide-react';
+import { BookOpen, BarChart2, MessageSquareText, ShieldCheck } from 'lucide-react';
 
 const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney }) => {
   const [userInput, setUserInput] = useState('');
@@ -269,7 +269,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
               <button type="button" className="reflect-session-library-toggle"
                 onClick={() => { setShowLibrary(true); setNavigationWarning(''); }}
                 aria-label="Показать все сеансы">
-                <LibraryBig size={17} aria-hidden="true"/> Все сеансы
+                <BookOpen size={17} aria-hidden="true"/> Все сеансы
               </button>
             )}
             <span className="reflect-session-privacy">
