@@ -4,7 +4,8 @@
  * visible in an undated group rather than being assigned an invented date.
  */
 export type DiarySource = 'session' | 'goal' | 'mood' | 'note';
-export type DiaryFilter = DiarySource | 'all';
+// Recommendations are an intentionally empty filter until a verified source exists.
+export type DiaryFilter = DiarySource | 'recommendation' | 'all';
 export type LegacyRecord = Record<string, unknown>;
 
 export interface DiaryTimelineEvent {
