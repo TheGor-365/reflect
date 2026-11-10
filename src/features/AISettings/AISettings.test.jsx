@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { doc, getDoc, getDocFromServer, setDoc, serverTimestamp } from 'firebase/firestore';
 import AISettings from './AISettings';
+import { AI_SETTINGS_DEFAULTS } from './aiSettingsModel';
 
 vi.mock('../../firebase/config', () => ({ db: {}, appId: 'reflect-8fdc8' }));
 vi.mock('firebase/firestore', () => ({
@@ -16,10 +17,12 @@ beforeEach(() => {
   vi.clearAllMocks();
   getDoc.mockResolvedValue({ exists: () => false });
   setDoc.mockResolvedValue();
-  getDocFromServer.mockImplementation(async () => ({
-    exists: () => true,
-    data: () => setDoc.mock.lastCall?.[1]
-  }));
+  getDocFromServer.mockImplementation(async () => {
+    const written = setDoc.mock.lastCall?.[1];
+    return written
+      ? { exists: () => true, data: () => written }
+      : { exists: () => false };
+  });
 });
 
 test('defaults closed: never creates a doc or recommendation without an explicit save', async () => {
@@ -58,7 +61,7 @@ test('preferences write only to current owner, not to profile/diary or AI provid
 });
 
 test('previous saved preferences are loaded without changing Firestore', async () => {
-  getDoc.mockResolvedValue({ exists: () => true, data: () => ({
+  getDocFromServer.mockResolvedValue({ exists: () => true, data: () => ({
     schemaVersion: 1, responseDepth: 'deep', responseTone: 'supportive',
     askClarifyingQuestions: false, recommendationsEnabled: false,
     autoSaveRecommendations: false, recommendationFrequency: 'rare',
@@ -72,8 +75,22 @@ test('previous saved preferences are loaded without changing Firestore', async (
   expect(setDoc).not.toHaveBeenCalled();
 });
 
+test('initial load requires a server response and never silently trusts cached settings', async () => {
+  // A locally cached "balanced" preference is not evidence of server state.
+  getDoc.mockResolvedValue({ exists: () => true, data: () => ({
+    ...AI_SETTINGS_DEFAULTS, responseDepth: 'balanced'
+  }) });
+  getDocFromServer.mockRejectedValueOnce({ code: 'unavailable' });
+  render(<AISettings userId="synthetic-owner"/>);
+  expect(await screen.findByRole('alert')).toHaveTextContent('Код ошибки: unavailable');
+  expect(screen.queryByRole('combobox', { name: /Глубина ответа/ }))
+    .not.toBeInTheDocument();
+  expect(getDoc).not.toHaveBeenCalled();
+  expect(setDoc).not.toHaveBeenCalled();
+});
+
 test('read denial locks form rather than overriding existing settings', async () => {
-  getDoc.mockRejectedValue({ code: 'permission-denied' });
+  getDocFromServer.mockRejectedValue({ code: 'permission-denied' });
   render(<AISettings userId="synthetic-owner"/>);
   expect(await screen.findByRole('alert')).toHaveTextContent('Не удалось прочитать');
   expect(screen.queryByRole('button', { name: 'Сохранить настройки' }))
@@ -97,7 +114,7 @@ test('write failure keeps changed values visible and allows retry', async () => 
 });
 
 test('invalid saved schema fails closed and is not overwritten without action', async () => {
-  getDoc.mockResolvedValue({ exists: () => true, data: () => ({
+  getDocFromServer.mockResolvedValue({ exists: () => true, data: () => ({
     schemaVersion: 10, recommendationsEnabled: true, autoSaveRecommendations: true
   }) });
   render(<AISettings userId="synthetic-owner"/>);
@@ -116,7 +133,6 @@ test('explicit save survives remount and reloads deep preference from Firestore'
     exists: () => stored.has(reference.path),
     data: () => stored.get(reference.path)
   });
-  getDoc.mockImplementation(read);
   getDocFromServer.mockImplementation(read);
   setDoc.mockImplementation(async (reference, data) => { stored.set(reference.path, data); });
 
@@ -143,7 +159,6 @@ test('switching accounts never presents another owner\'s saved depth', async () 
     exists: () => stored.has(reference.path),
     data: () => stored.get(reference.path)
   });
-  getDoc.mockImplementation(read);
   getDocFromServer.mockImplementation(read);
   setDoc.mockImplementation(async (reference, data) => { stored.set(reference.path, data); });
 
@@ -166,7 +181,7 @@ test('switching accounts never presents another owner\'s saved depth', async () 
 });
 
 test('server mismatch never shows a false positive save confirmation', async () => {
-  getDocFromServer.mockResolvedValueOnce({ exists: () => false });
+  getDocFromServer.mockResolvedValue({ exists: () => false });
   render(<AISettings userId="synthetic-owner"/>);
   fireEvent.change(await screen.findByRole('combobox', { name: /Глубина ответа/ }), {
     target: { value: 'deep' }
@@ -179,7 +194,7 @@ test('server mismatch never shows a false positive save confirmation', async () 
 });
 
 test('read denial shows a safe diagnostic code without exposing document paths', async () => {
-  getDoc.mockRejectedValueOnce({ code: 'permission-denied' });
+  getDocFromServer.mockRejectedValueOnce({ code: 'permission-denied' });
   render(<AISettings userId="synthetic-owner"/>);
   expect(await screen.findByRole('alert')).toHaveTextContent('Код ошибки: permission-denied');
   expect(screen.getByRole('alert')).not.toHaveTextContent('artifacts/');
