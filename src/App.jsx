@@ -316,7 +316,7 @@ export default function App() {
               isLoading={isLoadingData}
           />;
       case 'aiSettings':
-        return <AISettings key={userId} userId={userId}/>;
+        return <AISettings key={userId} userId={userId} sessions={sessions}/>;
       case 'goals':
         return <Goals 
           goals={goals} 
