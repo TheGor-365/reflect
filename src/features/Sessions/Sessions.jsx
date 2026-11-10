@@ -3,6 +3,7 @@ import { collection, addDoc, setDoc, doc, serverTimestamp, Timestamp } from 'fir
 import { db, appId } from '../../firebase/config';
 import { AI_SESSION_ENABLED, getAnalysisFromAI } from '../../api/reflectAssistantService';
 import ChatMessage from './ChatMessage';
+import { sessionDisplayTitle } from '../Diary/diaryPresentation';
 import SessionComposer from './SessionComposer';
 import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
 import InfoCard from '../../components/common/InfoCard';
@@ -228,7 +229,7 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
         <div className="reflect-session-conversation-bar">
           <div>
             <p className="reflect-session-kicker">Личное пространство</p>
-            <h2>{isNewSessionView ? 'Новый сеанс' : (activeSession?.title || 'Сеанс')}</h2>
+            <h2>{isNewSessionView ? 'Новый сеанс' : sessionDisplayTitle(activeSession)}</h2>
           </div>
           <span className="reflect-session-privacy"><ShieldCheck size={16} aria-hidden="true" /> Личные записи</span>
         </div>
