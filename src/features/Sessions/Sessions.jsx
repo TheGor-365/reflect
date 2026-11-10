@@ -11,7 +11,7 @@ import InfoCard from '../../components/common/InfoCard';
 import { useEntrySave } from '../../hooks/useEntrySave';
 import { BookOpen, BarChart2, MessageSquareText, ShieldCheck } from 'lucide-react';
 
-const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney }) => {
+const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
   const [userInput, setUserInput] = useState('');
   const [showLibrary, setShowLibrary] = useState(false);
   const [navigationWarning, setNavigationWarning] = useState('');
@@ -226,11 +226,13 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
     setCurrentSessionId(id);
     setNavigationWarning('');
     setShowLibrary(false);
+    onCloseLibrary?.();
   };
   const startFromLibrary = () => {
     if (!canLeaveConversation()) return;
     setShowLibrary(false);
     setNavigationWarning('');
+    onCloseLibrary?.();
     onStartNewSession?.();
   };
   const journeyFromLibrary = id => {
@@ -245,7 +247,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
     setNavigationWarning('');
   }, [currentSessionId]);
 
-  if ((!activeSession && !isNewSessionView) || showLibrary) {
+  if ((!activeSession && !isNewSessionView) || showLibrary || libraryRequested) {
     return (
       <>
         {navigationWarning && <p className="reflect-session-navigation-warning" role="alert">{navigationWarning}</p>}
@@ -253,7 +255,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
           onSelectSession={selectFromLibrary} onNewSession={startFromLibrary}
           onViewJourney={onOpenJourney ? journeyFromLibrary : undefined}
           onBackToConversation={activeSession ? () => {
-            setShowLibrary(false); setNavigationWarning('');
+            setShowLibrary(false); setNavigationWarning(''); onCloseLibrary?.();
           } : undefined}/>
       </>
     );
@@ -267,7 +269,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
           <div className="reflect-session-conversation-actions">
             {sessions.length > 0 && (
               <button type="button" className="reflect-session-library-toggle"
-                onClick={() => { setShowLibrary(true); setNavigationWarning(''); }}
+                onClick={() => { setShowLibrary(true); setNavigationWarning(''); onOpenLibrary?.(); }}
                 aria-label="Показать все сеансы">
                 <BookOpen size={17} aria-hidden="true"/> Все сеансы
               </button>
