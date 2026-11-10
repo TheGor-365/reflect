@@ -125,7 +125,7 @@ async function main() {
   // The first, now revoked grant still counts toward the 12 grants/day quota.
   for (let i = 1; i < MAX_GRANTS_PER_DAY; i += 1) {
     const issued = await store.execute({
-      ...command, grantId: `synthetic-grant-id-${String(i).padStart(6, "0")}`
+      ...command, grantId: `synthetic-quota-grant-${String(i).padStart(6, "0")}`
     }, principal);
     assert.equal(issued.status, "active");
   }
