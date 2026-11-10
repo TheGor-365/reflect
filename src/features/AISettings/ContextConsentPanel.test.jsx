@@ -102,3 +102,55 @@ test('account switch clears previous owner consent list', async () => {
   view.rerender(<ContextConsentPanel userId="ownerB" sessions={[]}/>);
   await waitFor(() => expect(screen.queryByRole('button', { name: 'Отозвать' })).toBeNull());
 });
+
+test('grant response without matching server grant fails closed instead of reporting success', async () => {
+  const id = '00000000-0000-4000-8000-000000000003';
+  const spy = vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue(id);
+  requestContextConsent.mockImplementation(async command => command.action === 'grant'
+    ? { status: 'active', expiresAtMs: 1800000000000 }
+    : { grants: [] });
+  try {
+    render(<ContextConsentPanel userId="ownerA" sessions={sessions}/>);
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'session-001' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /Я разрешаю доступ/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Разрешить на 15 минут' }));
+    expect(await screen.findByText(/grant-readback-mismatch/)).toBeInTheDocument();
+    expect(screen.getByText(/операция могла выполниться/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Отозвать' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Разрешение подтверждено сервером/)).not.toBeInTheDocument();
+    expect(requestContextConsent).toHaveBeenCalledTimes(2);
+  } finally { spy.mockRestore(); }
+});
+
+test('grant readback must match the exact source and a future expiry', async () => {
+  const id = '00000000-0000-4000-8000-000000000004';
+  const spy = vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue(id);
+  requestContextConsent.mockImplementation(async command => command.action === 'grant'
+    ? { status: 'active', expiresAtMs: 1800000000000 }
+    : { grants: [{ grantId: id, sourceId: 'session-002',
+      scope: 'session-turns', expiresAtMs: 1800000000000 }] });
+  try {
+    render(<ContextConsentPanel userId="ownerA" sessions={sessions}/>);
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'session-001' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /Я разрешаю доступ/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Разрешить на 15 минут' }));
+    expect(await screen.findByText(/grant-readback-mismatch/)).toBeInTheDocument();
+    expect(screen.queryByText(/Разрешение подтверждено сервером/)).not.toBeInTheDocument();
+  } finally { spy.mockRestore(); }
+});
+
+test('revoke response is not success until the same grant disappears from server list', async () => {
+  const id = 'grant-request-00001';
+  const recorded = [{ grantId: id, sourceId: 'session-002',
+    scope: 'session-turns', expiresAtMs: 1800000000000 }];
+  requestContextConsent.mockImplementation(async command => (
+    command.action === 'revoke' ? { status: 'revoked' } : { grants: recorded }
+  ));
+  render(<ContextConsentPanel userId="ownerA" sessions={sessions}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Проверить разрешения' }));
+  expect(await screen.findByRole('button', { name: 'Отозвать' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Отозвать' }));
+  expect(await screen.findByText(/revoke-readback-mismatch/)).toBeInTheDocument();
+  expect(screen.queryByText(/Отзыв доступа подтверждён сервером/)).not.toBeInTheDocument();
+  expect(requestContextConsent).toHaveBeenCalledTimes(3);
+});
