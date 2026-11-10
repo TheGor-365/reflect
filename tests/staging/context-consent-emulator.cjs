@@ -17,6 +17,7 @@ const { getFirestore } = serverRequire("firebase-admin/firestore");
 const {
   createContextConsentStore, PROJECT_ID, CONSENT_VERSION, SCOPE, TTL_MS, MAX_GRANTS_PER_DAY
 } = require("../../server/privacy/contextConsent.cjs");
+const { createSessionContextPreview } = require("../../server/privacy/sessionContextPreview.cjs");
 
 const DEMO = "demo-reflect-context-consent";
 const AUTH = "http://127.0.0.1:19099";
@@ -114,12 +115,32 @@ async function main() {
   assert.equal(listing.grants.length, 1);
   assert.equal(listing.grants[0].sourceId, sessionId);
   assert.equal(JSON.stringify(listing).includes("NEVER_SEND_THIS_TO_PROVIDER"), false);
+
+  // Privileged, provider-disconnected preview: the actual Admin source read
+  // is allowed only with the exact active owner grant. No HTTP endpoint.
+  const previewer = createSessionContextPreview({
+    db, consentStore: store, projectId: PROJECT_ID
+  });
+  const preview = await previewer.preview({
+    principal, grantId, sourceId: sessionId, scope: SCOPE
+  });
+  assert.equal(preview.providerDispatchAllowed, false);
+  assert.equal(preview.disclosureRequired, true);
+  assert.equal(preview.turns.length, 1);
+  assert.equal(preview.turns[0].content, "NEVER_SEND_THIS_TO_PROVIDER");
+  await assert.rejects(() => previewer.preview({
+    principal: { ...principal, uid: verifiedB.uid },
+    grantId, sourceId: sessionId, scope: SCOPE
+  }), { code: "permission-denied" });
   assert.equal(await rest(privatePath, a.token), 403);
   await store.execute({ action: "revoke", grantId }, principal);
   assert.equal(await store.check({
     uid: verifiedA.uid, grantId, scope: SCOPE, sourceId: sessionId
   }), false);
   assert.deepEqual((await store.list(principal)).grants, []);
+  await assert.rejects(() => previewer.preview({
+    principal, grantId, sourceId: sessionId, scope: SCOPE
+  }), { code: "permission-denied" });
   assert.equal(await rest(privatePath, a.token), 403);
 
   // The first, now revoked grant still counts toward the 12 grants/day quota.
