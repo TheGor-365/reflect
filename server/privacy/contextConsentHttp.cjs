@@ -6,7 +6,7 @@
  * makes xAI calls, or authorizes memory retrieval from /v1/ai/reply.
  */
 const { PolicyError } = require("../ai/policy.cjs");
-const { PROJECT_ID } = require("./contextConsent.cjs");
+const { PROJECT_ID, parseContextConsentCommand } = require("./contextConsent.cjs");
 
 const ORIGIN = "https://reflect-ai-staging.web.app";
 const APP_ID = "1:599679789981:web:d4d8743dbff0fe40af1d74";
@@ -118,7 +118,9 @@ function createConsentHttpListener({
       if (body.action === "list") {
         return reply(res, 200, await list(principal), ORIGIN);
       }
-      // This strict operation handles grant/revoke with server-owned UID.
+      // Validate all grant/revoke keys again at the HTTP boundary before
+      // the private store sees the command. No client-supplied UID is trusted.
+      parseContextConsentCommand(body, principal);
       const result = await execute(body, principal);
       return reply(res, 200, result, ORIGIN);
     } catch (error) {
