@@ -144,7 +144,8 @@ test('explicit save survives remount and reloads deep preference from Firestore'
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить настройки' }));
   expect(await screen.findByText(/Настройки сохранены и подтверждены сервером/))
     .toBeInTheDocument();
-  expect(getDocFromServer).toHaveBeenCalledTimes(1);
+  // One authoritative read on mount, and one readback after the write.
+  expect(getDocFromServer).toHaveBeenCalledTimes(2);
   view.unmount();
 
   render(<AISettings userId="owner-reload"/>);
