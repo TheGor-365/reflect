@@ -124,19 +124,12 @@ test("grant refuses broad client payload, body overflow and non-JSON", async () 
       { action: "grant", text: "PRIVATE".repeat(500) }
     ]) {
       const response = await send(url, { payload });
-      if (typeof payload === "object" && payload.action === "grant" &&
-          payload.text === undefined) {
-        // Actual field whitelist is checked by the server-side consent store.
-        // This fixture uses an injected store, so the JSON is structurally valid here.
-        assert.equal(response.status, 200);
-      } else {
-        assert.equal(response.status, 400);
-      }
+      assert.equal(response.status, 400);
     }
     assert.equal((await send(url, { contentType: "text/plain" })).status, 400);
   });
   // These are boundary fixture calls, not a signed grant persistence test.
-  assert.ok(calls.issue <= 1);
+  assert.equal(calls.issue, 0);
 });
 
 test("missing credentials deny before reading payload; revoke errors are redacted", async () => {
