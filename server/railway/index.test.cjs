@@ -346,6 +346,43 @@ test("authenticated and attested one-message request reaches only injected handl
   });
   assert.equal(calls, 1);
 });
+test("upstream xAI failure statuses expose only bounded category after signed gates", async () => {
+  const cases = [
+    [400, "xai-invalid-request"], [401, "xai-unauthorized"],
+    [403, "xai-forbidden"], [404, "xai-endpoint-not-found"],
+    [422, "xai-invalid-request"], [429, "xai-rate-limited"],
+    [500, "xai-upstream-error"], [503, "xai-upstream-error"]
+  ];
+  for (const [status, expected] of cases) {
+    await withServer(deps({
+      handleReply: async () => {
+        const error = new PolicyError("unavailable");
+        Object.defineProperty(error, "upstreamHttpStatus", {
+          value: status, enumerable: false
+        });
+        // Simulate a private xAI error body that MUST NOT escape.
+        Object.defineProperty(error, "secretMessage", { value: "PRIVATE_RESPONSE" });
+        throw error;
+      }
+    }), async url => {
+      const response = await send(url);
+      assert.equal(response.status, 502);
+      assert.deepEqual(await response.json(), { error: expected });
+    });
+  }
+});
+test("upstream statuses cannot bypass the owner entitlement check", async () => {
+  let calls=0;
+  await withServer(deps({
+    authorizeAccount: async () => false,
+    handleReply: async () => { calls++; throw new Error("SECRET"); }
+  }), async url => {
+    const response=await send(url);
+    assert.equal(response.status, 403);
+    assert.deepEqual(await response.json(), { error: "permission-denied" });
+  });
+  assert.equal(calls,0);
+});
 test("provider failures are redacted; quota errors are bounded", async () => {
   await withServer(deps({ handleReply: async () => { throw new PolicyError("resource-exhausted"); } }), async url => {
     const response = await send(url);
