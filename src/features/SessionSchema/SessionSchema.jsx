@@ -1,16 +1,26 @@
 import React from 'react';
+import { GitBranch } from 'lucide-react';
 import SessionTable from './SessionTable';
 
-const SessionSchema = ({ sessions, goals, onViewContent }) => (
-  <div>
-    <h2 className="text-3xl font-bold text-stone-800 mb-6">Схема сеансов</h2>
+/** Read-only chronology; the richer journey-map is a separate planned stage. */
+const SessionSchema = ({ sessions = [], goals = [], onViewContent }) => (
+  <section className="reflect-session-schema" aria-label="Схема сеансов">
+    <header className="reflect-session-schema-header">
+      <h2><GitBranch size={24} aria-hidden="true" /> Схема сеансов</h2>
+      <p>Вопросы, ответы и связанные цели в хронологическом порядке.</p>
+    </header>
     {sessions.length > 0 ? sessions.map(session => (
-      <div key={session.id} className="mb-8">
-        <h3 className="text-2xl font-bold text-stone-800 mb-4">{session.title}</h3>
+      <section key={session.id} className="reflect-session-schema-group"
+        aria-label={session.title || 'Сеанс без названия'}>
+        <h3>{session.title || 'Сеанс без названия'}</h3>
         <SessionTable session={session} goals={goals} onViewContent={onViewContent} />
+      </section>
+    )) : (
+      <div className="reflect-session-schema-empty">
+        Нет сохранённых сеансов. Создайте первый сеанс в разделе «Сеансы».
       </div>
-    )) : <p>Нет активных сеансов. Начните новый!</p>}
-  </div>
+    )}
+  </section>
 );
 
 export default SessionSchema;
