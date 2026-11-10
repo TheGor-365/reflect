@@ -190,6 +190,21 @@ export default function App() {
     }
   };
 
+  const handleRenameSession = async (sessionId, title) => {
+    const cleaned = typeof title === 'string' ? title.trim() : '';
+    if (!db || !userId || !sessions.some(item => item.id === sessionId) ||
+        !/^[a-zA-Z0-9_-]{1,128}$/.test(sessionId) ||
+        !cleaned || cleaned.length > 100 ||
+        /[\\u0000-\\u001f\\u007f]/.test(cleaned)) {
+      throw new Error('invalid-session-title');
+    }
+    // Only the title field is updated; no transcript, event history or
+    // user-authored journal content is modified.
+    await updateDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId), {
+      title: cleaned, titleSource: 'user'
+    });
+  };
+
   const changeTab = (tab) => { setActiveTab(tab); setIsSidebarOpen(false); };
   const selectSession = (id) => { setCurrentSessionId(id); setActiveTab('sessions'); setIsSidebarOpen(false); };
   const handleNewSession = () => { setCurrentSessionId('new'); setActiveTab('sessions'); setIsSidebarOpen(false); };
@@ -267,6 +282,9 @@ export default function App() {
               diaryNotes={diaryNotes} 
               userId={userId}
               onAppend={handleAppendToEntry}
+              onRenameSession={handleRenameSession}
+              onOpenSession={selectSession}
+              onOpenJourney={id => { setCurrentSessionId(id); setActiveTab('sessionSchema'); }}
               isLoading={isLoadingData}
           />;
       case 'goals':
