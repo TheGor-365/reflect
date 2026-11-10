@@ -6,7 +6,7 @@ on:
       - 'server/privacy/**'
       - 'server/hosted/firestore.rules'
       - 'tests/staging/context-consent-emulator.cjs'
-      - 'tests/staging/firebase-context-consent.json'
+      - 'firebase.context-consent-emulator.json'
       - '.github/workflows/reflect-context-consent-emulator.yml'
 
 permissions:
@@ -37,10 +37,9 @@ jobs:
           npm install --prefix server --no-package-lock --ignore-scripts --no-audit --no-fund
           npm install --global firebase-tools@15.34.2
       - name: Verify browser-private deny and Admin grant-revoke using synthetic Auth
-        working-directory: tests/staging
         run: |
           firebase emulators:exec \
-            --config firebase-context-consent.json \
+            --config firebase.context-consent-emulator.json \
             --project demo-reflect-context-consent \
             --only auth,firestore \
-            "node context-consent-emulator.cjs"
+            "node tests/staging/context-consent-emulator.cjs"
