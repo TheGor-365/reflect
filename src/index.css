@@ -2342,3 +2342,213 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
 @media (prefers-reduced-motion: reduce) {
   .reflect-app .reflect-disclosure-chevron { transition: none; }
 }
+
+
+/* UX-01B: editorial diary, source-forward cards and reusable motion.
+   Changes are read-only presentation except for explicit manual renaming. */
+.reflect-app {
+  --reflect-ease-out: cubic-bezier(.22, 1, .36, 1);
+  --reflect-motion-quick: 160ms;
+  --reflect-motion-base: 260ms;
+  --reflect-motion-panel: 300ms;
+}
+/* Calendar rails use the existing browser-local day projection (not server UTC). */
+.reflect-app .reflect-diary-timeline { display: grid; gap: 14px; }
+.reflect-app .reflect-diary-month-heading {
+  display: flex; align-items: center; gap: 11px;
+  margin: 17px 0 3px 3px; font-size: 15px;
+  font-weight: 700; color: var(--reflect-ink);
+  letter-spacing: -.015em; line-height: 1.5;
+}
+.reflect-app .reflect-diary-month-heading svg { color: var(--reflect-accent); }
+.reflect-app .reflect-diary-group {
+  position: relative; margin: 0 0 2px 12px;
+  padding: 0 0 3px 28px; min-width: 0;
+}
+.reflect-app .reflect-diary-group::before {
+  content: ""; position: absolute; top: 8px; bottom: 4px; left: 1px;
+  width: 2px; border-radius: 2px;
+  background: linear-gradient(180deg, rgba(126,229,213,.58), rgba(145,157,229,.20));
+}
+.reflect-app .reflect-diary-day-heading {
+  position: relative; display: flex; align-items: baseline;
+  gap: 10px; flex-wrap: wrap;
+  margin: 0 0 13px; padding: 0 0 2px;
+  color: var(--reflect-muted); line-height: 1.5;
+  font-size: 12px; font-weight: 650; letter-spacing: .005em;
+}
+.reflect-app .reflect-diary-day-heading small {
+  color: var(--reflect-muted); opacity: .75;
+  font-size: 10px; font-weight: 400;
+}
+.reflect-app .reflect-diary-day-marker {
+  position: absolute; width: 12px; height: 12px;
+  left: -33px; top: 3px;
+  border: 3px solid var(--reflect-bg); outline: 1px solid var(--reflect-accent);
+  background: var(--reflect-accent); border-radius: 50%;
+}
+.reflect-app .reflect-diary-entries { gap: 14px; }
+.reflect-app .reflect-diary-event { position: relative; min-width: 0; }
+.reflect-app .reflect-diary-event-marker {
+  position: absolute; left: -31px; top: 26px;
+  z-index: 1; width: 8px; height: 8px;
+  border: 2px solid var(--reflect-bg); border-radius: 100%;
+  background: var(--reflect-accent);
+}
+.reflect-app .reflect-diary-event-marker[data-kind="session"] { background: #a79cf7; }
+.reflect-app .reflect-diary-event-marker[data-kind="goal"] { background: #e6b86e; }
+.reflect-app .reflect-diary-event-marker[data-kind="mood"] { background: #f09c93; }
+
+/* Journal entries are primarily reading surfaces, with concise provenance controls. */
+.reflect-app .reflect-diary .reflect-journal-card {
+  padding: 18px clamp(16px, 2.5vw, 24px) 13px;
+  border-radius: 17px; border: 1px solid var(--reflect-border);
+  border-left: 2px solid var(--reflect-border);
+  background: var(--reflect-card); min-width: 0;
+}
+.reflect-app .reflect-diary .reflect-journal-card[data-kind="session"] {
+  border-left-color: #a79cf7;
+  background:
+    linear-gradient(110deg, rgba(133, 115, 217, .075), transparent 50%),
+    var(--reflect-card);
+}
+.reflect-app .reflect-diary .reflect-journal-card[data-kind="goal"] { border-left-color: #e6b86e; }
+.reflect-app .reflect-diary .reflect-journal-card[data-kind="mood"] { border-left-color: #f09c93; }
+.reflect-app .reflect-diary .reflect-journal-card[data-kind="note"] { border-left-color: var(--reflect-border); }
+.reflect-app .reflect-journal-category,
+.reflect-app .reflect-journal-kind {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin: 0 0 9px; color: var(--reflect-muted);
+  font-size: 11px; line-height: 1.4;
+  font-weight: 550; letter-spacing: .015em; text-transform: none;
+}
+.reflect-app .reflect-journal-kind-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 30px; width: 30px; height: 30px;
+  border-radius: 10px; color: var(--reflect-accent);
+  background: rgba(96, 200, 191, .11); border: 1px solid rgba(96, 200, 191, .17);
+}
+.reflect-app .reflect-journal-card[data-kind="session"] .reflect-journal-kind-icon {
+  background: rgba(167, 156, 247, .10); color: #b7adff; border-color: rgba(167, 156, 247, .20);
+}
+.reflect-app .reflect-journal-card[data-kind="goal"] .reflect-journal-kind-icon {
+  background: rgba(230, 184, 110, .09); color: #e6b86e; border-color: rgba(230, 184, 110, .19);
+}
+.reflect-app .reflect-journal-card[data-kind="mood"] .reflect-journal-kind-icon {
+  background: rgba(240, 156, 147, .09); color: #f09c93; border-color: rgba(240, 156, 147, .18);
+}
+.reflect-app .reflect-journal-kind-append {
+  padding-left: 8px; border-left: 1px solid var(--reflect-border);
+  font-size: 10px; font-weight: 400; opacity: .84;
+}
+.reflect-app .reflect-diary .reflect-journal-card .reflect-journal-content-title {
+  font-size: clamp(16px, 1.7vw, 19px); line-height: 1.4;
+  font-weight: 720; margin: 0 0 12px; letter-spacing: -.012em;
+}
+.reflect-app .reflect-diary .reflect-journal-card .reflect-journal-ai-thought {
+  font-size: 15px; line-height: 1.85; font-weight: 420;
+  margin: 0 0 12px; color: var(--reflect-ink);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  max-width: 78ch;
+}
+.reflect-app .reflect-diary .reflect-journal-card .reflect-journal-ai-empty {
+  font-size: 14px; line-height: 1.65; margin: 0 0 9px;
+  color: var(--reflect-muted); white-space: pre-wrap;
+}
+.reflect-app .reflect-journal-session-heading {
+  display: flex; align-items: start; justify-content: space-between;
+  gap: 12px; min-width: 0;
+}
+.reflect-app .reflect-journal-inline-action {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: none; width: 36px; height: 36px;
+  border-radius: 10px; color: var(--reflect-muted);
+  background: transparent;
+  transition: background var(--reflect-motion-quick) ease;
+}
+.reflect-app .reflect-journal-inline-action:hover { background: rgba(124, 150, 189, .12); color: var(--reflect-accent); }
+.reflect-app .reflect-journal-provenance { display: grid; gap: 9px; font-size: 12px; color: var(--reflect-muted); }
+.reflect-app .reflect-journal-provenance > p { margin: 0; }
+.reflect-app .reflect-journal-provenance > p:first-child { display: flex; align-items: center; gap: 7px; }
+.reflect-app .reflect-journal-source-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.reflect-app .reflect-journal-source-actions button {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 38px;
+  padding: 7px 12px; border: 1px solid var(--reflect-border);
+  border-radius: 10px; color: var(--reflect-ink); background: rgba(95, 127, 172, .08);
+  font-size: 12px;
+}
+.reflect-app .reflect-journal-source-actions button:hover { color: var(--reflect-accent); }
+.reflect-app .reflect-journal-transcript { display: grid; gap: 8px; max-height: 320px; overflow-y: auto; }
+.reflect-app .reflect-journal-transcript-turn {
+  border-top: 1px solid var(--reflect-border); padding-top: 9px;
+}
+.reflect-app .reflect-journal-transcript-turn strong { display: block; margin-bottom: 5px; font-size: 11px; color: var(--reflect-muted); }
+.reflect-app .reflect-journal-rename { display: grid; gap: 8px; margin: 4px 0 16px; padding: 12px; border-radius: 12px; background: var(--reflect-bg); }
+.reflect-app .reflect-journal-rename label { color: var(--reflect-muted); font-size: 12px; font-weight: 550; }
+.reflect-app .reflect-journal-rename > div { display: flex; flex-wrap: wrap; gap: 7px; }
+.reflect-app .reflect-workspace .reflect-journal-rename input {
+  flex: 1 1 180px; min-width: 0; padding: 9px 10px; border-radius: 9px;
+  border: 1px solid var(--reflect-border); background: var(--reflect-card);
+  color: var(--reflect-ink);
+}
+.reflect-app .reflect-journal-rename button {
+  border-radius: 9px; border: 1px solid var(--reflect-border);
+  color: var(--reflect-ink); padding: 9px 12px; font-size: 12px;
+}
+.reflect-app .reflect-journal-rename button:disabled { opacity: .5; }
+.reflect-app .reflect-journal-rename p[role="alert"] { color: #f0a5af; font-size: 12px; margin: 0; }
+.reflect-app .reflect-journal-entry-footer {
+  border-top: 0; padding-top: 3px; margin-top: 14px; font-size: 10px;
+  font-weight: 400; opacity: .8; color: var(--reflect-muted);
+}
+.reflect-app .reflect-journal-note-footer { margin-top: 17px; }
+.reflect-app .reflect-journal-note-date { font-size: 10px; font-weight: 400; }
+
+/* Conversation bubble geometry now uses the entire available chat lane. */
+.reflect-app .reflect-session-messages-inner {
+  max-width: none;
+  padding-left: clamp(14px, 2.3vw, 28px);
+  padding-right: clamp(14px, 2.3vw, 28px);
+}
+.reflect-app .reflect-chat-message { width: 100%; }
+.reflect-app .reflect-chat-message--user { justify-content: flex-start; }
+.reflect-app .reflect-chat-message--assistant { justify-content: flex-start; }
+.reflect-app .reflect-chat-message-body { max-width: min(76%, 810px); }
+.reflect-app .reflect-chat-message--assistant .reflect-chat-message-body { max-width: min(80%, 870px); }
+.reflect-app .reflect-chat-bubble p { font-size: 15px; line-height: 1.75; }
+
+/* Shared collapse motion. Aria-hidden/inert is controlled in React. */
+.reflect-app .reflect-motion-region {
+  display: grid; grid-template-rows: 0fr;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: grid-template-rows var(--reflect-motion-panel) var(--reflect-ease-out),
+    opacity var(--reflect-motion-base) ease,
+    visibility var(--reflect-motion-panel) ease;
+}
+.reflect-app .reflect-motion-region.is-open {
+  grid-template-rows: 1fr; opacity: 1; visibility: visible; pointer-events: auto;
+  transition: grid-template-rows var(--reflect-motion-panel) var(--reflect-ease-out),
+    opacity var(--reflect-motion-base) ease,
+    visibility 0s;
+}
+.reflect-app .reflect-motion-region-inner { min-height: 0; min-width: 0; overflow: hidden; }
+.reflect-app .reflect-motion-region .reflect-diary-filter-panel { margin: 4px 0 14px; }
+.reflect-app .reflect-motion-region .reflect-diary-insights { margin: 8px 0 14px; }
+@media (max-width: 600px) {
+  .reflect-app .reflect-diary-group { margin-left: 7px; padding-left: 22px; }
+  .reflect-app .reflect-diary-day-marker { left: -27px; }
+  .reflect-app .reflect-diary-event-marker { left: -25px; }
+  .reflect-app .reflect-diary .reflect-journal-card { padding: 14px 14px 11px; }
+  .reflect-app .reflect-diary .reflect-journal-card .reflect-journal-ai-thought { font-size: 14px; }
+  .reflect-app .reflect-chat-message-body,
+  .reflect-app .reflect-chat-message--assistant .reflect-chat-message-body {
+    max-width: min(88%, 700px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reflect-app .reflect-motion-region,
+  .reflect-app .reflect-motion-region.is-open,
+  .reflect-app .reflect-journal-inline-action {
+    transition: none !important;
+  }
+}
