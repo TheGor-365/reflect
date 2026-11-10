@@ -7,9 +7,13 @@
  * independently tested by contextConsentHttp.test.cjs with injected verifiers.
  */
 const assert = require("node:assert/strict");
-const { initializeApp, deleteApp } = require("../../server/node_modules/firebase-admin/app");
-const { getAuth } = require("../../server/node_modules/firebase-admin/auth");
-const { getFirestore } = require("../../server/node_modules/firebase-admin/firestore");
+const { createRequire } = require("node:module");
+// Resolve Node's package exports from the isolated server workspace.
+// Direct filesystem require('firebase-admin/app') bypasses exports resolution.
+const serverRequire = createRequire(require.resolve("../../server/package.json"));
+const { initializeApp, deleteApp } = serverRequire("firebase-admin/app");
+const { getAuth } = serverRequire("firebase-admin/auth");
+const { getFirestore } = serverRequire("firebase-admin/firestore");
 const {
   createContextConsentStore, PROJECT_ID, CONSENT_VERSION, SCOPE, TTL_MS
 } = require("../../server/privacy/contextConsent.cjs");
