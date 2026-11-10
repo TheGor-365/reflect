@@ -15,7 +15,7 @@ const { initializeApp, deleteApp } = serverRequire("firebase-admin/app");
 const { getAuth } = serverRequire("firebase-admin/auth");
 const { getFirestore } = serverRequire("firebase-admin/firestore");
 const {
-  createContextConsentStore, PROJECT_ID, CONSENT_VERSION, SCOPE, TTL_MS
+  createContextConsentStore, PROJECT_ID, CONSENT_VERSION, SCOPE, TTL_MS, MAX_GRANTS_PER_DAY
 } = require("../../server/privacy/contextConsent.cjs");
 
 const DEMO = "demo-reflect-context-consent";
@@ -70,6 +70,7 @@ async function main() {
   assert.equal(verifiedB.uid, b.uid);
   const ownSession = `artifacts/${namespace}/users/${a.uid}/sessions/${sessionId}`;
   const privatePath = `_reflectAiPrivate/${namespace}/contextGrants/${a.uid}/grants/${grantId}`;
+  const quotaPath = `_reflectAiPrivate/${namespace}/contextConsentQuotas/${a.uid}`;
   await db.doc(ownSession).create({
     title: "Synthetic only",
     chatHistory: [{ content: "NEVER_SEND_THIS_TO_PROVIDER", role: "user" }]
@@ -80,6 +81,8 @@ async function main() {
   // The root Rules are deliberately broader than candidate strict field rules;
   // the private consent root MUST still be denied to ALL browser identities.
   assert.equal(await rest(privatePath, a.token), 403);
+  assert.equal(await rest(quotaPath, a.token), 403);
+  assert.equal(await rest(quotaPath, b.token), 403);
   assert.equal(await rest(privatePath, b.token), 403);
   assert.equal(await rest(privatePath, null), 403);
   assert.equal(await rest(privatePath, a.token, "PATCH", {
@@ -118,6 +121,22 @@ async function main() {
   }), false);
   assert.deepEqual((await store.list(principal)).grants, []);
   assert.equal(await rest(privatePath, a.token), 403);
+
+  // The first, now revoked grant still counts toward the 12 grants/day quota.
+  for (let i = 1; i < MAX_GRANTS_PER_DAY; i += 1) {
+    const issued = await store.execute({
+      ...command, grantId: `synthetic-quota-grant-${String(i).padStart(6, "0")}`
+    }, principal);
+    assert.equal(issued.status, "active");
+  }
+  await assert.rejects(() => store.execute({
+    ...command, grantId: "synthetic-grant-id-overflow"
+  }, principal), { code: "resource-exhausted" });
+  const quota = await db.doc(quotaPath).get();
+  assert.equal(quota.data().issuedCount, MAX_GRANTS_PER_DAY);
+  assert.equal((await store.list(principal)).grants.length, MAX_GRANTS_PER_DAY - 1);
+  assert.equal(await rest(quotaPath, a.token), 403);
+
   console.log("PASS: real synthetic Auth token, owner-only Rules, Admin grant/revoke, private browser denial");
 }
 main().catch(error => {

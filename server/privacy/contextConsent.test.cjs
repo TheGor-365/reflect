@@ -2,7 +2,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
-  PROJECT_ID, NAMESPACE, CONSENT_VERSION, TTL_MS, SCOPE,
+  PROJECT_ID, NAMESPACE, CONSENT_VERSION, TTL_MS, MAX_GRANTS_PER_DAY, SCOPE,
   parseContextConsentCommand, isActiveContextGrant, createContextConsentStore
 } = require("./contextConsent.cjs");
 
@@ -23,6 +23,8 @@ const grantPath = (uid = UID, id = GRANT) =>
   `_reflectAiPrivate/${NAMESPACE}/contextGrants/${uid}/grants/${id}`;
 const sessionPath = (uid = UID, id = SESSION) =>
   `artifacts/${NAMESPACE}/users/${uid}/sessions/${id}`;
+const quotaPath = (uid = UID) =>
+  `_reflectAiPrivate/${NAMESPACE}/contextConsentQuotas/${uid}`;
 
 function fakeFirestore() {
   const state = new Map();
@@ -127,7 +129,10 @@ test("explicit session-specific grant writes only a private 15-minute record", a
   store.state.set(sessionPath(), { text: "DO_NOT_READ_THIS_TEXT" });
   const result = await api.execute(grant(), principal());
   assert.deepEqual(result, { status: "active", expiresAtMs: START + TTL_MS });
-  assert.deepEqual(store.created, [grantPath()]);
+  assert.deepEqual(store.created, [quotaPath(), grantPath()]);
+  assert.deepEqual(store.state.get(quotaPath()), {
+    uid: UID, dayKey: Math.floor(START / 86400000), issuedCount: 1
+  });
   assert.equal(store.state.get(grantPath()).uid, UID);
   assert.equal(store.state.get(grantPath()).sourceId, SESSION);
   assert.equal(store.state.get(grantPath()).status, "active");
@@ -159,7 +164,8 @@ test("replaying the same grant is idempotent while active", async () => {
   const first = await api.execute(grant(), principal());
   const second = await api.execute(grant(), principal());
   assert.deepEqual(second, first);
-  assert.equal(store.created.length, 1);
+  assert.equal(store.created.length, 2);
+  assert.equal(store.state.get(quotaPath()).issuedCount, 1);
 });
 
 test("reusing grant ID for another session or version fails; never overwrite", async () => {
@@ -170,7 +176,8 @@ test("reusing grant ID for another session or version fails; never overwrite", a
   await assert.rejects(() => api.execute(grant({
     sourceId: "another-session"
   }), principal()), { code: "already-exists" });
-  assert.equal(store.created.length, 1);
+  assert.equal(store.created.length, 2);
+  assert.equal(store.state.get(quotaPath()).issuedCount, 1);
 });
 
 test("revoke is idempotent and permanent for the old grant ID", async () => {
@@ -185,7 +192,8 @@ test("revoke is idempotent and permanent for the old grant ID", async () => {
   }), false);
   await assert.rejects(() => api.execute(grant(), principal()),
     { code: "already-exists" });
-  assert.equal(store.created.length, 1);
+  assert.equal(store.created.length, 2);
+  assert.equal(store.state.get(quotaPath()).issuedCount, 1);
 });
 
 test("revoke unknown ID never creates a consent record", async () => {
@@ -221,6 +229,64 @@ test("expires at 15-minute boundary; stale, forged and malformed records deny", 
   assert.equal(isActiveContextGrant(null, {
     ...expectation, nowMs: START
   }), false);
+});
+
+
+test("daily issuance cap is per owner, transactional and cannot be refunded by revoke", async () => {
+  const { store, api } = build();
+  store.state.set(sessionPath(), {});
+  for (let i = 0; i < MAX_GRANTS_PER_DAY; i += 1) {
+    const grantId = `grant-request-${String(i).padStart(8, "0")}`;
+    const response = await api.execute(grant({ grantId }), principal());
+    assert.equal(response.status, "active");
+    if (i === 0) {
+      await api.execute(revoke(grantId), principal());
+      assert.equal(store.state.get(quotaPath()).issuedCount, 1);
+    }
+  }
+  assert.equal(store.state.get(quotaPath()).issuedCount, MAX_GRANTS_PER_DAY);
+  const nextId = "grant-request-nextday-0001";
+  await assert.rejects(() => api.execute(grant({ grantId: nextId }), principal()),
+    { code: "resource-exhausted" });
+  assert.equal(store.state.has(grantPath(UID, nextId)), false);
+  // A distinct UID gets a completely separate quota and cannot use owner's session.
+  store.state.set(sessionPath(OTHER_UID), {});
+  await api.execute(grant(), principal(OTHER_UID));
+  assert.equal(store.state.get(quotaPath(OTHER_UID)).issuedCount, 1);
+});
+
+test("UTC day boundary renews quota but stale/replayed IDs stay blocked", async () => {
+  const store = fakeFirestore();
+  store.state.set(sessionPath(), {});
+  const first = build({ store, now: START });
+  for (let i = 0; i < MAX_GRANTS_PER_DAY; i += 1) {
+    await first.api.execute(grant({
+      grantId: `grant-request-${String(i).padStart(8, "0")}`
+    }), principal());
+  }
+  const second = build({ store, now: START + 86400000 });
+  await second.api.execute(grant({
+    grantId: "grant-request-newday-0001"
+  }), principal());
+  assert.equal(store.state.get(quotaPath()).issuedCount, 1);
+  assert.equal(store.state.get(quotaPath()).dayKey,
+    Math.floor((START + 86400000) / 86400000));
+  await assert.rejects(() => second.api.execute(grant({
+    grantId: "grant-request-00000000"
+  }), principal()), { code: "already-exists" });
+  assert.equal(store.state.get(quotaPath()).issuedCount, 1);
+});
+
+test("malformed quota document fails closed before issuing access", async () => {
+  const { store, api } = build();
+  store.state.set(sessionPath(), {});
+  store.state.set(quotaPath(), {
+    uid: OTHER_UID, dayKey: Math.floor(START / 86400000), issuedCount: -1
+  });
+  await assert.rejects(() => api.execute(grant(), principal()),
+    { code: "invalid-consent-state" });
+  assert.equal(store.state.has(grantPath()), false);
+  assert.equal(store.created.length, 0);
 });
 
 test("private Firestore read failures cannot become permission", async () => {

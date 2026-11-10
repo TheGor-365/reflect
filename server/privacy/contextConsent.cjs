@@ -18,6 +18,8 @@ const NAMESPACE = "reflect-8fdc8";
 const CONSENT_VERSION = "2026-11-10-01";
 const SCHEMA_VERSION = 1;
 const TTL_MS = 15 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_GRANTS_PER_DAY = 12; // server-side per-UID counter; no client overrides
 const SCOPE = "session-turns";
 const ID = /^[A-Za-z0-9_-]{16,80}$/;
 const SOURCE_ID = /^[A-Za-z0-9_-]{1,128}$/;
@@ -95,6 +97,10 @@ function createContextConsentStore({ db, projectId, clock = Date.now }) {
     return db.doc(`_reflectAiPrivate/${NAMESPACE}/contextGrants/${uid}/grants/${grantId}`);
   }
 
+  function privateQuotaRef(uid) {
+    return db.doc(`_reflectAiPrivate/${NAMESPACE}/contextConsentQuotas/${uid}`);
+  }
+
   async function execute(body, principal) {
     const cmd = parseContextConsentCommand(body, principal);
     const nowMs = clock();
@@ -135,6 +141,30 @@ function createContextConsentStore({ db, projectId, clock = Date.now }) {
       );
       const sessionSnapshot = await tx.get(sessionRef);
       if (!sessionSnapshot.exists) fail("not-found");
+
+      // A single server-private quota document is read and written inside
+      // the SAME Firestore transaction as the grant. Concurrent requests
+      // cannot both consume the final slot, even across Railway replicas.
+      // The counter resets on a UTC day boundary; revoke does not refund it.
+      const dayKey = Math.floor(nowMs / DAY_MS);
+      const quotaRef = privateQuotaRef(cmd.uid);
+      const quotaSnapshot = await tx.get(quotaRef);
+      const quota = quotaSnapshot.exists ? quotaSnapshot.data() : null;
+      if (quotaSnapshot.exists &&
+          (!isPlain(quota) || quota.uid !== cmd.uid ||
+            !Number.isSafeInteger(quota.dayKey) || quota.dayKey < 0 ||
+            !Number.isSafeInteger(quota.issuedCount) ||
+            quota.issuedCount < 0 || quota.issuedCount > MAX_GRANTS_PER_DAY)) {
+        fail("invalid-consent-state");
+      }
+      const todayCount = quota?.dayKey === dayKey ? quota.issuedCount : 0;
+      if (todayCount >= MAX_GRANTS_PER_DAY) fail("resource-exhausted");
+
+      const nextQuota = Object.freeze({
+        uid: cmd.uid, dayKey, issuedCount: todayCount + 1
+      });
+      if (quotaSnapshot.exists) tx.update(quotaRef, nextQuota);
+      else tx.create(quotaRef, nextQuota);
 
       const record = Object.freeze({
         schemaVersion: SCHEMA_VERSION,
@@ -198,6 +228,6 @@ function createContextConsentStore({ db, projectId, clock = Date.now }) {
 }
 
 module.exports = {
-  PROJECT_ID, NAMESPACE, CONSENT_VERSION, SCHEMA_VERSION, TTL_MS, SCOPE,
+  PROJECT_ID, NAMESPACE, CONSENT_VERSION, SCHEMA_VERSION, TTL_MS, MAX_GRANTS_PER_DAY, SCOPE,
   parseContextConsentCommand, isActiveContextGrant, createContextConsentStore
 };
