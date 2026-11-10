@@ -296,12 +296,12 @@ test('neon icon lenses isolate every real content type and recommendations show 
     fireEvent.click(screen.getByRole('button', { name: label }));
     const button = screen.getByRole('button', { name: label });
     expect(button).toHaveAttribute('aria-pressed', 'true');
-    await waitFor(() =>
-      expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(count)
-    );
-    if (eventKey) {
-      expect(screen.getByTestId('diary-timeline-event')).toHaveTextContent(eventKey);
-    }
+    await waitFor(() => {
+      expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(count);
+      if (eventKey) {
+        expect(screen.getByTestId('diary-timeline-event')).toHaveTextContent(eventKey);
+      }
+    });
   }
 
   fireEvent.click(screen.getByRole('button', { name: 'Рекомендации' }));
