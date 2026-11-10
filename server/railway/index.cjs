@@ -176,6 +176,24 @@ function createRequestListener({ ready, allowProvider, authorizeAccount, verifyA
       });
       return respond(res, 200, output, origin);
     } catch (error) {
+      // The provider adapter attaches only a numeric upstream HTTP status
+      // as non-enumerable internal metadata. The exact user-facing category
+      // is returned only after signed Auth + consumable App Check + ACL gate.
+      // Never return raw xAI body, headers, prompts, secrets or internal trace.
+      if (error instanceof PolicyError &&
+          error.code === "unavailable" &&
+          Number.isInteger(error.upstreamHttpStatus)) {
+        const upstream = error.upstreamHttpStatus;
+        const categories = Object.freeze({
+          400: "xai-invalid-request", 401: "xai-unauthorized",
+          403: "xai-forbidden", 404: "xai-endpoint-not-found",
+          408: "xai-upstream-timeout", 413: "xai-request-too-large",
+          422: "xai-invalid-request", 429: "xai-rate-limited"
+        });
+        const safe = categories[upstream] ||
+          (upstream >= 500 ? "xai-upstream-error" : "xai-unavailable");
+        return respond(res, 502, { error: safe }, origin);
+      }
       const code = error instanceof PolicyError && ERROR_STATUS[error.code]
         ? error.code : "internal";
       return respond(res, ERROR_STATUS[code] || 500,
