@@ -1,15 +1,20 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 
+/** Reusable disclosure without hard-coded light backgrounds or unreadable text. */
 const CollapsibleContent = ({ title, children, startOpen = false }) => {
   const [isOpen, setIsOpen] = useState(startOpen);
+  const contentId = useId();
   return (
-    <div className="mt-2">
-      <button onClick={() => setIsOpen(!isOpen)} className="text-sm text-teal-600 font-semibold flex items-center gap-1">
+    <div className="reflect-disclosure">
+      <button type="button" className="reflect-disclosure-trigger"
+        aria-expanded={isOpen} aria-controls={contentId}
+        onClick={() => setIsOpen(open => !open)}>
         {isOpen ? 'Свернуть' : title}
-        <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={16} aria-hidden="true"
+          className={isOpen ? 'reflect-disclosure-chevron is-open' : 'reflect-disclosure-chevron'} />
       </button>
-      {isOpen && <div className="mt-2 p-3 bg-stone-50 rounded-md border animate-fade-in">{children}</div>}
+      {isOpen && <div id={contentId} className="reflect-disclosure-panel">{children}</div>}
     </div>
   );
 };
