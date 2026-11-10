@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port 3101",
     "test": "vitest run && node --test tests/emulator/qa-state.test.cjs && npm run test:ai:unit",
-    "test:ai:unit": "node --test server/ai/contextPolicy.test.cjs server/ai/preflightRouter.test.cjs server/ai/contextBudgetAndEvidence.test.cjs server/ai/recommendationReadiness.test.cjs server/ai/ownerContextAccess.test.cjs",
+    "test:ai:unit": "node --test server/ai/contextPolicy.test.cjs server/ai/preflightRouter.test.cjs server/ai/contextBudgetAndEvidence.test.cjs server/ai/recommendationReadiness.test.cjs server/ai/ownerContextAccess.test.cjs server/ai/ownerEvidenceReader.test.cjs",
     "qa:state": "node tests/emulator/qa-state.cjs",
     "typecheck": "tsc --noEmit --project tsconfig.json"
   },
