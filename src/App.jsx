@@ -9,6 +9,7 @@ import Header from './components/layout/Header';
 import MobileDock from './components/layout/MobileDock';
 import Diary from './features/Diary/Diary';
 import AISettings from './features/AISettings/AISettings';
+import { currentTabFromLocation, pushTabToHistory } from './navigation/tabRoute';
 import Goals from './features/Goals/Goals';
 import Sessions from './features/Sessions/Sessions';
 import SessionSchema from './features/SessionSchema/SessionSchema';
@@ -54,7 +55,16 @@ export default function App() {
   }, [userId]);
 
   // --- UI State ---
-  const [activeTab, setActiveTab] = useState('diary');
+  const [activeTab, setActiveTab] = useState(currentTabFromLocation);
+
+  useEffect(() => {
+    const restoreSection = () => {
+      setActiveTab(currentTabFromLocation());
+      setIsSidebarOpen(false);
+    };
+    window.addEventListener('popstate', restoreSection);
+    return () => window.removeEventListener('popstate', restoreSection);
+  }, []);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [theme, setTheme] = useState(() => {
     try { return window.localStorage.getItem('reflect-theme') === 'light' ? 'light' : 'dark'; }
@@ -207,17 +217,24 @@ export default function App() {
     });
   };
 
+  const navigateToTab = (tab) => {
+    if (!pushTabToHistory(tab)) return;
+    setActiveTab(tab);
+    setIsSidebarOpen(false);
+  };
   const changeTab = (tab) => {
     if (tab === 'sessions') setSessionLibraryRequested(true);
-    setActiveTab(tab); setIsSidebarOpen(false);
+    navigateToTab(tab);
   };
   const selectSession = (id) => {
     setSessionLibraryRequested(false);
-    setCurrentSessionId(id); setActiveTab('sessions'); setIsSidebarOpen(false);
+    setCurrentSessionId(id);
+    navigateToTab('sessions');
   };
   const handleNewSession = () => {
     setSessionLibraryRequested(false);
-    setCurrentSessionId('new'); setActiveTab('sessions'); setIsSidebarOpen(false);
+    setCurrentSessionId('new');
+    navigateToTab('sessions');
   };
 
   // --- Render Logic ---
@@ -295,7 +312,7 @@ export default function App() {
               onAppend={handleAppendToEntry}
               onRenameSession={handleRenameSession}
               onOpenSession={selectSession}
-              onOpenJourney={id => { setCurrentSessionId(id); setActiveTab('sessionSchema'); }}
+              onOpenJourney={id => { setCurrentSessionId(id); navigateToTab('sessionSchema'); }}
               isLoading={isLoadingData}
           />;
       case 'aiSettings':
@@ -325,7 +342,7 @@ export default function App() {
           libraryRequested={sessionLibraryRequested}
           onCloseLibrary={() => setSessionLibraryRequested(false)}
           onOpenLibrary={() => setSessionLibraryRequested(true)}
-          onOpenJourney={id => { setCurrentSessionId(id); setActiveTab('sessionSchema'); }}
+          onOpenJourney={id => { setCurrentSessionId(id); navigateToTab('sessionSchema'); }}
         />;
       default:
           return <Diary />;
