@@ -309,6 +309,7 @@ export default function App() {
           sessions={sessions} 
           goals={goals} 
           onViewContent={setViewingContent}
+          selectedSessionId={currentSessionId}
         />;
       case 'sessions':
         return <Sessions 
