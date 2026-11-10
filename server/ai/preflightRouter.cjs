@@ -34,8 +34,6 @@ function planPreflight({
   }
   if (priorRequestIds.includes(requestId)) return result("reject", "duplicate-request-id");
   if (!entitlementAllowed) return result("reject", "entitlement-denied");
-  if (!moneyReservationAllowed) return result("defer_provider_unavailable", "budget-unavailable");
-  if (!providerReady) return result("defer_provider_unavailable", "provider-unavailable");
 
   const normalized = message.trim().toLocaleLowerCase("ru");
   // Only obvious repeated ASCII machine-noise is rejected locally; NEVER
@@ -46,6 +44,9 @@ function planPreflight({
   if (!activeSessionHasHistory && /^(?:да|нет|ок|окей|ага|угу|хм|\.\.\.|\?)$/iu.test(normalized)) {
     return result("clarify_without_history", "missing-referent");
   }
+  // Local clarification must not consume a paid budget reservation.
+  if (!moneyReservationAllowed) return result("defer_provider_unavailable", "budget-unavailable");
+  if (!providerReady) return result("defer_provider_unavailable", "provider-unavailable");
   return result("model_reply", "eligible");
 }
 
