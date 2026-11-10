@@ -80,12 +80,14 @@ test('history icon expands all immutable versions, default is closed', () => {
 });
 
 
-test('session details keep original dialogue readable without legacy light-only blocks', () => {
+test('session card reads as a reflection with optional source details', () => {
+  const onOpenSession = vi.fn();
+  const onOpenJourney = vi.fn();
   const session = entry({
     type: 'session', sourceKind: 'session', sourceId: 's1',
     displayAt: new Date('2026-11-10T14:24:00Z'),
     data: {
-      title: 'Почему полезно записывать мысли',
+      title: 'Сеанс от 10.11.2026, 14:26:14',
       chatHistory: [
         { role: 'user', content: 'Первый вопрос' },
         { role: 'assistant', content: 'Рефлексия от Reflect' }
@@ -93,17 +95,45 @@ test('session details keep original dialogue readable without legacy light-only 
     }
   });
   const { container } = render(<div className="reflect-app" data-theme="dark">
-    <DiaryNarrativeCard entry={session}/>
+    <DiaryNarrativeCard entry={session} onOpenSession={onOpenSession}
+      onOpenJourney={onOpenJourney}/>
   </div>);
-  expect(container.querySelector('.reflect-journal-content-title')).toHaveTextContent(
-    'Почему полезно записывать мысли'
-  );
-  fireEvent.click(screen.getByRole('button', { name: 'Показать детали сеанса' }));
-  expect(screen.getByText('Первый вопрос')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Показать ответ ассистента' }));
-  expect(screen.getByText('Рефлексия от Reflect')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Размышление с Reflect' })).toBeInTheDocument();
+  expect(screen.queryByText('Сеанс от 10.11.2026, 14:26:14')).not.toBeInTheDocument();
+  expect(screen.getByText('Рефлексия от Reflect')).toHaveClass('reflect-journal-ai-thought');
+  expect(screen.getByRole('button', { name: 'Исходный вопрос' })).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(screen.getByRole('button', { name: 'Исходный вопрос' }));
+  expect(screen.getAllByText('Первый вопрос').length).toBeGreaterThan(0);
+  fireEvent.click(screen.getByRole('button', { name: 'Источник и история' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Открыть беседу' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Путь сеанса' }));
+  expect(onOpenSession).toHaveBeenCalledExactlyOnceWith('s1');
+  expect(onOpenJourney).toHaveBeenCalledExactlyOnceWith('s1');
   expect(container.querySelector('.bg-blue-50, .bg-stone-50, .text-stone-800')).not.toBeInTheDocument();
   expect(container.querySelector('.reflect-journal-entry-footer time')).toBeInTheDocument();
+  expect(container.querySelector('.reflect-journal-kind-icon svg')).toBeInTheDocument();
+});
+
+test('manual title edit commits only title request and preserves draft on error', async () => {
+  const session = entry({ type: 'session', sourceKind: 'session', sourceId: 's1',
+    data: { title: 'Сеанс от 10.11.2026, 14:26:14', chatHistory: [
+      { role: 'assistant', content: 'Текст AI' }
+    ] }
+  });
+  const onRenameSession = vi.fn().mockRejectedValueOnce(new Error('offline'))
+    .mockResolvedValueOnce(undefined);
+  render(<DiaryNarrativeCard entry={session} onRenameSession={onRenameSession}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Изменить заголовок сеанса' }));
+  const input = screen.getByRole('textbox', { name: 'Название размышления' });
+  fireEvent.change(input, { target: { value: 'Точка роста сегодня' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Не удалось сохранить заголовок');
+  expect(input).toHaveValue('Точка роста сегодня');
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  await waitFor(() => expect(onRenameSession).toHaveBeenCalledTimes(2));
+  expect(onRenameSession).toHaveBeenLastCalledWith('s1', 'Точка роста сегодня');
+  await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Название размышления' }))
+    .not.toBeInTheDocument());
 });
 
 test('mood and goal cards reuse Midnight Aurora semantic title and muted date', () => {
