@@ -61,7 +61,51 @@ service cloud.firestore {
         (!changed.hasAny(['entries']) || validDiaryEntries(request.resource.data));
     }
 
+    // AI-01B.3: user-editable preferences, NOT authorization to ingest history.
+    function validAiPreferences(data) {
+      return data.keys().hasAll([
+          'schemaVersion', 'responseDepth', 'responseTone',
+          'askClarifyingQuestions', 'recommendationsEnabled',
+          'autoSaveRecommendations', 'recommendationFrequency',
+          'showContextIndicator'
+        ]) &&
+        data.keys().hasOnly([
+          'schemaVersion', 'responseDepth', 'responseTone',
+          'askClarifyingQuestions', 'recommendationsEnabled',
+          'autoSaveRecommendations', 'recommendationFrequency',
+          'showContextIndicator', 'updatedAt'
+        ]) &&
+        data.schemaVersion == 1 &&
+        data.responseDepth in ['concise', 'balanced', 'deep'] &&
+        data.responseTone in ['supportive', 'analytical', 'strategic'] &&
+        data.recommendationFrequency in ['rare', 'balanced'] &&
+        data.askClarifyingQuestions is bool &&
+        data.recommendationsEnabled is bool &&
+        data.autoSaveRecommendations is bool &&
+        data.showContextIndicator is bool &&
+        (!('updatedAt' in data) || data.updatedAt is timestamp) &&
+        (!data.autoSaveRecommendations || data.recommendationsEnabled);
+    }
+
     match /artifacts/reflect-8fdc8/users/{uid} {
+      // Only this one known settings document is client-editable.
+      // Owner may view/edit display preferences; those fields never grant
+      // archive reads, provider access, background tasks or billing.
+      match /aiSettings/preferences {
+        allow get: if own(uid);
+        allow list, delete: if false;
+        allow create, update: if own(uid) &&
+          validAiPreferences(request.resource.data);
+      }
+
+      // No browser-side consent self-attestation, even for an owner.
+      // A future trusted endpoint must check actual owner action, source ID,
+      // source provenance, TTL and revocation before using Admin SDK to write.
+      match /aiContextGrants/{grantId} {
+        allow get, list: if own(uid);
+        allow create, update, delete: if false;
+      }
+
       match /profiles/userProfile {
         allow get: if own(uid);
         allow create: if own(uid) && validNewProfile(request.resource.data);
