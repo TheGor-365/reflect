@@ -2988,3 +2988,47 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
   color: var(--reflect-ink); padding: 12px 14px;
 }
 .reflect-app .reflect-staging-security-audit-note code { overflow-wrap: anywhere; }
+
+/* AI-01K: private per-session preview, visually isolated from consent issuance. */
+.reflect-app .reflect-context-preview {
+  border-top: 1px solid var(--reflect-border);
+  padding-top: 20px; margin-top: 18px;
+  display: grid; gap: 12px; min-width: 0;
+}
+.reflect-app .reflect-context-preview h4 { margin: 0; font-size: 15px; }
+.reflect-app .reflect-context-preview p { font-size: 12px; color: var(--reflect-muted); line-height: 1.7; }
+.reflect-app .reflect-context-preview label { font-size: 12px; font-weight: 650; }
+.reflect-app .reflect-context-preview select {
+  width: 100%; background: var(--reflect-bg); color: var(--reflect-ink);
+  border: 1px solid var(--reflect-border); border-radius: 10px;
+  min-height: 40px; padding: 10px; max-width: 100%;
+}
+.reflect-app .reflect-context-preview button {
+  background: var(--reflect-bg); color: var(--reflect-ink);
+  border: 1px solid var(--reflect-border); border-radius: 10px;
+  padding: 10px 12px; font-weight: 650; font-size: 12px;
+  min-height: 40px;
+}
+.reflect-app .reflect-context-preview button:disabled { opacity: .5; cursor: not-allowed; }
+.reflect-app .reflect-context-preview button:focus-visible,
+.reflect-app .reflect-context-preview select:focus-visible {
+  outline: 2px solid var(--reflect-accent); outline-offset: 2px;
+}
+.reflect-app .reflect-context-preview-result {
+  display: grid; gap: 12px; min-width: 0;
+  background: var(--reflect-bg); padding: 14px;
+  border: 1px solid var(--reflect-border); border-radius: 12px;
+}
+.reflect-app .reflect-context-preview-turns {
+  list-style: decimal; padding-left: 20px; display: grid; gap: 12px;
+}
+.reflect-app .reflect-context-preview-turns li { overflow-wrap: anywhere; min-width: 0; }
+.reflect-app .reflect-context-preview-turns pre {
+  color: var(--reflect-ink); white-space: pre-wrap; overflow-wrap: anywhere;
+  font: inherit; line-height: 1.65; margin-top: 7px; max-width: 100%;
+}
+.reflect-app .reflect-context-preview-turns small { color: var(--reflect-muted); }
+.reflect-app .reflect-context-preview-verified {
+  border: 1px solid var(--reflect-border); border-radius: 10px;
+  padding: 12px; color: var(--reflect-ink) !important;
+}
