@@ -106,7 +106,8 @@ function createSessionContextPreview({ db, consentStore, projectId }) {
     // No request-supplied uid, projectId or appCheckVerified may be trusted.
     if (!isPlain(principal) || principal.projectId !== PROJECT_ID ||
         principal.appCheckVerified !== true ||
-        !validIdentity(principal.uid) || !GRANT_ID.test(grantId) ||
+        !validIdentity(principal.uid) ||
+        typeof grantId !== "string" || !GRANT_ID.test(grantId) ||
         !validIdentity(sourceId) || scope !== SCOPE) {
       fail("permission-denied");
     }
