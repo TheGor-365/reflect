@@ -94,3 +94,44 @@ test('historical sessions show stored messages but omit empty recommendations pa
   expect(screen.getByText('Синтетическая запись')).toBeInTheDocument();
   expect(screen.queryByRole('complementary', { name: 'Результаты сеанса' })).not.toBeInTheDocument();
 });
+
+
+test('Sessions navigation opens the actual saved library rather than empty chat', () => {
+  const session = { id: 'saved-1', title: 'Разговор о выборе',
+    chatHistory: [{ role: 'user', content: 'Найти направление' }] };
+  const onCloseLibrary = vi.fn(), setCurrentSessionId = vi.fn();
+  render(<Sessions {...defaults} sessions={[session]} currentSessionId="saved-1"
+    libraryRequested onCloseLibrary={onCloseLibrary} setCurrentSessionId={setCurrentSessionId}/>);
+  expect(screen.getByRole('heading', { name: 'История размышлений' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Разговор о выборе' })).toBeInTheDocument();
+  expect(screen.queryByText('Личное пространство')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Открыть беседу' }));
+  expect(setCurrentSessionId).toHaveBeenCalledExactlyOnceWith('saved-1');
+  expect(onCloseLibrary).toHaveBeenCalledOnce();
+});
+
+test('library navigation preserves an unsaved new-session draft and blocks accidental switch', () => {
+  const session = { id: 'saved-1', title: 'Прошлый диалог', chatHistory: [
+    { role: 'user', content: 'Старый вопрос' }
+  ] };
+  const setCurrentSessionId = vi.fn();
+  render(<Sessions {...defaults} sessions={[session]} currentSessionId="new"
+    setCurrentSessionId={setCurrentSessionId}/>);
+  const input = screen.getByRole('textbox', { name: 'Сообщение для сеанса' });
+  fireEvent.change(input, { target: { value: 'Не терять введённое сообщение' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Показать все сеансы' }));
+  expect(screen.getByRole('heading', { name: 'История размышлений' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Открыть беседу' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('Сначала сохраните ответ или текст');
+  expect(setCurrentSessionId).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'К беседе' }));
+  expect(screen.getByRole('textbox', { name: 'Сообщение для сеанса' }))
+    .toHaveValue('Не терять введённое сообщение');
+});
+
+test('opened chat contains a single owner-space label in global header, not a duplicate', () => {
+  const session = { id: 'saved-1', title: 'Прошлый диалог', chatHistory: [] };
+  render(<Sessions {...defaults} sessions={[session]} currentSessionId="saved-1"/>);
+  expect(screen.queryByText('Личное пространство')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Показать все сеансы' })).toBeInTheDocument();
+});
