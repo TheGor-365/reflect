@@ -7,6 +7,7 @@ import {
 import { useEntrySave } from '../../hooks/useEntrySave';
 import SaveFeedback from '../../components/common/SaveFeedback';
 import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
+import AnimatedRegion from '../../components/common/AnimatedRegion';
 import DiaryNarrativeCard from './DiaryNarrativeCard';
 import { saveNoteRevision } from './noteVersions';
 import MoodInsights from '../Moods/MoodInsights';
@@ -357,8 +358,8 @@ const Diary = ({
         </details>
       </section>
 
-      {filtersOpen && (
-        <section id="reflect-diary-filters" className="reflect-diary-filter-panel"
+      <AnimatedRegion open={filtersOpen} id="reflect-diary-filters">
+        <section className="reflect-diary-filter-panel"
           aria-label="Фильтры дневника">
           <label className="reflect-diary-search">
             <Search size={17} aria-hidden="true"/>
@@ -382,13 +383,13 @@ const Diary = ({
             </button>}
           </div>
         </section>
-      )}
-      {insightsOpen && (
-        <section id="reflect-diary-insights" className="reflect-diary-insights"
+      </AnimatedRegion>
+      <AnimatedRegion open={insightsOpen} id="reflect-diary-insights">
+        <section className="reflect-diary-insights"
           aria-label="Обзор настроения за 7 дней">
           <MoodInsights moods={visibleMoods} isLoading={isLoading}/>
         </section>
-      )}
+      </AnimatedRegion>
 
       <div ref={timelineRef} className="reflect-diary-timeline" aria-label="Лента записей">
         {!isLoading && !timelineEvents.length &&
