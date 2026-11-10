@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { doc, getDoc, getDocFromServer, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, getDocFromServer, serverTimestamp, setDoc } from 'firebase/firestore';
 import { BrainCircuit, Check, HelpCircle, Lightbulb, LockKeyhole,
   RotateCcw, ShieldCheck, Sparkles } from 'lucide-react';
 import { db, appId } from '../../firebase/config';
@@ -64,7 +64,9 @@ export default function AISettings({ userId }) {
       setStatus('load-error');
       return undefined;
     }
-    getDoc(doc(db, settingsPath(userId))).then(snapshot => {
+    // A cached document is insufficient for account-level persistence verification.
+    // On network failure block writes rather than display defaults as server state.
+    getDocFromServer(doc(db, settingsPath(userId))).then(snapshot => {
       if (cancelled) return;
       if (!snapshot.exists()) {
         setStatus('ready');
