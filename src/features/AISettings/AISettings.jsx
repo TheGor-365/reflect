@@ -5,6 +5,7 @@ import { BrainCircuit, Check, Lightbulb,
 import { db, appId } from '../../firebase/config';
 import ContextConsentPanel from './ContextConsentPanel';
 import StagingSecurityAuditPanel from './StagingSecurityAuditPanel';
+import StagingConsentEndpointAuditPanel from './StagingConsentEndpointAuditPanel';
 import {
   AI_SETTINGS_DEFAULTS, parseAiSettings, settingsEqual, updateAiPreference
 } from './aiSettingsModel';
@@ -248,6 +249,7 @@ export default function AISettings({ userId, sessions = [] }) {
       )}
       <ContextConsentPanel userId={userId} sessions={sessions}/>
       <StagingSecurityAuditPanel userId={userId}/>
+      <StagingConsentEndpointAuditPanel userId={userId}/>
     </section>
   );
 }
