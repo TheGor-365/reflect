@@ -116,6 +116,6 @@ test('mood and goal cards reuse Midnight Aurora semantic title and muted date', 
   </div>);
   expect(screen.getByText('Цель: Сформулировать цель')).toHaveClass('reflect-journal-content-title');
   expect(screen.getByText('Запись о настроении')).toHaveClass('reflect-journal-content-title');
-  expect(screen.getAllByRole('time')).toHaveLength(2);
+  expect(view.container.querySelectorAll('.reflect-journal-entry-footer time')).toHaveLength(2);
   expect(view.container.querySelector('.text-stone-500, .text-stone-800')).not.toBeInTheDocument();
 });
