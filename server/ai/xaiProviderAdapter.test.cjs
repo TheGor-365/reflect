@@ -52,10 +52,11 @@ test("one explicit message, locked model and provider endpoint; no history or to
       const body = JSON.parse(options.body);
       assert.equal(body.model, "grok-4.3");
       assert.equal(body.store, false);
-      assert.equal(body.stream, false);
-      assert.deepEqual(body.tools, []);
-      assert.equal(body.tool_choice, "none");
-      assert.equal(body.truncation, "disabled");
+      for (const optional of ["stream", "tools", "tool_choice", "truncation"]) {
+        assert.equal(Object.hasOwn(body, optional), false);
+      }
+      assert.deepEqual(Object.keys(body).sort(),
+        ["model", "input", "store", "max_output_tokens", "reasoning"].sort());
       assert.deepEqual(body.reasoning, { effort: "none" });
       assert.equal(body.max_output_tokens, 512);
       assert.deepEqual(body.input.map(item => item.role), ["system", "user"]);
