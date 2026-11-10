@@ -2552,3 +2552,11 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
     transition: none !important;
   }
 }
+
+/* Legacy session titles remain honest, with original question as quiet context. */
+.reflect-app .reflect-session-preview {
+  display: block; width: 100%; max-width: 100%; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+  font-size: 11px; line-height: 1.5; font-weight: 400;
+  color: #9aabc8; opacity: .88;
+}
