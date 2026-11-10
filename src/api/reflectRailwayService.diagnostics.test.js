@@ -71,3 +71,31 @@ test('AI send maps known revoked auth to non-provider error, without swallowing 
     consent: { granted: true, version: '2026-11-07', scope: 'one-message' }
   })).rejects.toThrow('reauthentication-required');
 });
+
+test('provider key/model access GET diagnostic sends empty JSON and never calls /reply', async () => {
+  const fetchMock=vi.fn(async()=>({
+    status:200,json:async()=>({status:'model-accessible',model:'grok-4.3'})
+  }));
+  vi.stubGlobal('fetch',fetchMock);
+  const {checkRailwayProviderAccess}=await import('./reflectRailwayService');
+  await expect(checkRailwayProviderAccess()).resolves.toBe('model-accessible');
+  expect(fetchMock).toHaveBeenCalledOnce();
+  const [url,request]=fetchMock.mock.calls[0];
+  expect(url).toBe('https://reflect-ai-api-staging.up.railway.app/v1/ai/provider-diagnostics');
+  expect(request.method).toBe('POST');
+  expect(request.body).toBe('{}');
+  expect(request.credentials).toBe('omit');
+  expect(request.headers.Authorization).toBe('Bearer signed-firebase-id-token');
+  expect(request.headers['X-Firebase-AppCheck']).toBe('single-use-signed-appcheck-token');
+  expect(JSON.stringify(request)).not.toMatch(/diary|profile|sessionHistory|secretKey/i);
+});
+test('provider failure is only a bounded status, never raw upstream text',async()=>{
+  vi.stubGlobal('fetch',vi.fn(async()=>({
+    status:200,json:async()=>({status:'credentials-rejected',model:'grok-4.3',
+      private_error:'EXPOSED_TOKEN'})
+  })));
+  const {checkRailwayProviderAccess}=await import('./reflectRailwayService');
+  const result=await checkRailwayProviderAccess();
+  expect(result).toBe('credentials-rejected');
+  expect(result).not.toContain('EXPOSED_TOKEN');
+});
