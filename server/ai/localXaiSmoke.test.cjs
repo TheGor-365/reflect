@@ -79,7 +79,9 @@ test("one synthetic in-app action produces one POST to pinned xAI endpoint", asy
   assert.deepEqual(body.input.map(x => x.role), ["system", "user"]);
   assert.equal(body.input[1].content, FIXED_PROMPT);
   assert.equal(body.store, false);
-  assert.deepEqual(body.tools, []);
+  for (const field of ["tools", "tool_choice", "stream", "truncation"]) {
+    assert.equal(Object.hasOwn(body, field), false);
+  }
   assert.equal(body.model, "grok-4.3");
   assert.deepEqual(body.reasoning, { effort: "none" });
   assert.equal(body.max_output_tokens, 128);
