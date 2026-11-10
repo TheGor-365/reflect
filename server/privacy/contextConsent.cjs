@@ -171,7 +171,30 @@ function createContextConsentStore({ db, projectId, clock = Date.now }) {
       return false; // server outage must never become permission
     }
   }
-  return Object.freeze({ execute, check });
+  async function list(principal) {
+    const uid = assertPrincipal(principal);
+    const nowMs = clock();
+    if (!safeTime(nowMs)) fail("invalid-server-time");
+    // A private owner-scoped collection, never a collectionGroup query.
+    // A bounded snapshot never includes raw session content or private UID.
+    const snap = await db.collection("_reflectAiPrivate").doc(NAMESPACE)
+      .collection("contextGrants").doc(uid).collection("grants")
+      .where("status", "==", "active").limit(100).get();
+    // Prefer an explicit failure over an incomplete consent ledger.
+    if (snap.size >= 100) fail("resource-exhausted");
+    const grants = [];
+    for (const item of snap.docs) {
+      const d = item.data();
+      if (isActiveContextGrant(d, {
+        uid, grantId: item.id, sourceId: d?.sourceId, scope: SCOPE, nowMs
+      })) grants.push(Object.freeze({
+        grantId: item.id, sourceId: d.sourceId,
+        scope: SCOPE, expiresAtMs: d.expiresAtMs
+      }));
+    }
+    return Object.freeze({ grants });
+  }
+  return Object.freeze({ execute, check, list });
 }
 
 module.exports = {
