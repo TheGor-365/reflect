@@ -73,6 +73,11 @@ test("authorization and attestation checked before any storage call", async () =
     { verifyAppCheck: async () => { throw Error("bad-app-check"); } },
     { verifyAppCheck: async () => ({ appId: "another-app" }) },
     { verifyAppCheck: async () => ({ appId: APP_ID, alreadyConsumed: true }) },
+    // Missing or malformed marker could mean consume:false on Admin SDK.
+    // Never silently accept an unconsumed/replayable App Check token.
+    { verifyAppCheck: async () => ({ appId: APP_ID }) },
+    { verifyAppCheck: async () => ({ appId: APP_ID, alreadyConsumed: null }) },
+    { verifyAppCheck: async () => ({ appId: APP_ID, alreadyConsumed: "false" }) },
     { verifyAuth: async () => ({ uid: "" }) },
     { authorizeAccount: async () => false }
   ]) {
