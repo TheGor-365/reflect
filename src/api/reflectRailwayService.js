@@ -53,7 +53,11 @@ export async function getRailwayAnalysis(payload) {
       const safeCodes = [
         "reauthentication-required", "unauthenticated",
         "auth-permission-missing", "auth-verification-unavailable",
-        "attestation-unavailable", "permission-denied"
+        "attestation-unavailable", "permission-denied",
+        "xai-invalid-request", "xai-unauthorized", "xai-forbidden",
+        "xai-endpoint-not-found", "xai-upstream-timeout",
+        "xai-request-too-large", "xai-rate-limited",
+        "xai-upstream-error", "xai-unavailable"
       ];
       throw new Error(safeCodes.includes(error?.error)
         ? error.error : "ai-request-not-completed");
