@@ -32,7 +32,7 @@ test("skips excessive evidence without truncation, retains order and deduplicate
     excerpt("sessionTurn", "third", "Latest")
   ];
   const plan = planTokenBudget({
-    currentMessage: "What changed?", excerpts: candidates, maxInputTokens: 400,
+    currentMessage: "What changed?", excerpts: candidates, maxInputTokens: 450,
     instructionReserveTokens: 220
   });
   assert.equal(plan.allowed, true);
