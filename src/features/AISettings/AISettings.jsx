@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, getDoc, getDocFromServer, serverTimestamp, setDoc } from 'firebase/firestore';
 import { BrainCircuit, Check, HelpCircle, Lightbulb, LockKeyhole,
   RotateCcw, ShieldCheck, Sparkles } from 'lucide-react';
 import { db, appId } from '../../firebase/config';
@@ -9,6 +9,13 @@ import {
 
 const settingsPath = uid =>
   `artifacts/${appId}/users/${uid}/aiSettings/preferences`;
+
+// Expose only a small set of technical error categories, never UID/path/content.
+const safeFirestoreErrorCode = error => {
+  const allowed = ['permission-denied', 'unauthenticated', 'unavailable',
+    'deadline-exceeded', 'cancelled', 'readback-mismatch'];
+  return allowed.includes(error?.code) ? error.code : 'unknown';
+};
 
 const SelectRow = ({ label, description, name, value, options, onChange, disabled }) => (
   <label className="reflect-ai-settings-row">
@@ -42,6 +49,7 @@ export default function AISettings({ userId }) {
   const [saved, setSaved] = useState({ ...AI_SETTINGS_DEFAULTS });
   const [status, setStatus] = useState('loading');
   const [feedback, setFeedback] = useState('');
+  const [loadErrorCode, setLoadErrorCode] = useState(null);
   const activeOwner = useRef(userId);
   activeOwner.current = userId;
 
@@ -50,6 +58,7 @@ export default function AISettings({ userId }) {
     setDraft({ ...AI_SETTINGS_DEFAULTS });
     setSaved({ ...AI_SETTINGS_DEFAULTS });
     setFeedback('');
+    setLoadErrorCode(null);
     setStatus('loading');
     if (!userId || !db) {
       setStatus('load-error');
@@ -67,8 +76,11 @@ export default function AISettings({ userId }) {
         return;
       }
       setDraft(parsed); setSaved(parsed); setStatus('ready');
-    }).catch(() => {
-      if (!cancelled) setStatus('load-error');
+    }).catch(error => {
+      if (!cancelled) {
+        setLoadErrorCode(safeFirestoreErrorCode(error));
+        setStatus('load-error');
+      }
     });
     return () => { cancelled = true; };
   }, [userId]);
@@ -88,24 +100,51 @@ export default function AISettings({ userId }) {
     }
     const savingUid = userId;
     setStatus('saving'); setFeedback('');
+    let writeAcknowledged = false;
     try {
-      await setDoc(doc(db, settingsPath(savingUid)), {
+      const preferenceRef = doc(db, settingsPath(savingUid));
+      await setDoc(preferenceRef, {
         ...validated, updatedAt: serverTimestamp()
       });
+      writeAcknowledged = true;
+      // Verify the server document, not a possibly stale local Firestore cache.
+      const serverSnapshot = await getDocFromServer(preferenceRef);
+      const confirmed = serverSnapshot.exists()
+        ? parseAiSettings(serverSnapshot.data()) : null;
+      if (!confirmed || !settingsEqual(confirmed, validated)) {
+        throw Object.assign(new Error('Settings readback mismatch'),
+          { code: 'readback-mismatch' });
+      }
       if (activeOwner.current !== savingUid) return;
-      setSaved(validated);
+      setSaved(confirmed);
       setStatus('ready');
-      setFeedback('Настройки сохранены для этого аккаунта. Подключение к AI backend ещё не выполнено.');
-    } catch {
+      setFeedback('Настройки сохранены и подтверждены сервером. Подключение к AI backend ещё не выполнено.');
+    } catch (error) {
       if (activeOwner.current !== savingUid) return;
+      const code = safeFirestoreErrorCode(error);
       setStatus('save-error');
-      setFeedback('Сохранение не подтверждено. Изменения оставлены в форме, можно повторить.');
+      setFeedback(writeAcknowledged
+        ? `Запись отправлена, но серверное чтение не подтвердило значения (код: ${code}). Изменения сохранены в форме; повторите проверку позже.`
+        : `Сохранение не подтверждено (код: ${code}). Изменения оставлены в форме, можно повторить.`);
     }
   };
 
   const busy = status === 'loading' || status === 'saving';
   const dirty = !settingsEqual(draft, saved) || status === 'invalid';
   const disabled = busy || status === 'load-error';
+
+  useEffect(() => {
+    if (!dirty || !userId || !['ready', 'invalid', 'save-error'].includes(status)) {
+      return undefined;
+    }
+    // The native browser confirmation is best-effort (browser-dependent).
+    const warnBeforeReload = event => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeReload);
+    return () => window.removeEventListener('beforeunload', warnBeforeReload);
+  }, [dirty, status, userId]);
 
   return (
     <section className="reflect-ai-settings" aria-label="Настройки AI">
@@ -126,6 +165,7 @@ export default function AISettings({ userId }) {
       {status === 'load-error' && <p role="alert" className="reflect-ai-settings-error">
         Не удалось прочитать настройки. Чтобы не перезаписать существующие данные,
         редактирование заблокировано. Проверьте доступ и откройте страницу заново.
+        {loadErrorCode && <span> Код ошибки: {loadErrorCode}.</span>}
       </p>}
       {status === 'invalid' && <p role="alert" className="reflect-ai-settings-error">
         Сохранённые настройки имеют неизвестный формат. Показаны безопасные значения
@@ -192,6 +232,11 @@ export default function AISettings({ userId }) {
             className={status === 'save-error' ? 'reflect-ai-settings-error' : 'reflect-ai-settings-feedback'}>
             {status === 'ready' && <Check size={16} aria-hidden="true"/>}{feedback}
           </p>}
+          {dirty && status !== 'saving' && (
+            <p role="status" className="reflect-ai-settings-feedback">
+              Есть несохранённые изменения. Нажмите «Сохранить настройки» до обновления страницы.
+            </p>
+          )}
           <div className="reflect-ai-settings-form-actions">
             <button type="button" className="reflect-ai-settings-reset" disabled={busy || !dirty}
               onClick={() => { setDraft({ ...saved }); setFeedback(''); }}>
