@@ -2946,3 +2946,24 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
   .reflect-app .reflect-ai-settings-row input[type="checkbox"]::after,
   .reflect-app .reflect-ai-settings-form-actions button { transition: none; }
 }
+
+/* AI-01G: consent UI is a separate, opt-in panel (never automatic AI access). */
+.reflect-app .reflect-context-consent { margin-top: 17px; }
+.reflect-app .reflect-context-consent-intro { display: flex; align-items: flex-start; gap: 9px; color: var(--reflect-muted); font-size: 12px; line-height: 1.7; }
+.reflect-app .reflect-context-consent-intro svg { flex: none; color: var(--reflect-accent); margin-top: 2px; }
+.reflect-app .reflect-context-consent-off { margin-top: 13px; padding: 12px 14px; border: 1px solid var(--reflect-border); border-radius: 12px; color: var(--reflect-muted); font-size: 12px; }
+.reflect-app .reflect-context-consent-controls { display: grid; gap: 13px; margin-top: 14px; font-size: 12px; }
+.reflect-app .reflect-context-consent-controls > label { font-weight: 680; }
+.reflect-app .reflect-context-consent-controls select { background: var(--reflect-bg); color: var(--reflect-ink); border: 1px solid var(--reflect-border); border-radius: 11px; padding: 10px; width: 100%; max-width: 100%; min-height: 40px; }
+.reflect-app .reflect-context-consent-confirm { display: flex; gap: 10px; align-items: flex-start; line-height: 1.5; }
+.reflect-app .reflect-context-consent-confirm input { width: 18px; height: 18px; accent-color: var(--reflect-accent); flex: none; }
+.reflect-app .reflect-context-consent-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.reflect-app .reflect-context-consent-actions button,
+.reflect-app .reflect-context-consent-grants button { padding: 10px 12px; border: 1px solid var(--reflect-border); border-radius: 10px; color: var(--reflect-ink); background: var(--reflect-bg); min-height: 38px; }
+.reflect-app .reflect-context-consent-actions button:disabled,
+.reflect-app .reflect-context-consent-grants button:disabled { opacity: .5; cursor: not-allowed; }
+.reflect-app .reflect-context-consent-controls button:focus-visible,
+.reflect-app .reflect-context-consent-controls select:focus-visible { outline: 2px solid var(--reflect-accent); outline-offset: 2px; }
+.reflect-app .reflect-context-consent-grants { list-style: none; padding: 0; display: grid; gap: 10px; }
+.reflect-app .reflect-context-consent-grants li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 11px 0; border-top: 1px solid var(--reflect-border); overflow-wrap: anywhere; }
+.reflect-app .reflect-context-consent-message { color: var(--reflect-muted); font-size: 12px; }
