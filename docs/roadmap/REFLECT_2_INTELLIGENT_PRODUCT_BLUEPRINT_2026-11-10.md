@@ -96,7 +96,7 @@ Rules:
 
 ### 5.1 Output contract and response style
 - Introduce answer modes: “Кратко”, “Разобрать”, “Наметить действие” and an explicit tone preference. Use Russian first. Reflections may include: direct observation, alternative interpretation, one clarifying question, optional small next step. Do not force the same template on every message.
-- Increase output budget only through measured token/cost policy and owner-governed product settings; current 512-token cap yields short replies. Keep existing paid limits and one-shot idempotency; not every user input merits a long text.
+- Existing server system instruction explicitly asks the model to answer “сдержанно и кратко”; max_output_tokens is currently 512. For richer diary-oriented reflections, change both only via versioned prompt/cost policy and synthetic/staging QA. Not every user input merits a long answer. Keep existing paid limits and one-shot idempotency.
 - AI “thought for journal” is a distinct generated artifact from the raw model reply and from original user words, with author=assistant, prompt/model versions and source reference. Never quote the user inaccurately.
 
 ### 5.2 One request → useful event candidates
