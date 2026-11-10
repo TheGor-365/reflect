@@ -2811,3 +2811,138 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
   }
   .reflect-app .reflect-diary-timeline[data-filter-phase="leaving"] { opacity: 1; }
 }
+
+
+
+/* AI-01B.2 / UX-01E: account-level AI preference editing, not an active AI policy. */
+.reflect-app .reflect-ai-settings {
+  width: min(100%, 890px); margin: 0 auto;
+  padding: clamp(20px, 3.5vw, 46px) clamp(15px, 3vw, 34px) 100px;
+  color: var(--reflect-ink);
+}
+.reflect-app .reflect-ai-settings-heading { margin-bottom: 22px; }
+.reflect-app .reflect-ai-settings-kicker {
+  display: inline-flex; gap: 8px; align-items: center;
+  color: var(--reflect-accent); font-size: 12px; font-weight: 680;
+}
+.reflect-app .reflect-ai-settings-heading h2 {
+  margin: 10px 0; font-size: clamp(25px, 3vw, 34px);
+  line-height: 1.22; letter-spacing: -.03em;
+}
+.reflect-app .reflect-ai-settings-heading > p {
+  margin: 0; color: var(--reflect-muted); font-size: 13px;
+  line-height: 1.8; max-width: 76ch;
+}
+.reflect-app .reflect-ai-settings-notice {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 14px 17px; margin-bottom: 18px; border-radius: 14px;
+  background: rgba(73, 196, 178, .085); border: 1px solid rgba(73, 196, 178, .28);
+  color: var(--reflect-ink); font-size: 12px; line-height: 1.7;
+}
+.reflect-app .reflect-ai-settings-notice > svg { flex: none; color: var(--reflect-accent); margin-top: 3px; }
+.reflect-app .reflect-ai-settings-form { display: grid; gap: 17px; }
+.reflect-app .reflect-ai-settings-card {
+  border: 1px solid var(--reflect-border); border-radius: 18px;
+  background: var(--reflect-card); padding: 19px clamp(14px, 3vw, 26px);
+}
+.reflect-app .reflect-ai-settings-card-title {
+  display: flex; gap: 11px; align-items: center;
+  color: var(--reflect-accent); padding-bottom: 12px;
+}
+.reflect-app .reflect-ai-settings-card-title h3 {
+  color: var(--reflect-ink); margin: 0; font-size: 17px; font-weight: 750;
+}
+.reflect-app .reflect-ai-settings-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 20px; padding: 15px 0; border-top: 1px solid var(--reflect-border);
+}
+.reflect-app .reflect-ai-settings-row-text {
+  display: grid; gap: 5px; flex: 1 1 0; min-width: 0;
+}
+.reflect-app .reflect-ai-settings-row-text strong { font-size: 13px; font-weight: 690; }
+.reflect-app .reflect-ai-settings-row-text > span {
+  color: var(--reflect-muted); font-size: 11px; line-height: 1.65;
+}
+.reflect-app .reflect-workspace .reflect-ai-settings-row select {
+  width: min(235px, 45%); min-height: 39px; flex: none;
+  padding: 7px 11px; border: 1px solid var(--reflect-border);
+  border-radius: 11px; background: var(--reflect-bg);
+  color: var(--reflect-ink); font-size: 12px;
+}
+.reflect-app .reflect-ai-settings-row input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  position: relative; flex: none;
+  width: 44px; height: 25px; margin: 0;
+  border-radius: 999px; border: 1px solid var(--reflect-border);
+  background: rgba(125, 140, 170, .21);
+  cursor: pointer;
+  transition: background .19s ease, border-color .19s ease;
+}
+.reflect-app .reflect-ai-settings-row input[type="checkbox"]::after {
+  content: ""; position: absolute; top: 3px; left: 3px;
+  width: 17px; height: 17px; border-radius: 50%;
+  background: var(--reflect-muted); transition: transform .19s ease, background .19s ease;
+}
+.reflect-app .reflect-ai-settings-row input[type="checkbox"]:checked {
+  background: rgba(86, 211, 193, .23); border-color: var(--reflect-accent);
+}
+.reflect-app .reflect-ai-settings-row input[type="checkbox"]:checked::after {
+  transform: translateX(19px); background: var(--reflect-accent);
+}
+.reflect-app .reflect-ai-settings-row :is(input, select):focus-visible {
+  outline: 2px solid var(--reflect-accent); outline-offset: 3px;
+}
+.reflect-app .reflect-ai-settings-row :is(input, select):disabled {
+  cursor: not-allowed; opacity: .52;
+}
+.reflect-app .reflect-ai-settings-future p {
+  display: flex; align-items: flex-start; gap: 8px; margin: 8px 0 0;
+  color: var(--reflect-muted); font-size: 12px; line-height: 1.8;
+}
+.reflect-app .reflect-ai-settings-future p svg { flex: none; margin-top: 3px; }
+.reflect-app .reflect-ai-settings-form-actions {
+  display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;
+}
+.reflect-app .reflect-ai-settings-form-actions button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 43px; padding: 10px 15px; border-radius: 12px;
+  font-size: 12px; font-weight: 720;
+  transition: background .18s ease, transform .18s ease, border-color .18s ease;
+}
+.reflect-app .reflect-ai-settings-reset {
+  background: transparent; color: var(--reflect-muted);
+  border: 1px solid var(--reflect-border);
+}
+.reflect-app .reflect-ai-settings-save {
+  background: var(--reflect-accent); color: var(--reflect-accent-ink);
+  border: 1px solid transparent;
+}
+.reflect-app .reflect-ai-settings-form-actions button:not(:disabled):hover { transform: translateY(-1px); }
+.reflect-app .reflect-ai-settings-form-actions button:disabled { opacity: .48; cursor: not-allowed; }
+.reflect-app .reflect-ai-settings-feedback,
+.reflect-app .reflect-ai-settings-error {
+  margin: 0; padding: 12px 14px; border-radius: 12px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; line-height: 1.6;
+}
+.reflect-app .reflect-ai-settings-feedback {
+  border: 1px solid rgba(75, 205, 177, .28); color: var(--reflect-ink);
+  background: rgba(75, 205, 177, .07);
+}
+.reflect-app .reflect-ai-settings-error {
+  border: 1px solid rgba(225, 119, 130, .35); color: var(--reflect-ink);
+  background: rgba(225, 119, 130, .11);
+}
+@media (max-width: 560px) {
+  .reflect-app .reflect-ai-settings { padding-bottom: 130px; }
+  .reflect-app .reflect-ai-settings-row { gap: 13px; flex-wrap: wrap; }
+  .reflect-app .reflect-ai-settings-row select { width: 100% !important; }
+  .reflect-app .reflect-ai-settings-toggle-row { flex-wrap: nowrap; }
+  .reflect-app .reflect-ai-settings-form-actions { justify-content: stretch; }
+  .reflect-app .reflect-ai-settings-form-actions button { flex: 1 1 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reflect-app .reflect-ai-settings-row input[type="checkbox"],
+  .reflect-app .reflect-ai-settings-row input[type="checkbox"]::after,
+  .reflect-app .reflect-ai-settings-form-actions button { transition: none; }
+}
