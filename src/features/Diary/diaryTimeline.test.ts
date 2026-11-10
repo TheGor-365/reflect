@@ -136,4 +136,19 @@ describe('schema-preserving diary event timeline', () => {
     expect(events[0]!.data.entries).toEqual([first]);
     expect(note.entries).toBe(items);
   });
+
+  it('recommendation lens stays empty until a distinct authorized source is implemented', () => {
+    const data = buildDiaryTimeline({
+      sessions: [{ id: 's1', createdAt: ts('2026-11-10T12:00:00Z'),
+        chatHistory: [{ role: 'assistant', content: 'A generated answer, not a recommendation' }] }],
+      diaryNotes: [{ id: 'n1', entries: [{ text: 'My note',
+        createdAt: ts('2026-11-10T12:00:00Z') }] }],
+      goals: [{ id: 'g1', text: 'Goal',
+        createdAt: ts('2026-11-10T12:00:00Z') }]
+    });
+    expect(data).toHaveLength(3);
+    expect(filterDiaryTimeline(data, { kind: 'recommendation' })).toEqual([]);
+    expect(filterDiaryTimeline(data, { kind: 'all' })).toHaveLength(3);
+  });
+
 });
