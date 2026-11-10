@@ -2712,3 +2712,102 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
   .reflect-app .reflect-session-library-actions button:hover,
   .reflect-app .reflect-session-library-card-actions button:hover { transform: none; }
 }
+
+
+
+/* UX-01D journal content lenses: compact, neon-active, fully accessible buttons. */
+.reflect-app .reflect-diary-toolbar { flex-wrap: wrap; }
+.reflect-app .reflect-diary-actions { gap: 9px; flex: none; max-width: 100%; }
+.reflect-app .reflect-diary-type-switch {
+  display: inline-flex; align-items: center; gap: 3px;
+  max-width: 100%; padding: 4px;
+  border: 1px solid var(--reflect-border); border-radius: 15px;
+  background: rgba(97, 121, 174, .075);
+}
+.reflect-app .reflect-diary-type-switch button {
+  position: relative; flex: none; display: inline-flex;
+  align-items: center; justify-content: center; width: 36px; height: 36px;
+  border: 1px solid transparent; border-radius: 11px;
+  color: var(--reflect-muted); background: transparent;
+  transition:
+    color var(--reflect-motion-base) ease,
+    background var(--reflect-motion-base) ease,
+    border-color var(--reflect-motion-base) ease,
+    box-shadow var(--reflect-motion-base) ease,
+    transform var(--reflect-motion-base) var(--reflect-ease-out);
+}
+.reflect-app .reflect-diary-type-switch button:hover {
+  color: var(--reflect-ink); background: rgba(108, 142, 186, .12);
+}
+.reflect-app .reflect-diary-type-switch button[aria-pressed="true"] {
+  border-color: rgba(117, 236, 218, .54);
+  background: linear-gradient(135deg, rgba(100, 229, 209, .25), rgba(92, 164, 228, .13));
+  color: var(--reflect-accent);
+  box-shadow: 0 0 0 1px rgba(117, 236, 218, .13) inset,
+    0 0 16px rgba(78, 229, 209, .20);
+}
+.reflect-app .reflect-diary-type-switch button[aria-pressed="true"]::after {
+  content: ""; position: absolute; bottom: 3px; left: calc(50% - 4px);
+  width: 8px; height: 2px; border-radius: 2px; background: var(--reflect-accent);
+  box-shadow: 0 0 7px rgba(117, 236, 218, .40);
+}
+.reflect-app .reflect-diary-type-switch button:focus-visible {
+  outline: 2px solid var(--reflect-accent); outline-offset: 3px;
+}
+.reflect-app[data-theme="light"] .reflect-diary-type-switch button[aria-pressed="true"] {
+  border-color: rgba(34, 142, 137, .50);
+  box-shadow: 0 0 0 1px rgba(46, 146, 147, .13) inset,
+    0 2px 11px rgba(40, 146, 148, .17);
+}
+.reflect-app .reflect-diary-tools-separator {
+  flex: none; width: 1px; height: 25px; background: var(--reflect-border);
+}
+.reflect-app .reflect-diary-timeline {
+  transition: opacity 220ms ease, transform 220ms var(--reflect-ease-out);
+  opacity: 1; transform: translateY(0);
+}
+.reflect-app .reflect-diary-timeline[data-filter-phase="leaving"] {
+  opacity: .16; transform: translateY(7px); pointer-events: none;
+}
+.reflect-app .reflect-diary-recommendations-empty {
+  display: grid; justify-items: start; gap: 11px;
+  padding: clamp(23px, 4vw, 38px);
+  border: 1px solid var(--reflect-border); border-radius: 18px;
+  background: var(--reflect-card); color: var(--reflect-muted);
+}
+.reflect-app .reflect-diary-recommendations-empty > svg {
+  color: var(--reflect-accent); background: rgba(83, 200, 185, .10);
+  padding: 9px; width: 43px; height: 43px; border-radius: 14px;
+}
+.reflect-app .reflect-diary-recommendations-empty h3 {
+  margin: 0; color: var(--reflect-ink); font-size: 17px; font-weight: 720;
+}
+.reflect-app .reflect-diary-recommendations-empty p {
+  margin: 0; max-width: 64ch; font-size: 13px; line-height: 1.75;
+}
+.reflect-app .reflect-diary-recommendations-disclaimer { font-size: 11px !important; opacity: .82; }
+@media (max-width: 770px) {
+  .reflect-app .reflect-diary-toolbar { align-items: flex-start; gap: 10px; }
+  .reflect-app .reflect-diary-actions {
+    width: 100%; justify-content: flex-start;
+  }
+  .reflect-app .reflect-diary-type-switch {
+    flex: 1 1 auto; min-width: 0; overflow-x: auto;
+    scrollbar-width: none; overscroll-behavior-inline: contain;
+  }
+  .reflect-app .reflect-diary-type-switch::-webkit-scrollbar { display: none; }
+  .reflect-app .reflect-diary-type-switch button { width: 34px; height: 35px; }
+}
+@media (max-width: 390px) {
+  .reflect-app .reflect-diary-type-switch { gap: 1px; padding: 3px; }
+  .reflect-app .reflect-diary-type-switch button { width: 32px; height: 33px; }
+  .reflect-app .reflect-diary-actions { gap: 6px; }
+  .reflect-app .reflect-diary-tools-separator { margin: 0 1px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reflect-app .reflect-diary-type-switch button,
+  .reflect-app .reflect-diary-timeline {
+    transition: none !important; transform: none !important;
+  }
+  .reflect-app .reflect-diary-timeline[data-filter-phase="leaving"] { opacity: 1; }
+}

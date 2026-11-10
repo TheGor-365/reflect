@@ -112,7 +112,7 @@ test('mood error preserves rating and comment; retry keeps one document', async 
 });
 
 
-test('in-memory timeline filters events without sending a search request', () => {
+test('in-memory timeline filters events without sending a search request', async () => {
   const createdAt = { toDate: () => new Date('2026-11-05T09:00:00Z') };
   render(
     <Diary userId="synthetic-owner" sessions={[]} goals={[]}
@@ -122,17 +122,17 @@ test('in-memory timeline filters events without sending a search request', () =>
       isLoading={false} onAppend={vi.fn()} />
   );
   expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(2);
-  fireEvent.click(screen.getByRole('button', { name: 'Поиск и фильтры' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Заметки' }));
-  expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Мои записи' }));
+  await waitFor(() => expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(1));
   expect(screen.getByTestId('diary-timeline-event')).toHaveTextContent('note:note-1:entry:0');
+  fireEvent.click(screen.getByRole('button', { name: 'Поиск и фильтры' }));
   fireEvent.change(screen.getByRole('searchbox', { name: 'Поиск по дневнику' }), {
     target: { value: 'не найдено' }
   });
   expect(screen.queryByTestId('diary-timeline-event')).not.toBeInTheDocument();
   expect(screen.getByText('По выбранным фильтрам ничего не найдено.')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Сбросить фильтры' }));
-  expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(2);
+  await waitFor(() => expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(2));
 });
 
 test('appended note text creates two timeline events on distinct dates', () => {
@@ -269,4 +269,70 @@ test('filters are inert until opened and preserve state through animated closing
   fireEvent.click(trigger);
   expect(screen.getByRole('searchbox', { name: 'Поиск по дневнику' }))
     .toHaveValue('сохранённый поиск');
+});
+
+
+test('neon icon lenses isolate every real content type and recommendations show honest empty state', async () => {
+  const ts = at => ({ toDate: () => new Date(at) });
+  const data = {
+    userId: 'synthetic-owner',
+    isLoading: false,
+    sessions: [{ id: 's1', title: 'Диалог', createdAt: ts('2026-11-10T12:00:00Z') }],
+    diaryNotes: [{ id: 'n1', entries: [{ text: 'Личная мысль',
+      createdAt: ts('2026-11-10T12:00:00Z') }] }],
+    moods: [{ id: 'm1', mood: 'happy', createdAt: ts('2026-11-10T12:00:00Z') }],
+    goals: [{ id: 'g1', text: 'Моя цель', createdAt: ts('2026-11-10T12:00:00Z') }],
+    onAppend: vi.fn()
+  };
+  const { container } = render(<Diary {...data} />);
+  const labels = [
+    ['Весь дневник', null, 4],
+    ['Мысли Reflect', 'session:s1', 1],
+    ['Мои записи', 'note:n1:entry:0', 1],
+    ['Настроение', 'mood:m1', 1],
+    ['Цели', 'goal:g1', 1]
+  ];
+  for (const [label, eventKey, count] of labels) {
+    fireEvent.click(screen.getByRole('button', { name: label }));
+    const button = screen.getByRole('button', { name: label });
+    expect(button).toHaveAttribute('aria-pressed', 'true');
+    await waitFor(() => {
+      expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(count);
+      if (eventKey) {
+        expect(screen.getByTestId('diary-timeline-event')).toHaveTextContent(eventKey);
+      }
+    });
+  }
+
+  fireEvent.click(screen.getByRole('button', { name: 'Рекомендации' }));
+  expect(screen.getByRole('button', { name: 'Рекомендации' }))
+    .toHaveAttribute('aria-pressed', 'true');
+  await waitFor(() =>
+    expect(screen.getByRole('heading', { name: 'Рекомендаций пока нет' }))
+      .toBeInTheDocument()
+  );
+  expect(screen.queryByTestId('diary-timeline-event')).not.toBeInTheDocument();
+  expect(screen.getByText(/готовность контекста не оценивается/)).toBeInTheDocument();
+  expect(container.querySelectorAll('.reflect-diary-type-switch button')).toHaveLength(6);
+  expect(setDoc).not.toHaveBeenCalled(); // visual switching never writes to Firestore
+  fireEvent.click(screen.getByRole('button', { name: 'Весь дневник' }));
+  await waitFor(() => expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(4));
+});
+
+test('content type filter fades existing entries before replacing them', async () => {
+  const ts = at => ({ toDate: () => new Date(at) });
+  const { container } = render(
+    <Diary userId="synthetic-owner" sessions={[]} goals={[]} isLoading={false}
+      diaryNotes={[{ id: 'n', entries: [{ text: 'Воспоминание',
+        createdAt: ts('2026-11-10T12:00:00Z') }] }]}
+      moods={[{ id: 'm', mood: 'happy', createdAt: ts('2026-11-10T12:00:00Z') }]}
+      onAppend={vi.fn()}/>
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Настроение' }));
+  expect(container.querySelector('.reflect-diary-timeline')).toHaveAttribute(
+    'data-filter-phase', 'leaving'
+  );
+  await waitFor(() => expect(container.querySelector('.reflect-diary-timeline'))
+    .toHaveAttribute('data-filter-phase', 'settled'));
+  expect(screen.getByTestId('diary-timeline-event')).toHaveTextContent('mood:m');
 });

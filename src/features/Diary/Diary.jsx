@@ -2,12 +2,13 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { Timestamp } from 'firebase/firestore';
 import {
   ArrowUp, BarChart3, Check, ChevronDown,
-  LockKeyhole, Search, SlidersHorizontal, Smile, Type, X, CalendarDays
+  LockKeyhole, Search, SlidersHorizontal, Smile, Type, X, CalendarDays, Lightbulb
 } from 'lucide-react';
 import { useEntrySave } from '../../hooks/useEntrySave';
 import SaveFeedback from '../../components/common/SaveFeedback';
 import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
 import AnimatedRegion from '../../components/common/AnimatedRegion';
+import DiaryKindSwitcher from './DiaryKindSwitcher';
 import DiaryNarrativeCard from './DiaryNarrativeCard';
 import { saveNoteRevision } from './noteVersions';
 import MoodInsights from '../Moods/MoodInsights';
@@ -20,10 +21,6 @@ const MOOD_OPTIONS = [
   { type: 'neutral', emoji: '😐', label: 'Нейтрально' },
   { type: 'sad', emoji: '😟', label: 'Грусть' },
   { type: 'anxious', emoji: '😰', label: 'Тревога' }
-];
-const KINDS = [
-  ['all', 'Лента'], ['note', 'Заметки'], ['mood', 'Настроение'],
-  ['goal', 'Цели'], ['session', 'Сеансы']
 ];
 
 const mergeConfirmed = (records, local) => [
@@ -53,6 +50,8 @@ const Diary = ({
   const [showTitle, setShowTitle] = useState(false);
   const [newDiaryNote, setNewDiaryNote] = useState({ title: '', text: '' });
   const [entryKind, setEntryKind] = useState('all');
+  const [visibleKind, setVisibleKind] = useState('all');
+  const [isSwitching, setIsSwitching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -111,6 +110,21 @@ const Diary = ({
 
   useEffect(() => autoSizeTextarea(composerRef.current), [newDiaryNote.text]);
 
+  // Two-phase transition: dim the old view before updating the lens.
+  // Fast repeated presses cancel stale switches; no source data is changed.
+  useEffect(() => {
+    if (visibleKind === entryKind) {
+      setIsSwitching(false);
+      return undefined;
+    }
+    setIsSwitching(true);
+    const timer = setTimeout(() => {
+      setVisibleKind(entryKind);
+      setIsSwitching(false);
+    }, 145);
+    return () => clearTimeout(timer);
+  }, [entryKind, visibleKind]);
+
   useEffect(() => {
     if (!justAddedNoteId) return undefined;
     const timer = setTimeout(() => setJustAddedNoteId(null), 640);
@@ -156,8 +170,8 @@ const Diary = ({
   );
   const visibleEvents = useMemo(
     () => filterDiaryTimeline(timelineEvents, {
-      kind: entryKind, query: searchQuery, from: fromDate, to: toDate
-    }), [timelineEvents, entryKind, searchQuery, fromDate, toDate]
+      kind: visibleKind, query: searchQuery, from: fromDate, to: toDate
+    }), [timelineEvents, visibleKind, searchQuery, fromDate, toDate]
   );
   const diaryGroups = useMemo(() => groupDiaryTimeline(visibleEvents), [visibleEvents]);
   const hasFilters = entryKind !== 'all' || !!searchQuery || !!fromDate || !!toDate;
@@ -231,6 +245,8 @@ const Diary = ({
           </span>
         </div>
         <div className="reflect-diary-actions">
+          <DiaryKindSwitcher selected={entryKind} onSelect={setEntryKind}/>
+          <span className="reflect-diary-tools-separator" aria-hidden="true"/>
           <button type="button" className={`reflect-diary-icon-button ${filtersOpen || hasFilters ? 'is-active' : ''}`}
             aria-label="Поиск и фильтры" title="Поиск и фильтры"
             aria-expanded={filtersOpen} aria-controls="reflect-diary-filters"
@@ -367,12 +383,6 @@ const Diary = ({
             <input type="search" value={searchQuery} aria-label="Поиск по дневнику"
               placeholder="Найти запись" onChange={event => setSearchQuery(event.target.value)}/>
           </label>
-          <div className="reflect-diary-kinds" role="group" aria-label="Тип записи">
-            {KINDS.map(([kind, label]) => (
-              <button type="button" key={kind} aria-pressed={entryKind === kind}
-                onClick={() => setEntryKind(kind)}>{label}</button>
-            ))}
-          </div>
           <div className="reflect-diary-dates">
             <label>С даты <input type="date" value={fromDate}
               max={toDate || undefined} onChange={event => setFromDate(event.target.value)}/></label>
@@ -391,11 +401,24 @@ const Diary = ({
         </section>
       </AnimatedRegion>
 
-      <div ref={timelineRef} className="reflect-diary-timeline" aria-label="Лента записей">
-        {!isLoading && !timelineEvents.length &&
+      <div ref={timelineRef} className="reflect-diary-timeline" aria-label="Лента записей"
+        data-filter-phase={isSwitching ? 'leaving' : 'settled'}>
+        {!isLoading && !timelineEvents.length && visibleKind !== 'recommendation' &&
           <div className="reflect-diary-empty">Здесь появятся ваши записи. Начните с одной мысли.</div>}
-        {!isLoading && timelineEvents.length > 0 && !diaryGroups.length &&
-          <div className="reflect-diary-empty">По выбранным фильтрам ничего не найдено.</div>}
+        {!isLoading && !diaryGroups.length &&
+          (visibleKind === 'recommendation'
+            ? <div className="reflect-diary-recommendations-empty" role="status">
+                <Lightbulb size={23} aria-hidden="true"/>
+                <h3>Рекомендаций пока нет</h3>
+                <p>Эта рубрика будет содержать только рекомендации, основанные на достаточном контексте.
+                  Автоматическая подготовка и управление в настройках AI появятся на следующем этапе.</p>
+                <p className="reflect-diary-recommendations-disclaimer">
+                  Сейчас рекомендации не создаются, а готовность контекста не оценивается.
+                </p>
+              </div>
+            : timelineEvents.length > 0
+              ? <div className="reflect-diary-empty">По выбранным фильтрам ничего не найдено.</div>
+              : null)}
         {diaryGroups.map((group, index) => {
           const monthKey = group.isUndated ? 'undated' : group.key.slice(0, 7);
           const previousMonthKey = index === 0 ? null :
