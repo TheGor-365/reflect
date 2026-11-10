@@ -1,7 +1,8 @@
 import React, { useId, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import AnimatedRegion from './AnimatedRegion';
 
-/** Reusable disclosure without hard-coded light backgrounds or unreadable text. */
+/** Theme-aware disclosure with keyboard-safe animated closing. */
 const CollapsibleContent = ({ title, children, startOpen = false }) => {
   const [isOpen, setIsOpen] = useState(startOpen);
   const contentId = useId();
@@ -12,9 +13,11 @@ const CollapsibleContent = ({ title, children, startOpen = false }) => {
         onClick={() => setIsOpen(open => !open)}>
         {isOpen ? 'Свернуть' : title}
         <ChevronDown size={16} aria-hidden="true"
-          className={isOpen ? 'reflect-disclosure-chevron is-open' : 'reflect-disclosure-chevron'} />
+          className={isOpen ? 'reflect-disclosure-chevron is-open' : 'reflect-disclosure-chevron'}/>
       </button>
-      {isOpen && <div id={contentId} className="reflect-disclosure-panel">{children}</div>}
+      <AnimatedRegion id={contentId} open={isOpen}>
+        <div className="reflect-disclosure-panel">{children}</div>
+      </AnimatedRegion>
     </div>
   );
 };
