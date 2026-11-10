@@ -105,7 +105,8 @@ test('Sessions navigation opens the actual saved library rather than empty chat'
   expect(screen.getByRole('heading', { name: 'История размышлений' })).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Разговор о выборе' })).toBeInTheDocument();
   expect(screen.queryByText('Личное пространство')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Открыть беседу' }));
+  // The selected saved session is already active, so the card correctly says "return".
+  fireEvent.click(screen.getByRole('button', { name: 'Вернуться к разговору' }));
   expect(setCurrentSessionId).toHaveBeenCalledExactlyOnceWith('saved-1');
   expect(onCloseLibrary).toHaveBeenCalledOnce();
 });
