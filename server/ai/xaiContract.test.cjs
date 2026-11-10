@@ -29,9 +29,8 @@ test("fixed provider model, HTTPS endpoint and no tools or stateful store", () =
   assert.equal(request.body.model, "grok-4.3");
   assert.equal(request.body.store, false);
   assert.equal(request.body.max_output_tokens, LIMITS.maxOutputTokens);
-  assert.deepEqual(request.body.tools, []);
-  assert.equal(request.body.tool_choice, "none");
-  assert.equal(request.body.truncation, "disabled");
+  assert.deepEqual(Object.keys(request.body).sort(),
+    ["model", "input", "store", "max_output_tokens"].sort());
   assert.deepEqual(request.body.input.map(item => item.role), ["system", "user"]);
   assert.equal(request.body.input[1].content, "Тестовый вопрос");
 });
