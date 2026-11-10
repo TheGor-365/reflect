@@ -4,9 +4,6 @@ import { db, appId } from '../../firebase/config';
 import { AI_SESSION_ENABLED, getAnalysisFromAI } from '../../api/reflectAssistantService';
 import ChatMessage from './ChatMessage';
 import SessionComposer from './SessionComposer';
-import XaiDevSmoke from './XaiDevSmoke';
-import RailwayAuthCheck from './RailwayAuthCheck';
-import RailwayReadinessCheck from './RailwayReadinessCheck';
 import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
 import InfoCard from '../../components/common/InfoCard';
 import { useEntrySave } from '../../hooks/useEntrySave';
@@ -16,7 +13,6 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sendError, setSendError] = useState('');
-  const [consentForMessage, setConsentForMessage] = useState(false);
   const [savingSession, setSavingSession] = useState(false);
   const [sessionSaveError, setSessionSaveError] = useState('');
   const sendLock = useRef(false);
@@ -53,10 +49,6 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
     const message = userInput.trim();
     if (!AI_SESSION_ENABLED || !message || isLoading || sendLock.current ||
         !db || !userId) return;
-    if (!consentForMessage) {
-      setSendError('Перед отправкой подтвердите передачу только этого сообщения в Grok.');
-      return;
-    }
     if (message.length > 1400 || new TextEncoder().encode(message).length > 2000) {
       setSendError('Сообщение превышает ограничение тестового AI-сервера (2000 байт).');
       return;
@@ -81,12 +73,20 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
       setLocalMessages(prev => [...prev, userMessage, assistantMessage]);
       setUserInput('');
       await sessionDraftRef.current?.clearAfterCommit();
-      setConsentForMessage(false);
     } catch (error) {
       // Known server Auth errors occur before xAI invocation and can be fixed
       // without paid retries. Do not show raw SDK messages or credentials.
       const code = error?.message;
       const authErrors = {
+        'xai-invalid-request': 'xAI отклонил формат запроса (HTTP 400/422). Ошибка серверной интеграции, не вашего текста.',
+        'xai-unauthorized': 'xAI отклонил API-ключ (HTTP 401). Проверьте права ключа Reflect-dev.',
+        'xai-forbidden': 'xAI запретил генерацию (HTTP 403). Проверьте разрешение Chat и команды для Reflect-dev.',
+        'xai-endpoint-not-found': 'xAI не нашёл запрошенную модель или API endpoint (HTTP 404).',
+        'xai-rate-limited': 'xAI ограничил частоту запросов (HTTP 429). Не повторяйте отправку сразу.',
+        'xai-upstream-error': 'Сервис xAI ответил ошибкой 5xx. Повтор может быть тарифицирован.',
+        'xai-upstream-timeout': 'xAI не завершил запрос вовремя. Повтор может быть тарифицирован.',
+        'xai-request-too-large': 'xAI отклонил размер запроса. Сократите текст сообщения.',
+        'xai-unavailable': 'xAI вернул отказ. Код ошибки сохранён без раскрытия личного текста.',
         'reauthentication-required': 'Firebase отклонил прежнюю сессию после смены данных входа. Войдите заново в существующий аккаунт. Сообщение не было отправлено Grok.',
         'unauthenticated': 'Firebase не подтвердил вход. Повторно войдите в существующий аккаунт. Сообщение не было отправлено Grok.',
         'auth-permission-missing': 'Серверу не хватает прав чтения Firebase Authentication. Проверьте доступ service account в staging. Grok не вызывался.',
@@ -97,7 +97,6 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
       setSendError(Object.hasOwn(authErrors, code)
         ? authErrors[code]
         : 'Grok не вернул подтверждённый ответ. Текст сохранён в поле ввода. Не повторяйте запрос автоматически: он мог быть оплачен.');
-      setConsentForMessage(false);
     } finally {
       sendLock.current = false;
       setIsLoading(false);
@@ -236,8 +235,6 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
 
         <div className="reflect-session-messages" role="log" aria-label="История сообщений" aria-live="polite">
           <div className="reflect-session-messages-inner">
-            <XaiDevSmoke />
-            <RailwayAuthCheck />
             {isNewSessionView && messagesToDisplay.length === 0 && (
               <p className="reflect-session-welcome">
                 Начните с мысли или ситуации. Пока ИИ недоступен, запись можно сохранить в дневник.
@@ -256,15 +253,9 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
         </div>
 
         <div className="reflect-session-compose-dock">
-          <RailwayReadinessCheck />
           {AI_SESSION_ENABLED && (
             <div className="reflect-ai-send-consent">
-              <label>
-                <input type="checkbox" checked={consentForMessage}
-                  disabled={isLoading}
-                  onChange={event => setConsentForMessage(event.target.checked)} />
-                Разрешаю передать только текущий текст в Grok. История и дневник не отправляются; xAI может хранить API-запрос и ответ до 30 дней.
-              </label>
+              <p className="reflect-ai-send-disclosure" id="reflect-session-send-privacy">Отправляя сообщение в Grok, вы разрешаете передать только его текст. История, профиль и дневник не отправляются; xAI может хранить API-запрос и ответ до 30 дней.</p>
               {localMessages.length > 0 && (
                 <div className="reflect-ai-session-unsaved">
                   <span>Ответ AI пока не сохранён в Firebase.</span>
@@ -279,7 +270,7 @@ const Sessions = ({ sessions, profile, userId, currentSessionId, setCurrentSessi
           )}
           <SessionComposer
             value={userInput}
-            onChange={(value) => { noteSave.clearFeedback(); setSendError(''); setConsentForMessage(false); setUserInput(value); }}
+            onChange={(value) => { noteSave.clearFeedback(); setSendError(''); setUserInput(value); }}
             onSubmit={handleSendMessage}
             onToggleRecording={handleToggleUserRecording}
             onSaveToDiary={handleSaveToDiary}
