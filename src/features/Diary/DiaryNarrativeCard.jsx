@@ -1,8 +1,9 @@
 import React from 'react';
-import { Check, History, Pencil, Plus, Star, X } from 'lucide-react';
+import { Check, History, Pencil, Plus, Star, X, Sparkles, NotebookPen, Smile, Target, MessageSquareText, GitBranch } from 'lucide-react';
 import { entryTitle, entryVersion, entryVersions } from './noteVersions';
 import CollapsibleContent from '../../components/common/CollapsibleContent';
 import { formatDate } from '../../utils/formatDate';
+import { sessionDisplayTitle, sessionExcerpt } from './diaryPresentation';
 
 const MOOD_OPTIONS = { happy: '😊', content: '😌', neutral: '😐', sad: '😟', anxious: '😰' };
 
@@ -18,7 +19,7 @@ const asDate = value => {
   }
 };
 
-const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote }) => {
+const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote, onRenameSession, onOpenSession, onOpenJourney }) => {
   const [editing, setEditing] = React.useState(false);
   const [versionsOpen, setVersionsOpen] = React.useState(false);
   const [editDraft, setEditDraft] = React.useState({ title: '', text: '' });
@@ -26,6 +27,10 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote }) => {
   const [error, setError] = React.useState('');
   const [saved, setSaved] = React.useState(false);
   const pendingEdit = React.useRef(null);
+  const [renaming, setRenaming] = React.useState(false);
+  const [renameDraft, setRenameDraft] = React.useState('');
+  const [renameBusy, setRenameBusy] = React.useState(false);
+  const [renameError, setRenameError] = React.useState('');
   const item = entry.type === 'note' ? entry.data.entries?.[0] : null;
 
   const startEditing = () => {
@@ -68,33 +73,93 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote }) => {
       setBusy(false);
     }
   };
+  const submitRename = async event => {
+    event.preventDefault();
+    const title = renameDraft.trim();
+    if (!title || title.length > 100 || renameBusy || !onRenameSession) return;
+    setRenameBusy(true); setRenameError('');
+    try {
+      await onRenameSession(entry.sourceId, title);
+      setRenaming(false);
+    } catch {
+      setRenameError('Не удалось сохранить заголовок. Проверьте подключение и повторите.');
+    } finally {
+      setRenameBusy(false);
+    }
+  };
   const renderContent = () => {
     switch (entry.type) {
-      case 'session':
+      case 'session': {
+        const { reflection, question, count, history } = sessionExcerpt(entry.data);
+        const headline = sessionDisplayTitle(entry.data);
         return (
           <div className="reflect-journal-session">
-            <h3 className="reflect-journal-content-title">{entry.data.title}</h3>
-            <p className="reflect-journal-content-meta">Сеанс рефлексии</p>
-            <CollapsibleContent title="Показать детали сеанса" startOpen={false}>
-              <div className="space-y-4">
-                {(Array.isArray(entry.data.chatHistory) ? entry.data.chatHistory : []).map((msg, index) => (
-                  <div key={index}>
-                    {msg.role === 'user' ? (
-                      <div className="reflect-journal-speaker-block reflect-journal-speaker-block--user">
-                        <p className="reflect-journal-speaker-label">Вы:</p>
-                        <p className="reflect-journal-speaker-text">{msg.content}</p>
-                      </div>
-                    ) : (
-                      <CollapsibleContent title="Показать ответ ассистента">
-                        <p className="whitespace-pre-wrap">{msg.content}</p>
-                      </CollapsibleContent>
-                    )}
-                  </div>
-                ))}
+            <div className="reflect-journal-session-heading">
+              <h3 className="reflect-journal-content-title">{headline}</h3>
+              {onRenameSession && (
+                <button type="button" className="reflect-journal-inline-action"
+                  title="Изменить заголовок сеанса" aria-label="Изменить заголовок сеанса"
+                  onClick={() => {
+                    setRenameDraft(headline === 'Размышление с Reflect' ? '' : headline);
+                    setRenameError(''); setRenaming(value => !value);
+                  }}><Pencil size={15} aria-hidden="true"/></button>
+              )}
+            </div>
+            {renaming && (
+              <form className="reflect-journal-rename" onSubmit={submitRename}>
+                <label htmlFor={'rename-' + entry.sourceId}>Название размышления</label>
+                <div>
+                  <input id={'rename-' + entry.sourceId} value={renameDraft}
+                    maxLength={100} disabled={renameBusy} required
+                    placeholder="О чём это размышление"
+                    onChange={event => setRenameDraft(event.target.value)}/>
+                  <button type="submit" disabled={renameBusy || !renameDraft.trim()}>
+                    {renameBusy ? 'Сохраняется…' : 'Сохранить'}
+                  </button>
+                  <button type="button" disabled={renameBusy}
+                    onClick={() => { setRenaming(false); setRenameError(''); }}>Отмена</button>
+                </div>
+                {renameError && <p role="alert">{renameError}</p>}
+              </form>
+            )}
+            {reflection ? (
+              <p className="reflect-journal-ai-thought">{reflection}</p>
+            ) : (
+              <p className="reflect-journal-ai-empty">{question || 'Сеанс пока не содержит размышления Reflect.'}</p>
+            )}
+            {reflection && question && (
+              <CollapsibleContent title="Исходный вопрос">
+                <p className="reflect-journal-speaker-text">{question}</p>
+              </CollapsibleContent>
+            )}
+            <CollapsibleContent title="Источник и история">
+              <div className="reflect-journal-provenance">
+                <p><MessageSquareText size={15} aria-hidden="true"/>
+                  Сохранённый сеанс · {count} {count === 1 ? 'сообщение' : 'сообщений'}</p>
+                <p>Мысли Reflect и исходные слова пользователя хранятся отдельно.</p>
+                <div className="reflect-journal-source-actions">
+                  {onOpenSession && <button type="button"
+                    onClick={() => onOpenSession(entry.sourceId)}>
+                    <MessageSquareText size={15} aria-hidden="true"/> Открыть беседу
+                  </button>}
+                  {onOpenJourney && <button type="button"
+                    onClick={() => onOpenJourney(entry.sourceId)}>
+                    <GitBranch size={15} aria-hidden="true"/> Путь сеанса
+                  </button>}
+                </div>
+                <div className="reflect-journal-transcript" aria-label="Полная история сеанса">
+                  {history.map((msg, index) => (
+                    <div key={msg.id || index} className="reflect-journal-transcript-turn">
+                      <strong>{msg.role === 'user' ? 'Вы' : 'Reflect'}</strong>
+                      <p className="reflect-journal-speaker-text">{msg.content}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </CollapsibleContent>
           </div>
         );
+      }
       case 'goal':
         return (
           <div>
@@ -228,16 +293,22 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote }) => {
 
   const kind = entry.sourceKind || entry.type;
   const category = {
-    note: 'Запись', mood: 'Настроение', goal: 'Цель', session: 'Сеанс'
-  }[kind] || 'Запись';
+    note: 'Моя запись', mood: 'Настроение', goal: 'Цель', session: 'Мысль Reflect'
+  }[kind] || 'Моя запись';
+  const CategoryIcon = {
+    note: NotebookPen, mood: Smile, goal: Target, session: Sparkles
+  }[kind] || NotebookPen;
 
   return (
-    <article className="reflect-journal-card"
-      data-kind={kind}>
-      {kind !== 'note' && <div className="reflect-journal-category" aria-label={`Рубрика: ${category}`}>
-        <span className="reflect-journal-category-dot" aria-hidden="true"/>
-        {category}
-      </div>}
+    <article className="reflect-journal-card" data-kind={kind}>
+      <div className={kind === 'note' ? 'reflect-journal-kind' : 'reflect-journal-category'}
+        aria-label={`Рубрика: ${category}`}>
+        <span className="reflect-journal-kind-icon" aria-hidden="true">
+          <CategoryIcon size={16}/>
+        </span>
+        <span>{category}</span>
+        {entry.isAppend && <span className="reflect-journal-kind-append">Продолжение</span>}
+      </div>
       {renderContent()}
       {kind !== 'note' && asDate(entry.displayAt) && (
         <footer className="reflect-journal-entry-footer">

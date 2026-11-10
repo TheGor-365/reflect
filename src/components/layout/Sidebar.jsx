@@ -1,6 +1,7 @@
 import React from 'react';
 import { BookOpen, GitBranch, MessageSquare, Plus, Target, User, ShieldCheck, X } from 'lucide-react';
 import NavItem from './NavItem';
+import { sessionDisplayTitle, sessionExcerpt } from '../../features/Diary/diaryPresentation';
 
 const Sidebar = ({
   isOpen, onClose, activeTab, changeTab, sessions, currentSessionId,
@@ -47,7 +48,13 @@ const Sidebar = ({
           ) : sessions.map(session => (
             <button key={session.id} type="button" onClick={() => selectSession(session.id)}
               className={`reflect-session-link ${activeTab === 'sessions' && currentSessionId === session.id ? 'reflect-session-link--active' : ''}`}>
-              <span className="reflect-session-name">{session.title || 'Без названия'}</span>
+              <span className="reflect-session-name">{sessionDisplayTitle(session)}</span>
+              {sessionDisplayTitle(session) === 'Размышление с Reflect' &&
+                sessionExcerpt(session).question && (
+                  <span className="reflect-session-preview">
+                    {sessionExcerpt(session).question.slice(0, 66)}
+                  </span>
+              )}
               <span className="reflect-session-date">
                 {session.createdAt && typeof session.createdAt.toDate === 'function'
                   ? session.createdAt.toDate().toLocaleDateString('ru-RU')

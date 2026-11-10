@@ -2,15 +2,17 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { Timestamp } from 'firebase/firestore';
 import {
   ArrowUp, BarChart3, Check, ChevronDown,
-  LockKeyhole, Search, SlidersHorizontal, Smile, Type, X
+  LockKeyhole, Search, SlidersHorizontal, Smile, Type, X, CalendarDays
 } from 'lucide-react';
 import { useEntrySave } from '../../hooks/useEntrySave';
 import SaveFeedback from '../../components/common/SaveFeedback';
 import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
+import AnimatedRegion from '../../components/common/AnimatedRegion';
 import DiaryNarrativeCard from './DiaryNarrativeCard';
 import { saveNoteRevision } from './noteVersions';
 import MoodInsights from '../Moods/MoodInsights';
 import { buildDiaryTimeline, filterDiaryTimeline, groupDiaryTimeline } from './diaryTimeline';
+import { timelineCalendarLabel } from './diaryPresentation';
 
 const MOOD_OPTIONS = [
   { type: 'happy', emoji: '😊', label: 'Радость' },
@@ -43,7 +45,7 @@ function autoSizeTextarea(element) {
  */
 const Diary = ({
   sessions = [], goals = [], moods = [], diaryNotes = [],
-  userId, onAppend, isLoading
+  userId, onAppend, onRenameSession, onOpenSession, onOpenJourney, isLoading
 }) => {
   const [selectedMood, setSelectedMood] = useState({ type: null, intensity: 3 });
   const [moodComment, setMoodComment] = useState('');
@@ -356,8 +358,8 @@ const Diary = ({
         </details>
       </section>
 
-      {filtersOpen && (
-        <section id="reflect-diary-filters" className="reflect-diary-filter-panel"
+      <AnimatedRegion open={filtersOpen} id="reflect-diary-filters">
+        <section className="reflect-diary-filter-panel"
           aria-label="Фильтры дневника">
           <label className="reflect-diary-search">
             <Search size={17} aria-hidden="true"/>
@@ -381,33 +383,55 @@ const Diary = ({
             </button>}
           </div>
         </section>
-      )}
-      {insightsOpen && (
-        <section id="reflect-diary-insights" className="reflect-diary-insights"
+      </AnimatedRegion>
+      <AnimatedRegion open={insightsOpen} id="reflect-diary-insights">
+        <section className="reflect-diary-insights"
           aria-label="Обзор настроения за 7 дней">
           <MoodInsights moods={visibleMoods} isLoading={isLoading}/>
         </section>
-      )}
+      </AnimatedRegion>
 
       <div ref={timelineRef} className="reflect-diary-timeline" aria-label="Лента записей">
         {!isLoading && !timelineEvents.length &&
           <div className="reflect-diary-empty">Здесь появятся ваши записи. Начните с одной мысли.</div>}
         {!isLoading && timelineEvents.length > 0 && !diaryGroups.length &&
           <div className="reflect-diary-empty">По выбранным фильтрам ничего не найдено.</div>}
-        {diaryGroups.map(group => (
-          <section key={group.key} className="reflect-diary-group" aria-label={group.title}>
-            <div className="reflect-diary-entries">
-              {group.entries.map(entry => (
-                <div key={entry.eventKey} data-source-id={entry.sourceId}
-                  className={entry.type === 'note' && entry.sourceId === justAddedNoteId
-                    ? 'reflect-diary-entering' : undefined}>
-                  <DiaryNarrativeCard entry={entry} onAppend={onAppend}
-                    onEditNote={handleEditNote}/>
+        {diaryGroups.map((group, index) => {
+          const monthKey = group.isUndated ? 'undated' : group.key.slice(0, 7);
+          const previousMonthKey = index === 0 ? null :
+            (diaryGroups[index - 1].isUndated ? 'undated' : diaryGroups[index - 1].key.slice(0, 7));
+          const startsMonth = !group.isUndated && monthKey !== previousMonthKey;
+          return (
+            <React.Fragment key={group.key}>
+              {startsMonth && (
+                <h3 className="reflect-diary-month-heading">
+                  <CalendarDays size={18} aria-hidden="true"/>
+                  {timelineCalendarLabel(group.key, 'month')}
+                </h3>
+              )}
+              <section className="reflect-diary-group" aria-label={group.title}>
+                <h4 className="reflect-diary-day-heading">
+                  <span className="reflect-diary-day-marker" aria-hidden="true"/>
+                  <span>{group.isUndated ? group.title : timelineCalendarLabel(group.key)}</span>
+                  <small>{group.entries.length}</small>
+                </h4>
+                <div className="reflect-diary-entries">
+                  {group.entries.map(entry => (
+                    <div key={entry.eventKey} data-source-id={entry.sourceId}
+                      className={`reflect-diary-event ${entry.type === 'note' && entry.sourceId === justAddedNoteId
+                        ? 'reflect-diary-entering' : ''}`}>
+                      <span className="reflect-diary-event-marker" data-kind={entry.sourceKind}
+                        aria-hidden="true"/>
+                      <DiaryNarrativeCard entry={entry} onAppend={onAppend}
+                        onEditNote={handleEditNote} onRenameSession={onRenameSession}
+                        onOpenSession={onOpenSession} onOpenJourney={onOpenJourney}/>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </section>
-        ))}
+              </section>
+            </React.Fragment>
+          );
+        })}
       </div>
     </section>
   );

@@ -227,3 +227,46 @@ test('user must explicitly reveal the title and long composer grows as typed', (
   fireEvent.change(noteInput(), { target: { value: 'Sentence\\n'.repeat(12) } });
   expect(noteInput()).toHaveValue('Sentence\\n'.repeat(12));
 });
+
+
+test('journal renders one month heading and dated rails, with undated bucket', () => {
+  const ts = iso => ({ toDate: () => new Date(iso) });
+  const { container } = render(
+    <Diary userId="synthetic-owner" sessions={[]} goals={[]} isLoading={false}
+      moods={[{ id: 'oct', mood: 'happy', createdAt: ts('2026-10-30T12:00:00Z') }]}
+      diaryNotes={[
+        { id: 'nov-5', entries: [{ text: 'Ноябрь один', createdAt: ts('2026-11-05T12:00:00Z') }] },
+        { id: 'nov-6', entries: [{ text: 'Ноябрь два', createdAt: ts('2026-11-06T12:00:00Z') }] },
+        { id: 'undated', entries: [{ text: 'Пока без времени' }] }
+      ]} onAppend={vi.fn()}/>
+  );
+  const headings = [...container.querySelectorAll('.reflect-diary-month-heading')];
+  expect(headings).toHaveLength(2);
+  expect(headings[0]).toHaveTextContent('Ноябрь 2026');
+  expect(headings[1]).toHaveTextContent('Октябрь 2026');
+  expect(container.querySelectorAll('.reflect-diary-day-heading')).toHaveLength(4);
+  expect(container.querySelectorAll('.reflect-diary-event-marker')).toHaveLength(4);
+  expect(screen.getAllByTestId('diary-timeline-event')).toHaveLength(4);
+  expect(container.querySelector('[aria-label="Лента записей"]')).toBeInTheDocument();
+});
+
+test('filters are inert until opened and preserve state through animated closing', () => {
+  const { container } = renderDiary();
+  const trigger = screen.getByRole('button', { name: 'Поиск и фильтры' });
+  const region = container.querySelector('#reflect-diary-filters');
+  expect(region).toHaveAttribute('aria-hidden', 'true');
+  expect(region).toHaveAttribute('inert');
+  fireEvent.click(trigger);
+  expect(region).toHaveAttribute('aria-hidden', 'false');
+  expect(region).not.toHaveAttribute('inert');
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Поиск по дневнику' }), {
+    target: { value: 'сохранённый поиск' }
+  });
+  fireEvent.click(trigger);
+  expect(region).toHaveAttribute('aria-hidden', 'true');
+  expect(region).toHaveAttribute('inert');
+  expect(screen.queryByRole('searchbox', { name: 'Поиск по дневнику' })).not.toBeInTheDocument();
+  fireEvent.click(trigger);
+  expect(screen.getByRole('searchbox', { name: 'Поиск по дневнику' }))
+    .toHaveValue('сохранённый поиск');
+});
