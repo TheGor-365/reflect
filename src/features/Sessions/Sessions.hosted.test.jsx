@@ -57,17 +57,13 @@ beforeEach(() => {
   }
 });
 
-test('sending requires per-message consent, shares one message only, no automatic save', async () => {
+test('explicit send confirms only current message, no automatic save', async () => {
   render(<Sessions {...defaultProps} />);
   const textbox = screen.getByRole('textbox', { name: 'Сообщение для сеанса' });
   fireEvent.change(textbox, { target: { value: 'Только этот текст' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Отправить сообщение' }));
-  expect(mocks.ai).not.toHaveBeenCalled();
-  expect(screen.getByText(/подтвердите передачу только этого сообщения/)).toBeInTheDocument();
-
-  fireEvent.click(screen.getByRole('checkbox', {
-    name: /Разрешаю передать только текущий текст/
-  }));
+  expect(screen.getByText(/Отправляя сообщение в Grok, вы разрешаете передать/))
+    .toBeInTheDocument();
+  expect(screen.queryByRole('checkbox')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Отправить сообщение' }));
   await waitFor(() => expect(mocks.ai).toHaveBeenCalledTimes(1));
   expect(mocks.ai.mock.calls[0][0]).toBe('Только этот текст');
@@ -93,9 +89,6 @@ test('failed provider call keeps user text, never writes or silently retries', a
   render(<Sessions {...defaultProps} />);
   const textbox = screen.getByRole('textbox', { name: 'Сообщение для сеанса' });
   fireEvent.change(textbox, { target: { value: 'Исходный пользовательский текст' } });
-  fireEvent.click(screen.getByRole('checkbox', {
-    name: /Разрешаю передать только текущий текст/
-  }));
   fireEvent.click(screen.getByRole('button', { name: 'Отправить сообщение' }));
   await waitFor(() => expect(mocks.ai).toHaveBeenCalledTimes(1));
   expect(textbox).toHaveValue('Исходный пользовательский текст');
