@@ -41,11 +41,14 @@ describe('Firebase account linking and sign-in safeguards', () => {
     linkWithCredential.mockResolvedValue({
       user: { uid: 'synthetic-legacy-uid', isAnonymous: false, email: 'qa@example.test' }
     });
-    const result = await registerCurrentAnonymous('  QA@EXAMPLE.TEST ', 'very-strong-qa-password!');
+    const onVerificationDelivery = vi.fn();
+    const result = await registerCurrentAnonymous('  QA@EXAMPLE.TEST ',
+      'very-strong-qa-password!', { onVerificationDelivery });
     expect(EmailAuthProvider.credential).toHaveBeenCalledWith('qa@example.test', 'very-strong-qa-password!');
     expect(linkWithCredential).toHaveBeenCalledWith(auth.currentUser, expect.anything());
     expect(result.uid).toBe('synthetic-legacy-uid');
     expect(sendEmailVerification).toHaveBeenCalledWith(result);
+    expect(onVerificationDelivery).toHaveBeenCalledWith('sent');
     expect(signInWithEmailAndPassword).not.toHaveBeenCalled();
   });
 
@@ -55,9 +58,12 @@ describe('Firebase account linking and sign-in safeguards', () => {
         email: 'qa@example.test', emailVerified: false }
     });
     sendEmailVerification.mockRejectedValueOnce({ code: 'auth/too-many-requests' });
-    const user = await registerCurrentAnonymous('qa@example.test', 'very-strong-qa-password!');
+    const onVerificationDelivery = vi.fn();
+    const user = await registerCurrentAnonymous('qa@example.test',
+      'very-strong-qa-password!', { onVerificationDelivery });
     expect(user.uid).toBe('synthetic-legacy-uid');
     expect(sendEmailVerification).toHaveBeenCalledTimes(1);
+    expect(onVerificationDelivery).toHaveBeenCalledWith('failed');
     expect(linkWithCredential).toHaveBeenCalledTimes(1);
     expect(signOut).not.toHaveBeenCalled();
   });
@@ -67,8 +73,11 @@ describe('Firebase account linking and sign-in safeguards', () => {
       user: { uid: 'synthetic-legacy-uid', isAnonymous: false,
         email: 'qa@example.test', emailVerified: true }
     });
-    await registerCurrentAnonymous('qa@example.test', 'very-strong-qa-password!');
+    const onVerificationDelivery = vi.fn();
+    await registerCurrentAnonymous('qa@example.test',
+      'very-strong-qa-password!', { onVerificationDelivery });
     expect(sendEmailVerification).not.toHaveBeenCalled();
+    expect(onVerificationDelivery).toHaveBeenCalledWith('already-verified');
   });
 
   it('does not switch to a different UID when a link result violates continuity', async () => {
