@@ -3,6 +3,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ContextConsentPanel from './ContextConsentPanel';
 import { requestContextConsent } from '../../api/contextConsentService';
 
+vi.mock('./StagingPreviewGate5AuditPanel', () => ({
+  default: ({ onRevokeAttempt }) => <button type="button"
+    onClick={onRevokeAttempt}>QA revoke simulated</button>
+}));
+
 vi.mock('../../api/contextConsentService', () => ({
   contextConsentUiEnabled: true,
   CONTEXT_CONSENT_VERSION: '2026-11-10-01',
@@ -153,4 +158,29 @@ test('revoke response is not success until the same grant disappears from server
   expect(await screen.findByText(/revoke-readback-mismatch/)).toBeInTheDocument();
   expect(screen.queryByText(/Отзыв доступа подтверждён сервером/)).not.toBeInTheDocument();
   expect(requestContextConsent).toHaveBeenCalledTimes(3);
+});
+
+
+test('QA revoke attempt hides stale cached grants and locks writes until signed refresh', async () => {
+  let serverGrants = [{
+    grantId: 'synthetic-grant-000001', sourceId: 'session-001',
+    scope: 'session-turns', expiresAtMs: 1800000000000
+  }];
+  requestContextConsent.mockImplementation(async command => {
+    expect(command.action).toBe('list');
+    return { grants: serverGrants };
+  });
+  render(<ContextConsentPanel userId="ownerA" sessions={sessions}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Проверить разрешения' }));
+  expect(await screen.findByRole('button', { name: 'Отозвать' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'QA revoke simulated' }));
+  expect(screen.getByText(/После запуска QA-отзыва/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Отозвать' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Разрешить на 15 минут' })).toBeDisabled();
+  expect(requestContextConsent).toHaveBeenCalledTimes(1);
+  serverGrants = [];
+  fireEvent.click(screen.getByRole('button', { name: 'Проверить разрешения' }));
+  expect(await screen.findByText(/Действующих разрешений нет/)).toBeInTheDocument();
+  expect(screen.queryByText(/После запуска QA-отзыва/)).not.toBeInTheDocument();
+  expect(requestContextConsent).toHaveBeenCalledTimes(2);
 });
