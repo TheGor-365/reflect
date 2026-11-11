@@ -47,7 +47,7 @@ export function accountErrorMessage(error) {
   return known[code] || 'Не удалось выполнить операцию с аккаунтом. Повторите попытку.';
 }
 
-export async function registerCurrentAnonymous(email, password) {
+export async function registerCurrentAnonymous(email, password, { onVerificationDelivery } = {}) {
   validateCredentials(email, password);
   const current = auth.currentUser;
   if (!current?.uid || !current.isAnonymous) {
@@ -67,13 +67,19 @@ export async function registerCurrentAnonymous(email, password) {
   // A successful account link is permanent even if verification mail fails.
   // Do not surface a false registration failure or attempt a second link.
   // The existing account UI offers an explicit resend/recheck action.
+  let delivery = 'already-verified';
   if (!result.user.emailVerified) {
+    delivery = 'failed';
     try {
       applyAuthEmailLocale(auth);
       await sendEmailVerification(result.user);
+      delivery = 'sent';
+    } catch {
+      // The permanent link succeeded. Do not claim the whole registration
+      // failed or retry it; show an honest delivery status with a resend action.
     }
-    catch { /* Account is linked; email can be resent in Account & Sign in. */ }
   }
+  onVerificationDelivery?.(delivery);
   return result.user;
 }
 

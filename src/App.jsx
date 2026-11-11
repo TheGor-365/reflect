@@ -44,6 +44,7 @@ export default function App() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [awaitingEmailStatusAcknowledgement, setAwaitingEmailStatusAcknowledgement] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [allowGuestProfile, setAllowGuestProfile] = useState(false);
   const profile = profileState.uid === userId ? profileState.data : null;
@@ -269,16 +270,25 @@ export default function App() {
     moods.length > 0 || diaryNotes.length > 0;
   const guestProfileOnly = Boolean(user?.isAnonymous && profile && !hasLocalData);
 
-  if (showProfileModal && user.isAnonymous && !profile && !allowGuestProfile) {
+  if (showProfileModal && !profile && !allowGuestProfile &&
+      (user.isAnonymous || awaitingEmailStatusAcknowledgement)) {
     return (
       <div className="reflect-app" data-theme={theme}>
         <AccountAccess user={user} hasLocalData={hasLocalData} welcome
           onGuest={() => setAllowGuestProfile(true)}
-          onContinue={() => setAllowGuestProfile(true)}
-          onAccountChanged={account => {
-            // The UID may remain unchanged on link. Never wait for a separate
-            // Auth listener emission to advance the first-time onboarding.
+          onContinue={() => {
+            setAwaitingEmailStatusAcknowledgement(false);
             setAllowGuestProfile(true);
+          }}
+          onAccountChanged={account => {
+            // A linked but unverified new identity must see the email status
+            // before advancing. Existing verified returns need no extra gate.
+            // This UI state does not change UID, Firestore or Auth credentials.
+            if (!account?.isAnonymous && account?.email && !account?.emailVerified) {
+              setAwaitingEmailStatusAcknowledgement(true);
+            } else {
+              setAllowGuestProfile(true);
+            }
             refreshUser?.(account);
           }} />
       </div>
