@@ -62,10 +62,11 @@ test('one explicit action returns only HTTP status and cannot auto-revoke', asyn
 
 test('revoke needs independent affirmative checkbox', async () => {
   const onRevokeAttempt = vi.fn();
+  const onRevokeFinished = vi.fn();
   runGate5PreviewAudit.mockResolvedValue({
     kind: 'revoke-deny', passed: true, statuses: [200, 200, 200, 403]
   });
-  show({ onRevokeAttempt });
+  show({ onRevokeAttempt, onRevokeFinished });
   expect(onRevokeAttempt).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('checkbox', { name: /Я выбираю ручную проверку/ }));
   expect(screen.getByRole('button', {
@@ -79,6 +80,7 @@ test('revoke needs independent affirmative checkbox', async () => {
   expect(await screen.findByText(/revoke-deny: PASS/)).toBeInTheDocument();
   expect(runGate5PreviewAudit).toHaveBeenCalledTimes(1);
   expect(onRevokeAttempt).toHaveBeenCalledTimes(1);
+  expect(onRevokeFinished).toHaveBeenCalledTimes(1);
 });
 
 test('account switch aborts and clears previous status', async () => {
@@ -93,4 +95,19 @@ test('account switch aborts and clears previous status', async () => {
     loaded grants={[]} choices={[]}/>);
   await waitFor(() => expect(screen.queryByText(/replay: PASS/)).not.toBeInTheDocument());
   expect(runGate5PreviewAudit).toHaveBeenCalledTimes(1);
+});
+
+
+test('failed revoke releases refresh lock but never silently certifies permissions', async () => {
+  const onRevokeAttempt = vi.fn();
+  const onRevokeFinished = vi.fn();
+  runGate5PreviewAudit.mockRejectedValue(new Error('qa-transport-error'));
+  show({ onRevokeAttempt, onRevokeFinished });
+  fireEvent.click(screen.getByRole('checkbox', { name: /Я выбираю ручную проверку/ }));
+  fireEvent.click(screen.getByRole('checkbox', { name: /Я отдельно подтверждаю отзыв/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Отозвать и проверить прямой отказ 403' }));
+  expect(await screen.findByText(/Диагностика остановлена/)).toBeInTheDocument();
+  expect(onRevokeAttempt).toHaveBeenCalledTimes(1);
+  expect(onRevokeFinished).toHaveBeenCalledTimes(1);
+  expect(screen.queryByText(/revoke-deny: PASS/)).not.toBeInTheDocument();
 });
