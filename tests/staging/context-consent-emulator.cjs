@@ -18,6 +18,7 @@ const {
   createContextConsentStore, PROJECT_ID, CONSENT_VERSION, SCOPE, TTL_MS, MAX_GRANTS_PER_DAY
 } = require("../../server/privacy/contextConsent.cjs");
 const { createSessionContextPreview } = require("../../server/privacy/sessionContextPreview.cjs");
+const { createPreviewQuota } = require("../../server/privacy/contextPreviewQuota.cjs");
 
 const DEMO = "demo-reflect-context-consent";
 const AUTH = "http://127.0.0.1:19099";
@@ -72,6 +73,7 @@ async function main() {
   const ownSession = `artifacts/${namespace}/users/${a.uid}/sessions/${sessionId}`;
   const privatePath = `_reflectAiPrivate/${namespace}/contextGrants/${a.uid}/grants/${grantId}`;
   const quotaPath = `_reflectAiPrivate/${namespace}/contextConsentQuotas/${a.uid}`;
+  const previewQuotaPath = `_reflectAiPrivate/${namespace}/contextPreviewQuotas/${a.uid}`;
   await db.doc(ownSession).create({
     title: "Synthetic only",
     chatHistory: [{ content: "NEVER_SEND_THIS_TO_PROVIDER", role: "user" }]
@@ -84,6 +86,8 @@ async function main() {
   assert.equal(await rest(privatePath, a.token), 403);
   assert.equal(await rest(quotaPath, a.token), 403);
   assert.equal(await rest(quotaPath, b.token), 403);
+  assert.equal(await rest(previewQuotaPath, a.token), 403);
+  assert.equal(await rest(previewQuotaPath, b.token), 403);
   assert.equal(await rest(privatePath, b.token), 403);
   assert.equal(await rest(privatePath, null), 403);
   assert.equal(await rest(privatePath, a.token, "PATCH", {
@@ -128,6 +132,11 @@ async function main() {
   assert.equal(preview.disclosureRequired, true);
   assert.equal(preview.turns.length, 1);
   assert.equal(preview.turns[0].content, "NEVER_SEND_THIS_TO_PROVIDER");
+  // The extra read quota stays Admin-private and is per verified owner.
+  const quota = createPreviewQuota({ db, projectId: PROJECT_ID, clock: () => nowMs });
+  assert.equal(await quota.consume(verifiedA.uid), true);
+  assert.equal(await rest(previewQuotaPath, a.token), 403);
+  assert.equal(await rest(previewQuotaPath, b.token), 403);
   await assert.rejects(() => previewer.preview({
     principal: { ...principal, uid: verifiedB.uid },
     grantId, sourceId: sessionId, scope: SCOPE
@@ -153,8 +162,8 @@ async function main() {
   await assert.rejects(() => store.execute({
     ...command, grantId: "synthetic-grant-id-overflow"
   }, principal), { code: "resource-exhausted" });
-  const quota = await db.doc(quotaPath).get();
-  assert.equal(quota.data().issuedCount, MAX_GRANTS_PER_DAY);
+  const issuedQuota = await db.doc(quotaPath).get();
+  assert.equal(issuedQuota.data().issuedCount, MAX_GRANTS_PER_DAY);
   assert.equal((await store.list(principal)).grants.length, MAX_GRANTS_PER_DAY - 1);
   assert.equal(await rest(quotaPath, a.token), 403);
 
