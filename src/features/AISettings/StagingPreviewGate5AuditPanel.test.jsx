@@ -61,20 +61,24 @@ test('one explicit action returns only HTTP status and cannot auto-revoke', asyn
 });
 
 test('revoke needs independent affirmative checkbox', async () => {
+  const onRevokeAttempt = vi.fn();
   runGate5PreviewAudit.mockResolvedValue({
     kind: 'revoke-deny', passed: true, statuses: [200, 200, 200, 403]
   });
-  show();
+  show({ onRevokeAttempt });
+  expect(onRevokeAttempt).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('checkbox', { name: /Я выбираю ручную проверку/ }));
   expect(screen.getByRole('button', {
     name: 'Отозвать и проверить прямой отказ 403'
   })).toBeDisabled();
+  expect(onRevokeAttempt).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('checkbox', { name: /Я отдельно подтверждаю отзыв/ }));
   fireEvent.click(screen.getByRole('button', {
     name: 'Отозвать и проверить прямой отказ 403'
   }));
   expect(await screen.findByText(/revoke-deny: PASS/)).toBeInTheDocument();
   expect(runGate5PreviewAudit).toHaveBeenCalledTimes(1);
+  expect(onRevokeAttempt).toHaveBeenCalledTimes(1);
 });
 
 test('account switch aborts and clears previous status', async () => {
