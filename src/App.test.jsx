@@ -36,10 +36,15 @@ vi.mock('./components/common/Loader', () => ({
   default: () => <div data-testid="loading" />
 }));
 vi.mock('./components/modals/AccountAccess', () => ({
-  default: ({ onAccountChanged }) => <button type="button" data-testid="welcome-link"
-    onClick={() => onAccountChanged({
-      uid: 'new-anon', email: 'demo@example.test', isAnonymous: false
-    })}>Simulate verified link</button>
+  default: ({ onAccountChanged, onContinue }) => <div>
+    <button type="button" data-testid="welcome-link"
+      onClick={() => onAccountChanged({
+        uid: 'new-anon', email: 'demo@example.test',
+        isAnonymous: false, emailVerified: false
+      })}>Simulate unverified link</button>
+    {onContinue && <button type="button" data-testid="welcome-continue"
+      onClick={onContinue}>Continue to profile</button>}
+  </div>
 }));
 vi.mock('./components/modals/ProfileModal', () => ({
   default: () => <div data-testid="profile-modal">Profile</div>
@@ -96,7 +101,7 @@ test('auth failure is shown instead of a perpetual spinner', () => {
   expect(screen.getByRole('alert')).toHaveTextContent('Ошибка авторизации');
 });
 
-test('same-UID email link advances to profile instead of trapping registered user', async () => {
+test('same-UID email link stays at verification step until explicit continue', async () => {
   const refreshUser = vi.fn();
   useAuth.mockReturnValue({
     user: { uid: 'new-anon', isAnonymous: true },
@@ -105,10 +110,13 @@ test('same-UID email link advances to profile instead of trapping registered use
   getDoc.mockResolvedValue({ exists: () => false });
   render(<App />);
   fireEvent.click(await screen.findByTestId('welcome-link'));
-  expect(await screen.findByTestId('profile-modal')).toBeInTheDocument();
+  expect(screen.queryByTestId('profile-modal')).toBeNull();
+  expect(screen.getByTestId('welcome-continue')).toBeInTheDocument();
   expect(refreshUser).toHaveBeenCalledWith(
-    expect.objectContaining({ uid: 'new-anon', isAnonymous: false })
+    expect.objectContaining({ uid: 'new-anon', isAnonymous: false, emailVerified: false })
   );
+  fireEvent.click(screen.getByTestId('welcome-continue'));
+  expect(await screen.findByTestId('profile-modal')).toBeInTheDocument();
 });
 
 test('selected AI Settings section survives application remount without losing campaign URL', async () => {
