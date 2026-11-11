@@ -17,7 +17,7 @@ const EXPECTED = Object.freeze({
  */
 export default function StagingPreviewGate5AuditPanel({
   userId, grants = [], choices = [], disabled = false, loaded = false,
-  onRevokeAttempt
+  onRevokeAttempt, onRevokeFinished
 }) {
   const [armed, setArmed] = useState(false);
   const [revokeArmed, setRevokeArmed] = useState(false);
@@ -82,7 +82,10 @@ export default function StagingPreviewGate5AuditPanel({
       if (marker === generation.current) {
         ongoing.current = null;
         setBusy('');
-        if (kind === 'revoke-deny') setRevokeArmed(false);
+        if (kind === 'revoke-deny') {
+          setRevokeArmed(false);
+          onRevokeFinished?.();
+        }
       }
     }
   }
