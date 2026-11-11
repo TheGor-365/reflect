@@ -16,7 +16,8 @@ const EXPECTED = Object.freeze({
  * Results are numeric HTTP codes only, never headers, tokens, IDs, or history.
  */
 export default function StagingPreviewGate5AuditPanel({
-  userId, grants = [], choices = [], disabled = false, loaded = false
+  userId, grants = [], choices = [], disabled = false, loaded = false,
+  onRevokeAttempt
 }) {
   const [armed, setArmed] = useState(false);
   const [revokeArmed, setRevokeArmed] = useState(false);
@@ -62,6 +63,9 @@ export default function StagingPreviewGate5AuditPanel({
     const marker = generation.current;
     const controller = new AbortController();
     ongoing.current = controller;
+    // A revoke may commit even if the receipt/readback fails. The parent
+    // must withhold its old grant list until a fresh signed list succeeds.
+    if (kind === 'revoke-deny') onRevokeAttempt?.();
     setBusy(kind);
     setError('');
     try {
