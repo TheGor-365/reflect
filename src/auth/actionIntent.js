@@ -27,6 +27,22 @@ export function parseAuthActionIntent(search, expectedApiKey) {
   return Object.freeze({ valid: true, mode, code });
 }
 
+/**
+ * No active action is possible if the browser refuses a same-origin history
+ * replacement. Unlike merely hiding the code, this removes it from the visible
+ * URL and from subsequent navigation entries before the action UI mounts.
+ */
+export function readAndScrubAuthAction(location, history, expectedApiKey) {
+  if (location?.pathname !== AUTH_ACTION_PATH) return INVALID;
+  try {
+    const intent = parseAuthActionIntent(location.search, expectedApiKey);
+    history.replaceState(history.state, '', AUTH_ACTION_PATH);
+    return intent;
+  } catch {
+    return INVALID;
+  }
+}
+
 export function safeAuthActionError(error) {
   if (error?.code === 'auth/weak-password') {
     return 'Новый пароль недостаточно надёжен. Выберите более длинный уникальный пароль.';
