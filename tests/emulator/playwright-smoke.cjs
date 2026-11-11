@@ -208,9 +208,17 @@ async function runBrowserSuite() {
     // Upgrade the EXISTING user instead of creating a different UID.
     await first.getByRole("button", { name: "Аккаунт и вход" }).click();
     await first.getByLabel("Email").fill("reflect-synthetic-alpha@example.test");
-    await first.getByLabel("Пароль").fill("Synthetic-E2E-password-2026!");
+    await first.getByLabel("Пароль", { exact: true }).fill("Synthetic-E2E-password-2026!");
+    await first.getByLabel("Повторите пароль", { exact: true })
+      .fill("Synthetic-E2E-password-2026!");
     await first.getByRole("button", { name: "Создать аккаунт" }).click();
-    // Never mistake a sidebar button visible UNDER a dialog for successful auth.
+    // A permanent account link is distinct from verified email. Do not hide
+    // the dialog until the pending-verification state has been inspected.
+    await first.getByText("Email ещё не подтверждён", { exact: true })
+      .waitFor({ timeout: 30000 });
+    await first.getByRole("button", { name: "Отправить подтверждение email" })
+      .waitFor({ timeout: 30000 });
+    await first.getByRole("button", { name: "Закрыть" }).click();
     await first.getByRole("dialog").waitFor({ state: "hidden", timeout: 30000 });
     const linkedUser = await first.evaluate(async () => {
       const { auth } = await import("/src/firebase/config.js");
@@ -579,13 +587,19 @@ async function runBrowserSuite() {
     await fresh.getByRole("button", { name: "Создать аккаунт" })
       .waitFor({ timeout: 30000 });
     await fresh.getByLabel("Email").fill("reflect-synthetic-fresh@example.test");
-    await fresh.getByLabel("Пароль").fill("Synthetic-E2E-fresh-password-2026!");
+    await fresh.getByLabel("Пароль", { exact: true })
+      .fill("Synthetic-E2E-fresh-password-2026!");
+    await fresh.getByLabel("Повторите пароль", { exact: true })
+      .fill("Synthetic-E2E-fresh-password-2026!");
     await fresh.getByRole("button", { name: "Создать аккаунт" }).click();
+    await fresh.getByRole("heading", { name: "Ваш аккаунт" })
+      .waitFor({ timeout: 30000 });
+    await fresh.getByText("Email ещё не подтверждён", { exact: true })
+      .waitFor({ timeout: 30000 });
+    // Explicit acceptance advances onboarding; never force a second sign-up.
+    await fresh.getByRole("button", { name: "Продолжить к профилю" }).click();
     await fresh.getByText("Добро пожаловать!", { exact: true })
       .waitFor({ timeout: 30000 });
-    if (await fresh.getByRole("heading", { name: "Ваш аккаунт" }).count()) {
-      throw new Error("Registered new user stuck in account modal instead of profile");
-    }
     await fresh.locator("#name").fill("Synthetic Fresh");
     await fresh.getByRole("button", { name: "Сохранить и продолжить" }).click();
     await fresh.getByRole("button", { name: "Synthetic Fresh" }).waitFor({ timeout: 30000 });
