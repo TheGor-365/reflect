@@ -7,6 +7,7 @@ on:
       - 'server/railway/index.cjs'
       - 'src/features/AISettings/**'
       - 'src/api/contextConsentService.js'
+      - 'src/api/contextPreviewService.js'
       - '.env.staging.example'
       - '.github/workflows/reflect-context-consent-contract.yml'
 
@@ -27,7 +28,7 @@ jobs:
         with:
           node-version: '22'
       - name: Isolated unit and HTTP Auth/AppCheck contract
-        run: node --test server/privacy/contextConsent.test.cjs server/privacy/contextConsentHttp.test.cjs server/privacy/sessionContextPreview.test.cjs server/railway/index.test.cjs
+        run: node --test server/privacy/contextConsent.test.cjs server/privacy/contextConsentHttp.test.cjs server/privacy/sessionContextPreview.test.cjs server/privacy/contextPreviewQuota.test.cjs server/privacy/contextPreviewHttp.test.cjs server/railway/index.test.cjs
       - name: Assert no historical AI access and separate staging flags
         run: |
           node - <<'NODE'
@@ -39,6 +40,8 @@ jobs:
           const config = fs.readFileSync('src/features/AISettings/AISettings.jsx', 'utf8');
           const http = fs.readFileSync('server/privacy/contextConsentHttp.cjs', 'utf8');
           const privatePreview = fs.readFileSync('server/privacy/sessionContextPreview.cjs', 'utf8');
+          const previewHttp = fs.readFileSync('server/privacy/contextPreviewHttp.cjs', 'utf8');
+          const previewClient = fs.readFileSync('src/api/contextPreviewService.js', 'utf8');
           if (!server.includes('REFLECT_CONTEXT_CONSENT_API_ENABLED === "yes"') ||
               !server.includes('if (consentEnabled && (!enabled || !valid))') ||
               !server.includes('verifyIdToken(token, true)') ||
@@ -52,10 +55,15 @@ jobs:
               server.includes('sessionContextPreview.cjs') ||
               provider.includes('sessionContextPreview.cjs') ||
               client.includes('sessionContextPreview.cjs') ||
+              !server.includes('REFLECT_CONTEXT_PREVIEW_API_ENABLED === "yes"') ||
+              !server.includes('if (previewEnabled && (!enabled || !valid || !consentEnabled))') ||
+              !previewClient.includes("VITE_ENABLE_REFLECT_CONTEXT_PREVIEW === 'true'") ||
+              !previewHttp.includes('attestation?.alreadyConsumed !== false') ||
+              !previewHttp.includes('"cache-control": "no-store, private"') ||
               !privatePreview.includes('providerDispatchAllowed: false') ||
               !privatePreview.includes('consentStore.check(target)') ||
               !policy.includes('body.consent.scope !== "one-message"')) {
             throw Error('AI history grant safety boundary regression');
           }
-          console.log('PASS: grant route independently disabled, one-message model unchanged');
+          console.log('PASS: preview separately gated, signed, no-store, no paid provider integration');
           NODE
