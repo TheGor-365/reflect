@@ -39,7 +39,7 @@ test.each([
 test('password reset never transmits mismatched passwords or a raw error to UI', async () => {
   completePasswordReset.mockRejectedValue({ code: 'auth/invalid-action-code', message: code });
   show('resetPassword');
-  fireEvent.change(screen.getByLabelText('Новый пароль'), {
+  fireEvent.change(screen.getByLabelText('Новый пароль', { selector: 'input' }), {
     target: { value: 'correct-synthetic-password' }
   });
   fireEvent.change(screen.getByLabelText('Повторите пароль'), {
@@ -48,7 +48,7 @@ test('password reset never transmits mismatched passwords or a raw error to UI',
   fireEvent.submit(screen.getByRole('button', { name: 'Сохранить новый пароль' }).closest('form'));
   expect(completePasswordReset).not.toHaveBeenCalled();
   expect(screen.getByRole('alert')).toHaveTextContent('Пароли не совпадают');
-  fireEvent.change(screen.getByLabelText('Новый пароль'), {
+  fireEvent.change(screen.getByLabelText('Новый пароль', { selector: 'input' }), {
     target: { value: 'correct-synthetic-password' }
   });
   fireEvent.change(screen.getByLabelText('Повторите пароль'), {
@@ -60,13 +60,13 @@ test('password reset never transmits mismatched passwords or a raw error to UI',
   ));
   expect(screen.getByRole('alert')).toHaveTextContent('Ссылка недействительна');
   expect(screen.getByRole('alert').textContent).not.toContain(code);
-  expect(screen.getByLabelText('Новый пароль')).toHaveValue('');
+  expect(screen.getByLabelText('Новый пароль', { selector: 'input' })).toHaveValue('');
 });
 
 test('success never signs in, and the return link stays same-origin', async () => {
   completePasswordReset.mockResolvedValue(undefined);
   show('resetPassword');
-  fireEvent.change(screen.getByLabelText('Новый пароль'), {
+  fireEvent.change(screen.getByLabelText('Новый пароль', { selector: 'input' }), {
     target: { value: 'synthetic-long-new-password' }
   });
   fireEvent.change(screen.getByLabelText('Повторите пароль'), {
