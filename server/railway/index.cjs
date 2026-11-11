@@ -211,6 +211,8 @@ function createRuntime() {
   const outboundEnabled = process.env.REFLECT_XAI_OUTBOUND_ENABLED === "yes";
   // This is distinct from the paid Grok toggle and OFF unless explicitly approved.
   const consentEnabled = process.env.REFLECT_CONTEXT_CONSENT_API_ENABLED === "yes";
+  // Separate read-only preview gate; OFF independently of consent grants.
+  const previewEnabled = process.env.REFLECT_CONTEXT_PREVIEW_API_ENABLED === "yes";
   const valid = process.env.REFLECT_AI_APPROVED_PROJECT === STAGE_PROJECT &&
     process.env.REFLECT_AI_APP_CHECK_APP_ID === STAGE_APP_ID &&
     process.env.REFLECT_AI_ALLOWED_ORIGIN === STAGE_ORIGIN;
@@ -219,6 +221,9 @@ function createRuntime() {
   if (consentEnabled && (!enabled || !valid)) {
     throw Error("Context consent API requires isolated, authenticated staging runtime");
   }
+  if (previewEnabled && (!enabled || !valid || !consentEnabled)) {
+    throw Error("Context preview API requires trusted staging and active consent API");
+  }
   let verifyAuth = async () => { throw new Error("AI disabled"); };
   let verifyAppCheck = async () => { throw new Error("AI disabled"); };
   let authorizeAccount = async () => false;
@@ -226,6 +231,7 @@ function createRuntime() {
   let checkProvider = async () => "provider-unavailable";
   let handleReply = async () => { throw new Error("AI disabled"); };
   let consentRoute = null;
+  let previewRoute = null;
   let ready = false;
   if (enabled) {
     const secretJson = process.env.REFLECT_FIREBASE_SERVICE_ACCOUNT_JSON || "";
@@ -272,6 +278,20 @@ function createRuntime() {
         execute: (command, principal) => consentStore.execute(command, principal),
         list: principal => consentStore.list(principal)
       });
+      if (previewEnabled) {
+        const { createSessionContextPreview } = require("../privacy/sessionContextPreview.cjs");
+        const { createPreviewQuota } = require("../privacy/contextPreviewQuota.cjs");
+        const { createPreviewHttpListener } = require("../privacy/contextPreviewHttp.cjs");
+        const bounded = createSessionContextPreview({
+          db, consentStore, projectId: STAGE_PROJECT
+        });
+        const quota = createPreviewQuota({ db, projectId: STAGE_PROJECT });
+        previewRoute = createPreviewHttpListener({
+          verifyAuth, verifyAppCheck, authorizeAccount,
+          rateLimit: uid => quota.consume(uid),
+          preview: args => bounded.preview(args)
+        });
+      }
     }
     ready = true;
   }
@@ -284,6 +304,9 @@ function createRuntime() {
     // Exact route match; no wildcard routes, query strings, or fallthrough.
     if (consentRoute && req.url === "/v1/privacy/context-consent") {
       return consentRoute(req, res);
+    }
+    if (previewRoute && req.url === "/v1/privacy/context-preview") {
+      return previewRoute(req, res);
     }
     return aiRoute(req, res);
   };

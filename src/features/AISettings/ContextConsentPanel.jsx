@@ -4,6 +4,7 @@ import {
   CONTEXT_CONSENT_VERSION, CONTEXT_SCOPE,
   contextConsentUiEnabled, requestContextConsent
 } from '../../api/contextConsentService';
+import ContextPreviewPanel from './ContextPreviewPanel';
 
 /**
  * Owner-visible consent management ONLY. Session titles come from the
@@ -154,6 +155,8 @@ export default function ContextConsentPanel({ userId, sessions = [] }) {
               })}
             </ul>
           ) : <p role="status">Действующих разрешений нет.</p>)}
+          <ContextPreviewPanel userId={userId} grants={grants}
+            loaded={loaded} disabled={busy} choices={choices}/>
         </div>
       )}
     </section>
