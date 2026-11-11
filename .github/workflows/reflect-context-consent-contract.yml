@@ -52,7 +52,10 @@ jobs:
               !config.includes('<ContextConsentPanel') ||
               provider.includes('contextConsent') ||
               provider.includes('sessionHistory') ||
-              server.includes('sessionContextPreview.cjs') ||
+              // Runtime may load preview ONLY inside the independent OFF-by-default gate.
+              !server.includes('if (previewEnabled) {') ||
+              !server.includes('const { createSessionContextPreview } = require("../privacy/sessionContextPreview.cjs");') ||
+              !server.includes('if (previewRoute && req.url === "/v1/privacy/context-preview")') ||
               provider.includes('sessionContextPreview.cjs') ||
               client.includes('sessionContextPreview.cjs') ||
               !server.includes('REFLECT_CONTEXT_PREVIEW_API_ENABLED === "yes"') ||
