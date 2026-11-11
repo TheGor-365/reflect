@@ -44,6 +44,7 @@ export default function App() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [awaitingEmailStatusAcknowledgement, setAwaitingEmailStatusAcknowledgement] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [allowGuestProfile, setAllowGuestProfile] = useState(false);
   const profile = profileState.uid === userId ? profileState.data : null;
@@ -269,17 +270,25 @@ export default function App() {
     moods.length > 0 || diaryNotes.length > 0;
   const guestProfileOnly = Boolean(user?.isAnonymous && profile && !hasLocalData);
 
-  if (showProfileModal && !profile && !allowGuestProfile) {
+  if (showProfileModal && !profile && !allowGuestProfile &&
+      (user.isAnonymous || awaitingEmailStatusAcknowledgement)) {
     return (
       <div className="reflect-app" data-theme={theme}>
         <AccountAccess user={user} hasLocalData={hasLocalData} welcome
           onGuest={() => setAllowGuestProfile(true)}
-          onContinue={() => setAllowGuestProfile(true)}
+          onContinue={() => {
+            setAwaitingEmailStatusAcknowledgement(false);
+            setAllowGuestProfile(true);
+          }}
           onAccountChanged={account => {
-            // The UID is preserved by account linking. Keep this welcome
-            // dialog mounted long enough to show whether email verification
-            // was dispatched, rather than silently advancing to the profile.
-            // The user explicitly continues to the profile afterwards.
+            // A linked but unverified new identity must see the email status
+            // before advancing. Existing verified returns need no extra gate.
+            // This UI state does not change UID, Firestore or Auth credentials.
+            if (!account?.isAnonymous && account?.email && !account?.emailVerified) {
+              setAwaitingEmailStatusAcknowledgement(true);
+            } else {
+              setAllowGuestProfile(true);
+            }
             refreshUser?.(account);
           }} />
       </div>
