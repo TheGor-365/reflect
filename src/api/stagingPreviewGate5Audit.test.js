@@ -168,4 +168,42 @@ describe('AI-01K Gate 5 browser transport (no live tokens)', () => {
     })).rejects.toThrow('qa-transport-error');
     expect(fetch).toHaveBeenCalledTimes(1);
   });
+
+  test('malformed owner list fails closed before any revoke', async () => {
+    const bad = { grants: [{ grantId: GRANT, sourceId: GATE5_SESSION_ID,
+      scope: 'unexpected-scope', expiresAtMs: Date.now() + 60000 }] };
+    globalThis.fetch = vi.fn().mockResolvedValue(response(200, bad));
+    const r = await runGate5PreviewAudit({ kind: 'revoke-deny', ...owner() });
+    expect(r.passed).toBe(false);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test('HTTP 200 without revoked receipt is not accepted', async () => {
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce(response(200, list(true)))
+      .mockResolvedValueOnce(response(200, { status: 'active' }));
+    const r = await runGate5PreviewAudit({ kind: 'revoke-deny', ...owner() });
+    expect(r.passed).toBe(false);
+    expect(r.statuses).toEqual([200, 200]);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  test('rate-limit 429 cannot be bypassed by retry', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(response(429));
+    const r = await runGate5PreviewAudit({ kind: 'replay', ...owner() });
+    expect(r.passed).toBe(false);
+    expect(r.statuses).toEqual([429]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test('attestation refresh failure stops revoke instead of reusing old token', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(response(200, list(true)));
+    getLimitedUseToken
+      .mockResolvedValueOnce({ token: 'synthetic-fresh-first' })
+      .mockRejectedValueOnce(new Error('synthetic App Check failure'));
+    await expect(runGate5PreviewAudit({ kind: 'revoke-deny', ...owner() }))
+      .rejects.toThrow('qa-unauthenticated');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
 });
