@@ -32,16 +32,53 @@ test('new anonymous user can continue without account registration', () => {
   expect(onGuest).toHaveBeenCalledOnce();
 });
 
-test('register action safely links the current guest and closes only on success', async () => {
-  registerCurrentAnonymous.mockResolvedValue({ uid: 'anon' });
+test('registration requires matching password, reports mail acceptance and keeps verification visible', async () => {
+  registerCurrentAnonymous.mockImplementation(async (email, password, options) => {
+    options.onVerificationDelivery('sent');
+    return { uid: 'anon', isAnonymous: false, email, emailVerified: false };
+  });
   const onClose = vi.fn();
-  render(<AccountAccess user={{ uid: 'anon', isAnonymous: true }} onClose={onClose}/>);
+  const linked = { uid: 'anon', isAnonymous: false, email: 'qa@example.test', emailVerified: false };
+  const view = render(<AccountAccess user={{ uid: 'anon', isAnonymous: true }}
+    onAccountChanged={vi.fn()} onClose={onClose}/>);
   fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'qa@example.test' } });
   fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Synthetic-QA-password-2026!' } });
+  fireEvent.change(screen.getByLabelText('Повторите пароль'), { target: { value: 'Synthetic-QA-password-2026!' } });
   fireEvent.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
   await waitFor(() => expect(registerCurrentAnonymous)
-    .toHaveBeenCalledWith('qa@example.test', 'Synthetic-QA-password-2026!'));
-  expect(onClose).toHaveBeenCalledOnce();
+    .toHaveBeenCalledWith('qa@example.test', 'Synthetic-QA-password-2026!',
+      expect.objectContaining({ onVerificationDelivery: expect.any(Function) })));
+  expect(onClose).not.toHaveBeenCalled();
+  expect(screen.getByText(/Firebase принял запрос на отправку письма/)).toBeInTheDocument();
+  expect(screen.queryByLabelText('Пароль')).toHaveValue('');
+  view.rerender(<AccountAccess user={linked} onClose={onClose}/>);
+  expect(screen.getByText('Email ещё не подтверждён')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Отправить подтверждение email' })).toBeInTheDocument();
+});
+
+test('registration mismatch never links or changes guest UID', async () => {
+  render(<AccountAccess user={{ uid: 'anon', isAnonymous: true }} />);
+  fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'qa@example.test' } });
+  fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Synthetic-QA-password-2026!' } });
+  fireEvent.change(screen.getByLabelText('Повторите пароль'), { target: { value: 'different-password-2026!' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Пароли не совпадают');
+  expect(registerCurrentAnonymous).not.toHaveBeenCalled();
+});
+
+test('registration can link permanently when verification mail fails, without false delivery claim', async () => {
+  registerCurrentAnonymous.mockImplementation(async (email, password, options) => {
+    options.onVerificationDelivery('failed');
+    return { uid: 'guest-uid', isAnonymous: false, email, emailVerified: false };
+  });
+  const onClose = vi.fn();
+  render(<AccountAccess user={{ uid: 'guest-uid', isAnonymous: true }} onClose={onClose}/>);
+  fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'qa@example.test' } });
+  fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Synthetic-QA-password-2026!' } });
+  fireEvent.change(screen.getByLabelText('Повторите пароль'), { target: { value: 'Synthetic-QA-password-2026!' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
+  expect(await screen.findByText(/Автоматическая отправка письма не подтверждена/)).toBeInTheDocument();
+  expect(onClose).not.toHaveBeenCalled();
 });
 
 test('signed-out user sees login without automatic guest creation or UID switching', async () => {
@@ -141,6 +178,7 @@ test('newly linked anonymous identity advances first-time onboarding', async () 
     onAccountChanged={onAccountChanged}/>);
   fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'demo@example.test' } });
   fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'synthetic-password-1234' } });
+  fireEvent.change(screen.getByLabelText('Повторите пароль'), { target: { value: 'synthetic-password-1234' } });
   fireEvent.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
   await waitFor(() => expect(onAccountChanged).toHaveBeenCalledWith(
     expect.objectContaining({ uid: 'same-uid', isAnonymous: false })
