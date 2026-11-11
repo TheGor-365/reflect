@@ -19,6 +19,8 @@ const {
 } = require("../../server/privacy/contextConsent.cjs");
 const { createSessionContextPreview } = require("../../server/privacy/sessionContextPreview.cjs");
 const { createPreviewQuota } = require("../../server/privacy/contextPreviewQuota.cjs");
+const { createAppCheckReplayGuard } = require("../../server/railway/appCheckReplayGuard.cjs");
+const { createHash } = require("node:crypto");
 
 const DEMO = "demo-reflect-context-consent";
 const AUTH = "http://127.0.0.1:19099";
@@ -97,6 +99,36 @@ async function main() {
     status: { stringValue: "active" }
   }), 403);
 
+  // Real Firestore Emulator transactions: one token must be accepted once
+  // across two independently instantiated Railway guards (same private DB).
+  // This synthetic token is NOT an actual Firebase App Check credential.
+  const mockToken = "synthetic-emulator-app-check-token-00001";
+  const mockClaims = {
+    alreadyConsumed: false, token: { exp: Math.floor(nowMs / 1000) + 300 }
+  };
+  const replayA = createAppCheckReplayGuard({
+    db, projectId: PROJECT_ID, clock: () => nowMs
+  });
+  const replayB = createAppCheckReplayGuard({
+    db, projectId: PROJECT_ID, clock: () => nowMs
+  });
+  const firstAndReplay = await Promise.all([
+    replayA.consume(mockToken, mockClaims),
+    replayB.consume(mockToken, mockClaims)
+  ]);
+  assert.deepEqual(firstAndReplay.sort(), [false, true]);
+  assert.equal(await replayA.consume(mockToken, mockClaims), false);
+  const tokenDigest = createHash("sha256").update(mockToken, "utf8").digest("hex");
+  const privateReplayPath =
+    "_reflectAiPrivate/" + namespace + "/appCheckReplayTokens/" + tokenDigest;
+  const replayDoc = await db.doc(privateReplayPath).get();
+  assert.equal(replayDoc.exists, true);
+  assert.equal(replayDoc.data().expiresAt.toMillis(), mockClaims.token.exp * 1000);
+  assert.equal(JSON.stringify(replayDoc.data()).includes(mockToken), false);
+  assert.equal(await rest(privateReplayPath, a.token), 403);
+  assert.equal(await rest(privateReplayPath, b.token), 403);
+  assert.equal(await rest(privateReplayPath, null), 403);
+
   const store = createContextConsentStore({
     db, projectId: PROJECT_ID, clock: () => nowMs
   });
@@ -167,7 +199,7 @@ async function main() {
   assert.equal((await store.list(principal)).grants.length, MAX_GRANTS_PER_DAY - 1);
   assert.equal(await rest(quotaPath, a.token), 403);
 
-  console.log("PASS: real synthetic Auth token, owner-only Rules, Admin grant/revoke, private browser denial");
+  console.log("PASS: synthetic Auth, Firestore replay transactions, owner Rules, Admin grant/revoke, browser denial");
 }
 main().catch(error => {
   console.error("Context consent emulator QA failed:", error.message);
