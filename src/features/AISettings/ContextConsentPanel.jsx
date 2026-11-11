@@ -20,6 +20,7 @@ export default function ContextConsentPanel({ userId, sessions = [] }) {
   // A separate QA harness may revoke a grant without updating this list.
   // Invalidate cached permissions immediately; never show a stale grant as active.
   const [auditRevokePending, setAuditRevokePending] = useState(false);
+  const [auditRevokeInFlight, setAuditRevokeInFlight] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const generation = useRef(0);
@@ -31,6 +32,7 @@ export default function ContextConsentPanel({ userId, sessions = [] }) {
     setGrants([]);
     setLoaded(false);
     setAuditRevokePending(false);
+    setAuditRevokeInFlight(false);
     setBusy(false);
     setMessage('');
   }, [userId]);
@@ -39,7 +41,7 @@ export default function ContextConsentPanel({ userId, sessions = [] }) {
     /^[A-Za-z0-9_-]{1,128}$/.test(s.id)).slice(0, 100);
 
   const call = async (payload, action) => {
-    if (!contextConsentUiEnabled || !userId || busy ||
+    if (!contextConsentUiEnabled || !userId || busy || auditRevokeInFlight ||
         (auditRevokePending && action !== 'list')) return;
     const ownerGeneration = generation.current;
     setBusy(true); setMessage('');
@@ -145,7 +147,7 @@ export default function ContextConsentPanel({ userId, sessions = [] }) {
           <div className="reflect-context-consent-actions">
             <button type="button" disabled={busy || auditRevokePending || !selected || !confirmed}
               onClick={grant}>Разрешить на 15 минут</button>
-            <button type="button" disabled={busy}
+            <button type="button" disabled={busy || auditRevokeInFlight}
               onClick={() => call({ action: 'list' }, 'list')}>Проверить разрешения</button>
           </div>
           {message && <p role="status" className="reflect-context-consent-message">{message}</p>}
@@ -173,7 +175,11 @@ export default function ContextConsentPanel({ userId, sessions = [] }) {
             loaded={loaded} disabled={busy || auditRevokePending} choices={choices}/>
           <StagingPreviewGate5AuditPanel userId={userId} grants={grants}
             loaded={loaded} disabled={busy || auditRevokePending} choices={choices}
-            onRevokeAttempt={() => setAuditRevokePending(true)}/>
+            onRevokeAttempt={() => {
+              setAuditRevokePending(true);
+              setAuditRevokeInFlight(true);
+            }}
+            onRevokeFinished={() => setAuditRevokeInFlight(false)}/>
         </div>
       )}
     </section>
