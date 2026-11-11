@@ -5,6 +5,7 @@ import {
   contextConsentUiEnabled, requestContextConsent
 } from '../../api/contextConsentService';
 import ContextPreviewPanel from './ContextPreviewPanel';
+import StagingPreviewGate5AuditPanel from './StagingPreviewGate5AuditPanel';
 
 /**
  * Owner-visible consent management ONLY. Session titles come from the
@@ -156,6 +157,8 @@ export default function ContextConsentPanel({ userId, sessions = [] }) {
             </ul>
           ) : <p role="status">Действующих разрешений нет.</p>)}
           <ContextPreviewPanel userId={userId} grants={grants}
+            loaded={loaded} disabled={busy} choices={choices}/>
+          <StagingPreviewGate5AuditPanel userId={userId} grants={grants}
             loaded={loaded} disabled={busy} choices={choices}/>
         </div>
       )}
