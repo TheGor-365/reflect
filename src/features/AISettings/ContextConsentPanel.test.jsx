@@ -4,8 +4,10 @@ import ContextConsentPanel from './ContextConsentPanel';
 import { requestContextConsent } from '../../api/contextConsentService';
 
 vi.mock('./StagingPreviewGate5AuditPanel', () => ({
-  default: ({ onRevokeAttempt }) => <button type="button"
-    onClick={onRevokeAttempt}>QA revoke simulated</button>
+  default: ({ onRevokeAttempt, onRevokeFinished }) => <div>
+    <button type="button" onClick={onRevokeAttempt}>QA revoke simulated</button>
+    <button type="button" onClick={onRevokeFinished}>QA revoke settled</button>
+  </div>
 }));
 
 vi.mock('../../api/contextConsentService', () => ({
@@ -178,6 +180,9 @@ test('QA revoke attempt hides stale cached grants and locks writes until signed 
   expect(screen.queryByRole('button', { name: 'Отозвать' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Разрешить на 15 минут' })).toBeDisabled();
   expect(requestContextConsent).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole('button', { name: 'Проверить разрешения' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'QA revoke settled' }));
+  expect(screen.getByRole('button', { name: 'Проверить разрешения' })).toBeEnabled();
   serverGrants = [];
   fireEvent.click(screen.getByRole('button', { name: 'Проверить разрешения' }));
   expect(await screen.findByText(/Действующих разрешений нет/)).toBeInTheDocument();
