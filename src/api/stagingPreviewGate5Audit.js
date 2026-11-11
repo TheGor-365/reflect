@@ -66,6 +66,11 @@ async function post(path, payload, headers, principal, ownerUid, signal, checkGr
     });
     currentOwner(principal, ownerUid);
     // Never read a Preview response body; it contains synthetic turns.
+    if (payload.action === 'revoke' && response.status === 200) {
+      const receipt = await response.json().catch(() => null);
+      currentOwner(principal, ownerUid);
+      return { status: response.status, revoked: receipt?.status === 'revoked' };
+    }
     if (payload.action !== 'list') return { status: response.status };
     if (response.status !== 200) return { status: response.status, listValid: false };
     const value = await response.json().catch(() => null);
@@ -157,7 +162,9 @@ export async function runGate5PreviewAudit({
   const revoke = await post(CONSENT, { action: 'revoke', grantId },
     await headersFor(principal, ownerUid), principal, ownerUid, signal);
   observed.push(revoke.status);
-  if (revoke.status !== 200) return statusOnly(kind, [200, 200, 200, 403], observed);
+  if (revoke.status !== 200 || !revoke.revoked) {
+    return statusOnly(kind, [200, 200, 200, 403], observed, false);
+  }
 
   const after = await post(CONSENT, { action: 'list' },
     await headersFor(principal, ownerUid), principal, ownerUid, signal, grantId);
