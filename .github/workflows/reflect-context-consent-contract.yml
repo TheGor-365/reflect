@@ -5,6 +5,8 @@ on:
     paths:
       - 'server/privacy/**'
       - 'server/railway/index.cjs'
+      - 'server/railway/appCheckReplayGuard.cjs'
+      - 'server/railway/appCheckReplayGuard.test.cjs'
       - 'src/features/AISettings/**'
       - 'src/api/contextConsentService.js'
       - 'src/api/contextPreviewService.js'
@@ -28,12 +30,13 @@ jobs:
         with:
           node-version: '22'
       - name: Isolated unit and HTTP Auth/AppCheck contract
-        run: node --test server/privacy/contextConsent.test.cjs server/privacy/contextConsentHttp.test.cjs server/privacy/sessionContextPreview.test.cjs server/privacy/contextPreviewQuota.test.cjs server/privacy/contextPreviewHttp.test.cjs server/railway/index.test.cjs
+        run: node --test server/privacy/contextConsent.test.cjs server/privacy/contextConsentHttp.test.cjs server/privacy/sessionContextPreview.test.cjs server/privacy/contextPreviewQuota.test.cjs server/privacy/contextPreviewHttp.test.cjs server/railway/index.test.cjs server/railway/appCheckReplayGuard.test.cjs
       - name: Assert no historical AI access and separate staging flags
         run: |
           node - <<'NODE'
           const fs = require('node:fs');
           const server = fs.readFileSync('server/railway/index.cjs', 'utf8');
+          const replay = fs.readFileSync('server/railway/appCheckReplayGuard.cjs', 'utf8');
           const provider = fs.readFileSync('server/ai/hostedHandler.cjs', 'utf8');
           const policy = fs.readFileSync('server/ai/policy.cjs', 'utf8');
           const client = fs.readFileSync('src/api/contextConsentService.js', 'utf8');
@@ -46,6 +49,11 @@ jobs:
               !server.includes('if (consentEnabled && (!enabled || !valid))') ||
               !server.includes('verifyIdToken(token, true)') ||
               !server.includes('verifyToken(token, { consume: true })') ||
+              !server.includes('const replayGuard = createAppCheckReplayGuard({') ||
+              !server.includes('const firstUse = await replayGuard.consume(token, result)') ||
+              !server.includes('app?.alreadyConsumed !== false') ||
+              !replay.includes('db.runTransaction(async tx =>') ||
+              !replay.includes('tx.create(record,') ||
               !client.includes('VITE_ENABLE_REFLECT_CONTEXT_CONSENT === "true"') ||
               !http.includes('authorizeAccount(auth)') ||
               !http.includes('parseContextConsentCommand(body, principal)') ||
