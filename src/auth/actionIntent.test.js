@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { parseAuthActionIntent, safeAuthActionError } from './actionIntent';
+import {
+  parseAuthActionIntent, readAndScrubAuthAction, safeAuthActionError
+} from './actionIntent';
 
 const K = 'synthetic-firebase-public-api-key';
 const code = 'SyntheticOnceOnly_123456789';
@@ -34,6 +36,35 @@ describe('Stage05A email action URL capability guard', () => {
       '&continueUrl=https%3A%2F%2Fattacker.test%2F&lang=zz'), K);
     expect(result).toEqual({ valid: true, mode: 'verifyEmail', code });
     expect(JSON.stringify(result)).not.toContain('attacker');
+  });
+
+  it('scrubs action capabilities before they can appear in navigation/history', () => {
+    const history = { state: { safe: true }, replaceState: vi.fn() };
+    const intent = readAndScrubAuthAction({
+      pathname: '/auth/action', search: link('verifyAndChangeEmail'),
+      hash: '#ignored'
+    }, history, K);
+    expect(intent).toEqual({ valid: true, mode: 'verifyAndChangeEmail', code });
+    expect(history.replaceState).toHaveBeenCalledWith(
+      history.state, '', '/auth/action'
+    );
+    expect(JSON.stringify(history.replaceState.mock.calls)).not.toContain(code);
+  });
+
+  it('fails closed when the browser cannot strip the action URL', () => {
+    const history = { state: null, replaceState: () => { throw Error('blocked'); } };
+    const intent = readAndScrubAuthAction({
+      pathname: '/auth/action', search: link('resetPassword')
+    }, history, K);
+    expect(intent).toEqual({ valid: false, mode: null, code: null });
+  });
+
+  it('does not touch unrelated routes or consume any Firebase action', () => {
+    const history = { state: null, replaceState: vi.fn() };
+    expect(readAndScrubAuthAction({
+      pathname: '/diary', search: link('verifyEmail')
+    }, history, K).valid).toBe(false);
+    expect(history.replaceState).not.toHaveBeenCalled();
   });
 
   it('never reflects Firebase raw messages or one-time action codes', () => {
