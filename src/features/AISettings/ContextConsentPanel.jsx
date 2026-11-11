@@ -5,6 +5,7 @@ import {
   contextConsentUiEnabled, requestContextConsent
 } from '../../api/contextConsentService';
 import ContextPreviewPanel from './ContextPreviewPanel';
+import StagingPreviewGate5AuditPanel from './StagingPreviewGate5AuditPanel';
 
 /**
  * Owner-visible consent management ONLY. Session titles come from the
@@ -16,6 +17,10 @@ export default function ContextConsentPanel({ userId, sessions = [] }) {
   const [confirmed, setConfirmed] = useState(false);
   const [grants, setGrants] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  // A separate QA harness may revoke a grant without updating this list.
+  // Invalidate cached permissions immediately; never show a stale grant as active.
+  const [auditRevokePending, setAuditRevokePending] = useState(false);
+  const [auditRevokeInFlight, setAuditRevokeInFlight] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const generation = useRef(0);
@@ -26,6 +31,8 @@ export default function ContextConsentPanel({ userId, sessions = [] }) {
     setConfirmed(false);
     setGrants([]);
     setLoaded(false);
+    setAuditRevokePending(false);
+    setAuditRevokeInFlight(false);
     setBusy(false);
     setMessage('');
   }, [userId]);
@@ -34,7 +41,8 @@ export default function ContextConsentPanel({ userId, sessions = [] }) {
     /^[A-Za-z0-9_-]{1,128}$/.test(s.id)).slice(0, 100);
 
   const call = async (payload, action) => {
-    if (!contextConsentUiEnabled || !userId || busy) return;
+    if (!contextConsentUiEnabled || !userId || busy || auditRevokeInFlight ||
+        (auditRevokePending && action !== 'list')) return;
     const ownerGeneration = generation.current;
     setBusy(true); setMessage('');
     try {
@@ -43,6 +51,7 @@ export default function ContextConsentPanel({ userId, sessions = [] }) {
       if (action === 'list') {
         setGrants(result.grants);
         setLoaded(true);
+        setAuditRevokePending(false);
         setMessage('Список действующих разрешений обновлён.');
       } else {
         // Refresh from server rather than assuming a grant was committed.
@@ -91,7 +100,8 @@ export default function ContextConsentPanel({ userId, sessions = [] }) {
   };
 
   const grant = () => {
-    if (!selected || !confirmed || !choices.some(s => s.id === selected) ||
+    if (auditRevokePending || !selected || !confirmed ||
+        !choices.some(s => s.id === selected) ||
         !globalThis.crypto?.randomUUID) return;
     call({
       action: 'grant', grantId: globalThis.crypto.randomUUID(),
@@ -121,7 +131,8 @@ export default function ContextConsentPanel({ userId, sessions = [] }) {
       ) : (
         <div className="reflect-context-consent-controls">
           <label htmlFor="reflect-consent-source">Выберите сохранённый сеанс</label>
-          <select id="reflect-consent-source" value={selected} disabled={busy}
+          <select id="reflect-consent-source" value={selected}
+            disabled={busy || auditRevokePending}
             onChange={event => { setSelected(event.target.value); setConfirmed(false); }}>
             <option value="">Не выбран</option>
             {choices.map(s => <option key={s.id} value={s.id}>
@@ -129,18 +140,23 @@ export default function ContextConsentPanel({ userId, sessions = [] }) {
             </option>)}
           </select>
           <label className="reflect-context-consent-confirm">
-            <input type="checkbox" checked={confirmed} disabled={busy || !selected}
+            <input type="checkbox" checked={confirmed} disabled={busy || auditRevokePending || !selected}
               onChange={event => setConfirmed(event.target.checked)}/>
             Я разрешаю доступ только к выбранному сеансу на 15 минут.
           </label>
           <div className="reflect-context-consent-actions">
-            <button type="button" disabled={busy || !selected || !confirmed}
+            <button type="button" disabled={busy || auditRevokePending || !selected || !confirmed}
               onClick={grant}>Разрешить на 15 минут</button>
-            <button type="button" disabled={busy}
+            <button type="button" disabled={busy || auditRevokeInFlight}
               onClick={() => call({ action: 'list' }, 'list')}>Проверить разрешения</button>
           </div>
           {message && <p role="status" className="reflect-context-consent-message">{message}</p>}
-          {loaded && (grants.length ? (
+          {auditRevokePending && loaded && <p role="alert">
+            После запуска QA-отзыва список разрешений может быть устаревшим.
+            Для подтверждения текущего состояния нажмите «Проверить разрешения».
+            До обновления выдача и использование разрешений заблокированы.
+          </p>}
+          {loaded && !auditRevokePending && (grants.length ? (
             <ul className="reflect-context-consent-grants">
               {grants.map(g => {
                 const title = choices.find(s => s.id === g.sourceId)?.title ||
@@ -156,7 +172,14 @@ export default function ContextConsentPanel({ userId, sessions = [] }) {
             </ul>
           ) : <p role="status">Действующих разрешений нет.</p>)}
           <ContextPreviewPanel userId={userId} grants={grants}
-            loaded={loaded} disabled={busy} choices={choices}/>
+            loaded={loaded} disabled={busy || auditRevokePending} choices={choices}/>
+          <StagingPreviewGate5AuditPanel userId={userId} grants={grants}
+            loaded={loaded} disabled={busy || auditRevokePending} choices={choices}
+            onRevokeAttempt={() => {
+              setAuditRevokePending(true);
+              setAuditRevokeInFlight(true);
+            }}
+            onRevokeFinished={() => setAuditRevokeInFlight(false)}/>
         </div>
       )}
     </section>

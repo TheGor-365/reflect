@@ -10,6 +10,8 @@ on:
       - 'src/features/AISettings/**'
       - 'src/api/contextConsentService.js'
       - 'src/api/contextPreviewService.js'
+      - 'src/api/stagingPreviewGate5Audit.js'
+      - 'src/api/stagingPreviewGate5Audit.test.js'
       - '.env.staging.example'
       - '.github/workflows/reflect-context-consent-contract.yml'
 
@@ -31,6 +33,10 @@ jobs:
           node-version: '22'
       - name: Isolated unit and HTTP Auth/AppCheck contract
         run: node --test server/privacy/contextConsent.test.cjs server/privacy/contextConsentHttp.test.cjs server/privacy/sessionContextPreview.test.cjs server/privacy/contextPreviewQuota.test.cjs server/privacy/contextPreviewHttp.test.cjs server/privacy/contextPreviewSecurityGate.test.cjs server/railway/index.test.cjs server/railway/appCheckReplayGuard.test.cjs
+      - name: Install locked client dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Synthetic-only signed browser audit unit and panel tests
+        run: npx vitest run src/api/stagingPreviewGate5Audit.test.js src/features/AISettings/StagingPreviewGate5AuditPanel.test.jsx
       - name: Assert no historical AI access and separate staging flags
         run: |
           node - <<'NODE'
