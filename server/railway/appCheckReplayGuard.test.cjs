@@ -11,11 +11,36 @@ function fixture() {
   const docs = new Map();
   const writes = [];
   let outage = false;
+  let nowMs = NOW;
   // Serial transaction fixture; Firestore runTransaction handles actual
   // concurrent cross-replica isolation, to be acceptance-tested in emulator.
   let tail = Promise.resolve();
   const db = {
     doc(path) { return { path }; },
+    collection(path) {
+      return {
+        where(field, op, cutoff) {
+          assert.equal(field, "expiresAt");
+          assert.equal(op, "<=");
+          return { limit(max) {
+            return { async get() {
+              const selected = [...docs].filter(([key, data]) =>
+                key.startsWith(path + "/") && data.expiresAt <= cutoff
+              ).slice(0, max).map(([key]) => ({ ref: { path: key } }));
+              return { empty: selected.length === 0,
+                size: selected.length, docs: selected };
+            } };
+          } };
+        }
+      };
+    },
+    batch() {
+      const pending = [];
+      return {
+        delete(ref) { pending.push(ref.path); },
+        async commit() { for (const key of pending) docs.delete(key); }
+      };
+    },
     runTransaction(callback) {
       const pending = tail.then(() => {
         if (outage) throw Error("synthetic-Firestore-down");
@@ -33,7 +58,8 @@ function fixture() {
     }
   };
   return { db, docs, writes,
-    guard: createAppCheckReplayGuard({ db, projectId: PROJECT_ID, clock: () => NOW }),
+    guard: createAppCheckReplayGuard({ db, projectId: PROJECT_ID, clock: () => nowMs }),
+    setNow: value => { nowMs = value; },
     setOutage: value => { outage = value; } };
 }
 
@@ -89,6 +115,16 @@ test("private Firestore outage fails closed", async () => {
   fx.setOutage(true);
   await assert.rejects(fx.guard.consume(TOKEN, VERIFIED), { code: "unavailable" });
   assert.equal(fx.writes.length, 0);
+});
+
+test("Spark-compatible sweep deletes only markers expired beyond safety grace", async () => {
+  const fx = fixture();
+  assert.equal(await fx.guard.consume(TOKEN, VERIFIED), true);
+  assert.equal(await fx.guard.pruneExpired(), 0);
+  assert.equal(fx.docs.size, 1);
+  fx.setNow(VERIFIED.token.exp * 1000 + 11 * 60 * 1000);
+  assert.equal(await fx.guard.pruneExpired(), 1);
+  assert.equal(fx.docs.size, 0);
 });
 
 test("non-staging projects cannot instantiate this guard", () => {
