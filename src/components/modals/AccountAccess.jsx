@@ -19,6 +19,7 @@ export default function AccountAccess({
   const [mode, setMode] = useState(signedOut ? 'login' : 'register');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -61,6 +62,7 @@ export default function AccountAccess({
     setMode(nextMode);
     if (nextMode === 'recover' && user?.email) setEmail(user.email);
     setPassword('');
+    setPasswordConfirmation('');
     setError('');
     setNotice('');
     setAcceptGuestProfileSwitch(false);
@@ -78,15 +80,31 @@ export default function AccountAccess({
       if (mode === 'login' && guestProfileOnly && !acceptGuestProfileSwitch) {
         throw new Error('Подтвердите, что гостевой профиль останется отдельно.');
       }
+      if (mode === 'register' && password !== passwordConfirmation) {
+        throw new Error('Пароли не совпадают. Повторите ввод.');
+      }
+      let delivery = 'unknown';
       const account = mode === 'register'
-        ? await registerCurrentAnonymous(email, password)
+        ? await registerCurrentAnonymous(email, password, {
+          onVerificationDelivery: status => { delivery = status; }
+        })
         : await signInExisting(email, password, { hasLocalData });
       onAccountChanged?.(account);
       setPassword('');
+      setPasswordConfirmation('');
+      if (mode === 'register' && !account.emailVerified) {
+        // Linking is permanent even when Firebase could not deliver mail.
+        // Keep the dialog open so resend/recheck are visible after Auth updates.
+        setNotice(delivery === 'sent'
+          ? 'Аккаунт создан, но email ещё не подтверждён. Firebase принял запрос на отправку письма. Проверьте входящие и спам, затем откройте ссылку и нажмите «Проверить подтверждение». Дневник доступен, но адрес пока не проверен.'
+          : 'Аккаунт создан, но email ещё не подтверждён. Автоматическая отправка письма не подтверждена. В аккаунте нажмите «Отправить подтверждение email», затем проверьте почту. Не регистрируйтесь повторно.');
+        return;
+      }
       onClose?.();
     } catch (failure) {
       setError(accountErrorMessage(failure));
       setPassword('');
+      setPasswordConfirmation('');
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -329,9 +347,16 @@ export default function AccountAccess({
                 <ArrowRight size={19} aria-hidden="true" />
               </button>
             )}
-            <p className="reflect-auth-identity-state">
+            <p className="reflect-auth-identity-state" role="status">
               {user.emailVerified ? 'Email подтверждён' : 'Email ещё не подтверждён'}
             </p>
+            {!user.emailVerified && (
+              <p className="reflect-auth-notice">
+                Аккаунт привязан к email, но владение адресом не проверено.
+                Дневник доступен без подтверждения; для защищённых функций
+                и последующего восстановления подтвердите почту по ссылке.
+              </p>
+            )}
             {!user.emailVerified && (
               <div className="reflect-auth-action-row">
                 <button type="button" className="reflect-auth-secondary" disabled={busy}
@@ -374,6 +399,17 @@ export default function AccountAccess({
                     disabled={busy} />
                 </span>
               </label>
+              {mode === 'register' && (
+                <label htmlFor="reflect-password-confirmation">Повторите пароль
+                  <span className="reflect-auth-field"><KeyRound size={19} aria-hidden="true" />
+                    <input id="reflect-password-confirmation" type="password"
+                      autoComplete="new-password" value={passwordConfirmation}
+                      onChange={e => setPasswordConfirmation(e.target.value)}
+                      placeholder="Повторите пароль" required minLength={10}
+                      disabled={busy} />
+                  </span>
+                </label>
+              )}
               {mode === 'login' && hasLocalData && (
                 <p className="reflect-auth-warning" role="status">
                   <LockKeyhole size={17} aria-hidden="true" />
@@ -404,7 +440,7 @@ export default function AccountAccess({
               )}
               <p className="reflect-auth-notice">
                 {mode === 'register'
-                  ? 'Мы привяжем email к текущему UID. Пароль обрабатывает Firebase Authentication — в дневнике он не хранится.'
+                  ? 'Мы привяжем email к текущему UID. После регистрации подтвердите почту по ссылке из письма. Пароль обрабатывает Firebase Authentication — в дневнике он не хранится.'
                   : 'Вход восстановит записи указанного аккаунта, если они находятся в той же Firebase-среде.'}
               </p>
             </form>
