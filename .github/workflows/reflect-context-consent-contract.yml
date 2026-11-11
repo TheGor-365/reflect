@@ -30,7 +30,7 @@ jobs:
         with:
           node-version: '22'
       - name: Isolated unit and HTTP Auth/AppCheck contract
-        run: node --test server/privacy/contextConsent.test.cjs server/privacy/contextConsentHttp.test.cjs server/privacy/sessionContextPreview.test.cjs server/privacy/contextPreviewQuota.test.cjs server/privacy/contextPreviewHttp.test.cjs server/railway/index.test.cjs server/railway/appCheckReplayGuard.test.cjs
+        run: node --test server/privacy/contextConsent.test.cjs server/privacy/contextConsentHttp.test.cjs server/privacy/sessionContextPreview.test.cjs server/privacy/contextPreviewQuota.test.cjs server/privacy/contextPreviewHttp.test.cjs server/privacy/contextPreviewSecurityGate.test.cjs server/railway/index.test.cjs server/railway/appCheckReplayGuard.test.cjs
       - name: Assert no historical AI access and separate staging flags
         run: |
           node - <<'NODE'
