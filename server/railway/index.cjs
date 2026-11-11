@@ -136,7 +136,7 @@ function createRequestListener({ ready, allowProvider, authorizeAccount, verifyA
       } catch {
         throw new PolicyError("attestation-unavailable");
       }
-      if (!auth?.uid || app?.appId !== STAGE_APP_ID || app?.alreadyConsumed === true) {
+      if (!auth?.uid || app?.appId !== STAGE_APP_ID || app?.alreadyConsumed !== false) {
         throw new PolicyError("unauthenticated");
       }
       // Current verified Firebase account + short-lived private entitlement;
@@ -264,7 +264,19 @@ function createRuntime() {
       return snapshot.exists && snapshot.data()?.enabled === true;
     };
     verifyAuth = token => getAuth(app).verifyIdToken(token, true);
-    verifyAppCheck = token => getAppCheck(app).verifyToken(token, { consume: true });
+    // A shared atomic Firestore replay ledger protects all Railway endpoints,
+    // independently of Firebase's consumed marker. Never store the raw token.
+    const { createAppCheckReplayGuard } = require("./appCheckReplayGuard.cjs");
+    const replayGuard = createAppCheckReplayGuard({
+      db, projectId: STAGE_PROJECT
+    });
+    verifyAppCheck = async token => {
+      const result = await getAppCheck(app).verifyToken(token, { consume: true });
+      if (result.alreadyConsumed !== false) return result;
+      const firstUse = await replayGuard.consume(token, result);
+      // Preserve the SDK response shape; every route checks this marker.
+      return firstUse ? result : { ...result, alreadyConsumed: true };
+    };
     handleReply = handler;
     // No new API exists unless the owner deliberately opts into an isolated
     // staging deployment AND sets the dedicated server-only feature flag.
