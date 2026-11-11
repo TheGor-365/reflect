@@ -269,16 +269,17 @@ export default function App() {
     moods.length > 0 || diaryNotes.length > 0;
   const guestProfileOnly = Boolean(user?.isAnonymous && profile && !hasLocalData);
 
-  if (showProfileModal && user.isAnonymous && !profile && !allowGuestProfile) {
+  if (showProfileModal && !profile && !allowGuestProfile) {
     return (
       <div className="reflect-app" data-theme={theme}>
         <AccountAccess user={user} hasLocalData={hasLocalData} welcome
           onGuest={() => setAllowGuestProfile(true)}
           onContinue={() => setAllowGuestProfile(true)}
           onAccountChanged={account => {
-            // The UID may remain unchanged on link. Never wait for a separate
-            // Auth listener emission to advance the first-time onboarding.
-            setAllowGuestProfile(true);
+            // The UID is preserved by account linking. Keep this welcome
+            // dialog mounted long enough to show whether email verification
+            // was dispatched, rather than silently advancing to the profile.
+            // The user explicitly continues to the profile afterwards.
             refreshUser?.(account);
           }} />
       </div>
