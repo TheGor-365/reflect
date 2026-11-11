@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import { getIdToken, onAuthStateChanged, reload, signInAnonymously } from 'firebase/auth';
 import { auth } from '../firebase/config';
 import { clearExplicitlySignedOut, isExplicitlySignedOut } from './accountSession';
 
@@ -22,6 +22,7 @@ export const useAuth = () => {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [authError, setAuthError] = useState(null);
   const [signedOut, setSignedOut] = useState(false);
+  const [, forceAuthUpdate] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -92,6 +93,76 @@ export const useAuth = () => {
     };
   }, []);
 
+  // Firebase email actions can complete in ANOTHER browser or tab. They do not
+  // guarantee an onAuthStateChanged event in the already-open Reflect page.
+  // Reconcile only the same signed-in UID on return/focus; never mint a guest,
+  // sign out, replace a user or store action codes.
+  useEffect(() => {
+    let alive = true;
+    let pending = false;
+    let lastAttempt = 0;
+    let remainingVisiblePolls = 12; // at most ~3 minutes per focus period
+    const minimumGapMs = 3000;
+
+    const reconcileEmailVerification = async () => {
+      if (!alive || pending || document.visibilityState === 'hidden') return;
+      const current = auth.currentUser;
+      if (!current?.uid || current.isAnonymous || current.emailVerified ||
+          !current.email) return;
+      const now = Date.now();
+      if (now - lastAttempt < minimumGapMs) return;
+      lastAttempt = now;
+      pending = true;
+      const expectedUid = current.uid;
+      try {
+        await reload(current);
+        if (!alive || auth.currentUser?.uid !== expectedUid ||
+            current.uid !== expectedUid || !current.emailVerified) return;
+
+        // Refresh the signed ID token as well so protected server checks can
+        // observe the verified claim; never expose or persist the token.
+        try { await getIdToken(current, true); }
+        catch { /* Keep signed-in state; SDK can retry on a later request. */ }
+
+        if (!alive || auth.currentUser?.uid !== expectedUid) return;
+        setUser(current);
+        // Firebase reload mutates the same User instance. A React state setter
+        // with identical reference can bail out, so force a single safe render.
+        forceAuthUpdate(value => value + 1);
+      } catch {
+        // Offline/rate-limit: non-destructive, explicit check remains available.
+      } finally {
+        pending = false;
+      }
+    };
+
+    const onReturn = () => {
+      remainingVisiblePolls = 12;
+      void reconcileEmailVerification();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') onReturn();
+    };
+    const poll = () => {
+      if (remainingVisiblePolls <= 0 ||
+          document.visibilityState === 'hidden') return;
+      remainingVisiblePolls -= 1;
+      void reconcileEmailVerification();
+    };
+
+    window.addEventListener('focus', onReturn);
+    window.addEventListener('pageshow', onReturn);
+    document.addEventListener('visibilitychange', onVisibility);
+    const timer = setInterval(poll, 15000);
+    return () => {
+      alive = false;
+      window.removeEventListener('focus', onReturn);
+      window.removeEventListener('pageshow', onReturn);
+      document.removeEventListener('visibilitychange', onVisibility);
+      clearInterval(timer);
+    };
+  }, []);
+
   // Guest continuation is an EXPLICIT action after sign-out. Never clear
   // the sign-out marker until Firebase has created the guest successfully.
   const startGuestSession = useCallback(async () => {
@@ -119,6 +190,9 @@ export const useAuth = () => {
       clearExplicitlySignedOut();
       setSignedOut(false);
       setUser(updatedUser);
+      // Linking/verification may update properties of the same Firebase User
+      // object; do not rely on referential inequality to refresh the UI.
+      forceAuthUpdate(value => value + 1);
       setAuthError(null);
       setIsAuthReady(true);
     }
