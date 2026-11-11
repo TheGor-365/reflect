@@ -1,6 +1,6 @@
 # AI-01K staging incident — Consent App Check replay acceptance
 
-**2026-11-11 | OPEN / SECURITY STOP | docs-only triage | no runtime changes**
+**2026-11-11 | OPEN / SECURITY STOP | draft remediation in PR #59 | not deployed**
 
 ## Fixed source and surface
 
@@ -36,6 +36,14 @@ Firebase reference: https://firebase.google.com/docs/app-check/custom-resource-b
 
 Do **not** change the browser test to accept 200 on replay; do **not** merge or re-enable Context Preview based solely on passing unit tests.
 
+## Candidate mitigation implemented on separate Draft branch (not deployed)
+
+- Added `server/railway/appCheckReplayGuard.cjs`: a staging-project-only Firestore **atomic transaction** ledger keyed by SHA-256 of a cryptographically signed token. Stores only schema/version and creation/expiry timestamps; never token, UID, transcript, request headers or response content.
+- Wired the guard centrally into the existing `verifyAppCheck` function in `server/railway/index.cjs` **after** Firebase Admin `verifyToken(token, {consume:true})`. All AI diagnostics, consent, and preview routes share the same replay ledger. First use succeeds; repeating the same token returns `alreadyConsumed:true` and causes the existing endpoint to reject it. The AI listener also now requires the **explicit** first-use marker (`alreadyConsumed === false`). The Firebase primary verification remains mandatory.
+- Added `server/railway/appCheckReplayGuard.test.cjs` and CI contract entry covering sequential and concurrent synthetic replay, independent tokens, malformed claims, staging-only scope and fail-closed Firestore outages. Local isolated mock transaction tests 6/6 passed; live Firebase emulator and exact-head GitHub CI not yet confirmed at this checkpoint.
+- **Release blockers:** (1) validate `expireAt`/`expiresAt` **Firestore TTL policy** on the server-private `appCheckReplayTokens` collection before deployment, to avoid indefinite ledger growth; (2) Firestore emulator validation for concurrent transaction races; (3) verify service-account permissions and monitor cost/latency; (4) owner approval for staging code deployment followed by repeat 401 replay HTTP checks; (5) Context Preview remains OFF until all signed acceptance gates pass. No production or Rules changes.
+- Backend replay mismatch cause remains **unknown**. This is defense-in-depth, not proof the Firebase SDK or service account behaved incorrectly. No added credentials or paid provider call.
+
 ## Safe fix/acceptance plan
 
 1. Obtain reproducible **status-only** evidence with an isolated opt-in staging test. No bearer/App Check tokens, UID, session transcript, raw request bodies, token hashes, or credentials in UI/console/logs. Distinguish direct provider `alreadyConsumed` status from API routing behavior. Never issue grant or call Grok in this diagnostic.
@@ -44,4 +52,4 @@ Do **not** change the browser test to accept 200 on replay; do **not** merge or 
 4. Re-evaluate security with the signed owner staging browser and a **synthetic-only session**: anonymous `401`, foreign Origin `403`, valid first-use `200`, same App Check replay `401`, post-revoke direct preview deny, no unwanted paid provider calls, no real records.
 5. Require separate owner **GO** before re-enabling `REFLECT_CONTEXT_PREVIEW_API_ENABLED=yes` and releasing any replacement Hosting. Keep AI-01K and triage PRs Draft until live acceptance.
 
-**Current status:** rollback accepted. Replay issue unresolved. This file is an investigation checkpoint, **not** a deployed fix.
+**Current status:** rollback accepted. Replay issue unresolved. This file tracks an **unreleased draft mitigation**, not a deployed or accepted fix.
