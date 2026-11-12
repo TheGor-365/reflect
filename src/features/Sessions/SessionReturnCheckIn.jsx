@@ -13,7 +13,7 @@ const formatDay = value => {
 };
 
 /** Explicit return, never AI-synthesized or sent to the provider. */
-export default function SessionReturnCheckIn({ session, userId }) {
+export default function SessionReturnCheckIn({ session, userId, focusTarget, onFocusConsumed }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -21,6 +21,7 @@ export default function SessionReturnCheckIn({ session, userId }) {
   const busyRef = useRef(false);
   const pendingVisitId = useRef(null);
   const protectedDraft = useRef(null);
+  const detailsRef = useRef(null);
   const ownerContext = `${userId}:${session?.id || ''}`;
   const contextRef = useRef(ownerContext);
   contextRef.current = ownerContext;
@@ -28,10 +29,27 @@ export default function SessionReturnCheckIn({ session, userId }) {
     pendingVisitId.current = null;
     setNote(''); setError(''); setNotice('');
   }, [ownerContext]);
+  useEffect(() => {
+    if (!focusTarget || focusTarget.kind !== 'return' ||
+        focusTarget.sessionId !== session?.id || !Number.isInteger(focusTarget.returnIndex)) return;
+    const saved = session.returnCheckIns?.[focusTarget.returnIndex];
+    if (!saved || saved.author !== 'user' || saved.type !== 'return-check-in' ||
+        (focusTarget.returnId && saved.id !== focusTarget.returnId)) return;
+    if (!detailsRef.current) return;
+    detailsRef.current.open = true;
+    const items = detailsRef.current.querySelectorAll('[data-return-source-index]');
+    const target = Array.from(items).find(item =>
+      Number(item.getAttribute('data-return-source-index')) === focusTarget.returnIndex);
+    if (!target) return;
+    target.scrollIntoView?.({ block: 'center', behavior: 'auto' });
+    target.focus?.({ preventScroll: true });
+    onFocusConsumed?.();
+  }, [focusTarget, session, onFocusConsumed]);
   if (!session?.id || !userId) return null;
   const entries = Array.isArray(session.returnCheckIns)
-    ? session.returnCheckIns.filter(entry => entry?.type === 'return-check-in' &&
-      entry?.author === 'user' && typeof entry?.text === 'string') : [];
+    ? session.returnCheckIns.map((entry, sourceIndex) => ({ ...entry, sourceIndex }))
+      .filter(entry => entry?.type === 'return-check-in' &&
+        entry?.author === 'user' && typeof entry?.text === 'string') : [];
   const submit = async event => {
     event.preventDefault();
     if (!note.trim() || busyRef.current) return;
@@ -61,7 +79,7 @@ export default function SessionReturnCheckIn({ session, userId }) {
   };
   return (
     <section className="reflect-session-return" aria-label="Возвращение к теме">
-      <details>
+      <details ref={detailsRef}>
         <summary>Вернуться к теме и записать, что изменилось</summary>
         <p className="reflect-session-return-disclosure">
           Это ваша отдельная запись о результате или наблюдении. Она остаётся
@@ -91,7 +109,8 @@ export default function SessionReturnCheckIn({ session, userId }) {
           <div className="reflect-session-return-history">
             <strong>Подтверждённые записи ({entries.length})</strong>
             {entries.map(entry => (
-              <article key={entry.id} className="reflect-session-return-entry">
+              <article key={entry.id || entry.sourceIndex} className="reflect-session-return-entry"
+                tabIndex={-1} data-return-source-index={entry.sourceIndex}>
                 <small>Ваше наблюдение · время устройства: {formatDay(entry.recordedAtClient)}</small>
                 <p>{entry.text}</p>
               </article>
