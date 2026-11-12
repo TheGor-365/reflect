@@ -11,6 +11,7 @@ import Diary from './features/Diary/Diary';
 import AISettings from './features/AISettings/AISettings';
 import { currentTabFromLocation, pushTabToHistory } from './navigation/tabRoute';
 import Goals from './features/Goals/Goals';
+import Dashboard from './features/Dashboard/Dashboard';
 import Sessions from './features/Sessions/Sessions';
 import SessionSchema from './features/SessionSchema/SessionSchema';
 import Loader from './components/common/Loader';
@@ -354,6 +355,21 @@ export default function App() {
 
   const renderActiveTab = () => {
     switch (activeTab) {
+      case 'dashboard':
+        return <Dashboard key={userId}
+          sessions={sessions} goals={goals}
+          diaryNotes={diaryNotes} moods={moods}
+          onOpenDiary={() => changeTab('diary')}
+          onOpenGoal={id => {
+            setJourneyGoalId(id || null);
+            changeTab('goals');
+          }}
+          onOpenSession={selectSession}
+          onOpenJourney={id => {
+            setCurrentSessionId(id);
+            navigateToTab('sessionSchema');
+          }}
+        />;
       case 'diary':
           return <Diary
               key={userId}
