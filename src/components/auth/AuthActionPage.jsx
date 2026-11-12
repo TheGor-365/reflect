@@ -1,4 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { checkActionCode, getIdToken, reload } from 'firebase/auth';
+import { auth } from '../../firebase/config';
 import { completeEmailVerification, completePasswordReset } from '../../hooks/accountAccess';
 import { safeAuthActionError } from '../../auth/actionIntent';
 
@@ -7,7 +9,7 @@ const OPERATIONS = Object.freeze({
     title: 'Подтверждение email',
     intro: 'Проверьте адрес для существующего аккаунта Reflect.',
     action: 'Подтвердить адрес',
-    done: 'Email подтверждён. Вернитесь в аккаунт и обновите статус подтверждения.'
+    done: 'Email подтверждён.'
   },
   verifyAndChangeEmail: {
     title: 'Подтверждение нового email',
@@ -29,14 +31,84 @@ const OPERATIONS = Object.freeze({
   }
 });
 
-export default function AuthActionPage({ intent }) {
+const returnToActiveAccount = () => window.location.replace('/');
+
+/**
+ * Verifying possession of an email is NOT equivalent to signing in.
+ * The email action can be opened in Chrome while an account is in Firefox.
+ * Redirect to the diary automatically ONLY when the currently authenticated
+ * Firebase user already belongs to the verified email and keeps the same UID.
+ */
+async function reconcileVerifiedActiveAccount(email) {
+  try {
+    await auth.authStateReady?.();
+    const user = auth.currentUser;
+    const uid = user?.uid;
+    if (!uid || user.isAnonymous ||
+        String(user.email || '').trim().toLowerCase() !== email) return false;
+    await reload(user);
+    if (auth.currentUser?.uid !== uid || user.uid !== uid ||
+        !user.emailVerified ||
+        String(user.email || '').trim().toLowerCase() !== email) return false;
+    // A protected backend sees refreshed verified claims on future requests.
+    await getIdToken(user, true);
+    return auth.currentUser?.uid === uid;
+  } catch {
+    // Network/provider error after successful verification must not be
+    // mislabeled as a failed email action or start an anonymous session.
+    return false;
+  }
+}
+
+export default function AuthActionPage({
+  intent, onReturnToActiveAccount = returnToActiveAccount
+}) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
+  const [canReturnToActiveAccount, setCanReturnToActiveAccount] = useState(false);
   const busyRef = useRef(false);
+  const automaticEmailAction = useRef(null);
   const operation = intent?.valid ? OPERATIONS[intent.mode] : null;
+  const autoVerifyEmail = Boolean(operation && intent?.mode === 'verifyEmail');
+
+  useEffect(() => {
+    if (!autoVerifyEmail) return undefined;
+    // Keep one in-flight operation across React StrictMode effect replays.
+    // Firebase action codes are single-use and must never be retried on remount.
+    if (!automaticEmailAction.current) {
+      automaticEmailAction.current = (async () => {
+        // Validate the action's true destination before consuming the code;
+        // never trust an arbitrary continueUrl, injected email or query field.
+        const info = await checkActionCode(auth, intent.code);
+        const email = String(info?.data?.email || '').trim().toLowerCase();
+        if (!email) throw Object.assign(new Error('invalid action'), {
+          code: 'auth/invalid-action-code'
+        });
+        await completeEmailVerification(intent.code);
+        const canReturn = await reconcileVerifiedActiveAccount(email);
+        return canReturn;
+      })();
+    }
+
+    let mounted = true;
+    setBusy(true);
+    setError('');
+    automaticEmailAction.current.then(canReturn => {
+      if (!mounted) return;
+      setCanReturnToActiveAccount(canReturn);
+      setDone(true);
+      if (canReturn) onReturnToActiveAccount();
+    }).catch(failure => {
+      if (!mounted) return;
+      setError(safeAuthActionError(failure));
+    }).finally(() => {
+      if (mounted) setBusy(false);
+    });
+    return () => { mounted = false; };
+  }, [autoVerifyEmail, intent?.code, onReturnToActiveAccount]);
   const theme = typeof document !== 'undefined' &&
     document.documentElement.dataset.reflectTheme === 'light' ? 'light' : 'dark';
 
@@ -87,7 +159,19 @@ export default function AuthActionPage({ intent }) {
               'Не удалось проверить назначение ссылки. Откройте новое письмо из приложения.'}
           </p>
           {done ? (
-            <p className="reflect-auth-notice" role="status">{operation.done}</p>
+            <p className="reflect-auth-notice" role="status">
+              {autoVerifyEmail
+                ? canReturnToActiveAccount
+                  ? 'Email подтверждён. Открываем ваш дневник Reflect…'
+                  : 'Email подтверждён. В этом браузере нет подходящей активной сессии. Войдите в существующий аккаунт Reflect с вашим паролем — новый профиль создавать не нужно.'
+                : operation.done}
+            </p>
+          ) : autoVerifyEmail ? (
+            error
+              ? <p className="reflect-auth-error" role="alert">{error}</p>
+              : <p className="reflect-auth-notice" role="status">
+                  {busy ? 'Подтверждаем адрес электронной почты…' : 'Проверяем ссылку…'}
+                </p>
           ) : operation ? (
             <form className="reflect-auth-form" onSubmit={submit}>
               {intent.mode === 'resetPassword' && (
@@ -116,8 +200,9 @@ export default function AuthActionPage({ intent }) {
             </form>
           ) : null}
           <p className="reflect-auth-notice">
-            Это действие не входит в аккаунт автоматически, не создаёт новый UID
-            и не затрагивает дневник. Если ссылка не ваша, закройте страницу.
+            Подтверждение адреса не создаёт новый UID и не открывает чужой дневник.
+            Автоматический вход возможен только при уже действующей сессии того
+            же аккаунта в этом браузере. В другом браузере потребуется вход.
           </p>
           <a href="/" className="reflect-auth-secondary">
             На главную Reflect
