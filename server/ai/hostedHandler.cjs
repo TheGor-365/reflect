@@ -9,10 +9,25 @@
 const { PolicyError, validateRequest, CONSENT_VERSION } = require("./policy.cjs");
 const { createXaiProviderAdapter } = require("./xaiProviderAdapter.cjs");
 const { createHostedBudget, MAX_MESSAGE_BYTES } = require("./hostedBudget.cjs");
+const { normalizeSettings, VERSION } = require("./interactionContract.cjs");
+
+async function readOwnerSettings(db, uid) {
+  try {
+    // Historical staging namespace, deliberately never reads another UID.
+    const snap = await db.collection("artifacts").doc("reflect-8fdc8")
+      .collection("users").doc(uid).collection("aiSettings")
+      .doc("preferences").get();
+    return normalizeSettings(snap.exists ? snap.data() : null);
+  } catch {
+    // Invalid/unavailable preferences fail closed to no recommendations.
+    return normalizeSettings(null);
+  }
+}
 
 const fail = code => { throw new PolicyError(code); };
 function createHostedHandler({
-  db, projectId, appId, readSecret, transport, clock = Date.now
+  db, projectId, appId, readSecret, transport, clock = Date.now,
+  interactionEnabled = false
 }) {
   if (!appId || typeof appId !== "string" ||
       !/^1:[0-9]+:web:[A-Za-z0-9]+$/.test(appId) ||
@@ -41,7 +56,9 @@ function createHostedHandler({
       message: input.message, nowMs
     });
     try {
-      const value = await adapter.invoke(input.message);
+      const settings = interactionEnabled
+        ? await readOwnerSettings(db, input.uid) : null;
+      const value = await adapter.invoke(input.message, settings);
       // Charge receipt is kept internal. No diary/profile is read or written.
       await budget.finish({
         uid: input.uid, requestId: input.requestId,
@@ -50,6 +67,8 @@ function createHostedHandler({
       });
       return Object.freeze({
         text: value.text,
+        ...(interactionEnabled && value.interaction
+          ? { interaction: value.interaction, promptVersion: VERSION } : {}),
         model: value.model,
         actualUsdTicks: value.actualUsdTicks,
         estimatedUsd: value.estimatedUsdFromPublishedRates
