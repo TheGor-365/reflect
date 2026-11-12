@@ -42,7 +42,7 @@ function autoSizeTextarea(element) {
  */
 const Diary = ({
   sessions = [], goals = [], moods = [], diaryNotes = [],
-  userId, onAppend, onRenameSession, onOpenSession, onOpenJourney, isLoading
+  userId, onAppend, onRenameSession, onOpenSession, onOpenJourney, focusNoteSource, isLoading
 }) => {
   const [selectedMood, setSelectedMood] = useState({ type: null, intensity: 3 });
   const [moodComment, setMoodComment] = useState('');
@@ -175,6 +175,23 @@ const Diary = ({
   );
   const diaryGroups = useMemo(() => groupDiaryTimeline(visibleEvents), [visibleEvents]);
   const hasFilters = entryKind !== 'all' || !!searchQuery || !!fromDate || !!toDate;
+  // Explicit source navigation from Dashboard resets only UI lenses; no
+  // diary contents or authored filters are persisted or overwritten.
+  useEffect(() => {
+    if (!focusNoteSource || !diaryNotes.some(note=>
+      note.id===focusNoteSource.recordId &&
+      Array.isArray(note.entries) &&
+      note.entries[focusNoteSource.entryIndex])) return;
+    setEntryKind('all'); setVisibleKind('all');
+    setSearchQuery(''); setFromDate(''); setToDate('');
+  }, [focusNoteSource,diaryNotes]);
+  useEffect(() => {
+    if (!focusNoteSource || hasFilters || visibleKind!=='all') return;
+    const key=`note:${focusNoteSource.recordId}:entry:${focusNoteSource.entryIndex}`;
+    const target=[...(timelineRef.current?.querySelectorAll('[data-event-key]')||[])]
+      .find(element=>element.getAttribute('data-event-key')===key);
+    target?.scrollIntoView?.({block:'center',behavior:'smooth'});
+  },[focusNoteSource,visibleEvents,hasFilters,visibleKind]);
 
   useEffect(() => {
     if (!lastCommittedNote || hasFilters) return;
@@ -441,7 +458,11 @@ const Diary = ({
                 <div className="reflect-diary-entries">
                   {group.entries.map(entry => (
                     <div key={entry.eventKey} data-source-id={entry.sourceId}
-                      className={`reflect-diary-event ${entry.type === 'note' && entry.sourceId === justAddedNoteId
+                      data-event-key={entry.eventKey}
+                      className={`reflect-diary-event ${entry.type==='note' &&
+                        focusNoteSource?.recordId===entry.sourceId &&
+                        focusNoteSource?.entryIndex===entry.entryIndex
+                        ? 'reflect-diary-event--source-focus ' : ''}${entry.type === 'note' && entry.sourceId === justAddedNoteId
                         ? 'reflect-diary-entering' : ''}`}>
                       <span className="reflect-diary-event-marker" data-kind={entry.sourceKind}
                         aria-hidden="true"/>
