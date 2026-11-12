@@ -2,7 +2,9 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import StagingPreviewGate5AuditPanel from './StagingPreviewGate5AuditPanel';
 import { runGate5PreviewAudit } from '../../api/stagingPreviewGate5Audit';
-import { prepareGate5Fixture } from '../../api/stagingGate5Fixture';
+import {
+  prepareGate5Fixture, auditGate5PrivateEntitlement
+} from '../../api/stagingGate5Fixture';
 
 vi.mock('../../api/stagingPreviewGate5Audit', () => ({
   GATE5_SESSION_ID: 'ai01k_gate4_synthetic_20261111',
@@ -13,7 +15,8 @@ vi.mock('../../api/stagingPreviewGate5Audit', () => ({
 }));
 
 vi.mock('../../api/stagingGate5Fixture', () => ({
-  prepareGate5Fixture: vi.fn()
+  prepareGate5Fixture: vi.fn(),
+  auditGate5PrivateEntitlement: vi.fn()
 }));
 
 const SESSION = 'ai01k_gate4_synthetic_20261111';
@@ -117,7 +120,8 @@ test('failed revoke releases refresh lock but never silently certifies permissio
   expect(screen.queryByText(/revoke-deny: PASS/)).not.toBeInTheDocument();
 });
 
-test('new owner must deliberately arm synthetic fixture; never creates grants', async () => {
+test('new owner must verify private Rules and deliberately arm fixture, no grants', async () => {
+  auditGate5PrivateEntitlement.mockResolvedValueOnce('denied');
   prepareGate5Fixture.mockResolvedValueOnce('created');
   show({ choices: [], grants: [], loaded: false });
   expect(prepareGate5Fixture).not.toHaveBeenCalled();
@@ -125,6 +129,10 @@ test('new owner must deliberately arm synthetic fixture; never creates grants', 
     name: 'Создать синтетический сеанс (без AI)'
   });
   expect(create).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', {
+    name: 'Проверить защиту приватного реестра'
+  }));
+  expect(await screen.findByText(/PASS: браузеру запрещено/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('checkbox', {
     name: /Я сейчас в отдельном тестовом аккаунте Jack/
   }));
@@ -139,8 +147,13 @@ test('new owner must deliberately arm synthetic fixture; never creates grants', 
 });
 
 test('fixture collision is explicit, no auto-overwrite, no preview', async () => {
+  auditGate5PrivateEntitlement.mockResolvedValueOnce('denied');
   prepareGate5Fixture.mockRejectedValueOnce(new Error('fixture-id-collision'));
   show({ choices: [], grants: [] });
+  fireEvent.click(screen.getByRole('button', {
+    name: 'Проверить защиту приватного реестра'
+  }));
+  await screen.findByText(/PASS: браузеру запрещено/);
   fireEvent.click(screen.getByRole('checkbox', {
     name: /Я сейчас в отдельном тестовом аккаунте Jack/
   }));
@@ -152,10 +165,15 @@ test('fixture collision is explicit, no auto-overwrite, no preview', async () =>
 });
 
 test('switching owner never carries fixture-creation success forward', async () => {
+  auditGate5PrivateEntitlement.mockResolvedValueOnce('denied');
   let resolve;
   prepareGate5Fixture.mockImplementationOnce(() =>
     new Promise(done => { resolve = done; }));
   const view = show({ choices: [], grants: [] });
+  fireEvent.click(screen.getByRole('button', {
+    name: 'Проверить защиту приватного реестра'
+  }));
+  await screen.findByText(/PASS: браузеру запрещено/);
   fireEvent.click(screen.getByRole('checkbox', {
     name: /Я сейчас в отдельном тестовом аккаунте Jack/
   }));
@@ -167,4 +185,19 @@ test('switching owner never carries fixture-creation success forward', async () 
   resolve('created');
   await waitFor(() => expect(screen.queryByText(/Синтетический сеанс создан только/))
     .toBeNull());
+});
+
+test('private Rules readable failure makes setup impossible, no Firestore fixture', async () => {
+  auditGate5PrivateEntitlement.mockResolvedValueOnce('unsafe-readable');
+  show({ choices: [], grants: [] });
+  fireEvent.click(screen.getByRole('button', {
+    name: 'Проверить защиту приватного реестра'
+  }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'приватный реестр доступен из браузера');
+  expect(screen.getByRole('button', {
+    name: 'Создать синтетический сеанс (без AI)'
+  })).toBeDisabled();
+  expect(prepareGate5Fixture).not.toHaveBeenCalled();
+  expect(runGate5PreviewAudit).not.toHaveBeenCalled();
 });
