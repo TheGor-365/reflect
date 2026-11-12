@@ -8,6 +8,7 @@ import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import MobileDock from './components/layout/MobileDock';
 import Diary from './features/Diary/Diary';
+import Dashboard from './features/Dashboard/Dashboard';
 import AISettings from './features/AISettings/AISettings';
 import { currentTabFromLocation, pushTabToHistory } from './navigation/tabRoute';
 import Goals from './features/Goals/Goals';
@@ -332,8 +333,22 @@ export default function App() {
     );
   }
 
+  const openDashboardGoal = (goalId) => {
+    if (!goals.some(goal => goal.id === goalId)) return;
+    setFocusGoalId(goalId);
+    navigateToTab('goals');
+  };
+
   const renderActiveTab = () => {
     switch (activeTab) {
+      case 'dashboard':
+        return <Dashboard sessions={sessions} goals={goals}
+          diaryNotes={diaryNotes}
+          onOpenGoal={openDashboardGoal}
+          onOpenSession={selectSession}
+          onOpenJourney={() => navigateToTab('sessionSchema')}
+          onOpenDiary={() => navigateToTab('diary')}
+          onNewSession={handleNewSession}/>;
       case 'diary':
           return <Diary
               key={userId}
