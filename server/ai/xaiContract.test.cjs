@@ -158,6 +158,29 @@ test("fixture cannot return hidden execution instructions or malformed text", as
   }), denied("invalid-provider-response"));
 });
 
+test("bounded structured envelope does not relax plain-text response limits", () => {
+  const envelope = JSON.stringify({ answer: "А".repeat(1800), version: "v1" });
+  assert.ok(envelope.length > LIMITS.maxReplyChars ? true : false);
+  const providerReply = reply({
+    output: [{ type: "message", role: "assistant", content: [
+      { type: "output_text", text: envelope }
+    ] }]
+  });
+  assert.throws(() => extractXaiText(providerReply),
+    denied("invalid-provider-response"));
+  assert.equal(extractXaiText(providerReply, { structured: true }).text, envelope);
+  assert.throws(() => extractXaiText(reply({
+    output: [{ type: "message", role: "assistant", content: [
+      { type: "output_text", text: "a".repeat(8193) }
+    ] }]
+  }), { structured: true }), denied("invalid-provider-response"));
+  assert.throws(() => extractXaiText(reply({
+    output: [{ type: "message", role: "assistant", content: [
+      { type: "output_text", text: "😀".repeat(8000) }
+    ] }]
+  }), { structured: true }), denied("invalid-provider-response"));
+});
+
 test("response larger than allowed content fails before reaching caller", () => {
   assert.throws(() => extractXaiText(reply({
     output: [{ type: "message", role: "assistant", content: [
