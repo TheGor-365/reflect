@@ -62,7 +62,8 @@ export function projectJourney(sessions = [], goals = [], { maxNodes = NODE_LIMI
       sourceRef: source('session', sessionId)
     }));
     const assistantById = new Map();
-    let lastUserNodeId = null;
+    let previousTurnNodeId = null;
+    let previousTurnRole = null;
     for (let i = 0; i < messages.length; i++) {
       const msg = messages[i];
       if (!msg || !['user', 'assistant'].includes(msg.role)) continue;
@@ -81,10 +82,11 @@ export function projectJourney(sessions = [], goals = [], { maxNodes = NODE_LIMI
       if (!exists) continue;
       connect(sid, id, 'contains-turn');
       if (author === 'user') {
-        lastUserNodeId = id;
+        // User-authored turn is not automatically a causal relationship.
       } else {
-        if (lastUserNodeId) connect(lastUserNodeId, id, 'response-to',
-          'adjacent-saved-conversation');
+        if (previousTurnRole === 'user' && previousTurnNodeId) {
+          connect(previousTurnNodeId, id, 'response-to', 'adjacent-saved-conversation');
+        }
         if (realId) assistantById.set(realId, { nodeId:id, msg });
         const candidates = Array.isArray(msg.interaction?.recommendationCandidates)
           ? msg.interaction.recommendationCandidates : [];
@@ -107,6 +109,8 @@ export function projectJourney(sessions = [], goals = [], { maxNodes = NODE_LIMI
           connect(id, proposalId, 'suggests', 'saved-ai-candidate');
         }
       }
+      previousTurnNodeId = id;
+      previousTurnRole = msg.role;
     }
     const decisions = session.recommendationDecisions;
     const decisionMap = new Map();
