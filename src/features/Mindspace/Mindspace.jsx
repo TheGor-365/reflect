@@ -101,6 +101,9 @@ export default function Mindspace({
   };
   const selectNode=node=>{
     if(busy)return;
+    if(node.id!==selectedId) {
+      setEditingTitle(false);setTitleDraft('');
+    }
     if(sourceNodeId&&node.id!==sourceNodeId){
       const from=allNodes.find(value=>value.id===sourceNodeId);
       if(!from)return reset();
