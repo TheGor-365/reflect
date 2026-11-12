@@ -3032,3 +3032,15 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
   border: 1px solid var(--reflect-border); border-radius: 10px;
   padding: 12px; color: var(--reflect-ink) !important;
 }
+
+/* PRODUCT-01: proposals are visibly separate from authored chat and goals. */
+.reflect-interaction-result { display: grid; gap: .7rem; margin-top: .75rem; max-width: 100%; }
+.reflect-interaction-section { display: grid; gap: .3rem; padding: .85rem 1rem;
+  border: 1px solid rgba(125,211,252,.32); background: rgba(35,45,72,.38);
+  border-radius: .85rem; min-width: 0; }
+.reflect-interaction-section strong { color: #b6e6ff; font-weight: 650; }
+.reflect-interaction-section p, .reflect-interaction-unknowns { margin: 0; overflow-wrap: anywhere; }
+.reflect-interaction-section small { opacity: .8; font-size: .76rem; }
+.reflect-interaction-section button { justify-self: start; padding: .4rem .7rem;
+  border-radius: .5rem; border: 1px solid currentColor; color: inherit; background: transparent; }
+.reflect-interaction-section button:focus-visible { outline: 3px solid #80d8ff; outline-offset: 3px; }

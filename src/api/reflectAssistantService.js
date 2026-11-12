@@ -46,6 +46,9 @@ export async function getAnalysisFromAI(message, requestId) {
   }
   return {
     response: data.text.trim(),
+    // Validated by the server. Never interpreted as an authorized Firestore write.
+    interaction: data.interaction?.version === 'reflect.interaction.v1'
+      ? data.interaction : null,
     actualUsdTicks: Number.isSafeInteger(data.actualUsdTicks)
       ? data.actualUsdTicks : null
   };

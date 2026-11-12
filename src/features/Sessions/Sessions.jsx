@@ -71,6 +71,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
       };
       const assistantMessage = {
         role: 'assistant', content: aiResponse.response,
+        ...(aiResponse.interaction ? { interaction: aiResponse.interaction } : {}),
         id: 'assistant-' + requestId, timestamp: Timestamp.now()
       };
       // No Firebase write here. Answer is local until "Сохранить сеанс".
@@ -291,6 +292,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
             {messagesToDisplay.map((msg, index) => (
               <ChatMessage key={msg.id || index} message={msg}
                 onPlayAudio={handlePlayAudio} isSpeaking={isSpeaking}
+                onCompose={text => { setUserInput(text); setSendError(''); }}
                 currentlySpeakingId={currentlySpeakingId} />
             ))}
 

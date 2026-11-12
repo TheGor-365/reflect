@@ -1,7 +1,8 @@
 import React from 'react';
 import { Bot, Volume2, PauseCircle } from 'lucide-react';
+import InteractionResult from './InteractionResult';
 
-const ChatMessage = React.memo(({ message, onPlayAudio, isSpeaking, currentlySpeakingId }) => {
+const ChatMessage = React.memo(({ message, onPlayAudio, isSpeaking, currentlySpeakingId, onCompose }) => {
   const isUser = message.role === 'user';
   const isThisMessageSpeaking = isSpeaking && currentlySpeakingId === message.id;
 
@@ -16,6 +17,8 @@ const ChatMessage = React.memo(({ message, onPlayAudio, isSpeaking, currentlySpe
         <div className="reflect-chat-bubble">
           <p>{message.content}</p>
         </div>
+        {!isUser && message.interaction && <InteractionResult
+          interaction={message.interaction} onCompose={onCompose} />}
       </div>
       {!isUser && onPlayAudio && (
         <button type="button" className="reflect-chat-audio"
