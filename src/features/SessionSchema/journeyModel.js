@@ -264,7 +264,7 @@ export function journeyFacts(graph, period='all') {
 
 export function layoutJourney(graph) {
   const column={
-    session:0,turn:1,proposal:2,decision:3,goal:4,step:5,return:6
+    session:0,turn:1,proposal:3,decision:4,goal:5,step:6,return:7
   };
   const sessions=[...new Set(graph.nodes.map(n=>n.sessionId))].sort();
   const placements=new Map();
@@ -304,7 +304,7 @@ export function layoutJourney(graph) {
     const x2=b.x,y2=b.y+b.height/2;
     return {...e,x1,y1,x2,y2};
   });
-  return {nodes:laidNodes,edges:laidEdges,width:1790,height:Math.max(top+30,235)};
+  return {nodes:laidNodes,edges:laidEdges,width:2030,height:Math.max(top+30,235)};
 }
 
 export const journeyDate = ms => ms === null ? 'Дата не сохранена' :
