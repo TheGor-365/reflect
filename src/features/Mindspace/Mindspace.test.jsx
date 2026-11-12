@@ -23,7 +23,7 @@ describe('PRODUCT-05B Mindspace UI',()=>{
   it('shows real source nodes and no fabricated confirmed links',()=>{
     render(<Mindspace sessions={sessions} goals={goals}
       userId="synthetic-owner"/>);
-    expect(screen.getByRole('heading',{name:'Mindspace.'})).toBeInTheDocument();
+    expect(screen.getByRole('heading',{name:'Mindspace'})).toBeInTheDocument();
     expect(screen.getByLabelText('Подтверждённые смысловые связи'))
       .toHaveTextContent('0');
     expect(screen.getByRole('region',{
