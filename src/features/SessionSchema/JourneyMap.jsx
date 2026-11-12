@@ -33,6 +33,11 @@ const describe = node => {
 };
 const within = (x,min,max)=>Math.min(Math.max(x,min),max);
 const scaleWidth = scale=>Math.round(scale*100);
+const mobileGraph = () => typeof window !== 'undefined' &&
+  Boolean(window.matchMedia?.('(max-width: 600px)').matches);
+const initialGraphScale = () => mobileGraph() ? .62 : .8;
+const pointerDistance = (a,b) => Math.hypot(a.x-b.x,a.y-b.y);
+const pointerMidpoint = (a,b) => ({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
 
 export default function JourneyMap({
   sessions = [], goals = [], selectedSessionId = null,
@@ -43,9 +48,14 @@ export default function JourneyMap({
   const [kind,setKind]=useState('all');
   const [status,setStatus]=useState('all');
   const [selectedId,setSelectedId]=useState(null);
-  const [scale,setScale]=useState(.8);
+  const [scale,setScale]=useState(initialGraphScale);
   const [pan,setPan]=useState({x:8,y:8});
+  const [listOpen,setListOpen]=useState(false);
+  const canvasRef=useRef(null);
   const dragRef=useRef(null);
+  const touchPoints=useRef(new Map());
+  const pinchRef=useRef(null);
+  const mobileRef=useRef(mobileGraph());
   const graph=useMemo(()=>projectJourney(sessions,goals),[sessions,goals]);
   const projected=useMemo(()=>filterJourney(graph,{
     sessionId:sessionFilter,period,kind,status
@@ -63,22 +73,105 @@ export default function JourneyMap({
     setSelectedId(value=>projected.nodes.some(node=>node.id===value)?value:null);
   },[projected]);
   useEffect(()=>{setPan({x:8,y:8});},[sessionFilter,period,kind,status]);
+  // A desktop-to-mobile resize should initialize a legible two-node overview.
+  // User-controlled zoom stays untouched within either breakpoint.
+  useEffect(()=>{
+    const onResize=()=>{
+      const mobile=mobileGraph();
+      if(mobile!==mobileRef.current){
+        mobileRef.current=mobile;
+        touchPoints.current.clear();
+        pinchRef.current=null;
+        dragRef.current=null;
+        setScale(mobile?.62:.8);
+        setPan({x:8,y:8});
+      }
+    };
+    window.addEventListener('resize',onResize);
+    return ()=>window.removeEventListener('resize',onResize);
+  },[]);
   const move=(dx,dy)=>setPan(previous=>({x:previous.x+dx,y:previous.y+dy}));
-  const zoom=direction=>setScale(value=>within(Math.round((value+direction)*100)/100,.45,1.45));
-  const reset=()=>{setScale(.8);setPan({x:8,y:8});};
+  // Zoom about the viewport center instead of throwing the current graph away.
+  const zoom=direction=>{
+    const next=within(Math.round((scale+direction)*100)/100,.45,1.45);
+    const rect=canvasRef.current?.getBoundingClientRect();
+    if(rect){
+      const center={x:rect.width/2,y:rect.height/2};
+      const ratio=next/scale;
+      setPan(previous=>({
+        x:center.x-(center.x-previous.x)*ratio,
+        y:center.y-(center.y-previous.y)*ratio
+      }));
+    }
+    setScale(next);
+  };
+  const reset=()=>{
+    touchPoints.current.clear();
+    pinchRef.current=null;dragRef.current=null;
+    setScale(initialGraphScale());setPan({x:8,y:8});
+  };
+  const startPinch=()=>{
+    const points=[...touchPoints.current.values()].slice(0,2);
+    const rect=canvasRef.current?.getBoundingClientRect();
+    if(points.length!==2||!rect)return;
+    const center=pointerMidpoint(...points);
+    const distance=pointerDistance(...points);
+    if(distance<8)return;
+    pinchRef.current={
+      distance,scale,
+      worldX:(center.x-rect.left-pan.x)/scale,
+      worldY:(center.y-rect.top-pan.y)/scale
+    };
+    dragRef.current=null;
+  };
   const pointerDown=event=>{
-    if(event.target.closest?.('button')) return;
-    if(event.button!==0) return;
+    if(event.pointerType==='touch'){
+      touchPoints.current.set(event.pointerId,{x:event.clientX,y:event.clientY});
+      if(touchPoints.current.size>=2){
+        startPinch();
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        return;
+      }
+    }
+    // Tapping a node selects it; dragging starts on the empty graph canvas.
+    if(event.target.closest?.('button'))return;
+    if(event.pointerType!=='touch'&&event.button!==0)return;
     dragRef.current={x:event.clientX,y:event.clientY,pointerId:event.pointerId};
     event.currentTarget.setPointerCapture?.(event.pointerId);
   };
   const pointerMove=event=>{
+    if(touchPoints.current.has(event.pointerId)){
+      touchPoints.current.set(event.pointerId,{x:event.clientX,y:event.clientY});
+    }
+    if(pinchRef.current&&touchPoints.current.size>=2){
+      const points=[...touchPoints.current.values()].slice(0,2);
+      const rect=canvasRef.current?.getBoundingClientRect();
+      if(!rect)return;
+      const center=pointerMidpoint(...points);
+      const next=within(
+        Math.round(pinchRef.current.scale*
+          pointerDistance(...points)/pinchRef.current.distance*100)/100,
+        .45,1.45
+      );
+      setScale(next);
+      setPan({
+        x:center.x-rect.left-pinchRef.current.worldX*next,
+        y:center.y-rect.top-pinchRef.current.worldY*next
+      });
+      return;
+    }
     const drag=dragRef.current;
-    if(!drag || drag.pointerId!==event.pointerId) return;
+    if(!drag||drag.pointerId!==event.pointerId)return;
     move(event.clientX-drag.x,event.clientY-drag.y);
     dragRef.current={...drag,x:event.clientX,y:event.clientY};
   };
   const pointerEnd=event=>{
+    touchPoints.current.delete(event.pointerId);
+    if(pinchRef.current) {
+      // Avoid a jump from pinch to drag until the next deliberate touch.
+      pinchRef.current=null;
+      dragRef.current=null;
+    }
     if(dragRef.current?.pointerId===event.pointerId)dragRef.current=null;
   };
   const follow=node=>node?.sourceRef && onOpenSource?.(node.sourceRef);
@@ -153,17 +246,26 @@ export default function JourneyMap({
             Событий больше установленного лимита отображения ({graph.nodes.length}).
             Для просмотра остальных используйте хронологию темы; данные не удалялись.
           </p>}
+          <p className="reflect-journey-touch-hint">
+            Перемещайте карту пальцем, раздвигайте два пальца для масштаба.
+            Коснитесь узла, чтобы увидеть его источник.
+          </p>
           <div className="reflect-journey-view-controls" aria-label="Навигация по карте">
             <button type="button" onClick={()=>zoom(-.1)} aria-label="Уменьшить масштаб"><Minus size={16}/></button>
             <output aria-live="off" aria-label="Масштаб">{scaleWidth(scale)}%</output>
             <button type="button" onClick={()=>zoom(.1)} aria-label="Увеличить масштаб"><Plus size={16}/></button>
-            <button type="button" onClick={()=>move(75,0)} aria-label="Сдвинуть вправо"><ArrowRight size={16}/></button>
-            <button type="button" onClick={()=>move(-75,0)} aria-label="Сдвинуть влево"><ArrowLeft size={16}/></button>
-            <button type="button" onClick={()=>move(0,-75)} aria-label="Сдвинуть вверх"><ArrowUp size={16}/></button>
-            <button type="button" onClick={()=>move(0,75)} aria-label="Сдвинуть вниз"><ArrowDown size={16}/></button>
+            <button type="button" className="reflect-journey-pan-control" onClick={()=>move(75,0)} aria-label="Сдвинуть вправо"><ArrowRight size={16}/></button>
+            <button type="button" className="reflect-journey-pan-control" onClick={()=>move(-75,0)} aria-label="Сдвинуть влево"><ArrowLeft size={16}/></button>
+            <button type="button" className="reflect-journey-pan-control" onClick={()=>move(0,-75)} aria-label="Сдвинуть вверх"><ArrowUp size={16}/></button>
+            <button type="button" className="reflect-journey-pan-control" onClick={()=>move(0,75)} aria-label="Сдвинуть вниз"><ArrowDown size={16}/></button>
             <button type="button" onClick={reset} aria-label="Сбросить масштаб и смещение"><RotateCcw size={16}/></button>
+            <button type="button" className="reflect-journey-list-toggle"
+              aria-expanded={listOpen} aria-controls="reflect-journey-accessible-list"
+              onClick={()=>setListOpen(value=>!value)}>
+              {listOpen?'Скрыть ленту':'Лента'}
+            </button>
           </div>
-          <div className="reflect-journey-canvas" role="region"
+          <div ref={canvasRef} className="reflect-journey-canvas" role="region"
             aria-label="Интерактивная диаграмма связей"
             tabIndex={0} onPointerDown={pointerDown} onPointerMove={pointerMove}
             onPointerUp={pointerEnd} onPointerCancel={pointerEnd}
@@ -204,7 +306,9 @@ export default function JourneyMap({
               ))}
             </div>
           </div>
-          <div className="reflect-journey-mobile-list" aria-label="Доступная лента узлов">
+          <div id="reflect-journey-accessible-list"
+            className={`reflect-journey-mobile-list${listOpen?' is-open':''}`}
+            aria-label="Доступная лента узлов">
             <h3>Лента карты</h3>
             <ol>{projected.nodes.filter(n=>n.type!=='session').map(node=>(
               <li key={node.id}>
