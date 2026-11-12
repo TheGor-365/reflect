@@ -182,7 +182,7 @@ export default function Mindspace({
       <header className="reflect-mindspace-top">
         <div>
           <p className="reflect-mindspace-overline"><Sparkles size={15} aria-hidden="true"/> Личное пространство</p>
-          <h2>Mindspace<span className="reflect-mindspace-title-dot">.</span></h2>
+          <h2 aria-label="Mindspace">Mindspace<span className="reflect-mindspace-title-dot" aria-hidden="true">.</span></h2>
           <p>Не хронология, а связи ваших тем, решений и целей. Вы решаете, что действительно связано.</p>
         </div>
         <div className="reflect-mindspace-stat" aria-label="Подтверждённые смысловые связи">
@@ -280,7 +280,9 @@ export default function Mindspace({
               {graph.nodes.map(node=>{
                 const Icon=ICONS[node.kind]||CircleHelp;
                 return <button type="button" key={node.id}
-                  onClick={()=>selectNode(node)} aria-pressed={selectedId===node.id}>
+                  onClick={()=>selectNode(node)} aria-pressed={selectedId===node.id}
+                  aria-label={`${LABELS[node.kind]}: ${node.label}.
+                    ${LABELS[node.status]||node.subtitle}`}>
                   <Icon size={20} aria-hidden="true"/>
                   <span><strong>{node.label}</strong>
                     <small>{LABELS[node.kind]} · {LABELS[node.status]||node.subtitle}</small>
