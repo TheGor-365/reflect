@@ -91,6 +91,8 @@ export default function App() {
     return () => window.removeEventListener('keydown', onEscape);
   }, [isSidebarOpen]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [journeyFocus, setJourneyFocus] = useState(null);
+  const [journeyGoalId, setJourneyGoalId] = useState(null);
   const [sessionLibraryRequested, setSessionLibraryRequested] = useState(true);
 
   // --- Modal State ---
@@ -232,6 +234,47 @@ export default function App() {
     setCurrentSessionId(id);
     navigateToTab('sessions');
   };
+  // Graph source links only navigate to records already loaded from the
+  // current authenticated UID. Never serialize a UID or private source in URL.
+  const openJourneySource = source => {
+    if (!source || typeof source !== 'object') return;
+    if (source.kind === 'goal') {
+      const found = goals.find(item => item.id === source.goalId &&
+        item.sessionId === source.sessionId);
+      if (!found) return;
+      setJourneyGoalId(found.id);
+      navigateToTab('goals');
+      return;
+    }
+    const ownSession = sessions.find(item => item.id === source.sessionId);
+    if (!ownSession) return;
+    let focus = null;
+    if (source.kind === 'turn') {
+      const index = source.messageIndex;
+      const actual = Number.isInteger(index) ? ownSession.chatHistory?.[index] : null;
+      if (!actual || (source.messageId && actual.id !== source.messageId)) return;
+      focus = { kind: 'turn', messageIndex: index, messageId: actual.id || null };
+    }
+    if (source.kind === 'decision') {
+      const index = ownSession.chatHistory?.findIndex(item =>
+        item?.id === source.messageId && item?.role === 'assistant');
+      if (!Number.isInteger(index) || index < 0) return;
+      focus = { kind: 'turn', messageIndex: index, messageId: source.messageId };
+    }
+    if (source.kind === 'return') {
+      const index = source.returnIndex;
+      const actual = Number.isInteger(index) ? ownSession.returnCheckIns?.[index] : null;
+      if (!actual || actual.author !== 'user' || actual.type !== 'return-check-in' ||
+          (source.returnId && actual.id !== source.returnId)) return;
+      focus = { kind: 'return', returnIndex: index, returnId: actual.id || null };
+    }
+    setJourneyFocus(focus ? { ...focus, sessionId: ownSession.id,
+      requestId: crypto.randomUUID() } : null);
+    setSessionLibraryRequested(false);
+    setCurrentSessionId(ownSession.id);
+    navigateToTab('sessions');
+  };
+
   const handleNewSession = () => {
     setSessionLibraryRequested(false);
     setCurrentSessionId('new');
@@ -333,6 +376,7 @@ export default function App() {
           userId={userId} 
           onAppend={handleAppendToEntry}
           onFeedback={setFeedbackGoal}
+          focusedGoalId={journeyGoalId}
           onOpenSession={selectSession}
         />;
       case 'sessionSchema':
@@ -340,6 +384,7 @@ export default function App() {
           sessions={sessions} 
           goals={goals} 
           onViewContent={setViewingContent}
+          onOpenSource={openJourneySource}
           selectedSessionId={currentSessionId}
         />;
       case 'sessions':
@@ -351,6 +396,8 @@ export default function App() {
           setCurrentSessionId={setCurrentSessionId}
           onStartNewSession={handleNewSession}
           onOpenGoals={() => navigateToTab('goals')}
+          focusTarget={journeyFocus}
+          onFocusConsumed={() => setJourneyFocus(null)}
           libraryRequested={sessionLibraryRequested}
           onCloseLibrary={() => setSessionLibraryRequested(false)}
           onOpenLibrary={() => setSessionLibraryRequested(true)}
