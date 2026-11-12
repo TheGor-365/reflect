@@ -164,3 +164,12 @@ test('user-confirmed linked goal exposes its actual source session without mutat
   expect(updateGoal).not.toHaveBeenCalled();
   expect(createGoal).not.toHaveBeenCalled();
 });
+
+test('authored success criterion is visible but never marks goal complete', () => {
+  render(<Goals userId="synthetic-uid" goals={[{
+    ...goal, successCriteria: 'URL открывается и форма работает',
+    completed: false, status: 'active'
+  }]}/>);
+  expect(screen.getByText(/URL открывается и форма работает/)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'В работе' })).toHaveAttribute('aria-pressed', 'true');
+});
