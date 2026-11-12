@@ -7,7 +7,8 @@ export default function InteractionResult({
   onCompose, onDecision, onOpenGoals
 }) {
   const [editingGoal, setEditingGoal] = useState(null);
-  const [goalDraft, setGoalDraft] = useState({ title: '', purpose: '' });
+  const [reconsiderIndex, setReconsiderIndex] = useState(null);
+  const [goalDraft, setGoalDraft] = useState({ title: '', purpose: '', step: '', dueDay: '', criteria: '' });
   const [busyIndex, setBusyIndex] = useState(null);
   const [feedback, setFeedback] = useState('');
   const [error, setError] = useState('');
@@ -50,6 +51,17 @@ export default function InteractionResult({
       {candidates.map((item, index) => {
         const decision = messageId ? decisions[`r-${messageId}-${index}`] : null;
         const status = decision?.status;
+        if (status === 'dismissed' && reconsiderIndex !== index) {
+          return (
+            <section className="reflect-interaction-section" key={index}
+              aria-label="Отклонённая рекомендация">
+              <small>Предложение отклонено и скрыто по вашему решению.</small>
+              <button type="button" onClick={() => setReconsiderIndex(index)}>
+                Показать отклонённое предложение
+              </button>
+            </section>
+          );
+        }
         return (
           <section className="reflect-interaction-section" key={index}
             aria-label="Предложенная рекомендация">
@@ -82,7 +94,7 @@ export default function InteractionResult({
                         aria-expanded={editingGoal === index}
                         onClick={() => {
                           setEditingGoal(editingGoal === index ? null : index);
-                          setGoalDraft({ title: item.title, purpose: '' });
+                          setGoalDraft({ title: item.title, purpose: '', step: '', dueDay: '', criteria: '' });
                           setError('');
                         }}>Превратить в цель</button>
                     </>
@@ -109,6 +121,21 @@ export default function InteractionResult({
                   <textarea maxLength={1000} rows={2} value={goalDraft.purpose}
                     disabled={busyIndex !== null}
                     onChange={event => setGoalDraft(value => ({ ...value, purpose: event.target.value }))}/>
+                </label>
+                <label>Первый проверяемый шаг (необязательно)
+                  <input maxLength={240} value={goalDraft.step}
+                    disabled={busyIndex !== null}
+                    onChange={event => setGoalDraft(value => ({ ...value, step: event.target.value }))}/>
+                </label>
+                <label>Срок (необязательно)
+                  <input type="date" value={goalDraft.dueDay}
+                    disabled={busyIndex !== null}
+                    onChange={event => setGoalDraft(value => ({ ...value, dueDay: event.target.value }))}/>
+                </label>
+                <label>Как я пойму, что цель достигнута? (необязательно)
+                  <textarea maxLength={500} rows={2} value={goalDraft.criteria}
+                    disabled={busyIndex !== null}
+                    onChange={event => setGoalDraft(value => ({ ...value, criteria: event.target.value }))}/>
                 </label>
                 <button type="submit" disabled={busyIndex !== null || !goalDraft.title.trim()}>
                   {busyIndex !== null ? 'Сохранение…' : 'Подтвердить создание цели'}
