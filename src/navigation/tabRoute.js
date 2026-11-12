@@ -4,7 +4,7 @@
  * React still owns screen rendering; this is not a data-access policy.
  */
 export const PUBLIC_TABS = Object.freeze([
-  'diary', 'sessions', 'goals', 'sessionSchema', 'aiSettings'
+  'dashboard', 'diary', 'sessions', 'goals', 'sessionSchema', 'aiSettings'
 ]);
 
 const isPublicTab = value => PUBLIC_TABS.includes(value);
