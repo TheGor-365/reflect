@@ -348,7 +348,9 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
 
         {activeSession && (
           <SessionReturnCheckIn key={activeSession.id}
-            session={activeSession} userId={userId} />
+            session={activeSession} userId={userId}
+            focusTarget={focusTarget?.kind === 'return' ? focusTarget : null}
+            onFocusConsumed={onFocusConsumed} />
         )}
         <div className="reflect-session-messages" ref={messageListRef}
           role="log" aria-label="История сообщений" aria-live="polite">
