@@ -240,7 +240,9 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
     }
     const result = await applyRecommendationDecision({
       userId, sessionId: activeSession.id, assistantMessageId, candidateIndex,
-      action, goalId, goalTitle: draft?.title, goalPurpose: draft?.purpose || ''
+      action, goalId, goalTitle: draft?.title, goalPurpose: draft?.purpose || '',
+      goalStep: draft?.step || '', goalDueDay: draft?.dueDay || '',
+      goalCriteria: draft?.criteria || ''
     });
     setDecisionEcho(current => ({ ...current, [echoKey]: result }));
     delete pendingRecommendationGoalIds.current[echoKey];
