@@ -33,6 +33,7 @@ test('mixed timestamp formats sort safely and undated historic messages remain v
   const { container } = render(<div className="reflect-app" data-theme="dark">
     <SessionSchema sessions={[session]} goals={goals} onViewContent={onViewContent} />
   </div>);
+  fireEvent.click(screen.getByRole('button', { name: 'Хронология' }));
   const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
   expect(rows).toHaveLength(5);
   expect(rows.map(row => row.textContent)).toEqual([
@@ -57,6 +58,7 @@ test('long content opens full text by action and preserves original text', () =>
     id: 's1', title: 'Длинный сеанс',
     chatHistory: [{ role: 'assistant', content: longText, timestamp: stamp('2026-11-10T15:00:00Z') }]
   }]} goals={[]} onViewContent={onViewContent} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Хронология' }));
   fireEvent.click(screen.getByRole('button', { name: 'Читать далее' }));
   expect(onViewContent).toHaveBeenCalledExactlyOnceWith(longText);
 });

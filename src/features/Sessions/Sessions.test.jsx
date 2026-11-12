@@ -136,3 +136,22 @@ test('opened chat contains a single owner-space label in global header, not a du
   expect(screen.queryByText('Личное пространство')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Показать все сеансы' })).toBeInTheDocument();
 });
+
+test('Journey focuses the actual saved turn in an existing owner session without AI calls', () => {
+  const session={
+    id:'saved-from-map', title:'Исходный сеанс',
+    chatHistory:[
+      { id:'u-map-1', role:'user', content:'Моя первоначальная мысль' },
+      { id:'a-map-1', role:'assistant', content:'Ответ Reflect из прошлого' }
+    ]
+  };
+  const { container }=render(<Sessions {...defaults}
+    sessions={[session]} currentSessionId="saved-from-map"
+    focusTurnId="a-map-1"/>);
+  const target=container.querySelector('[data-reflect-turn-id="a-map-1"]');
+  expect(target).toBeInTheDocument();
+  expect(target).toHaveClass('reflect-chat-message--source-focus');
+  expect(container.querySelector('[data-reflect-turn-id="u-map-1"]'))
+    .not.toHaveClass('reflect-chat-message--source-focus');
+  expect(mocks.ai).not.toHaveBeenCalled();
+});

@@ -173,3 +173,15 @@ test('authored success criterion is visible but never marks goal complete', () =
   expect(screen.getByText(/URL открывается и форма работает/)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'В работе' })).toHaveAttribute('aria-pressed', 'true');
 });
+
+test('Journey opens a specific confirmed goal, including paused goals, without writing', () => {
+  const selected = { ...goal, id: 'paused-from-map',
+    text: 'Цель со ссылкой', status: 'paused' };
+  render(<Goals goals={[selected]} userId="synthetic-uid"
+    focusGoalId="paused-from-map"/>);
+  expect(screen.getByRole('tab',{name:/На паузе/}))
+    .toHaveAttribute('aria-selected','true');
+  expect(screen.getByRole('article',{name:'Цель со ссылкой'}))
+    .toHaveClass('reflect-goal-card--source-focus');
+  expect(updateGoal).not.toHaveBeenCalled();
+});

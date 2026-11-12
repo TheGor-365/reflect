@@ -91,6 +91,10 @@ export default function App() {
     return () => window.removeEventListener('keydown', onEscape);
   }, [isSidebarOpen]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
+  // Private UI focus only. Never place session/goal IDs or message contents
+  // in a shareable URL or a cross-account localStorage key.
+  const [focusTurnId, setFocusTurnId] = useState(null);
+  const [focusGoalId, setFocusGoalId] = useState(null);
   const [sessionLibraryRequested, setSessionLibraryRequested] = useState(true);
 
   // --- Modal State ---
@@ -227,15 +231,34 @@ export default function App() {
     if (tab === 'sessions') setSessionLibraryRequested(true);
     navigateToTab(tab);
   };
-  const selectSession = (id) => {
+  const selectSession = (id, turnId = null) => {
+    setFocusTurnId(turnId);
     setSessionLibraryRequested(false);
     setCurrentSessionId(id);
     navigateToTab('sessions');
   };
   const handleNewSession = () => {
+    setFocusTurnId(null);
     setSessionLibraryRequested(false);
     setCurrentSessionId('new');
     navigateToTab('sessions');
+  };
+
+  const openJourneySource = (ref) => {
+    if (!ref || !sessions.some(session => session.id === ref.sessionId)) return;
+    if (ref.kind === 'goal') {
+      // The selected owner-scoped goal must belong to the displayed session.
+      if (!goals.some(goal => goal.id === ref.goalId &&
+          goal.sessionId === ref.sessionId)) return;
+      setFocusGoalId(ref.goalId);
+      navigateToTab('goals');
+      return;
+    }
+    // Legacy turns without immutable IDs link to the saved session rather
+    // than claiming to focus an invented message.
+    const turnId = ref.kind === 'turn' && typeof ref.turnId === 'string'
+      ? ref.turnId : null;
+    selectSession(ref.sessionId, turnId);
   };
 
   // --- Render Logic ---
@@ -334,6 +357,7 @@ export default function App() {
           onAppend={handleAppendToEntry}
           onFeedback={setFeedbackGoal}
           onOpenSession={selectSession}
+          focusGoalId={focusGoalId}
         />;
       case 'sessionSchema':
         return <SessionSchema 
@@ -341,6 +365,7 @@ export default function App() {
           goals={goals} 
           onViewContent={setViewingContent}
           selectedSessionId={currentSessionId}
+          onOpenSource={openJourneySource}
         />;
       case 'sessions':
         return <Sessions 
@@ -349,6 +374,7 @@ export default function App() {
           userId={userId}
           currentSessionId={currentSessionId}
           setCurrentSessionId={setCurrentSessionId}
+          focusTurnId={focusTurnId}
           onStartNewSession={handleNewSession}
           onOpenGoals={() => navigateToTab('goals')}
           libraryRequested={sessionLibraryRequested}

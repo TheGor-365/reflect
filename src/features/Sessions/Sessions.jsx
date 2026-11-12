@@ -14,7 +14,7 @@ import InfoCard from '../../components/common/InfoCard';
 import { useEntrySave } from '../../hooks/useEntrySave';
 import { BookOpen, BarChart2, MessageSquareText, ShieldCheck } from 'lucide-react';
 
-const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, onOpenGoals, libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
+const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, onOpenGoals, focusTurnId, libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
   const [userInput, setUserInput] = useState('');
   const [showLibrary, setShowLibrary] = useState(false);
   const [navigationWarning, setNavigationWarning] = useState('');
@@ -55,8 +55,17 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   }, [currentSessionId]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
-  }, [sessions, currentSessionId, isLoading, localMessages]);
+    if (!focusTurnId) chatEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
+  }, [sessions, currentSessionId, isLoading, localMessages, focusTurnId]);
+
+  useEffect(() => {
+    if (!focusTurnId || !activeSession) return;
+    // Find only this saved session's actual authored turn. A legacy message
+    // with no stable turn ID can only be opened at session level.
+    const matched = [...document.querySelectorAll('[data-reflect-turn-id]')]
+      .find(element => element.getAttribute('data-reflect-turn-id') === focusTurnId);
+    matched?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+  }, [focusTurnId, activeSession?.id, activeSession?.chatHistory]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -339,6 +348,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
 
             {messagesToDisplay.map((msg, index) => (
               <ChatMessage key={msg.id || index} message={msg}
+                focused={Boolean(activeSession && msg.id && msg.id === focusTurnId)}
                 onPlayAudio={handlePlayAudio} isSpeaking={isSpeaking}
                 onCompose={text => { setUserInput(text); setSendError(''); }}
                 isSaved={Boolean(activeSession && index < savedMessageCount)}
