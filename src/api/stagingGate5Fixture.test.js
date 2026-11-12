@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((db, ...parts) => ({ path: parts.join('/') })),
   runTransaction: vi.fn(),
+  getDocFromServer: vi.fn(),
   serverTimestamp: vi.fn(() => ({ syntheticServerTimestamp: true }))
 }));
 vi.mock('../firebase/config', () => ({
@@ -17,9 +18,9 @@ vi.mock('./stagingPreviewGate5Audit', () => ({
   gate5PreviewQaUiEnabled: true
 }));
 
-const { prepareGate5Fixture, GATE5_FIXTURE_TURNS } =
+const { prepareGate5Fixture, auditGate5PrivateEntitlement, GATE5_FIXTURE_TURNS } =
   await import('./stagingGate5Fixture');
-const { runTransaction, doc } = await import('firebase/firestore');
+const { runTransaction, getDocFromServer, doc } = await import('firebase/firestore');
 const { auth } = await import('../firebase/config');
 
 const UID = 'jackSyntheticStagingUid_12345';
@@ -121,4 +122,30 @@ describe('Stage05 Gate5 owner-only fixture setup (synthetic, no live Firebase)',
       .rejects.toThrow('fixture-write-unavailable');
     expect(writes).toHaveLength(0);
   });
+});
+
+test('private entitlement probe passes only explicit permission-denied', async () => {
+  auth.currentUser = user();
+  getDocFromServer.mockRejectedValueOnce({ code: 'permission-denied' });
+  expect(await auditGate5PrivateEntitlement(UID)).toBe('denied');
+  const call = doc.mock.calls.at(-1);
+  expect(call.slice(1)).toEqual([
+    '_reflectAiPrivate', 'reflect-8fdc8', 'entitlements', UID
+  ]);
+  expect(runTransaction).not.toHaveBeenCalled();
+});
+
+test('private entitlement probe blocks public reads including missing document', async () => {
+  getDocFromServer.mockResolvedValueOnce({ exists: () => false,
+    data: () => ({ private: 'never exposed' }) });
+  expect(await auditGate5PrivateEntitlement(UID)).toBe('unsafe-readable');
+  getDocFromServer.mockRejectedValueOnce({ code: 'unavailable' });
+  expect(await auditGate5PrivateEntitlement(UID)).toBe('unavailable');
+});
+
+test('private entitlement probe refuses owner mismatch and no UID leaks', async () => {
+  auth.currentUser = { ...user(), uid: 'anotherUid' };
+  await expect(auditGate5PrivateEntitlement(UID))
+    .rejects.toThrow('fixture-account-not-ready');
+  expect(getDocFromServer).not.toHaveBeenCalled();
 });
