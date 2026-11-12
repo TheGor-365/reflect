@@ -40,3 +40,21 @@ describe('PRODUCT-02 journey factual event projection', () => {
     expect(events[0].content).toBe('Моя запись');
   });
 });
+
+it('adds an explicit return observation without inventing a completed goal', () => {
+  const session = {
+    id: 's1', chatHistory: [],
+    returnCheckIns: [
+      { id: 'v1', author: 'user', type: 'return-check-in',
+        text: 'Прочитал два вечера; один пропустил',
+        recordedAtClient: { seconds: 1790000000 } },
+      { id: 'v-fake', author: 'assistant', type: 'return-check-in',
+        text: 'Всё выполнено', recordedAtClient: { seconds: 1790000001 } }
+    ]
+  };
+  const events = buildSessionChronology(session, []);
+  expect(events).toHaveLength(1);
+  expect(events[0].type).toBe('Возвращение');
+  expect(events[0].content).toBe('Прочитал два вечера; один пропустил');
+  expect(events.some(event => event.type === 'Цель выполнена')).toBe(false);
+});
