@@ -107,6 +107,11 @@ function GoalCard({ goal, userId, onAppend, onFeedback, onOpenSession }) {
           </div>
           <h4>{goal.text || 'Цель без названия'}</h4>
           {goal.purpose && <p className="reflect-goal-purpose">{goal.purpose}</p>}
+          {goal.successCriteria && (
+            <p className="reflect-goal-purpose">
+              <strong>Критерий выполнения:</strong> {goal.successCriteria}
+            </p>
+          )}
           {goal.sessionId && onOpenSession && (
             <button type="button" className="reflect-goal-source-link"
               onClick={() => onOpenSession(goal.sessionId)}>
