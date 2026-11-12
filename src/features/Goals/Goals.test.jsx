@@ -153,3 +153,14 @@ test('paused and completed goals are accessible but hidden until their filter is
   fireEvent.click(screen.getByRole('tab', { name: /Завершены/ }));
   expect(screen.getByRole('article', { name: 'Сделано' })).toBeInTheDocument();
 });
+
+test('user-confirmed linked goal exposes its actual source session without mutations', () => {
+  const onOpenSession = vi.fn();
+  render(<Goals userId="synthetic-uid" goals={[{
+    ...goal, sessionId: 'saved-session', sourceRecommendationKey: 'r-a1-0'
+  }]} onOpenSession={onOpenSession}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Источник: открыть сеанс' }));
+  expect(onOpenSession).toHaveBeenCalledExactlyOnceWith('saved-session');
+  expect(updateGoal).not.toHaveBeenCalled();
+  expect(createGoal).not.toHaveBeenCalled();
+});
