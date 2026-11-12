@@ -111,9 +111,10 @@ export function buildDashboardSnapshot({
   // confirmed booleans, NOT a claim about completion in a selected week.
   const completedGoalSteps=(Array.isArray(goals)?goals:[])
     .filter(goal=>idOk(goal?.id)&&goalStatus(goal)==='completed')
-    .flatMap(goal=>Array.isArray(goal.subItems)?goal.subItems:[]);
-  stepProgress.done+=completedGoalSteps.filter(step=>step?.completed===true).length;
-  stepProgress.total+=completedGoalSteps.filter(step=>step&&typeof step.text==='string').length;
+    .flatMap(goal=>Array.isArray(goal.subItems)?goal.subItems:[])
+    .filter(step=>step&&typeof step.text==='string'&&step.text.trim());
+  stepProgress.done+=completedGoalSteps.filter(step=>step.completed===true).length;
+  stepProgress.total+=completedGoalSteps.length;
   return {
     version:'reflect.dashboard.v1',days:windowDays,
     start,end,activity:counts,
