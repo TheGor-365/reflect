@@ -56,6 +56,10 @@ export default function Mindspace({
   const graph=useMemo(()=>buildMindspace(sessions,goals,{
     includeProposals:showIdeas
   }),[sessions,goals,showIdeas]);
+  // Keep the filter reversible even when candidates are currently hidden.
+  const availableIdeas=useMemo(()=>buildMindspace(sessions,goals,{
+    includeProposals:true
+  }).nodes.some(node=>node.kind==='proposal'),[sessions,goals]);
   const layout=useMemo(()=>layoutMindspace(graph),[graph]);
   const allNodes=graph.nodes;
   const selected=allNodes.find(node=>node.id===selectedId)||null;
@@ -178,7 +182,7 @@ export default function Mindspace({
             <Compass size={16} aria-hidden="true"/> Список
           </button>
         </div>
-        {graph.suggestedNodes>0&&(
+        {availableIdeas&&(
           <button type="button" className="reflect-mindspace-quiet"
             aria-pressed={showIdeas} onClick={()=>{
               setShowIdeas(current=>!current);reset();
