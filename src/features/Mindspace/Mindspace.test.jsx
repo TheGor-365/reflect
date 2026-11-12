@@ -2,10 +2,10 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Mindspace from './Mindspace';
-import { saveMindLink, removeMindLink } from './mindspaceOperations';
+import { saveMindLink, removeMindLink, renameMindTopic } from './mindspaceOperations';
 
 vi.mock('./mindspaceOperations',()=>({
-  saveMindLink:vi.fn(),removeMindLink:vi.fn()
+  saveMindLink:vi.fn(),removeMindLink:vi.fn(),renameMindTopic:vi.fn()
 }));
 const sessions=[
   {id:'s-1',title:'Работа и развитие',chatHistory:[]},
@@ -16,6 +16,7 @@ beforeEach(()=>{
   vi.clearAllMocks();
   saveMindLink.mockResolvedValue({id:'ml-session-s-2'});
   removeMindLink.mockResolvedValue(true);
+  renameMindTopic.mockResolvedValue('Тема в карте');
 });
 
 describe('PRODUCT-05B Mindspace UI',()=>{
@@ -153,4 +154,21 @@ describe('PRODUCT-05B Mindspace UI',()=>{
       .toBeInTheDocument();
     expect(screen.queryByText(/психологического роста: 100%/)).toBeNull();
   });
+});
+
+it('a map-only rename requires confirmation and never mutates the session transcript',async()=>{
+  render(<Mindspace sessions={sessions} goals={goals}
+    userId="synthetic-owner"/>);
+  fireEvent.click(screen.getByRole('button',{name:/Тема: Работа и развитие/}));
+  fireEvent.click(screen.getByRole('button',{name:/Изменить подпись на карте/}));
+  expect(renameMindTopic).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByRole('textbox',{name:/Подпись темы на карте/}),{
+    target:{value:'Работа и приоритеты'}
+  });
+  fireEvent.click(screen.getByRole('button',{name:'Сохранить подпись'}));
+  await waitFor(()=>expect(renameMindTopic).toHaveBeenCalledExactlyOnceWith({
+    userId:'synthetic-owner',sourceSessionId:'s-1',
+    title:'Работа и приоритеты'
+  }));
+  expect(sessions[0].title).toBe('Работа и развитие');
 });
