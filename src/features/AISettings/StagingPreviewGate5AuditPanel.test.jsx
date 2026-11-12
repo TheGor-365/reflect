@@ -2,6 +2,9 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import StagingPreviewGate5AuditPanel from './StagingPreviewGate5AuditPanel';
 import { runGate5PreviewAudit } from '../../api/stagingPreviewGate5Audit';
+import {
+  prepareGate5Fixture, auditGate5PrivateEntitlement
+} from '../../api/stagingGate5Fixture';
 
 vi.mock('../../api/stagingPreviewGate5Audit', () => ({
   GATE5_SESSION_ID: 'ai01k_gate4_synthetic_20261111',
@@ -9,6 +12,11 @@ vi.mock('../../api/stagingPreviewGate5Audit', () => ({
   gate5PreviewQaUiEnabled: true,
   gate5SafeError: () => 'qa-transport-error',
   runGate5PreviewAudit: vi.fn()
+}));
+
+vi.mock('../../api/stagingGate5Fixture', () => ({
+  prepareGate5Fixture: vi.fn(),
+  auditGate5PrivateEntitlement: vi.fn()
 }));
 
 const SESSION = 'ai01k_gate4_synthetic_20261111';
@@ -110,4 +118,86 @@ test('failed revoke releases refresh lock but never silently certifies permissio
   expect(onRevokeAttempt).toHaveBeenCalledTimes(1);
   expect(onRevokeFinished).toHaveBeenCalledTimes(1);
   expect(screen.queryByText(/revoke-deny: PASS/)).not.toBeInTheDocument();
+});
+
+test('new owner must verify private Rules and deliberately arm fixture, no grants', async () => {
+  auditGate5PrivateEntitlement.mockResolvedValueOnce('denied');
+  prepareGate5Fixture.mockResolvedValueOnce('created');
+  show({ choices: [], grants: [], loaded: false });
+  expect(prepareGate5Fixture).not.toHaveBeenCalled();
+  const create = screen.getByRole('button', {
+    name: 'Создать синтетический сеанс (без AI)'
+  });
+  expect(create).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', {
+    name: 'Проверить защиту приватного реестра'
+  }));
+  expect(await screen.findByText(/PASS: браузеру запрещено/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('checkbox', {
+    name: /Я сейчас в отдельном тестовом аккаунте Jack/
+  }));
+  expect(create).toBeEnabled();
+  fireEvent.click(create);
+  expect(await screen.findByText(/Синтетический сеанс создан только/))
+    .toBeInTheDocument();
+  expect(prepareGate5Fixture).toHaveBeenCalledOnce();
+  expect(prepareGate5Fixture).toHaveBeenCalledWith('synthetic-owner');
+  expect(runGate5PreviewAudit).not.toHaveBeenCalled();
+  expect(create).toBeDisabled();
+});
+
+test('fixture collision is explicit, no auto-overwrite, no preview', async () => {
+  auditGate5PrivateEntitlement.mockResolvedValueOnce('denied');
+  prepareGate5Fixture.mockRejectedValueOnce(new Error('fixture-id-collision'));
+  show({ choices: [], grants: [] });
+  fireEvent.click(screen.getByRole('button', {
+    name: 'Проверить защиту приватного реестра'
+  }));
+  await screen.findByText(/PASS: браузеру запрещено/);
+  fireEvent.click(screen.getByRole('checkbox', {
+    name: /Я сейчас в отдельном тестовом аккаунте Jack/
+  }));
+  fireEvent.click(screen.getByRole('button', {
+    name: 'Создать синтетический сеанс (без AI)'
+  }));
+  expect(await screen.findByText(/fixture-id-collision/)).toBeInTheDocument();
+  expect(runGate5PreviewAudit).not.toHaveBeenCalled();
+});
+
+test('switching owner never carries fixture-creation success forward', async () => {
+  auditGate5PrivateEntitlement.mockResolvedValueOnce('denied');
+  let resolve;
+  prepareGate5Fixture.mockImplementationOnce(() =>
+    new Promise(done => { resolve = done; }));
+  const view = show({ choices: [], grants: [] });
+  fireEvent.click(screen.getByRole('button', {
+    name: 'Проверить защиту приватного реестра'
+  }));
+  await screen.findByText(/PASS: браузеру запрещено/);
+  fireEvent.click(screen.getByRole('checkbox', {
+    name: /Я сейчас в отдельном тестовом аккаунте Jack/
+  }));
+  fireEvent.click(screen.getByRole('button', {
+    name: 'Создать синтетический сеанс (без AI)'
+  }));
+  view.rerender(<StagingPreviewGate5AuditPanel userId="different-owner"
+    loaded={false} grants={[]} choices={[]}/>);
+  resolve('created');
+  await waitFor(() => expect(screen.queryByText(/Синтетический сеанс создан только/))
+    .toBeNull());
+});
+
+test('private Rules readable failure makes setup impossible, no Firestore fixture', async () => {
+  auditGate5PrivateEntitlement.mockResolvedValueOnce('unsafe-readable');
+  show({ choices: [], grants: [] });
+  fireEvent.click(screen.getByRole('button', {
+    name: 'Проверить защиту приватного реестра'
+  }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'приватный реестр доступен из браузера');
+  expect(screen.getByRole('button', {
+    name: 'Создать синтетический сеанс (без AI)'
+  })).toBeDisabled();
+  expect(prepareGate5Fixture).not.toHaveBeenCalled();
+  expect(runGate5PreviewAudit).not.toHaveBeenCalled();
 });
