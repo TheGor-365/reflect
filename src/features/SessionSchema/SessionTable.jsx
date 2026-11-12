@@ -46,6 +46,14 @@ export const buildSessionChronology = (session, goals = []) => {
         decision.title, 'decision');
     });
   }
+  // Returns are user-authored observations, not evidence of automatic goal
+  // completion. Legacy sessions without check-ins project as before.
+  (Array.isArray(session?.returnCheckIns) ? session.returnCheckIns : [])
+    .filter(entry => entry?.author === 'user' &&
+      entry?.type === 'return-check-in' && typeof entry?.text === 'string')
+    .forEach(entry => {
+      add(entry.recordedAtClient, 'Возвращение', entry.text, 'return');
+    });
   (Array.isArray(goals) ? goals : []).filter(goal => goal?.sessionId === session?.id)
     .forEach(goal => {
       add(goal.createdAt, 'Цель', 'Поставлена цель: ' + (goal.text || ''), 'goal');
