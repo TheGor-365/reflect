@@ -333,6 +333,7 @@ export default function App() {
           userId={userId} 
           onAppend={handleAppendToEntry}
           onFeedback={setFeedbackGoal}
+          onOpenSession={selectSession}
         />;
       case 'sessionSchema':
         return <SessionSchema 
@@ -349,6 +350,7 @@ export default function App() {
           currentSessionId={currentSessionId}
           setCurrentSessionId={setCurrentSessionId}
           onStartNewSession={handleNewSession}
+          onOpenGoals={() => navigateToTab('goals')}
           libraryRequested={sessionLibraryRequested}
           onCloseLibrary={() => setSessionLibraryRequested(false)}
           onOpenLibrary={() => setSessionLibraryRequested(true)}
