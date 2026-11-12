@@ -97,6 +97,11 @@ export default function App() {
   const [focusTurnId, setFocusTurnId] = useState(null);
   const [focusGoalId, setFocusGoalId] = useState(null);
   const [focusDiaryNoteSource, setFocusDiaryNoteSource] = useState(null);
+  useEffect(() => {
+    setFocusTurnId(null);
+    setFocusGoalId(null);
+    setFocusDiaryNoteSource(null);
+  }, [userId]);
   const [sessionLibraryRequested, setSessionLibraryRequested] = useState(true);
 
   // --- Modal State ---
