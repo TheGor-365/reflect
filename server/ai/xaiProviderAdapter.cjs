@@ -15,6 +15,7 @@
  */
 const { PolicyError } = require("./policy.cjs");
 const { readProviderCharge } = require("./xaiCost.cjs");
+const { buildRequest, parseInteraction } = require("./interactionContract.cjs");
 const {
   MODEL, ENDPOINT, createSyntheticXaiRequest, extractXaiText,
   estimatePublishedUsd
@@ -100,10 +101,11 @@ function createXaiProviderAdapter({
     fail("unsafe-environment");
   }
 
-  async function invoke(message) {
-    // Validate before touching the credential or making any paid call.
-    // Accepts one string only: no model, URL, history, UID or arbitrary tools.
-    const request = createSyntheticXaiRequest(message);
+  async function invoke(message, interactionConfig = null) {
+    // Keep legacy preflight strict; only the server chooses V1 interaction mode.
+    const checked = createSyntheticXaiRequest(message);
+    const request = interactionConfig
+      ? buildRequest(checked.body.input[1].content, interactionConfig) : checked;
     let secret;
     try {
       secret = await readSecret();
@@ -157,6 +159,9 @@ function createXaiProviderAdapter({
       fail("invalid-provider-response");
     }
     const parsed = extractXaiText(payload);
+    // Invalid structured output is not rendered or retried. One paid call only.
+    const interaction = interactionConfig
+      ? parseInteraction(parsed.text, request.settings, request.classification) : null;
     // Provider-reported receipt is authoritative when available; the
     // published token-rate projection is informational, never a charge.
     // A missing receipt remains null, never $0 or an estimated debit.
@@ -164,7 +169,8 @@ function createXaiProviderAdapter({
     return Object.freeze({
       model: MODEL,
       ...charge,
-      text: parsed.text,
+      text: interaction ? interaction.answer : parsed.text,
+      ...(interaction ? { interaction } : {}),
       usage: parsed.usage,
       estimatedUsdFromPublishedRates: estimatePublishedUsd(
         parsed.usage.inputTokens, parsed.usage.outputTokens
