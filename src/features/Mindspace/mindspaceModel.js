@@ -108,7 +108,7 @@ export function buildMindspace(sessions=[],goals=[],{
       if(link?.status!=='confirmed'||link?.author!=='user' ||
          !['session','goal'].includes(link.targetKind) ||
          !validId(link.targetId) || !Object.hasOwn(RELATIONS,link.relation) ||
-         !validId(link.id) || link.id!==`ml-${link.targetKind}-${link.targetId}`) {
+         !(typeof link.id==='string'&&/^ml-(session|goal)-[A-Za-z0-9_-]{1,128}$/.test(link.id)) || link.id!==`ml-${link.targetKind}-${link.targetId}`) {
         issues.push('unverified-link');continue;
       }
       const from=`session:${session.id}`;
