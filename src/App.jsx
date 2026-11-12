@@ -341,6 +341,20 @@ export default function App() {
     );
   }
 
+  const openMindspaceSource = ref => {
+    if (!ref) return;
+    if (ref.kind === 'goal') {
+      // Mindspace can contain goals not attached to any session.
+      // Verify actual UID-scoped source snapshot before navigating.
+      if (!goals.some(goal => goal.id === ref.goalId &&
+        (!ref.sessionId || goal.sessionId === ref.sessionId))) return;
+      setFocusGoalId(ref.goalId);
+      navigateToTab('goals');
+      return;
+    }
+    openJourneySource(ref);
+  };
+
   const openDashboardDiaryNote = (sourceRef) => {
     if (sourceRef?.kind !== 'diaryNote' ||
         !diaryNotes.some(note => note.id === sourceRef.recordId &&
@@ -364,7 +378,7 @@ export default function App() {
       case 'mindspace':
         return <Mindspace
           sessions={sessions} goals={goals} userId={userId}
-          onOpenSource={openJourneySource}
+          onOpenSource={openMindspaceSource}
           onOpenJourney={() => navigateToTab('sessionSchema')}
         />;
       case 'dashboard':
