@@ -252,7 +252,9 @@ function createRuntime() {
     const db = getFirestore(app);
     const handler = createHostedHandler({
       db, projectId: STAGE_PROJECT, appId: STAGE_APP_ID,
-      readSecret: () => providerKey, transport: fetch
+      readSecret: () => providerKey, transport: fetch,
+      // Separate default-OFF staging flag; existing Grok stays operational.
+      interactionEnabled: process.env.REFLECT_AI_INTERACTION_V1_ENABLED === "yes"
     });
     authorizeAccount = createStagingEntitlementVerifier({
       db, projectId: STAGE_PROJECT, getUser: uid => getAuth(app).getUser(uid)
