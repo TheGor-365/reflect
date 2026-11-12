@@ -354,3 +354,29 @@
 @media(prefers-reduced-motion:reduce){
   .reflect-mind-node {transition:none;}
 }
+
+
+.reflect-mindspace-rename {display:grid;gap:7px;}
+.reflect-mindspace-rename>button {
+  display:inline-flex;align-items:center;gap:7px;justify-self:start;
+  min-height:42px;color:var(--reflect-accent);font-size:12px;
+}
+.reflect-mindspace-rename small {font-size:10px;color:var(--reflect-muted);}
+.reflect-mindspace-rename form {display:flex;flex-wrap:wrap;align-items:end;gap:9px;}
+.reflect-mindspace-rename form label {
+  display:grid;gap:7px;flex:1 1 260px;font-size:12px;
+}
+.reflect-mindspace-rename input {
+  width:100%;padding:10px 12px;min-height:44px;
+  background:var(--reflect-bg);color:var(--reflect-ink);
+  border:1px solid var(--reflect-border);border-radius:12px;
+}
+.reflect-mindspace-rename form button {
+  display:inline-flex;align-items:center;gap:6px;
+  min-height:44px;padding:9px 12px;border-radius:12px;
+  border:1px solid var(--reflect-border);font-size:12px;
+  color:var(--reflect-ink);
+}
+.reflect-mindspace-rename form button[type=submit] {
+  color:var(--reflect-accent);border-color:var(--mind-outline);
+}
