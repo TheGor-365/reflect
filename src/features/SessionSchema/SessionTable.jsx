@@ -31,6 +31,21 @@ export const buildSessionChronology = (session, goals = []) => {
     add(msg.timestamp, msg.role === 'user' ? 'Вопрос' : 'Ответ',
       typeof msg.content === 'string' ? msg.content : '', msg.role);
   });
+  // A decision is a user-confirmed fact; an AI candidate alone is not.
+  // Project from the same saved session record rather than fabricating a
+  // secondary analytic event store.
+  const decisionLabels = {
+    saved: 'Идея сохранена', postponed: 'Идея отложена',
+    dismissed: 'Идея отклонена', accepted: 'Решение принято'
+  };
+  const decisions = session?.recommendationDecisions;
+  if (decisions && typeof decisions === 'object' && !Array.isArray(decisions)) {
+    Object.values(decisions).forEach(decision => {
+      if (!decisionLabels[decision?.status] || typeof decision?.title !== 'string') return;
+      add(decision.decidedAt, decisionLabels[decision.status],
+        decision.title, 'decision');
+    });
+  }
   (Array.isArray(goals) ? goals : []).filter(goal => goal?.sessionId === session?.id)
     .forEach(goal => {
       add(goal.createdAt, 'Цель', 'Поставлена цель: ' + (goal.text || ''), 'goal');
