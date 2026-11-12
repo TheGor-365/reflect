@@ -222,10 +222,14 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
     ? activeSession.chatHistory.length : 0;
   const savedDecisions = activeSession?.recommendationDecisions || {};
   const scopedDecisionPrefix = `${userId}:${activeSession?.id}:`;
-  const decisions = { ...savedDecisions };
+  // The Firestore subscription is authoritative, including changes from a
+  // second browser. Optimistic transaction acknowledgements only fill gaps
+  // while owner-scoped readback has not arrived.
+  const decisions = {};
   Object.entries(decisionEcho).forEach(([key, value]) => {
     if (key.startsWith(scopedDecisionPrefix)) decisions[key.slice(scopedDecisionPrefix.length)] = value;
   });
+  Object.assign(decisions, savedDecisions);
   const handleRecommendationDecision = async (assistantMessageId, candidateIndex, action, draft) => {
     if (!userId || !activeSession || !activeSession.chatHistory?.some(
       message => message.id === assistantMessageId && message.role === 'assistant'
