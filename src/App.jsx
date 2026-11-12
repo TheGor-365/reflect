@@ -366,7 +366,6 @@ export default function App() {
           sessions={sessions} goals={goals} userId={userId}
           onOpenSource={openJourneySource}
           onOpenJourney={() => navigateToTab('sessionSchema')}
-          onOpenMindspace={() => navigateToTab('mindspace')}
         />;
       case 'dashboard':
         return <Dashboard sessions={sessions} goals={goals}
@@ -374,6 +373,7 @@ export default function App() {
           onOpenGoal={openDashboardGoal}
           onOpenSession={selectSession}
           onOpenJourney={() => navigateToTab('sessionSchema')}
+          onOpenMindspace={() => navigateToTab('mindspace')}
           onOpenDiary={() => {
             setFocusDiaryNoteSource(null);
             navigateToTab('diary');
