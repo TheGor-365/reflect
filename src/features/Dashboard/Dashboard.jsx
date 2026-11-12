@@ -18,7 +18,7 @@ const goalDue=day=>day?new Intl.DateTimeFormat('ru-RU',{
 /** A quiet activity overview sourced only from explicitly stored objects. */
 export default function Dashboard({
   sessions=[],goals=[],diaryNotes=[],onOpenGoal,onOpenSession,
-  onOpenJourney,onOpenDiary,onNewSession,nowMs
+  onOpenJourney,onOpenDiary,onOpenDiaryNote,onNewSession,nowMs
 }){
   const [days,setDays]=useState(7);
   const snapshot=useMemo(()=>buildDashboardSnapshot({
@@ -150,6 +150,10 @@ export default function Dashboard({
                     <li key={note.id}>
                       <small>{note.title} · {dateLabel(note.at)}</small>
                       <p>{note.text}</p>
+                      {onOpenDiaryNote&&<button type="button"
+                        onClick={()=>onOpenDiaryNote(note.sourceRef)}>
+                        Открыть запись <ArrowRight size={15} aria-hidden="true"/>
+                      </button>}
                     </li>
                   ))}
                 </ul>
