@@ -18,12 +18,12 @@ const goalDue=day=>day?new Intl.DateTimeFormat('ru-RU',{
 /** A quiet activity overview sourced only from explicitly stored objects. */
 export default function Dashboard({
   sessions=[],goals=[],diaryNotes=[],onOpenGoal,onOpenSession,
-  onOpenJourney,onOpenDiary,onNewSession
+  onOpenJourney,onOpenDiary,onNewSession,nowMs
 }){
   const [days,setDays]=useState(7);
   const snapshot=useMemo(()=>buildDashboardSnapshot({
-    sessions,goals,diaryNotes,days
-  }),[sessions,goals,diaryNotes,days]);
+    sessions,goals,diaryNotes,days,nowMs
+  }),[sessions,goals,diaryNotes,days,nowMs]);
   const maxCount=Math.max(1,...snapshot.activity.map(day=>day.total));
   const hasAny=sessions.length>0||goals.length>0||diaryNotes.length>0;
   const hasPeriodEvents=snapshot.eventCounts.total>0;
