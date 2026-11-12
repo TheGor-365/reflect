@@ -336,3 +336,22 @@ test('content type filter fades existing entries before replacing them', async (
     .toHaveAttribute('data-filter-phase', 'settled'));
   expect(screen.getByTestId('diary-timeline-event')).toHaveTextContent('mood:m');
 });
+
+test('Dashboard source deep-link highlights exact diary entry but makes no writes', async () => {
+  const ts=value=>({toDate:()=>new Date(value)});
+  const {container}=render(<Diary
+    userId="synthetic-owner" sessions={[]} goals={[]} moods={[]}
+    focusNoteSource={{recordId:'source-note',entryIndex:1}}
+    diaryNotes={[{
+      id:'source-note',title:'Две записи',entries:[
+        {text:'Первый текст',createdAt:ts('2026-11-01T08:00:00Z')},
+        {text:'Второй текст',createdAt:ts('2026-11-05T08:00:00Z')}
+      ]
+    }]} isLoading={false} onAppend={vi.fn()}/>);
+  await waitFor(()=>expect(
+    container.querySelector('[data-event-key="note:source-note:entry:1"]')
+  ).toHaveClass('reflect-diary-event--source-focus'));
+  expect(container.querySelector('[data-event-key="note:source-note:entry:0"]'))
+    .not.toHaveClass('reflect-diary-event--source-focus');
+  expect(setDoc).not.toHaveBeenCalled();
+});
