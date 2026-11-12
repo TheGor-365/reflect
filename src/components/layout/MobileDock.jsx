@@ -1,12 +1,12 @@
 import React from 'react';
-import { BookOpen, GitBranch, MessageSquare, Plus, Target } from 'lucide-react';
+import { BookOpen, LayoutDashboard, MessageSquare, Plus, Target } from 'lucide-react';
 
 const shortcuts = [
+  { id: 'dashboard', label: 'Обзор', icon: LayoutDashboard },
   { id: 'diary', label: 'Дневник', icon: BookOpen },
-  { id: 'sessions', label: 'Сеансы', icon: MessageSquare },
   { id: 'new', label: 'Новый', icon: Plus },
   { id: 'goals', label: 'Цели', icon: Target },
-  { id: 'sessionSchema', label: 'Схема', icon: GitBranch }
+  { id: 'sessions', label: 'Сеансы', icon: MessageSquare }
 ];
 
 const MobileDock = ({ activeTab, currentSessionId, changeTab, handleNewSession }) => (

@@ -19,3 +19,14 @@ test('new session invokes the existing creation action', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Новый сеанс' }));
   expect(handleNewSession).toHaveBeenCalledOnce();
 });
+
+test('Dashboard is reachable on mobile without losing the new-session action', () => {
+  const changeTab = vi.fn();
+  render(<MobileDock activeTab="dashboard" currentSessionId={null}
+    changeTab={changeTab} handleNewSession={vi.fn()} />);
+  expect(screen.getByRole('button', { name: 'Обзор' }))
+    .toHaveAttribute('aria-current', 'page');
+  fireEvent.click(screen.getByRole('button', { name: 'Сеансы' }));
+  expect(changeTab).toHaveBeenCalledWith('sessions');
+  expect(screen.getByRole('button', { name: 'Новый сеанс' })).toBeInTheDocument();
+});
