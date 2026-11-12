@@ -2,6 +2,7 @@ import React from 'react';
 import { Menu, Moon, Sun, SlidersHorizontal } from 'lucide-react';
 
 export const SECTION_TITLES = Object.freeze({
+  dashboard: 'Обзор',
   diary: 'Дневник',
   sessions: 'Сеансы',
   goals: 'Цели',
