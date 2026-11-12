@@ -81,3 +81,28 @@ export async function removeMindLink({
     return true;
   });
 }
+
+/**
+ * Display-only alias for this theme on the semantic map. The original
+ * title and full transcript are immutable by this operation.
+ */
+export async function renameMindTopic({ userId, sourceSessionId, title }) {
+  if (!db || !idOk(userId) || !idOk(sourceSessionId) ||
+      typeof title !== 'string' || !title.trim() ||
+      title.trim().length > 90 ||
+      /[\u0000-\u001f\u007f]/.test(title)) {
+    throw new Error('Название должно содержать от 1 до 90 символов.');
+  }
+  const ref=doc(db,root(userId),'sessions',sourceSessionId);
+  const next=title.trim();
+  return runTransaction(db,async tx=>{
+    const snapshot=await tx.get(ref);
+    if (!snapshot.exists()) throw new Error('Тема больше не существует.');
+    if (snapshot.data()?.mindTitle===next) return next;
+    tx.update(ref,{
+      mindTitle:next,
+      mindspaceChangedAt:serverTimestamp()
+    });
+    return next;
+  });
+}
