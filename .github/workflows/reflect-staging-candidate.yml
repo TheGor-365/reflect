@@ -1,0 +1,62 @@
+name: Reflect staging release candidate — no deploy
+on:
+  pull_request:
+    paths:
+      - "scripts/staging-release-guard*"
+      - "docs/release/**"
+      - "firebase.staging.json"
+      - "package.json"
+      - ".github/workflows/reflect-staging-candidate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-hosting-preflight:
+    name: Isolated Firebase Hosting staging guard, synthetic build only
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Verify release guard rejects unsafe configurations
+        run: node --test scripts/staging-release-guard.test.cjs
+      - name: Install pinned app dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Standard regression tests and static typecheck (no stage flags)
+        env:
+          VITE_FIREBASE_CONFIG: '{"apiKey":"test-only-key","authDomain":"demo-reflect-auth.firebaseapp.com","projectId":"demo-reflect-auth","appId":"1:123:web:demo"}'
+          VITE_APP_ID: "reflect-8fdc8"
+        run: |
+          set -euo pipefail
+          npm test
+          npm run typecheck
+      - name: Build isolated staging product with synthetic public keys (NEVER deploy)
+        env:
+          # All of these values are fake CI public placeholders, not owner
+          # credentials. No artifact is uploaded and no Firebase deploy runs.
+          VITE_FIREBASE_CONFIG: '{"apiKey":"ci-public-firebase-key-nondeployable-0000000","authDomain":"reflect-ai-staging.firebaseapp.com","projectId":"reflect-ai-staging","appId":"1:599679789981:web:d4d8743dbff0fe40af1d74","messagingSenderId":"599679789981"}'
+          VITE_APP_ID: "reflect-8fdc8"
+          VITE_USE_FIREBASE_EMULATORS: "false"
+          VITE_ENABLE_STAGING_APP_CHECK: "true"
+          VITE_APP_CHECK_SITE_KEY: "ci-public-nondeployable-app-check-key-000"
+          VITE_ENABLE_REFLECT_CLOUD_AI: "false"
+          VITE_AI_STAGING_PROJECT_ID: "reflect-ai-staging"
+          VITE_ENABLE_REFLECT_RAILWAY_PRECHECK: "false"
+          VITE_ENABLE_REFLECT_RAILWAY_AI: "true"
+          VITE_REFLECT_RAILWAY_AI_ORIGIN: "https://reflect-ai-api-staging.up.railway.app"
+          VITE_ENABLE_REFLECT_CONTEXT_CONSENT: "false"
+          VITE_ENABLE_REFLECT_CONTEXT_PREVIEW: "false"
+          VITE_ENABLE_REFLECT_PREVIEW_GATE5_QA: "false"
+        run: |
+          set -euo pipefail
+          REFLECT_STAGING_EXPECTED_SHA="$(git rev-parse HEAD)" npm run qa:staging:preflight
+          npm run build -- --mode staging
+          REFLECT_STAGING_EXPECTED_SHA="$(git rev-parse HEAD)" npm run qa:staging:postbuild
+          test -f dist/index.html
