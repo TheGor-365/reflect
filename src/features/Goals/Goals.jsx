@@ -21,7 +21,7 @@ const targetFor = (item, index) => item?.id
   ? { id: item.id, text: item.text }
   : { index, text: item?.text };
 
-function GoalCard({ goal, userId, onAppend, onFeedback }) {
+function GoalCard({ goal, userId, onAppend, onFeedback, onOpenSession }) {
   const status = statusOf(goal);
   const progress = progressOf(goal);
   const dueDay = dueDayOf(goal);
@@ -107,6 +107,12 @@ function GoalCard({ goal, userId, onAppend, onFeedback }) {
           </div>
           <h4>{goal.text || 'Цель без названия'}</h4>
           {goal.purpose && <p className="reflect-goal-purpose">{goal.purpose}</p>}
+          {goal.sessionId && onOpenSession && (
+            <button type="button" className="reflect-goal-source-link"
+              onClick={() => onOpenSession(goal.sessionId)}>
+              Источник: открыть сеанс
+            </button>
+          )}
         </div>
         <div className="reflect-goal-card-actions">
           <button type="button" disabled={busy} aria-label="Редактировать цель"
@@ -250,7 +256,7 @@ function GoalCard({ goal, userId, onAppend, onFeedback }) {
   );
 }
 
-export default function Goals({ goals = [], userId, onAppend, onFeedback }) {
+export default function Goals({ goals = [], userId, onAppend, onFeedback, onOpenSession }) {
   const [draft, setDraft] = useState(DEFAULT_DRAFT);
   const [newStep, setNewStep] = useState('');
   const [advanced, setAdvanced] = useState(false);
@@ -448,7 +454,8 @@ export default function Goals({ goals = [], userId, onAppend, onFeedback }) {
           )}
           {currentGroup.items.map(goal => (
             <GoalCard key={goal.id} goal={goal} userId={userId}
-              onAppend={onAppend} onFeedback={onFeedback}/>
+              onAppend={onAppend} onFeedback={onFeedback}
+              onOpenSession={onOpenSession}/>
           ))}
         </div>
       </section>
