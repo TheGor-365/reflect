@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { doc, runTransaction } from 'firebase/firestore';
-import { removeMindLink, saveMindLink } from './mindspaceOperations';
+import { removeMindLink, saveMindLink, renameMindTopic } from './mindspaceOperations';
 
 vi.mock('../../firebase/config',()=>({db:{},appId:'reflect-8fdc8'}));
 vi.mock('firebase/firestore',()=>({
@@ -107,4 +107,33 @@ describe('PRODUCT-05B explicit mind links',()=>{
       relation:'value'
     }));
   });
+});
+
+it('display-only semantic rename preserves original session title and transcript',async()=>{
+  const renamed=await renameMindTopic({
+    userId:'synthetic-owner',sourceSessionId:'topic-one',
+    title:'  Внимание и работа  '
+  });
+  expect(renamed).toBe('Внимание и работа');
+  expect(source.mindTitle).toBe('Внимание и работа');
+  expect(source.title).toBe('Моя тема');
+  expect(source.chatHistory).toEqual([{role:'user',content:'Оригинал'}]);
+  expect(writes).toHaveLength(1);
+  await renameMindTopic({
+    userId:'synthetic-owner',sourceSessionId:'topic-one',
+    title:'Внимание и работа'
+  });
+  expect(writes).toHaveLength(1);
+});
+it('refuses private path injection and malformed semantic aliases',async()=>{
+  await expect(renameMindTopic({
+    userId:'../x',sourceSessionId:'topic-one',title:'Тема'
+  })).rejects.toThrow(/Название/);
+  await expect(renameMindTopic({
+    userId:'synthetic-owner',sourceSessionId:'topic-one',title:'x'.repeat(91)
+  })).rejects.toThrow(/Название/);
+  await expect(renameMindTopic({
+    userId:'synthetic-owner',sourceSessionId:'topic-one',title:'   '
+  })).rejects.toThrow(/Название/);
+  expect(writes).toHaveLength(0);
 });
