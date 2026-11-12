@@ -9,7 +9,9 @@
     "preview": "vite preview --host 127.0.0.1 --port 3101",
     "test": "vitest run && node --test tests/emulator/qa-state.test.cjs",
     "qa:state": "node tests/emulator/qa-state.cjs",
-    "typecheck": "tsc --noEmit --project tsconfig.json"
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "qa:staging:preflight": "node scripts/staging-release-guard.cjs",
+    "qa:staging:postbuild": "node scripts/staging-release-guard.cjs --post-build"
   },
   "dependencies": {
     "firebase": "^10.12.2",
