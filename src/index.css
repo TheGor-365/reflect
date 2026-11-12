@@ -3467,3 +3467,10 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
 @media(prefers-reduced-motion:reduce){
   .reflect-dashboard-activity-bar {transition:none;}
 }
+
+
+/* PRODUCT-05: exact note provenance reached from Dashboard. */
+.reflect-diary-event--source-focus {
+  outline:3px solid var(--reflect-accent);
+  outline-offset:3px;border-radius:.7rem;
+}
