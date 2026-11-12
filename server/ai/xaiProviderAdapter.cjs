@@ -158,7 +158,9 @@ function createXaiProviderAdapter({
       if (error instanceof PolicyError) throw error;
       fail("invalid-provider-response");
     }
-    const parsed = extractXaiText(payload);
+    const parsed = extractXaiText(payload, {
+      structured: Boolean(interactionConfig)
+    });
     // Invalid structured output is not rendered or retried. One paid call only.
     const interaction = interactionConfig
       ? parseInteraction(parsed.text, request.settings, request.classification) : null;
