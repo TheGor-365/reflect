@@ -236,6 +236,7 @@ export default function App() {
   };
   const changeTab = (tab) => {
     if (tab === 'sessions') setSessionLibraryRequested(true);
+    if (tab === 'diary') setFocusDiaryNoteSource(null);
     navigateToTab(tab);
   };
   const selectSession = (id, turnId = null) => {
@@ -365,7 +366,10 @@ export default function App() {
           onOpenGoal={openDashboardGoal}
           onOpenSession={selectSession}
           onOpenJourney={() => navigateToTab('sessionSchema')}
-          onOpenDiary={() => navigateToTab('diary')}
+          onOpenDiary={() => {
+            setFocusDiaryNoteSource(null);
+            navigateToTab('diary');
+          }}
           onOpenDiaryNote={openDashboardDiaryNote}
           onNewSession={handleNewSession}/>;
       case 'diary':
