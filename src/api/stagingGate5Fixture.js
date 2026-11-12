@@ -4,7 +4,7 @@
  * No provider calls, admin privileges, arbitrary source IDs or write to private
  * entitlements. This capability never exists in regular customer builds.
  */
-import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { doc, getDocFromServer, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { appId, auth, db, stagingAppCheckEnabled } from '../firebase/config';
 import {
   GATE5_SESSION_ID, GATE5_SESSION_TITLE, gate5PreviewQaUiEnabled
@@ -75,5 +75,31 @@ export async function prepareGate5Fixture(ownerUid) {
       throw error;
     }
     fail('fixture-write-unavailable');
+  }
+}
+
+/**
+ * Signed owner browser probe for Firestore's SERVER-PRIVATE entitlement path.
+ * Must return "denied"; a readable missing doc is just as unsafe as a readable
+ * existing entitlement. Never return snapshots, content, path, user IDs.
+ */
+export async function auditGate5PrivateEntitlement(ownerUid) {
+  if (!gate5PreviewQaUiEnabled || !stagingAppCheckEnabled ||
+      auth.app?.options?.projectId !== STAGE_PROJECT ||
+      appId !== STAGE_NAMESPACE || !db) fail('fixture-disabled');
+  const signed = auth.currentUser;
+  if (!signed || !validUid(ownerUid) || signed.uid !== ownerUid ||
+      signed.isAnonymous || !signed.emailVerified) {
+    fail('fixture-account-not-ready');
+  }
+  const target = doc(db, '_reflectAiPrivate', STAGE_NAMESPACE,
+    'entitlements', ownerUid);
+  try {
+    await getDocFromServer(target);
+    // Includes documents that do not exist: public read of "missing" is unsafe.
+    return 'unsafe-readable';
+  } catch (error) {
+    return error?.code === 'permission-denied'
+      ? 'denied' : 'unavailable';
   }
 }
