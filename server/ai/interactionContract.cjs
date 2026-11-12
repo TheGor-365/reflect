@@ -20,7 +20,7 @@ function normalizeSettings(raw) {
       typeof raw.askClarifyingQuestions !== "boolean" ||
       typeof raw.recommendationsEnabled !== "boolean" ||
       !["rare", "balanced"].includes(raw.recommendationFrequency) ||
-      raw.autoSaveRecommendations === true) return { ...defaults };
+      typeof raw.autoSaveRecommendations !== "boolean") return { ...defaults };
   return {
     responseDepth: raw.responseDepth, responseTone: raw.responseTone,
     askClarifyingQuestions: raw.askClarifyingQuestions,
@@ -32,7 +32,7 @@ function preflight(message) {
   // The deterministic layer recognizes explicit user instructions, not a
   // clinical assessment or a probability of successful behavior.
   const m = message.toLowerCase();
-  const intent = /не (?:нужн\w*|хочу) (?:мне )?(?:совет\w*|решени\w*|рекомендац\w*)|просто хочу (?:выговориться|записать)|не предлагай (?:совет|решени)/i.test(m)
+  const intent = /не (?:нужн\w*|хочу) (?:мне )?(?:совет\w*|решени\w*|рекомендац\w*)|не нужно (?:давать|предлагать) (?:мне )?(?:совет\w*|решени\w*)|просто хочу (?:выговориться|записать)|не предлагай (?:совет|решени)/i.test(m)
     ? "vent"
     : /mvp|мвп|планир|за \d+ (?:дней|недель)|разбить на шаги|хочу закончить/i.test(m)
       ? "plan"
