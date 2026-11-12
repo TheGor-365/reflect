@@ -1,4 +1,5 @@
-import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { doc, runTransaction, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { isDateOnly, localNoonForDueDay } from '../Goals/goalDomain';
 import { db, appId } from '../../firebase/config';
 
 const idOk = value => typeof value === 'string' &&
@@ -23,7 +24,8 @@ export function recommendationKey(messageId, index) {
  */
 export async function applyRecommendationDecision({
   userId, sessionId, assistantMessageId, candidateIndex, action,
-  goalId, goalTitle, goalPurpose = ''
+  goalId, goalTitle, goalPurpose = '', goalStep = '',
+  goalDueDay = '', goalCriteria = ''
 }) {
   if (!db || !idOk(userId) || !idOk(sessionId) ||
       !['goal', ...STATUSES].includes(action)) {
@@ -32,7 +34,10 @@ export async function applyRecommendationDecision({
   const key = recommendationKey(assistantMessageId, candidateIndex);
   if (action === 'goal' &&
       (!idOk(goalId) || !textOk(goalTitle, 240) ||
-        typeof goalPurpose !== 'string' || goalPurpose.length > 1000)) {
+        typeof goalPurpose !== 'string' || goalPurpose.length > 1000 ||
+        typeof goalStep !== 'string' || goalStep.length > 240 ||
+        typeof goalCriteria !== 'string' || goalCriteria.length > 500 ||
+        (goalDueDay !== '' && !isDateOnly(goalDueDay)))) {
     throw new Error('Проверьте название и описание цели.');
   }
   const root = `artifacts/${appId}/users/${userId}`;
@@ -89,7 +94,16 @@ export async function applyRecommendationDecision({
       } else {
         transaction.set(goalRef, {
           text: goalTitle.trim(), purpose: goalPurpose.trim(),
-          type: 'checklist', subItems: [], reflections: [], postponeCount: 0,
+          successCriteria: goalCriteria.trim(),
+          type: 'checklist',
+          subItems: goalStep.trim() ? [{
+            id: `${goalId}-step-0`, text: goalStep.trim(), completed: false
+          }] : [],
+          ...(goalDueDay ? {
+            dueDay: goalDueDay, date: goalDueDay,
+            dueDate: Timestamp.fromDate(localNoonForDueDay(goalDueDay))
+          } : {}),
+          reflections: [], postponeCount: 0,
           completed: false, status: 'active',
           sessionId, sourceRecommendationKey: key,
           sourceMessageId: preceding.id, sourceAssistantMessageId: assistantMessageId,
