@@ -8,6 +8,7 @@ import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import MobileDock from './components/layout/MobileDock';
 import Diary from './features/Diary/Diary';
+import Dashboard from './features/Dashboard/Dashboard';
 import AISettings from './features/AISettings/AISettings';
 import { currentTabFromLocation, pushTabToHistory } from './navigation/tabRoute';
 import Goals from './features/Goals/Goals';
@@ -95,6 +96,12 @@ export default function App() {
   // in a shareable URL or a cross-account localStorage key.
   const [focusTurnId, setFocusTurnId] = useState(null);
   const [focusGoalId, setFocusGoalId] = useState(null);
+  const [focusDiaryNoteSource, setFocusDiaryNoteSource] = useState(null);
+  useEffect(() => {
+    setFocusTurnId(null);
+    setFocusGoalId(null);
+    setFocusDiaryNoteSource(null);
+  }, [userId]);
   const [sessionLibraryRequested, setSessionLibraryRequested] = useState(true);
 
   // --- Modal State ---
@@ -229,6 +236,7 @@ export default function App() {
   };
   const changeTab = (tab) => {
     if (tab === 'sessions') setSessionLibraryRequested(true);
+    if (tab === 'diary') setFocusDiaryNoteSource(null);
     navigateToTab(tab);
   };
   const selectSession = (id, turnId = null) => {
@@ -332,8 +340,38 @@ export default function App() {
     );
   }
 
+  const openDashboardDiaryNote = (sourceRef) => {
+    if (sourceRef?.kind !== 'diaryNote' ||
+        !diaryNotes.some(note => note.id === sourceRef.recordId &&
+          Array.isArray(note.entries) &&
+          note.entries[sourceRef.entryIndex] &&
+          Number.isInteger(sourceRef.entryIndex) &&
+          sourceRef.entryIndex >= 0)) return;
+    setFocusDiaryNoteSource({
+      recordId: sourceRef.recordId, entryIndex: sourceRef.entryIndex
+    });
+    navigateToTab('diary');
+  };
+  const openDashboardGoal = (goalId) => {
+    if (!goals.some(goal => goal.id === goalId)) return;
+    setFocusGoalId(goalId);
+    navigateToTab('goals');
+  };
+
   const renderActiveTab = () => {
     switch (activeTab) {
+      case 'dashboard':
+        return <Dashboard sessions={sessions} goals={goals}
+          diaryNotes={diaryNotes}
+          onOpenGoal={openDashboardGoal}
+          onOpenSession={selectSession}
+          onOpenJourney={() => navigateToTab('sessionSchema')}
+          onOpenDiary={() => {
+            setFocusDiaryNoteSource(null);
+            navigateToTab('diary');
+          }}
+          onOpenDiaryNote={openDashboardDiaryNote}
+          onNewSession={handleNewSession}/>;
       case 'diary':
           return <Diary
               key={userId}
@@ -344,6 +382,7 @@ export default function App() {
               userId={userId}
               onAppend={handleAppendToEntry}
               onRenameSession={handleRenameSession}
+              focusNoteSource={focusDiaryNoteSource}
               onOpenSession={selectSession}
               onOpenJourney={id => { setCurrentSessionId(id); navigateToTab('sessionSchema'); }}
               isLoading={isLoadingData}

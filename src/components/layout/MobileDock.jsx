@@ -1,7 +1,8 @@
 import React from 'react';
-import { BookOpen, GitBranch, MessageSquare, Plus, Target } from 'lucide-react';
+import { BookOpen, GitBranch, LayoutDashboard, MessageSquare, Plus, Target } from 'lucide-react';
 
 const shortcuts = [
+  { id: 'dashboard', label: 'Главная', icon: LayoutDashboard },
   { id: 'diary', label: 'Дневник', icon: BookOpen },
   { id: 'sessions', label: 'Сеансы', icon: MessageSquare },
   { id: 'new', label: 'Новый', icon: Plus },
