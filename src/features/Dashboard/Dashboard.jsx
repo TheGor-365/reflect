@@ -40,6 +40,12 @@ export default function Dashboard({
           </button>
         )}
       </header>
+      {snapshot.sourceTruncated&&(
+        <p role="status" className="reflect-dashboard-note">
+          Часть событий не вошла в текущий лимит аналитической проекции.
+          Показатели неполные; исходные записи не изменены.
+        </p>
+      )}
       {!hasAny?(
         <div className="reflect-dashboard-empty" role="status">
           <h3>Ваше пространство пока пусто</h3>
