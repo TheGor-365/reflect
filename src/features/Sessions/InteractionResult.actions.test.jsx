@@ -32,7 +32,8 @@ describe('PRODUCT-02 decisions UI', () => {
     fireEvent.change(input, { target: { value: 'Выпустить тестовую версию' } });
     fireEvent.click(screen.getByRole('button', { name: 'Подтвердить создание цели' }));
     await waitFor(() => expect(onDecision).toHaveBeenCalledWith(0, 'goal', {
-      title: 'Выпустить тестовую версию', purpose: ''
+      title: 'Выпустить тестовую версию', purpose: '',
+      step: '', dueDay: '', criteria: ''
     }));
     expect(screen.getByText(/Цель подтверждена и связана/)).toBeTruthy();
   });
@@ -56,4 +57,16 @@ describe('PRODUCT-02 decisions UI', () => {
     expect(screen.getByRole('textbox', { name: 'Название цели' })).toHaveValue('Не потерять черновик');
     expect(onDecision).toHaveBeenCalledTimes(1);
   });
+});
+
+it('keeps dismissed recommendations hidden across fresh renders until explicit reveal', () => {
+  const key = 'r-assistant-request1234567890-0';
+  const { rerender } = render(<InteractionResult {...props}
+    decisions={{ [key]: { status: 'dismissed' } }}/>);
+  expect(screen.queryByText(interaction.recommendationCandidates[0].rationale)).toBeNull();
+  rerender(<InteractionResult {...props}
+    decisions={{ [key]: { status: 'dismissed' } }}/>);
+  expect(screen.queryByRole('button', { name: 'Превратить в цель' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Показать отклонённое предложение' }));
+  expect(screen.getByText(interaction.recommendationCandidates[0].rationale)).toBeTruthy();
 });
