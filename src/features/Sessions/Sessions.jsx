@@ -6,12 +6,14 @@ import ChatMessage from './ChatMessage';
 import SessionLibrary from './SessionLibrary';
 import { sessionDisplayTitle } from '../Diary/diaryPresentation';
 import SessionComposer from './SessionComposer';
+import { applyRecommendationDecision } from './recommendationDecisions';
+import { newGoalId } from '../Goals/goalOperations';
 import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
 import InfoCard from '../../components/common/InfoCard';
 import { useEntrySave } from '../../hooks/useEntrySave';
 import { BookOpen, BarChart2, MessageSquareText, ShieldCheck } from 'lucide-react';
 
-const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
+const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, onOpenGoals, libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
   const [userInput, setUserInput] = useState('');
   const [showLibrary, setShowLibrary] = useState(false);
   const [navigationWarning, setNavigationWarning] = useState('');
@@ -20,6 +22,8 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   const [savingSession, setSavingSession] = useState(false);
   const [sessionSaveError, setSessionSaveError] = useState('');
   const sendLock = useRef(false);
+  const pendingRecommendationGoalIds = useRef({});
+  const [decisionEcho, setDecisionEcho] = useState({});
   const noteSave = useEntrySave('diaryNotes', userId);
   const sessionDraftRef = useRef(null);
   const [isUserRecording, setIsUserRecording] = useState(false);
@@ -28,6 +32,11 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   
   // --- ИСПРАВЛЕНИЕ: Локальное состояние для мгновенного отображения сообщений в новом сеансе ---
   const [localMessages, setLocalMessages] = useState([]);
+
+  useEffect(() => {
+    pendingRecommendationGoalIds.current = {};
+    setDecisionEcho({});
+  }, [userId]);
 
   const recognitionRef = useRef(null);
   const utteranceRef = useRef(null);
@@ -209,6 +218,34 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   
   // --- ИСПРАВЛЕНИЕ: Выбираем, какой массив сообщений отображать ---
   const messagesToDisplay = activeSession ? [...(activeSession.chatHistory || []), ...localMessages] : localMessages;
+  const savedMessageCount = Array.isArray(activeSession?.chatHistory)
+    ? activeSession.chatHistory.length : 0;
+  const savedDecisions = activeSession?.recommendationDecisions || {};
+  const scopedDecisionPrefix = `${userId}:${activeSession?.id}:`;
+  const decisions = { ...savedDecisions };
+  Object.entries(decisionEcho).forEach(([key, value]) => {
+    if (key.startsWith(scopedDecisionPrefix)) decisions[key.slice(scopedDecisionPrefix.length)] = value;
+  });
+  const handleRecommendationDecision = async (assistantMessageId, candidateIndex, action, draft) => {
+    if (!userId || !activeSession || !activeSession.chatHistory?.some(
+      message => message.id === assistantMessageId && message.role === 'assistant'
+    )) {
+      throw new Error('Сначала сохраните ответ Reflect в сеансе.');
+    }
+    const echoKey = `${userId}:${activeSession.id}:r-${assistantMessageId}-${candidateIndex}`;
+    let goalId;
+    if (action === 'goal') {
+      pendingRecommendationGoalIds.current[echoKey] ||= newGoalId(userId);
+      goalId = pendingRecommendationGoalIds.current[echoKey];
+    }
+    const result = await applyRecommendationDecision({
+      userId, sessionId: activeSession.id, assistantMessageId, candidateIndex,
+      action, goalId, goalTitle: draft?.title, goalPurpose: draft?.purpose || ''
+    });
+    setDecisionEcho(current => ({ ...current, [echoKey]: result }));
+    delete pendingRecommendationGoalIds.current[echoKey];
+    return result;
+  };
   const realRecommendations = activeSession?.recommendations || [];
   const realExercises = activeSession?.exercises || [];
   const hasContext = Boolean(activeSession && (realRecommendations.length || realExercises.length));
@@ -293,6 +330,11 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
               <ChatMessage key={msg.id || index} message={msg}
                 onPlayAudio={handlePlayAudio} isSpeaking={isSpeaking}
                 onCompose={text => { setUserInput(text); setSendError(''); }}
+                isSaved={Boolean(activeSession && index < savedMessageCount)}
+                decisions={decisions}
+                onDecision={(candidateIndex, action, draft) =>
+                  handleRecommendationDecision(msg.id, candidateIndex, action, draft)}
+                onOpenGoals={onOpenGoals}
                 currentlySpeakingId={currentlySpeakingId} />
             ))}
 
