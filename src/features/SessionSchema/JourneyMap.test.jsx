@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import JourneyMap from './JourneyMap';
 import SessionSchema from './SessionSchema';
@@ -87,4 +87,62 @@ describe('PRODUCT-04 Journey interactive UX',()=>{
     expect(screen.getByRole('region',{name:'Интерактивная диаграмма связей'}))
       .toBeTruthy();
   });
+  it('shows real mobile graph controls rather than forcing the flat mobile list',()=>{
+    vi.stubGlobal('matchMedia',vi.fn().mockImplementation(query=>({
+      matches:query==='(max-width: 600px)',media:query,
+      addEventListener:vi.fn(),removeEventListener:vi.fn()
+    })));
+    render(<JourneyMap sessions={sessions} goals={goals}/>);
+    expect(screen.getByRole('region',{name:'Интерактивная диаграмма связей'}))
+      .toBeTruthy();
+    expect(screen.getByLabelText('Масштаб')).toHaveTextContent('62%');
+    expect(screen.getByText(/Перемещайте карту пальцем/)).toBeTruthy();
+    const toggle=screen.getByRole('button',{name:'Лента'});
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(toggle);
+    expect(screen.getByRole('button',{name:'Скрыть ленту'}).getAttribute('aria-expanded'))
+      .toBe('true');
+    expect(screen.getByRole('heading',{name:'Лента карты'})).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:'Сбросить масштаб и смещение'}));
+    expect(screen.getByLabelText('Масштаб')).toHaveTextContent('62%');
+  });
+  it('supports touch pan on background and pinch zoom without writing data',()=>{
+    vi.stubGlobal('matchMedia',vi.fn().mockReturnValue({matches:true}));
+    // jsdom has no native PointerEvent constructor. Testing-library needs
+    // a real pointer-shaped event rather than a generic Event with no coords.
+    vi.stubGlobal('PointerEvent',class PointerEvent extends MouseEvent {
+      constructor(type,init={}){
+        super(type,init);
+        Object.defineProperty(this,'pointerId',{value:init.pointerId??1});
+        Object.defineProperty(this,'pointerType',{value:init.pointerType??'mouse'});
+      }
+    });
+    render(<JourneyMap sessions={sessions} goals={goals}/>);
+    const viewport=screen.getByRole('region',{name:'Интерактивная диаграмма связей'});
+    const world=viewport.querySelector('.reflect-journey-world');
+    expect(world.style.transform).toContain('scale(0.62)');
+    fireEvent.pointerDown(viewport,{pointerType:'touch',pointerId:1,button:0,clientX:90,clientY:120});
+    fireEvent.pointerMove(viewport,{pointerType:'touch',pointerId:1,clientX:120,clientY:155});
+    expect(world.style.transform).toContain('translate(38px, 43px)');
+    fireEvent.pointerDown(viewport,{pointerType:'touch',pointerId:2,button:0,clientX:200,clientY:120});
+    fireEvent.pointerMove(viewport,{pointerType:'touch',pointerId:2,clientX:250,clientY:120});
+    expect(screen.getByLabelText('Масштаб').textContent).not.toBe('62%');
+    fireEvent.pointerUp(viewport,{pointerType:'touch',pointerId:1});
+    fireEvent.pointerUp(viewport,{pointerType:'touch',pointerId:2});
+  });
+  it('resets graph scale when breakpoint changes, not on every resize',()=>{
+    let mobile=false;
+    vi.stubGlobal('matchMedia',vi.fn().mockImplementation(()=>({get matches(){return mobile;}})));
+    render(<JourneyMap sessions={sessions} goals={goals}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Увеличить масштаб'}));
+    expect(screen.getByLabelText('Масштаб')).toHaveTextContent('90%');
+    fireEvent(window,new Event('resize'));
+    expect(screen.getByLabelText('Масштаб')).toHaveTextContent('90%');
+    mobile=true;
+    fireEvent(window,new Event('resize'));
+    expect(screen.getByLabelText('Масштаб')).toHaveTextContent('62%');
+  });
+
 });
+
+afterEach(()=>vi.unstubAllGlobals());

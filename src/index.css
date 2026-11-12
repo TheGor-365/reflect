@@ -3286,6 +3286,8 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
 }
 .reflect-journey-node:focus-visible {outline:3px solid var(--reflect-accent);outline-offset:2px;}
 .reflect-journey-mobile-list { display:none; }
+.reflect-journey-touch-hint { display:none; }
+.reflect-journey-list-toggle { display:none !important; }
 .reflect-journey-source {
   display:flex; align-items:center; justify-content:space-between;
   flex-wrap:wrap; gap:1rem; margin-top:1rem;
@@ -3305,10 +3307,30 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
 @media(max-width:850px) {
   .reflect-journey-filters { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
+/* A real diagram on every screen: the list is an optional accessible companion. */
 @media(max-width:600px) {
-  .reflect-journey-canvas { display:none; }
-  .reflect-journey-view-controls { display:none; }
-  .reflect-journey-mobile-list {display:block;}
+  .reflect-journey-filters { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .reflect-journey-view-controls {
+    display:flex; flex-wrap:nowrap; gap:.35rem; align-items:center;
+  }
+  .reflect-journey-view-controls button { min-width:44px; min-height:44px; }
+  .reflect-journey-view-controls .reflect-journey-pan-control { display:none; }
+  .reflect-journey-view-controls .reflect-journey-list-toggle {
+    display:inline-flex !important; align-items:center; justify-content:center;
+    padding:0 .7rem; font-weight:650; min-width:64px;
+  }
+  .reflect-journey-view-controls output { min-width:45px; }
+  .reflect-journey-touch-hint {
+    display:block; margin:.65rem 0 .3rem; color:var(--reflect-muted);
+    font-size:.78rem; line-height:1.5;
+  }
+  .reflect-journey-canvas {
+    display:block; width:100%; min-width:0; height:min(56svh,490px);
+    min-height:340px; touch-action:none; overscroll-behavior:contain;
+    -webkit-user-select:none; user-select:none;
+  }
+  .reflect-journey-mobile-list { display:none; }
+  .reflect-journey-mobile-list.is-open { display:block; }
   .reflect-journey-mobile-list h3 {
     font-size:1rem; font-weight:700; margin:1rem 0 .5rem;
   }
@@ -3328,8 +3350,11 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
   }
   .reflect-journey-mobile-list small,
   .reflect-journey-mobile-list span {color:var(--reflect-muted);font-size:.78rem;}
-  .reflect-journey-filters {grid-template-columns:minmax(0,1fr);}
   .reflect-journey-source button {width:100%;justify-content:center;}
+}
+@media(max-width:350px) {
+  .reflect-journey-filters {grid-template-columns:1fr;}
+  .reflect-journey-view-controls {gap:.2rem;}
 }
 @media(prefers-reduced-motion:reduce) {
   .reflect-journey-world {will-change:auto;}
