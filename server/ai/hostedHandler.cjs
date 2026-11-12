@@ -9,7 +9,7 @@
 const { PolicyError, validateRequest, CONSENT_VERSION } = require("./policy.cjs");
 const { createXaiProviderAdapter } = require("./xaiProviderAdapter.cjs");
 const { createHostedBudget, MAX_MESSAGE_BYTES } = require("./hostedBudget.cjs");
-const { normalizeSettings, VERSION } = require("./interactionContract.cjs");
+const { VERSION } = require("./interactionContract.cjs");
 
 async function readOwnerSettings(db, uid) {
   try {
@@ -17,10 +17,16 @@ async function readOwnerSettings(db, uid) {
     const snap = await db.collection("artifacts").doc("reflect-8fdc8")
       .collection("users").doc(uid).collection("aiSettings")
       .doc("preferences").get();
-    return normalizeSettings(snap.exists ? snap.data() : null);
+    // Preserve the raw versioned document: buildRequest performs the ONE
+    // fail-closed normalization immediately before constructing the prompt.
+    // Normalizing here stripped schemaVersion, causing a second pass to reset
+    // valid owner preferences to defaults (tone, depth and recommendations).
+    return snap.exists ? (snap.data() || {}) : {};
   } catch {
     // Invalid/unavailable preferences fail closed to no recommendations.
-    return normalizeSettings(null);
+    // A missing/unavailable document must still use structured V1 with its
+    // conservative defaults; null would silently switch the adapter to legacy.
+    return {};
   }
 }
 
@@ -87,4 +93,4 @@ function createHostedHandler({
     }
   };
 }
-module.exports = { createHostedHandler, CONSENT_VERSION };
+module.exports = { createHostedHandler, readOwnerSettings, CONSENT_VERSION };

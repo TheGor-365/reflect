@@ -3,6 +3,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { createXaiProviderAdapter } = require("./xaiProviderAdapter.cjs");
 const { VERSION } = require("./interactionContract.cjs");
+const { readOwnerSettings } = require("./hostedHandler.cjs");
 const { PolicyError } = require("./policy.cjs");
 const key = "xai-" + "X".repeat(40); // synthetic, never a credential
 const message = "Не могу решить, менять ли работу с большей зарплатой.";
@@ -87,4 +88,84 @@ test("malformed structured output is rejected after one attempt, not exposed", a
   await assert.rejects(adapter.invoke(message, settings),
     e => e instanceof PolicyError && e.code === "invalid-provider-response");
   assert.equal(calls, 1);
+});
+
+function fakeOwnerSettingsDb(uid, snapshot, visited) {
+  const ref = {
+    collection(name) { visited.push(["collection", name]); return this; },
+    doc(name) { visited.push(["doc", name]); return this; },
+    async get() { return snapshot; }
+  };
+  return ref;
+}
+
+test("M1 owner preferences survive Firestore -> provider prompt and candidate gate", async () => {
+  const uid = "synthetic-owner-123";
+  const visits = [];
+  const ownerSettings = {
+    ...settings,
+    responseTone: "strategic",
+    responseDepth: "deep",
+    showContextIndicator: true
+  };
+  const raw = await readOwnerSettings(fakeOwnerSettingsDb(uid, {
+    exists: true, data: () => ownerSettings
+  }, visits), uid);
+  assert.deepEqual(visits, [
+    ["collection", "artifacts"], ["doc", "reflect-8fdc8"],
+    ["collection", "users"], ["doc", uid],
+    ["collection", "aiSettings"], ["doc", "preferences"]
+  ]);
+  assert.equal(raw.schemaVersion, 1);
+  let calls = 0;
+  const adapter = createXaiProviderAdapter({
+    readSecret: async () => key,
+    transport: async (_url, options) => {
+      calls++;
+      const body = JSON.parse(options.body);
+      assert.match(body.input[0].content, /Тон: strategic; глубина: deep/);
+      assert.match(body.input[0].content, /Рекомендации разрешены: true/);
+      assert.equal(body.input.length, 2); // No owner history, profile or diary.
+      return response(payload({
+        stage: "synthesize", clarifyingQuestion: "",
+        recommendationCandidates: [{
+          title: "Сравнить критерии", rationale: "Опираемся на текущий вопрос.",
+          sourceRefs: ["current-message"]
+        }]
+      }));
+    }
+  });
+  const output = await adapter.invoke(message, raw);
+  assert.equal(calls, 1);
+  assert.equal(output.interaction.recommendationCandidates.length, 1);
+  assert.equal(output.interaction.goalCandidates.length, 0);
+});
+
+test("M1 no/invalid/unavailable owner preferences stay structured and fail closed", async () => {
+  const uid = "synthetic-owner-123";
+  const reads = [
+    { exists: false },
+    { exists: true, data: () => ({ ...settings, responseTone: "inject" }) }
+  ];
+  for (const snapshot of reads) {
+    const raw = await readOwnerSettings(fakeOwnerSettingsDb(uid, snapshot, []), uid);
+    assert.ok(raw && typeof raw === "object");
+    const adapter = createXaiProviderAdapter({
+      readSecret: () => key,
+      transport: async (_url, options) => {
+        const body = JSON.parse(options.body);
+        assert.equal(body.text.format.name, "reflect_interaction_v1");
+        assert.match(body.input[0].content, /Тон: analytical; глубина: balanced/);
+        assert.match(body.input[0].content, /Рекомендации разрешены: false/);
+        return response(payload());
+      }
+    });
+    const output = await adapter.invoke(message, raw);
+    assert.equal(output.interaction.version, VERSION);
+    assert.equal(output.interaction.recommendationCandidates.length, 0);
+  }
+  const unavailable = await readOwnerSettings({
+    collection() { throw Error("transient-store-unavailable"); }
+  }, uid);
+  assert.deepEqual(unavailable, {});
 });
