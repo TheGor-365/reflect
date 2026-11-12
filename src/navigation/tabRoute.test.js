@@ -35,3 +35,10 @@ test('rejects invalid tabs without altering the URL', () => {
   expect(pushTabToHistory('owner-uid')).toBe(false);
   expect(window.location.href).toBe(before);
 });
+
+test('Dashboard deep link works without exposing a session or account identifier', () => {
+  window.history.replaceState(null, '', '/?campaign=private-check');
+  expect(pushTabToHistory('dashboard')).toBe(true);
+  expect(currentTabFromLocation()).toBe('dashboard');
+  expect(window.location.search).toBe('?campaign=private-check&view=dashboard');
+});
