@@ -108,6 +108,15 @@ describe('PRODUCT-04 Journey interactive UX',()=>{
   });
   it('supports touch pan on background and pinch zoom without writing data',()=>{
     vi.stubGlobal('matchMedia',vi.fn().mockReturnValue({matches:true}));
+    // jsdom has no native PointerEvent constructor. Testing-library needs
+    // a real pointer-shaped event rather than a generic Event with no coords.
+    vi.stubGlobal('PointerEvent',class PointerEvent extends MouseEvent {
+      constructor(type,init={}){
+        super(type,init);
+        Object.defineProperty(this,'pointerId',{value:init.pointerId??1});
+        Object.defineProperty(this,'pointerType',{value:init.pointerType??'mouse'});
+      }
+    });
     render(<JourneyMap sessions={sessions} goals={goals}/>);
     const viewport=screen.getByRole('region',{name:'Интерактивная диаграмма связей'});
     const world=viewport.querySelector('.reflect-journey-world');
