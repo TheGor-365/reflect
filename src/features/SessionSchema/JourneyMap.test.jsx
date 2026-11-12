@@ -60,7 +60,8 @@ describe('PRODUCT-04 interactive map', () => {
     });
     expect(declined).toBeInTheDocument();
     fireEvent.click(declined);
-    expect(screen.getByText('Отклонено')).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'Источник выбранного узла' }))
+      .toHaveTextContent('Отклонено');
   });
 
   it('exposes keyboard scroll region, zoom actions and status/goal filters', () => {
