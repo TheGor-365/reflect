@@ -50,6 +50,31 @@ test("server-only V1: exactly one Responses call, validated UI projection, no hi
   assert.equal(output.interaction.goalCandidates.length, 0);
   assert.equal(output.usage.inputTokens, 250);
 });
+test("valid V1 structured envelope can exceed the legacy plain-text limit", async () => {
+  let calls = 0;
+  const structured = payload({
+    stage: "synthesize", clarifyingQuestion: "",
+    answer: "А".repeat(1050),
+    insights: ["Б".repeat(220), "В".repeat(220)],
+    unknowns: ["Г".repeat(150), "Д".repeat(150)],
+    recommendationCandidates: [{
+      title: "Обсудить критерии",
+      rationale: "Р".repeat(330),
+      sourceRefs: ["current-message"]
+    }]
+  });
+  assert.ok(JSON.stringify(structured).length > 2400);
+  const adapter = createXaiProviderAdapter({
+    readSecret: () => key,
+    transport: async () => { calls++; return response(structured); }
+  });
+  const result = await adapter.invoke(message, settings);
+  assert.equal(calls, 1);
+  assert.equal(result.text, structured.answer);
+  assert.equal(result.interaction.recommendationCandidates.length, 1);
+  assert.equal(result.interaction.goalCandidates.length, 0);
+});
+
 test("malformed structured output is rejected after one attempt, not exposed", async () => {
   let calls = 0;
   const adapter = createXaiProviderAdapter({
