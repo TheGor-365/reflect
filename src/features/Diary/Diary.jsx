@@ -63,6 +63,7 @@ const Diary = ({
   const [justAddedNoteId, setJustAddedNoteId] = useState(null);
   const composerRef = useRef(null);
   const timelineRef = useRef(null);
+  const handledFocusKeyRef = useRef(null);
   const noteDraftRef = useRef(null);
   const activeUserRef = useRef(userId);
   activeUserRef.current = userId;
@@ -182,6 +183,9 @@ const Diary = ({
       note.id===focusNoteSource.recordId &&
       Array.isArray(note.entries) &&
       note.entries[focusNoteSource.entryIndex])) return;
+    const focusKey=`${focusNoteSource.recordId}:${focusNoteSource.entryIndex}`;
+    if (handledFocusKeyRef.current===focusKey) return;
+    handledFocusKeyRef.current=focusKey;
     setEntryKind('all'); setVisibleKind('all');
     setSearchQuery(''); setFromDate(''); setToDate('');
   }, [focusNoteSource,diaryNotes]);
