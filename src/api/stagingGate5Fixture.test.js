@@ -35,6 +35,7 @@ let readTarget;
 beforeEach(() => {
   vi.clearAllMocks();
   auth.currentUser = user();
+  getDocFromServer.mockReset();
   existing = null;
   writes = [];
   readTarget = null;
@@ -126,20 +127,29 @@ describe('Stage05 Gate5 owner-only fixture setup (synthetic, no live Firebase)',
 
 test('private entitlement probe passes only explicit permission-denied', async () => {
   auth.currentUser = user();
-  getDocFromServer.mockRejectedValueOnce({ code: 'permission-denied' });
+  getDocFromServer
+    .mockResolvedValueOnce({ exists: () => true })
+    .mockRejectedValueOnce({ code: 'permission-denied' });
   expect(await auditGate5PrivateEntitlement(UID)).toBe('denied');
-  const call = doc.mock.calls.at(-1);
-  expect(call.slice(1)).toEqual([
+  expect(doc.mock.calls.at(-2).slice(1)).toEqual([
+    'artifacts', 'reflect-8fdc8', 'users', UID, 'profiles', 'userProfile'
+  ]);
+  expect(doc.mock.calls.at(-1).slice(1)).toEqual([
     '_reflectAiPrivate', 'reflect-8fdc8', 'entitlements', UID
   ]);
+  expect(getDocFromServer).toHaveBeenCalledTimes(2);
   expect(runTransaction).not.toHaveBeenCalled();
 });
 
 test('private entitlement probe blocks public reads including missing document', async () => {
-  getDocFromServer.mockResolvedValueOnce({ exists: () => false,
-    data: () => ({ private: 'never exposed' }) });
+  getDocFromServer
+    .mockResolvedValueOnce({ exists: () => true })
+    .mockResolvedValueOnce({ exists: () => false,
+      data: () => ({ private: 'never exposed' }) });
   expect(await auditGate5PrivateEntitlement(UID)).toBe('unsafe-readable');
-  getDocFromServer.mockRejectedValueOnce({ code: 'unavailable' });
+  getDocFromServer
+    .mockResolvedValueOnce({ exists: () => true })
+    .mockRejectedValueOnce({ code: 'unavailable' });
   expect(await auditGate5PrivateEntitlement(UID)).toBe('unavailable');
 });
 
@@ -148,4 +158,11 @@ test('private entitlement probe refuses owner mismatch and no UID leaks', async 
   await expect(auditGate5PrivateEntitlement(UID))
     .rejects.toThrow('fixture-account-not-ready');
   expect(getDocFromServer).not.toHaveBeenCalled();
+});
+
+test('blanket App Check or owner Firestore deny never counts as Rules PASS', async () => {
+  getDocFromServer.mockRejectedValueOnce({ code: 'permission-denied' });
+  expect(await auditGate5PrivateEntitlement(UID)).toBe('unavailable');
+  expect(getDocFromServer).toHaveBeenCalledTimes(1);
+  expect(doc.mock.calls.at(-1).slice(1).at(-2)).toBe('profiles');
 });
