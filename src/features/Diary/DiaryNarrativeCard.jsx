@@ -4,6 +4,7 @@ import { entryTitle, entryVersion, entryVersions } from './noteVersions';
 import CollapsibleContent from '../../components/common/CollapsibleContent';
 import { formatDate } from '../../utils/formatDate';
 import { sessionDisplayTitle, sessionExcerpt } from './diaryPresentation';
+import { statusOf, progressOf, dueDayOf, dateLabel } from '../Goals/goalDomain';
 
 const MOOD_OPTIONS = { happy: '😊', content: '😌', neutral: '😐', sad: '😟', anxious: '😰' };
 
@@ -18,6 +19,65 @@ const asDate = value => {
     return null;
   }
 };
+
+const GOAL_STATUS_LABELS = {
+  active: 'в работе',
+  paused: 'на паузе',
+  completed: 'завершена'
+};
+
+/** Display only: all facts come from the saved goal, never from AI inference. */
+function GoalDiaryDetails({ goal }) {
+  const status = statusOf(goal);
+  const due = dueDayOf(goal);
+  const purpose = typeof goal.purpose === 'string' ? goal.purpose.trim() : '';
+  const items = Array.isArray(goal.subItems) ? goal.subItems : [];
+  const progress = progressOf(goal);
+
+  return (
+    <section className="reflect-journal-goal-details" aria-label="Подробности цели">
+      <div className="reflect-journal-goal-meta">
+        <span>Статус: <strong>{GOAL_STATUS_LABELS[status]}</strong></span>
+        <span>Срок: <strong>{due ? dateLabel(due) : 'без срока'}</strong></span>
+      </div>
+      {purpose ? (
+        <p className="reflect-journal-goal-purpose">
+          <strong>Зачем это нужно</strong>
+          <span>{purpose}</span>
+        </p>
+      ) : (
+        <p className="reflect-journal-goal-empty">Описание цели не добавлено.</p>
+      )}
+      {items.length > 0 ? (
+        <div className="reflect-journal-goal-steps" aria-label="Сохранённые шаги цели">
+          <div className="reflect-journal-goal-steps-heading">
+            <strong>Шаги цели</strong>
+            <span>{progress.done} из {progress.total} выполнено</span>
+          </div>
+          <ol>
+            {items.map((item, index) => {
+              const done = item?.completed === true;
+              const text = typeof item?.text === 'string' && item.text.trim()
+                ? item.text : 'Текст шага недоступен';
+              return (
+                <li key={typeof item?.id === 'string' && item.id ? item.id : index}
+                  className={done ? 'is-complete' : ''}>
+                  <span className="reflect-journal-goal-step-state"
+                    aria-label={done ? 'Выполнен' : 'Не выполнен'}>
+                    {done ? <Check size={13} aria-hidden="true"/> : null}
+                  </span>
+                  <span>{text}</span>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      ) : goal.type !== 'reflection' ? (
+        <p className="reflect-journal-goal-empty">Шаги пока не добавлены.</p>
+      ) : null}
+    </section>
+  );
+}
 
 const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote, onRenameSession, onOpenSession, onOpenJourney }) => {
   const [editing, setEditing] = React.useState(false);
@@ -165,10 +225,7 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote, onRenameSe
           <div>
             {entry.isAppend && <p className="reflect-journal-append-caption">Дополнение к цели</p>}
             <h4 className="reflect-journal-content-title">Цель: {entry.data.text}</h4>
-            <p className="reflect-journal-content-meta">Текущий статус: {entry.data.completed ? 'выполнена' : 'в работе'}</p>
-            <CollapsibleContent title="Показать описание цели">
-              <p className="reflect-journal-speaker-text">{entry.data.purpose}</p>
-            </CollapsibleContent>
+            <GoalDiaryDetails goal={entry.data}/>
             {entry.data.type === 'reflection' && (
               <div className="mt-3 space-y-2">
                 <h5 className="font-semibold">Проработка:</h5>
