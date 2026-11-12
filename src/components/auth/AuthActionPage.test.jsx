@@ -41,7 +41,7 @@ test('one-click verification completes without extra UI buttons, no login on ano
   const navigate = vi.fn();
   show('verifyEmail', { onReturnToActiveAccount: navigate });
   await waitFor(() => expect(completeEmailVerification).toHaveBeenCalledWith(code));
-  expect(await screen.findByRole('status')).toHaveTextContent('Email подтверждён');
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Email подтверждён'));
   expect(navigate).not.toHaveBeenCalled();
   expect(screen.queryByRole('button', { name: 'Подтвердить адрес' })).toBeNull();
   expect(screen.getByRole('status')).toHaveTextContent('В этом браузере нет подходящей активной сессии');
@@ -67,7 +67,7 @@ test('email verification never grants navigation if another user owns the active
     isAnonymous: false, emailVerified: true };
   const navigate = vi.fn();
   show('verifyEmail', { onReturnToActiveAccount: navigate });
-  expect(await screen.findByRole('status')).toHaveTextContent('Email подтверждён');
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Email подтверждён'));
   expect(navigate).not.toHaveBeenCalled();
   expect(reload).not.toHaveBeenCalled();
   expect(getIdToken).not.toHaveBeenCalled();
@@ -90,7 +90,7 @@ test('React StrictMode does not apply a one-time email code twice', async () => 
     <AuthActionPage intent={{ valid: true, mode: 'verifyEmail', code }}
       onReturnToActiveAccount={navigate} />
   </React.StrictMode>);
-  expect(await screen.findByRole('status')).toHaveTextContent('Email подтверждён');
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Email подтверждён'));
   expect(completeEmailVerification).toHaveBeenCalledTimes(1);
 });
 
