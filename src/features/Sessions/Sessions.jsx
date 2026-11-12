@@ -6,6 +6,7 @@ import ChatMessage from './ChatMessage';
 import SessionLibrary from './SessionLibrary';
 import { sessionDisplayTitle } from '../Diary/diaryPresentation';
 import SessionComposer from './SessionComposer';
+import SessionReturnCheckIn from './SessionReturnCheckIn';
 import { applyRecommendationDecision } from './recommendationDecisions';
 import { newGoalId } from '../Goals/goalOperations';
 import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
@@ -322,6 +323,10 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
           </div>
         </div>
 
+        {activeSession && (
+          <SessionReturnCheckIn key={activeSession.id}
+            session={activeSession} userId={userId} />
+        )}
         <div className="reflect-session-messages" role="log" aria-label="История сообщений" aria-live="polite">
           <div className="reflect-session-messages-inner">
             {isNewSessionView && messagesToDisplay.length === 0 && (
