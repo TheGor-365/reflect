@@ -2232,6 +2232,69 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
 }
 .reflect-app .reflect-journal-detail--reflection { border-left: 3px solid var(--reflect-accent); }
 .reflect-app .reflect-journal-detail--feedback { border-left: 3px solid #79c5a4; }
+/* D1: owner-saved goal details stay visible in the journal.
+   No false progress, no editable controls, same Aurora tokens in both themes. */
+.reflect-app .reflect-journal-goal-details {
+  display:grid; gap:12px; min-width:0; margin-top:12px;
+}
+.reflect-app .reflect-journal-goal-meta {
+  display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+}
+.reflect-app .reflect-journal-goal-meta span {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:6px 10px; border-radius:9px; border:1px solid var(--reflect-border);
+  background:var(--reflect-bg); color:var(--reflect-muted);
+  font-size:12px; line-height:1.45;
+}
+.reflect-app .reflect-journal-goal-meta strong {
+  color:var(--reflect-ink); font-weight:650;
+}
+.reflect-app .reflect-journal-goal-purpose {
+  display:grid; gap:4px; margin:0; color:var(--reflect-ink);
+  font-size:13px; line-height:1.6; overflow-wrap:anywhere;
+}
+.reflect-app .reflect-journal-goal-purpose > strong {
+  font-weight:650; font-size:12px; color:var(--reflect-muted);
+}
+.reflect-app .reflect-journal-goal-empty {
+  color:var(--reflect-muted); font-size:12px; margin:0; line-height:1.5;
+}
+.reflect-app .reflect-journal-goal-steps {
+  display:grid; gap:9px; min-width:0;
+  padding:12px 14px; border:1px solid var(--reflect-border);
+  border-radius:12px; background:var(--reflect-bg);
+}
+.reflect-app .reflect-journal-goal-steps-heading {
+  display:flex; justify-content:space-between; flex-wrap:wrap;
+  align-items:baseline; gap:6px; font-size:12px;
+}
+.reflect-app .reflect-journal-goal-steps-heading strong {
+  color:var(--reflect-ink); font-weight:700;
+}
+.reflect-app .reflect-journal-goal-steps-heading span {color:var(--reflect-muted);}
+.reflect-app .reflect-journal-goal-steps ol {
+  display:grid; gap:8px; margin:0; padding:0; list-style:none;
+}
+.reflect-app .reflect-journal-goal-steps li {
+  display:flex; align-items:flex-start; gap:9px;
+  color:var(--reflect-ink); font-size:13px; line-height:1.45;
+  overflow-wrap:anywhere;
+}
+.reflect-app .reflect-journal-goal-step-state {
+  flex:0 0 17px; display:grid; place-items:center;
+  height:17px; margin-top:1px; border-radius:5px;
+  border:1px solid var(--reflect-muted); color:var(--reflect-ink);
+}
+.reflect-app .reflect-journal-goal-steps li.is-complete .reflect-journal-goal-step-state {
+  border-color:var(--reflect-accent); background:var(--reflect-accent);
+  color:var(--reflect-accent-ink);
+}
+.reflect-app .reflect-journal-goal-steps li.is-complete > span:last-child {
+  text-decoration:line-through; color:var(--reflect-muted);
+}
+@media(max-width:430px) {
+  .reflect-app .reflect-journal-goal-steps {padding:12px;}
+}
 .reflect-app .reflect-journal-append-button {
   display: inline-flex; align-items: center; min-height: 40px;
   margin-top: 10px; padding: 9px 13px; border-radius: 11px;
