@@ -96,6 +96,7 @@ export default function App() {
   // in a shareable URL or a cross-account localStorage key.
   const [focusTurnId, setFocusTurnId] = useState(null);
   const [focusGoalId, setFocusGoalId] = useState(null);
+  const [focusDiaryNoteSource, setFocusDiaryNoteSource] = useState(null);
   const [sessionLibraryRequested, setSessionLibraryRequested] = useState(true);
 
   // --- Modal State ---
@@ -333,6 +334,18 @@ export default function App() {
     );
   }
 
+  const openDashboardDiaryNote = (sourceRef) => {
+    if (sourceRef?.kind !== 'diaryNote' ||
+        !diaryNotes.some(note => note.id === sourceRef.recordId &&
+          Array.isArray(note.entries) &&
+          note.entries[sourceRef.entryIndex] &&
+          Number.isInteger(sourceRef.entryIndex) &&
+          sourceRef.entryIndex >= 0)) return;
+    setFocusDiaryNoteSource({
+      recordId: sourceRef.recordId, entryIndex: sourceRef.entryIndex
+    });
+    navigateToTab('diary');
+  };
   const openDashboardGoal = (goalId) => {
     if (!goals.some(goal => goal.id === goalId)) return;
     setFocusGoalId(goalId);
@@ -348,6 +361,7 @@ export default function App() {
           onOpenSession={selectSession}
           onOpenJourney={() => navigateToTab('sessionSchema')}
           onOpenDiary={() => navigateToTab('diary')}
+          onOpenDiaryNote={openDashboardDiaryNote}
           onNewSession={handleNewSession}/>;
       case 'diary':
           return <Diary
@@ -359,6 +373,7 @@ export default function App() {
               userId={userId}
               onAppend={handleAppendToEntry}
               onRenameSession={handleRenameSession}
+              focusNoteSource={focusDiaryNoteSource}
               onOpenSession={selectSession}
               onOpenJourney={id => { setCurrentSessionId(id); navigateToTab('sessionSchema'); }}
               isLoading={isLoadingData}
