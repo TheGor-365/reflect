@@ -92,6 +92,15 @@ export async function auditGate5PrivateEntitlement(ownerUid) {
       signed.isAnonymous || !signed.emailVerified) {
     fail('fixture-account-not-ready');
   }
+  // First prove that this same Auth/App Check session can read its own
+  // profile through the network. A blanket Firebase/App Check denial is NOT
+  // evidence that the private entitlement Rules are secure.
+  const ownProfile = doc(db, 'artifacts', STAGE_NAMESPACE,
+    'users', ownerUid, 'profiles', 'userProfile');
+  try { await getDocFromServer(ownProfile); }
+  catch { return 'unavailable'; }
+  if (auth.currentUser?.uid !== ownerUid) return 'unavailable';
+
   const target = doc(db, '_reflectAiPrivate', STAGE_NAMESPACE,
     'entitlements', ownerUid);
   try {
