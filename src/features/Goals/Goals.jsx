@@ -21,7 +21,7 @@ const targetFor = (item, index) => item?.id
   ? { id: item.id, text: item.text }
   : { index, text: item?.text };
 
-function GoalCard({ goal, userId, onAppend, onFeedback, onOpenSession }) {
+function GoalCard({ goal, userId, onAppend, onFeedback, onOpenSession, focused = false }) {
   const status = statusOf(goal);
   const progress = progressOf(goal);
   const dueDay = dueDayOf(goal);
@@ -29,6 +29,10 @@ function GoalCard({ goal, userId, onAppend, onFeedback, onOpenSession }) {
   const subItems = Array.isArray(goal.subItems) ? goal.subItems : [];
   const reflections = Array.isArray(goal.reflections) ? goal.reflections : [];
   const [busy, setBusy] = useState(false);
+  const goalElementRef = useRef(null);
+  useEffect(() => {
+    if (focused) goalElementRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+  }, [focused]);
   const busyRef = useRef(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -97,7 +101,9 @@ function GoalCard({ goal, userId, onAppend, onFeedback, onOpenSession }) {
   };
 
   return (
-    <article className="reflect-goal-card" aria-label={goal.text || 'Цель без названия'}>
+    <article ref={goalElementRef}
+      className={`reflect-goal-card${focused ? ' reflect-goal-card--source-focus' : ''}`}
+      aria-label={goal.text || 'Цель без названия'}>
       <div className="reflect-goal-card-top">
         <div className="reflect-goal-card-title">
           <div className="reflect-goal-type">
@@ -261,7 +267,7 @@ function GoalCard({ goal, userId, onAppend, onFeedback, onOpenSession }) {
   );
 }
 
-export default function Goals({ goals = [], userId, onAppend, onFeedback, onOpenSession }) {
+export default function Goals({ goals = [], userId, onAppend, onFeedback, onOpenSession, focusGoalId = null }) {
   const [draft, setDraft] = useState(DEFAULT_DRAFT);
   const [newStep, setNewStep] = useState('');
   const [advanced, setAdvanced] = useState(false);
@@ -303,6 +309,11 @@ export default function Goals({ goals = [], userId, onAppend, onFeedback, onOpen
     status, title, items: visibleGoals.filter(goal => statusOf(goal) === status)
   })), [visibleGoals]);
   const currentGroup = groups.find(group => group.status === selectedStatus) || groups[0];
+  useEffect(() => {
+    if (!focusGoalId) return;
+    const goal = visibleGoals.find(item => item.id === focusGoalId);
+    if (goal) setSelectedStatus(statusOf(goal));
+  }, [focusGoalId, visibleGoals]);
 
   const addDraftStep = () => {
     const text = newStep.trim();
@@ -460,7 +471,8 @@ export default function Goals({ goals = [], userId, onAppend, onFeedback, onOpen
           {currentGroup.items.map(goal => (
             <GoalCard key={goal.id} goal={goal} userId={userId}
               onAppend={onAppend} onFeedback={onFeedback}
-              onOpenSession={onOpenSession}/>
+              onOpenSession={onOpenSession}
+              focused={goal.id === focusGoalId}/>
           ))}
         </div>
       </section>
