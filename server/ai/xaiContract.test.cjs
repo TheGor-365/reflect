@@ -159,7 +159,7 @@ test("fixture cannot return hidden execution instructions or malformed text", as
 });
 
 test("bounded structured envelope does not relax plain-text response limits", () => {
-  const envelope = JSON.stringify({ answer: "А".repeat(1800), version: "v1" });
+  const envelope = JSON.stringify({ answer: "А".repeat(2500), version: "v1" });
   assert.ok(envelope.length > LIMITS.maxReplyChars ? true : false);
   const providerReply = reply({
     output: [{ type: "message", role: "assistant", content: [
