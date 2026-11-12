@@ -72,3 +72,20 @@ describe('PRODUCT-05 dashboard interaction',()=>{
     expect(handleNewSession).toHaveBeenCalledTimes(1);
   });
 });
+
+it('opens the exact diary entry provenance rather than only the diary section',()=>{
+  const onOpenDiaryNote=vi.fn();
+  render(<Dashboard sessions={[]} goals={[]} nowMs={nowMs}
+    diaryNotes={[{
+      id:'real-note',title:'Личный журнал',entries:[
+        {text:'Первая мысль',createdAt:at('2026-11-11T10:00:00Z')},
+        {text:'Вторая мысль',createdAt:at('2026-11-12T10:00:00Z')}
+      ]
+    }]} onOpenDiaryNote={onOpenDiaryNote}/>);
+  const buttons=screen.getAllByRole('button',{name:'Открыть запись'});
+  expect(buttons).toHaveLength(2);
+  fireEvent.click(buttons[0]);
+  expect(onOpenDiaryNote).toHaveBeenCalledExactlyOnceWith({
+    kind:'diaryNote',recordId:'real-note',entryIndex:1
+  });
+});
