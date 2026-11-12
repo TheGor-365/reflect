@@ -57,3 +57,24 @@ test('shows only user-authored return notes, not fabricated model events', () =>
   expect(screen.getByText('Подтверждённое наблюдение')).toBeInTheDocument();
   expect(screen.queryByText('Ложный прогресс')).toBeNull();
 });
+
+test('Journey source opens the exact saved return record, not an unrelated note', async () => {
+  const onFocusConsumed = vi.fn();
+  const focused = {
+    kind: 'return', sessionId: 'saved-session',
+    returnIndex: 1, returnId: 'v2', requestId: 'focus-1'
+  };
+  render(<SessionReturnCheckIn {...props} onFocusConsumed={onFocusConsumed}
+    focusTarget={focused} session={{
+      ...props.session,
+      returnCheckIns: [
+        { id: 'v1', type: 'return-check-in', author: 'user', text: 'Первый визит' },
+        { id: 'v2', type: 'return-check-in', author: 'user', text: 'Второй визит' }
+      ]
+    }}/>);
+  const target = screen.getByText('Второй визит').closest('[data-return-source-index]');
+  expect(target).toHaveAttribute('data-return-source-index', '1');
+  expect(target.closest('details')).toHaveAttribute('open');
+  expect(onFocusConsumed).toHaveBeenCalledTimes(1);
+  expect(saveSessionReturn).not.toHaveBeenCalled();
+});
