@@ -149,3 +149,74 @@ test('mood and goal cards reuse Midnight Aurora semantic title and muted date', 
   expect(view.container.querySelectorAll('.reflect-journal-entry-footer time')).toHaveLength(2);
   expect(view.container.querySelector('.text-stone-500, .text-stone-800')).not.toBeInTheDocument();
 });
+
+test('D1: stored goal with three steps renders its details instead of empty description panel', () => {
+  const goal = entry({
+    type: 'goal', sourceKind: 'goal', sourceId: 'qa-d1',
+    data: {
+      id: 'qa-d1', text: 'QA-D1', type: 'checklist', status: 'active',
+      purpose: '', completed: false, subItems: [
+        { id: 'step-1', text: '1', completed: false },
+        { id: 'step-2', text: '2', completed: false },
+        { id: 'step-3', text: '3', completed: false }
+      ]
+    }
+  });
+  render(<div className="reflect-app" data-theme="dark">
+    <DiaryNarrativeCard entry={goal}/>
+  </div>);
+  expect(screen.getByRole('heading', { name: 'Цель: QA-D1' })).toBeInTheDocument();
+  const details = screen.getByRole('region', { name: 'Подробности цели' });
+  expect(details).toHaveTextContent('Статус: в работе');
+  expect(details).toHaveTextContent('Срок: без срока');
+  expect(details).toHaveTextContent('Описание цели не добавлено.');
+  expect(details).toHaveTextContent('0 из 3 выполнено');
+  const steps = screen.getByLabelText('Сохранённые шаги цели');
+  expect(steps.querySelectorAll('li')).toHaveLength(3);
+  expect([...steps.querySelectorAll('li')].map(node=>node.textContent)).toEqual(['1','2','3']);
+  expect(screen.queryByRole('button', { name: 'Показать описание цели' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+});
+
+test('D1: checked steps, paused status, deadline, purpose and other metadata are factual', () => {
+  const goal = entry({
+    type: 'goal', sourceKind: 'goal', sourceId: 'qa-d2',
+    data: {
+      text: 'Результат теста', type: 'checklist',
+      purpose: 'Проверить Firestore после перезагрузки',
+      dueDay: '2026-11-25', status: 'paused', completed: false,
+      subItems: [
+        { id: 'one', text: 'Сохранено', completed: true },
+        { id: 'two', text: 'Следующий шаг', completed: false }
+      ]
+    }
+  });
+  render(<DiaryNarrativeCard entry={goal}/>);
+  const details = screen.getByRole('region', { name: 'Подробности цели' });
+  expect(details).toHaveTextContent('Статус: на паузе');
+  expect(details).toHaveTextContent('Срок: 25 ноября 2026');
+  expect(details).toHaveTextContent('Проверить Firestore после перезагрузки');
+  expect(details).toHaveTextContent('1 из 2 выполнено');
+  expect(details.querySelectorAll('.is-complete')).toHaveLength(1);
+  expect(screen.queryByText('Описание цели не добавлено.')).not.toBeInTheDocument();
+});
+
+test('D1: completed legacy goal, reflection and damaged optional steps never invent progress', () => {
+  const goal = entry({
+    type: 'goal', sourceKind: 'goal', sourceId: 'legacy-goal',
+    data: {
+      text: 'Архивная цель', completed: true, status: 'completed',
+      type: 'checklist', subItems: [{ text: null, completed: false }]
+    }
+  });
+  const view=render(<DiaryNarrativeCard entry={goal}/>);
+  expect(screen.getByRole('region', { name: 'Подробности цели' }))
+    .toHaveTextContent('Статус: завершена');
+  expect(screen.getByText('Текст шага недоступен')).toBeInTheDocument();
+  expect(screen.getByText('0 из 1 выполнено')).toBeInTheDocument();
+  view.rerender(<DiaryNarrativeCard entry={entry({
+    type: 'goal', sourceKind: 'goal', sourceId: 'reflection',
+    data: { text: 'Цель для размышлений', type: 'reflection', reflections: [] }
+  })}/>);
+  expect(screen.queryByText('Шаги пока не добавлены.')).not.toBeInTheDocument();
+});
