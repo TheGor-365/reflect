@@ -111,3 +111,13 @@ describe('PRODUCT-05 factual dashboard model',()=>{
     expect(thirty.activity).toHaveLength(30);
   });
 });
+
+it('never reports more completed steps than valid steps for malformed legacy goals',()=>{
+  const data=buildDashboardSnapshot({
+    goals:[{id:'legacy-done',status:'completed',subItems:[
+      {completed:true},{text:'',completed:true},
+      {text:'Действительный шаг',completed:true}
+    ]}],nowMs:now
+  });
+  expect(data.stepProgress).toEqual({done:1,total:1});
+});
