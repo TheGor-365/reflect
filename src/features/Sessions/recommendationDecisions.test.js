@@ -6,7 +6,8 @@ vi.mock('../../firebase/config', () => ({ db: {}, appId: 'reflect-8fdc8' }));
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((_db, root, kind, id) => ({ path: `${root}/${kind}/${id}` })),
   runTransaction: vi.fn(),
-  serverTimestamp: vi.fn(() => ({ serverTime: true }))
+  serverTimestamp: vi.fn(() => ({ serverTime: true })),
+  Timestamp: { fromDate: vi.fn(date => ({ date })) }
 }));
 const userMessage = { id: 'user-request1234567890', role: 'user', content: 'Хочу начать' };
 const assistantMessage = {
@@ -117,4 +118,28 @@ describe('PRODUCT-02 owner-scoped recommendation decision transaction', () => {
     })).rejects.toThrow(/безопасного контекста/);
     expect(writes).toHaveLength(0);
   });
+});
+
+it('persists authored first step, optional local-date deadline and success criterion', async () => {
+  await applyRecommendationDecision({
+    ...params, action: 'goal', goalId: 'g-with-step',
+    goalTitle: 'Первый шаг к MVP', goalPurpose: 'Проверить гипотезу',
+    goalStep: 'Развернуть минимальный прототип',
+    goalDueDay: '2026-12-01', goalCriteria: 'Проверяется открытием URL'
+  });
+  expect(goal.subItems).toEqual([{
+    id: 'g-with-step-step-0', text: 'Развернуть минимальный прототип', completed: false
+  }]);
+  expect(goal.dueDay).toBe('2026-12-01');
+  expect(goal.dueDate.date).toBeInstanceOf(Date);
+  expect(goal.dueDate.date.getHours()).toBe(12);
+  expect(goal.successCriteria).toBe('Проверяется открытием URL');
+  expect(goal.completed).toBe(false);
+});
+it('refuses impossible deadlines without writing either session or goal', async () => {
+  await expect(applyRecommendationDecision({
+    ...params, action: 'goal', goalId: 'invalid-date',
+    goalTitle: 'Сделать', goalDueDay: '2026-02-30'
+  })).rejects.toThrow(/Проверьте/);
+  expect(writes).toHaveLength(0);
 });
