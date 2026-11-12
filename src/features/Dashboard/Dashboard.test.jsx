@@ -34,7 +34,7 @@ describe('PRODUCT-05A Dashboard UI', () => {
     render(<Dashboard {...props}/>);
     expect(screen.getByRole('group', { name: 'Датированные действия за 7 дней' }))
       .toBeInTheDocument();
-    expect(screen.getByText(/1? выполнено из 1 заданных/)).toBeInTheDocument();
+    expect(screen.getByText(/0 выполнено из 1 заданных/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '30 дней' }));
     expect(screen.getByRole('group', { name: 'Датированные действия за 30 дней' }))
       .toBeInTheDocument();
