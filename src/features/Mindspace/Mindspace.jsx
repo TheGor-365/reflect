@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { buildMindspace, layoutMindspace, RELATIONS } from './mindspaceModel';
 import { removeMindLink, saveMindLink } from './mindspaceOperations';
+import './mindspace.css';
 
 const ICONS={session:BrainCircuit,goal:Target,proposal:Sparkles};
 const LABELS={
