@@ -5,7 +5,7 @@ import {
   Target, Trash2, X
 } from 'lucide-react';
 import { buildMindspace, layoutMindspace, RELATIONS } from './mindspaceModel';
-import { removeMindLink, saveMindLink } from './mindspaceOperations';
+import { removeMindLink, saveMindLink, renameMindTopic } from './mindspaceOperations';
 import './mindspace.css';
 
 const ICONS={session:BrainCircuit,goal:Target,proposal:Sparkles};
@@ -53,6 +53,8 @@ export default function Mindspace({
   const [notice,setNotice]=useState('');
   const [error,setError]=useState('');
   const [viewMode,setViewMode]=useState('constellation');
+  const [editingTitle,setEditingTitle]=useState(false);
+  const [titleDraft,setTitleDraft]=useState('');
   const canvasRef=useRef(null);
   const graph=useMemo(()=>buildMindspace(sessions,goals,{
     includeProposals:showIdeas
@@ -76,13 +78,15 @@ export default function Mindspace({
   useEffect(()=>{
     setSelectedId(null);setSourceNodeId(null);setTargetNodeId(null);
     setError('');setNotice('');setEditLinkId(null);
+    setEditingTitle(false);setTitleDraft('');
   },[userId]);
   useEffect(()=>{
     if(selectedId&&!allNodes.some(node=>node.id===selectedId))setSelectedId(null);
   },[allNodes,selectedId]);
   const reset=()=>{
     setSelectedId(null);setSourceNodeId(null);setTargetNodeId(null);
-    setEditLinkId(null);setConfirmRemoval(false);
+    setEditLinkId(null);setConfirmRemoval(false);setEditingTitle(false);
+    setTitleDraft('');
     setRelation('related');setNote('');setError('');setNotice('');
   };
   const openLink=(from,to)=>{
@@ -147,6 +151,18 @@ export default function Mindspace({
     const to=allNodes.find(node=>node.id===edge.to);
     if(!from||!to)return;
     openLink(from,to);setSelectedId(to.id);
+  };
+  const saveTitle=async event=>{
+    event.preventDefault();
+    if(!userId||selected?.kind!=='session'||busy||!titleDraft.trim())return;
+    setBusy(true);setError('');setNotice('');
+    try{
+      await renameMindTopic({userId,sourceSessionId:selected.refId,title:titleDraft});
+      setEditingTitle(false);
+      setNotice('Название на карте сохранено. Исходный сеанс не переименован.');
+    }catch(err){
+      setError(err?.message||'Не удалось изменить подпись темы.');
+    }finally{setBusy(false);}
   };
   const center=()=>{
     const element=canvasRef.current;
@@ -298,6 +314,32 @@ export default function Mindspace({
             <button type="button" onClick={()=>setSelectedId(null)}
               aria-label="Закрыть сведения об узле"><X size={18}/></button>
           </div>
+          {selected.kind==='session'&&(
+            <div className="reflect-mindspace-rename">
+              {!editingTitle ? (
+                <button type="button" onClick={()=>{
+                  setEditingTitle(true);setTitleDraft(selected.label);
+                }}><Pencil size={14} aria-hidden="true"/>
+                  Изменить подпись на карте
+                </button>
+              ) : (
+                <form onSubmit={saveTitle}>
+                  <label>Подпись темы на карте
+                    <input value={titleDraft} maxLength={90} disabled={busy}
+                      onChange={event=>setTitleDraft(event.target.value)}/>
+                  </label>
+                  <button type="submit" disabled={busy||!titleDraft.trim()}>
+                    <Check size={16} aria-hidden="true"/> Сохранить подпись
+                  </button>
+                  <button type="button" disabled={busy}
+                    onClick={()=>setEditingTitle(false)}>
+                    <X size={15} aria-hidden="true"/> Отмена
+                  </button>
+                </form>
+              )}
+              <small>Изменяется только название на карте, не текст сеанса.</small>
+            </div>
+          )}
           {selected.kind==='proposal'&&(
             <p className="reflect-mindspace-warning">
               Это предложение модели из сохранённого ответа — не подтверждённая тема и не вывод о вас.
