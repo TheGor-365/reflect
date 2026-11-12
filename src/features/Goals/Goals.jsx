@@ -21,13 +21,19 @@ const targetFor = (item, index) => item?.id
   ? { id: item.id, text: item.text }
   : { index, text: item?.text };
 
-function GoalCard({ goal, userId, onAppend, onFeedback, onOpenSession }) {
+function GoalCard({ goal, userId, onAppend, onFeedback, onOpenSession, isJourneyTarget }) {
   const status = statusOf(goal);
   const progress = progressOf(goal);
   const dueDay = dueDayOf(goal);
   const due = dueState(goal, todayLocalDay());
   const subItems = Array.isArray(goal.subItems) ? goal.subItems : [];
   const reflections = Array.isArray(goal.reflections) ? goal.reflections : [];
+  const cardRef = useRef(null);
+  useEffect(() => {
+    if (!isJourneyTarget) return;
+    cardRef.current?.scrollIntoView?.({ block: 'center', behavior: 'auto' });
+    cardRef.current?.focus?.({ preventScroll: true });
+  }, [isJourneyTarget]);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const [error, setError] = useState('');
@@ -97,7 +103,9 @@ function GoalCard({ goal, userId, onAppend, onFeedback, onOpenSession }) {
   };
 
   return (
-    <article className="reflect-goal-card" aria-label={goal.text || 'Цель без названия'}>
+    <article className="reflect-goal-card" ref={cardRef} tabIndex={-1}
+      data-journey-focus={isJourneyTarget ? 'true' : undefined}
+      aria-label={goal.text || 'Цель без названия'}>
       <div className="reflect-goal-card-top">
         <div className="reflect-goal-card-title">
           <div className="reflect-goal-type">
@@ -261,11 +269,18 @@ function GoalCard({ goal, userId, onAppend, onFeedback, onOpenSession }) {
   );
 }
 
-export default function Goals({ goals = [], userId, onAppend, onFeedback, onOpenSession }) {
+export default function Goals({ goals = [], userId, onAppend, onFeedback, onOpenSession, focusedGoalId }) {
   const [draft, setDraft] = useState(DEFAULT_DRAFT);
   const [newStep, setNewStep] = useState('');
   const [advanced, setAdvanced] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('active');
+  useEffect(() => {
+    if (!focusedGoalId) return;
+    const found = goals.find(item => item.id === focusedGoalId);
+    if (found) setSelectedStatus(statusOf(found));
+    // Re-select only on a new explicit journey source, not on every live update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusedGoalId]);
   const [confirmedGoals, setConfirmedGoals] = useState([]);
   const [createError, setCreateError] = useState('');
   const [createNotice, setCreateNotice] = useState('');
@@ -460,7 +475,8 @@ export default function Goals({ goals = [], userId, onAppend, onFeedback, onOpen
           {currentGroup.items.map(goal => (
             <GoalCard key={goal.id} goal={goal} userId={userId}
               onAppend={onAppend} onFeedback={onFeedback}
-              onOpenSession={onOpenSession}/>
+              onOpenSession={onOpenSession}
+              isJourneyTarget={goal.id === focusedGoalId}/>
           ))}
         </div>
       </section>

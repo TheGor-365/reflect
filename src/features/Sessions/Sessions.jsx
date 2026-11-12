@@ -14,7 +14,7 @@ import InfoCard from '../../components/common/InfoCard';
 import { useEntrySave } from '../../hooks/useEntrySave';
 import { BookOpen, BarChart2, MessageSquareText, ShieldCheck } from 'lucide-react';
 
-const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, onOpenGoals, libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
+const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, onOpenGoals, focusTarget, onFocusConsumed, libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
   const [userInput, setUserInput] = useState('');
   const [showLibrary, setShowLibrary] = useState(false);
   const [navigationWarning, setNavigationWarning] = useState('');
@@ -42,6 +42,8 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   const recognitionRef = useRef(null);
   const utteranceRef = useRef(null);
   const chatEndRef = useRef(null);
+  const messageListRef = useRef(null);
+  const lastFocusRequest = useRef(null);
 
   const isNewSessionView = currentSessionId === 'new';
   const activeSession = !isNewSessionView ? sessions.find(s => s.id === currentSessionId) : null;
@@ -55,8 +57,29 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   }, [currentSessionId]);
 
   useEffect(() => {
+    if (focusTarget?.sessionId === currentSessionId) return;
     chatEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
-  }, [sessions, currentSessionId, isLoading, localMessages]);
+  }, [sessions, currentSessionId, isLoading, localMessages, focusTarget]);
+
+  // Opening a journey node focuses the exact saved turn, never a guessed
+  // message or a different user's content.
+  useEffect(() => {
+    if (!focusTarget || focusTarget.kind !== 'turn' ||
+        focusTarget.sessionId !== activeSession?.id ||
+        focusTarget.requestId === lastFocusRequest.current ||
+        !Number.isInteger(focusTarget.messageIndex)) return;
+    const index = focusTarget.messageIndex;
+    const actual = activeSession.chatHistory?.[index];
+    if (!actual || (focusTarget.messageId && actual.id !== focusTarget.messageId)) return;
+    const elements = messageListRef.current?.querySelectorAll('[data-reflect-message-index]');
+    const found = Array.from(elements || []).find(element =>
+      Number(element.getAttribute('data-reflect-message-index')) === index);
+    if (!found) return;
+    lastFocusRequest.current = focusTarget.requestId;
+    found.scrollIntoView?.({ block: 'center', behavior: 'auto' });
+    found.focus?.({ preventScroll: true });
+    onFocusConsumed?.();
+  }, [focusTarget, activeSession, onFocusConsumed]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -325,9 +348,12 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
 
         {activeSession && (
           <SessionReturnCheckIn key={activeSession.id}
-            session={activeSession} userId={userId} />
+            session={activeSession} userId={userId}
+            focusTarget={focusTarget?.kind === 'return' ? focusTarget : null}
+            onFocusConsumed={onFocusConsumed} />
         )}
-        <div className="reflect-session-messages" role="log" aria-label="История сообщений" aria-live="polite">
+        <div className="reflect-session-messages" ref={messageListRef}
+          role="log" aria-label="История сообщений" aria-live="polite">
           <div className="reflect-session-messages-inner">
             {isNewSessionView && messagesToDisplay.length === 0 && (
               <p className="reflect-session-welcome">
@@ -338,7 +364,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
             )}
 
             {messagesToDisplay.map((msg, index) => (
-              <ChatMessage key={msg.id || index} message={msg}
+              <ChatMessage key={msg.id || index} message={msg} messageIndex={index}
                 onPlayAudio={handlePlayAudio} isSpeaking={isSpeaking}
                 onCompose={text => { setUserInput(text); setSendError(''); }}
                 isSaved={Boolean(activeSession && index < savedMessageCount)}
