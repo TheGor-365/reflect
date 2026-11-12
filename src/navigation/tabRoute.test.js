@@ -8,6 +8,7 @@ test('accepts only known public UI sections; unknown values do not open private 
   expect(tabFromSearch('?view=aiSettings')).toBe('aiSettings');
   expect(tabFromSearch('?view=sessionSchema')).toBe('sessionSchema');
   expect(tabFromSearch('?view=dashboard')).toBe('dashboard');
+  expect(tabFromSearch('?view=mindspace')).toBe('mindspace');
   expect(tabFromSearch('?view=malicious')).toBe('diary');
   expect(tabFromSearch('?view=__proto__')).toBe('diary');
   expect(tabFromSearch('')).toBe('diary');
@@ -44,5 +45,15 @@ test('Dashboard deep link preserves public route across remount and browser navi
   expect(currentTabFromLocation()).toBe('sessionSchema');
   expect(pushTabToHistory('dashboard')).toBe(true);
   expect(window.location.search).toContain('utm_source=qa');
+  expect(currentTabFromLocation()).toBe('dashboard');
+});
+
+test('Mindspace deep link preserves public view and never persists a UID or graph node',()=>{
+  window.history.replaceState(null,'','/?campaign=reflect');
+  expect(pushTabToHistory('mindspace')).toBe(true);
+  expect(currentTabFromLocation()).toBe('mindspace');
+  expect(window.location.search).toContain('campaign=reflect');
+  expect(window.location.search).not.toContain('synthetic-owner');
+  expect(pushTabToHistory('dashboard')).toBe(true);
   expect(currentTabFromLocation()).toBe('dashboard');
 });

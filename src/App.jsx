@@ -9,6 +9,7 @@ import Header from './components/layout/Header';
 import MobileDock from './components/layout/MobileDock';
 import Diary from './features/Diary/Diary';
 import Dashboard from './features/Dashboard/Dashboard';
+import Mindspace from './features/Mindspace/Mindspace';
 import AISettings from './features/AISettings/AISettings';
 import { currentTabFromLocation, pushTabToHistory } from './navigation/tabRoute';
 import Goals from './features/Goals/Goals';
@@ -340,6 +341,20 @@ export default function App() {
     );
   }
 
+  const openMindspaceSource = ref => {
+    if (!ref) return;
+    if (ref.kind === 'goal') {
+      // Mindspace can contain goals not attached to any session.
+      // Verify actual UID-scoped source snapshot before navigating.
+      if (!goals.some(goal => goal.id === ref.goalId &&
+        (!ref.sessionId || goal.sessionId === ref.sessionId))) return;
+      setFocusGoalId(ref.goalId);
+      navigateToTab('goals');
+      return;
+    }
+    openJourneySource(ref);
+  };
+
   const openDashboardDiaryNote = (sourceRef) => {
     if (sourceRef?.kind !== 'diaryNote' ||
         !diaryNotes.some(note => note.id === sourceRef.recordId &&
@@ -360,12 +375,19 @@ export default function App() {
 
   const renderActiveTab = () => {
     switch (activeTab) {
+      case 'mindspace':
+        return <Mindspace
+          sessions={sessions} goals={goals} userId={userId}
+          onOpenSource={openMindspaceSource}
+          onOpenJourney={() => navigateToTab('sessionSchema')}
+        />;
       case 'dashboard':
         return <Dashboard sessions={sessions} goals={goals}
           diaryNotes={diaryNotes}
           onOpenGoal={openDashboardGoal}
           onOpenSession={selectSession}
           onOpenJourney={() => navigateToTab('sessionSchema')}
+          onOpenMindspace={() => navigateToTab('mindspace')}
           onOpenDiary={() => {
             setFocusDiaryNoteSource(null);
             navigateToTab('diary');

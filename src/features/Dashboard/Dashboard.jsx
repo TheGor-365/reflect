@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Activity, ArrowRight, BookOpen, CalendarDays, CheckSquare,
+  Activity, ArrowRight, BookOpen, BrainCircuit, CalendarDays, CheckSquare,
   GitBranch, MessageSquareText, Target
 } from 'lucide-react';
 import { buildDashboardSnapshot } from './dashboardModel';
@@ -18,7 +18,7 @@ const goalDue=day=>day?new Intl.DateTimeFormat('ru-RU',{
 /** A quiet activity overview sourced only from explicitly stored objects. */
 export default function Dashboard({
   sessions=[],goals=[],diaryNotes=[],onOpenGoal,onOpenSession,
-  onOpenJourney,onOpenDiary,onOpenDiaryNote,onNewSession,nowMs
+  onOpenJourney,onOpenMindspace,onOpenDiary,onOpenDiaryNote,onNewSession,nowMs
 }){
   const [days,setDays]=useState(7);
   const snapshot=useMemo(()=>buildDashboardSnapshot({
@@ -34,11 +34,18 @@ export default function Dashboard({
           <h2>Главная</h2>
           <p>Что сейчас важно, какие решения приняты и к каким темам вы возвращались. Только сохранённые факты.</p>
         </div>
-        {onOpenJourney&&(
-          <button type="button" onClick={onOpenJourney}>
-            <GitBranch size={17} aria-hidden="true"/> Карта пути
-          </button>
-        )}
+        <div className="reflect-dashboard-header-links">
+          {onOpenMindspace&&(
+            <button type="button" onClick={onOpenMindspace}>
+              <BrainCircuit size={17} aria-hidden="true"/> Mindspace
+            </button>
+          )}
+          {onOpenJourney&&(
+            <button type="button" onClick={onOpenJourney}>
+              <GitBranch size={17} aria-hidden="true"/> Карта пути
+            </button>
+          )}
+        </div>
       </header>
       {snapshot.sourceTruncated&&(
         <p role="status" className="reflect-dashboard-note">
