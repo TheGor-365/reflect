@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, GitBranch, MessageSquare, Plus, Target, User, ShieldCheck, SlidersHorizontal, X } from 'lucide-react';
+import { BookOpen, GitBranch, LayoutDashboard, MessageSquare, Plus, Target, User, ShieldCheck, SlidersHorizontal, X } from 'lucide-react';
 import NavItem from './NavItem';
 import { sessionDisplayTitle, sessionExcerpt } from '../../features/Diary/diaryPresentation';
 
@@ -30,6 +30,7 @@ const Sidebar = ({
       <div className="reflect-sidebar-scroll">
         <p className="reflect-sidebar-section-title">Пространство</p>
         <nav aria-label="Основные разделы" className="reflect-side-nav">
+          <NavItem tabName="dashboard" icon={<LayoutDashboard size={20} />} label="Главная" activeTab={activeTab} changeTab={changeTab} />
           <NavItem tabName="diary" icon={<BookOpen size={20} />} label="Дневник" activeTab={activeTab} changeTab={changeTab} />
           <NavItem tabName="sessions" icon={<MessageSquare size={20} />} label="Сеансы" activeTab={activeTab} changeTab={changeTab} />
           <NavItem tabName="goals" icon={<Target size={20} />} label="Цели" activeTab={activeTab} changeTab={changeTab} />
