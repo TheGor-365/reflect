@@ -2,12 +2,13 @@ import React from 'react';
 import { Bot, Volume2, PauseCircle } from 'lucide-react';
 import InteractionResult from './InteractionResult';
 
-const ChatMessage = React.memo(({ message, onPlayAudio, isSpeaking, currentlySpeakingId, onCompose, onDecision, onOpenGoals, isSaved, decisions }) => {
+const ChatMessage = React.memo(({ message, onPlayAudio, isSpeaking, currentlySpeakingId, onCompose, onDecision, onOpenGoals, isSaved, decisions, focused = false }) => {
   const isUser = message.role === 'user';
   const isThisMessageSpeaking = isSpeaking && currentlySpeakingId === message.id;
 
   return (
-    <article className={`reflect-chat-message ${isUser ? 'reflect-chat-message--user' : 'reflect-chat-message--assistant'}`}
+    <article className={`reflect-chat-message ${isUser ? 'reflect-chat-message--user' : 'reflect-chat-message--assistant'}${focused ? ' reflect-chat-message--source-focus' : ''}`}
+      data-reflect-turn-id={message.id || undefined}
       aria-label={isUser ? 'Ваше сообщение' : 'Ответ Reflect'}>
       {!isUser && (
         <span className="reflect-chat-avatar" aria-hidden="true"><Bot size={18} /></span>
