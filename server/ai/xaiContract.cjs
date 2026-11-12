@@ -54,7 +54,7 @@ function createSyntheticXaiRequest(message) {
   });
 }
 
-function extractXaiText(reply) {
+function extractXaiText(reply, { structured = false } = {}) {
   if (!plain(reply) || reply.status !== "completed" ||
       reply.model !== MODEL || !Array.isArray(reply.output) ||
       reply.output.length === 0 || reply.output.length > 20 ||
@@ -83,7 +83,19 @@ function extractXaiText(reply) {
     }
   }
   if (countMessages !== 1) failure("invalid-provider-response");
-  const response = validateAssistantReply({ text });
+  // The structured JSON envelope is larger than its user-visible answer.
+  // Keep the old 2400-character limit for legacy plain-text responses.
+  // Structured content remains server-private and must immediately pass
+  // interactionContract.parseInteraction before reaching the caller.
+  let response;
+  if (structured) {
+    if (!text.trim() || text.length > 8192 || bytes(text) > 32768) {
+      failure("invalid-provider-response");
+    }
+    response = { text: text.trim() };
+  } else {
+    response = validateAssistantReply({ text });
+  }
   return Object.freeze({
     text: response.text,
     usage: Object.freeze({
