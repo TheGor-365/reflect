@@ -333,6 +333,7 @@ export default function App() {
           userId={userId} 
           onAppend={handleAppendToEntry}
           onFeedback={setFeedbackGoal}
+          onOpenSession={selectSession}
         />;
       case 'sessionSchema':
         return <SessionSchema 
