@@ -280,9 +280,14 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   };
   
   // --- ИСПРАВЛЕНИЕ: Выбираем, какой массив сообщений отображать ---
-  const messagesToDisplay = activeSession ? [...(activeSession.chatHistory || []), ...localMessages] : localMessages;
-  const savedMessageCount = Array.isArray(activeSession?.chatHistory)
-    ? activeSession.chatHistory.length : 0;
+  const savedHistory = Array.isArray(activeSession?.chatHistory)
+    ? activeSession.chatHistory : [];
+  const storedIds = new Set(savedHistory.map(turn => turn.id));
+  const messagesToDisplay = [
+    ...savedHistory,
+    ...scopedLocalMessages.filter(turn => !storedIds.has(turn.id))
+  ];
+  const savedMessageCount = savedHistory.length;
   const savedDecisions = activeSession?.recommendationDecisions || {};
   const scopedDecisionPrefix = `${userId}:${activeSession?.id}:`;
   // The Firestore subscription is authoritative, including changes from a
@@ -321,8 +326,8 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
 
   // Switching threads must not silently discard an unsaved paid response or typed draft.
   const canLeaveConversation = () => {
-    if (localMessages.length || userInput.trim() || isLoading || savingSession) {
-      setNavigationWarning('Сначала сохраните ответ или текст текущего сеанса. Несохранённая переписка не будет перенесена в другую беседу.');
+    if (userInput.trim() || (scopedLocalMessages.length && sessionSaveError)) {
+      setNavigationWarning('Есть неотправленный текст или ответ с ошибкой сохранения. Сохраните данные перед переходом.');
       return false;
     }
     setNavigationWarning('');
@@ -421,16 +426,18 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
           {AI_SESSION_ENABLED && (
             <div className="reflect-ai-send-consent">
               <p className="reflect-ai-send-disclosure" id="reflect-session-send-privacy">Отправляя сообщение в Grok, вы разрешаете передать только его текст. История, профиль и дневник не отправляются; xAI может хранить API-запрос и ответ до 30 дней.</p>
-              {localMessages.length > 0 && (
+              <p className="reflect-session-autosave-status" role="status">
+                Диалог сохраняется автоматически. Повторный вызов Grok не выполняется при ошибке записи.
+              </p>
+              {scopedLocalMessages.length > 0 && sessionSaveError && (
                 <div className="reflect-ai-session-unsaved">
-                  <span>Ответ AI пока не сохранён в Firebase.</span>
+                  <span role="alert">{sessionSaveError}</span>
                   <button type="button" onClick={handleSaveSession}
                     disabled={savingSession || isLoading}>
-                    {savingSession ? 'Сохранение…' : 'Сохранить сеанс'}
+                    {savingSession ? 'Сохранение…' : 'Повторить только сохранение'}
                   </button>
                 </div>
               )}
-              {sessionSaveError && <p role="alert">{sessionSaveError}</p>}
             </div>
           )}
           <SessionComposer
