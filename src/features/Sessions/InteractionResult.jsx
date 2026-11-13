@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 // an action. No Firestore access or background writes occur in this component.
 export default function InteractionResult({
   interaction, messageId, isSaved = false, decisions = {},
-  onCompose, onDecision, onOpenGoals
+  onCompose, onDecision, onOpenGoals, onOpenRecommendations
 }) {
   const [editingGoal, setEditingGoal] = useState(null);
   const [reconsiderIndex, setReconsiderIndex] = useState(null);
@@ -17,6 +17,8 @@ export default function InteractionResult({
     ? interaction.clarifyingQuestion : '';
   const candidates = Array.isArray(interaction.recommendationCandidates)
     ? interaction.recommendationCandidates : [];
+  const insights = Array.isArray(interaction.insights) ? interaction.insights : [];
+  const needsClarification = interaction.stage === 'clarify';
   const decide = async (index, action, draft = {}) => {
     if (!isSaved || typeof onDecision !== 'function' || busyIndex !== null) return;
     setBusyIndex(index);
@@ -38,6 +40,24 @@ export default function InteractionResult({
   };
   return (
     <div className="reflect-interaction-result" aria-label="Структурированный ответ Reflect">
+      <div className="reflect-interaction-readiness" role="status">
+        <strong>{needsClarification ? 'Нужно одно уточнение' :
+          candidates.length ? 'Есть предложение к действию' : 'Разбор завершён'}</strong>
+        <p>{needsClarification
+          ? 'Решение пока не предлагается: сначала важно уточнить существенный факт.'
+          : candidates.length
+            ? 'Рекомендация подготовлена, но решение и создание цели остаются за вами.'
+            : 'Нет подтверждённого предложения для действия. Можно продолжить разговор.'}</p>
+        {onOpenRecommendations && (candidates.length > 0 || needsClarification) &&
+          <button type="button" onClick={onOpenRecommendations}>
+            Открыть рекомендации и уточнения
+          </button>}
+      </div>
+      {insights.length > 0 && <section className="reflect-interaction-section"
+        aria-label="Наблюдения Reflect">
+        <strong>Что удалось прояснить</strong>
+        <ul>{insights.map((insight, index) => <li key={index}>{insight}</li>)}</ul>
+      </section>}
       {question && (
         <section className="reflect-interaction-section" aria-label="Уточнение">
           <strong>Важное уточнение</strong>
