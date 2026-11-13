@@ -3,7 +3,7 @@
 // PRODUCT-01 Interaction Contract V1. Server-owned, no user supplied prompts.
 // Staging rollout is gated in hostedHandler; legacy traffic is unchanged.
 const { PolicyError } = require("./policy.cjs");
-const { MODEL, ENDPOINT } = require("./xaiContract.cjs");
+const { MODEL, ENDPOINT, MAX_STRUCTURED_OUTPUT_TOKENS } = require("./xaiContract.cjs");
 const VERSION = "reflect.interaction.v1";
 const plain = v => !!v && typeof v === "object" && !Array.isArray(v) &&
   Object.getPrototypeOf(v) === Object.prototype;
@@ -105,7 +105,7 @@ function buildRequest(message, rawSettings) {
         { role: "user", content: message }
       ],
       store: false,
-      max_output_tokens: 512,
+      max_output_tokens: MAX_STRUCTURED_OUTPUT_TOKENS,
       text: { format: { type: "json_schema", name: "reflect_interaction_v1",
         strict: true, schema } }
     },
