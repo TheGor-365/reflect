@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildMindspace, layoutMindspace, MINDSPACE_VERSION } from './mindspaceModel';
+import { buildMindspace, layoutMindspace, filterMindspace, mindspaceEvidence, MINDSPACE_VERSION } from './mindspaceModel';
 
 const sessions=[
   {id:'topic-a',title:'Хочу читать чаще',chatHistory:[
@@ -99,5 +99,49 @@ describe('PRODUCT-05B semantic Mindspace projection',()=>{
     const g=buildMindspace(sessions,goals,{includeProposals:false});
     expect(g.nodes.some(n=>n.kind==='proposal')).toBe(false);
     expect(g.confirmedLinks).toBe(1);
+  });
+});
+
+describe('P1 semantics-first filters and evidence',()=>{
+  it('never counts a suggested AI node or membership as a confirmed mental link',()=>{
+    const graph=buildMindspace(sessions,goals);
+    const summary=mindspaceEvidence(graph);
+    expect(summary).toEqual(expect.objectContaining({
+      topics:2,goals:2,aiIdeas:1,confirmedLinks:1,linkedNodes:2,
+      unlinkedTopics:0
+    }));
+    const only=filterMindspace(graph,{onlyUserLinks:true});
+    expect(only.nodes.map(n=>n.id).sort()).toEqual([
+      'session:topic-a','session:topic-b'
+    ]);
+    expect(only.edges).toHaveLength(1);
+    expect(only.edges[0].kind).toBe('semantic');
+    expect(only.confirmedLinks).toBe(1);
+  });
+  it('hiding goals does not delete source graph or create pseudo-links',()=>{
+    const graph=buildMindspace(sessions,goals);
+    const without=filterMindspace(graph,{showGoals:false});
+    expect(without.nodes.some(n=>n.kind==='goal')).toBe(false);
+    expect(without.edges.some(e=>e.kind==='membership')).toBe(false);
+    expect(graph.nodes.some(n=>n.kind==='goal')).toBe(true);
+    expect(without.confirmedLinks).toBe(1);
+    const empty=filterMindspace(buildMindspace(sessions.map(x=>({
+      ...x,mindLinks:[]
+    })),goals),{onlyUserLinks:true});
+    expect(empty.nodes).toHaveLength(0);
+    expect(empty.edges).toHaveLength(0);
+    expect(empty.confirmedLinks).toBe(0);
+  });
+  it('canonical session display title wins over old date fallback on map',()=>{
+    const graph=buildMindspace([
+      {id:'topic-old',title:'Сеанс · 13.11.2026, 17:18',
+        chatHistory:[{role:'user',content:'Откладываю запуск приложения'}]},
+      {id:'manual',title:'Сеанс · 13.11.2026, 17:18',
+        manualTitle:'Моё название'}
+    ]);
+    expect(graph.nodes.find(x=>x.id==='session:topic-old').label)
+      .not.toContain('Сеанс ·');
+    expect(graph.nodes.find(x=>x.id==='session:manual').label)
+      .toBe('Моё название');
   });
 });
