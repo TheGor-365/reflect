@@ -3,6 +3,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ContextConsentPanel from './ContextConsentPanel';
 import { requestContextConsent } from '../../api/contextConsentService';
 
+// Consent tests must not import the independent context-preview transport,
+ // which needs live staging Firebase configuration. Preview has its own suite.
+vi.mock('./ContextPreviewPanel', () => ({ default: () => null }));
+
 vi.mock('./StagingPreviewGate5AuditPanel', () => ({
   default: ({ onRevokeAttempt, onRevokeFinished }) => <div>
     <button type="button" onClick={onRevokeAttempt}>QA revoke simulated</button>

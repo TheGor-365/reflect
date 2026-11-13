@@ -6,6 +6,12 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn(), append: vi.fn(), ai: vi.fn(), saveDiary: vi.fn(),
   clearFeedback: vi.fn()
 }));
+// This suite verifies local session persistence/reply behavior, not signed
+// Railway recovery. Transport authorization is exercised in dedicated tests.
+vi.mock('../../api/reflectRailwayService', () => ({
+  railwayAiRecoveryEnabled: false,
+  readRailwayTurnStatus: vi.fn()
+}));
 vi.mock('../../firebase/config', () => ({ db: {}, appId: 'reflect-8fdc8' }));
 vi.mock('./sessionPersistence', () => ({
   createDurableSession: mocks.create,
