@@ -3582,3 +3582,97 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
   outline:3px solid var(--reflect-accent);
   outline-offset:3px;border-radius:.7rem;
 }
+
+
+/* M1: source-backed recommendation inbox and visible readiness in AI turns. */
+.reflect-nav-count {
+  margin-left: auto; min-width: 23px; height: 23px; padding: 1px 6px;
+  display: inline-flex; justify-content: center; align-items: center;
+  border-radius: 999px; background: rgba(117, 219, 208, .16);
+  border: 1px solid rgba(117, 219, 208, .4);
+  color: #9df1e1; font-size: 11px; font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+.reflect-interaction-readiness {
+  padding: .8rem 1rem; border-radius: .85rem;
+  border: 1px solid var(--reflect-border);
+  background: var(--reflect-card); color: var(--reflect-ink);
+}
+.reflect-interaction-readiness strong { font-size: .88rem; font-weight: 750; }
+.reflect-interaction-readiness p {
+  margin: .3rem 0 .6rem; color: var(--reflect-muted); font-size: .83rem;
+  line-height: 1.45;
+}
+.reflect-interaction-readiness button,
+.reflect-inbox-source {
+  display: inline-flex; gap: .35rem; align-items: center; justify-content: center;
+  border: 1px solid var(--reflect-border); border-radius: .55rem;
+  padding: .45rem .7rem; min-height: 36px; font-size: .8rem;
+  background: var(--reflect-bg); color: var(--reflect-ink);
+}
+.reflect-interaction-readiness button:hover, .reflect-inbox-source:hover {
+  border-color: var(--reflect-accent);
+}
+.reflect-interaction-section ul {
+  padding-left: 1.1rem; margin: .2rem 0 0; display: grid; gap: .3rem;
+  font-size: .86rem; line-height: 1.5;
+}
+.reflect-recommendation-inbox {
+  width: min(1050px, 100%); margin: 0 auto; padding: 1rem .85rem 3rem;
+  color: var(--reflect-ink); display: grid; gap: 1.1rem;
+}
+.reflect-inbox-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 1rem; padding: 1rem 0;
+}
+.reflect-inbox-eyebrow {
+  margin: 0 0 .4rem; color: var(--reflect-accent); font-size: .72rem;
+  letter-spacing: .11em; text-transform: uppercase; font-weight: 750;
+}
+.reflect-inbox-header h2 { font-weight: 750; font-size: clamp(1.25rem, 2.6vw, 1.8rem); }
+.reflect-inbox-header p:not(.reflect-inbox-eyebrow) {
+  margin: .4rem 0 0; color: var(--reflect-muted); font-size: .88rem;
+  line-height: 1.55; max-width: 60ch;
+}
+.reflect-inbox-counters { display: flex; gap: .55rem; flex-wrap: wrap; }
+.reflect-inbox-counters span {
+  display: flex; align-items: center; gap: .35rem;
+  padding: .45rem .65rem; border-radius: .7rem;
+  background: var(--reflect-card); border: 1px solid var(--reflect-border);
+  font-size: .78rem; color: var(--reflect-muted);
+}
+.reflect-inbox-counters strong { color: var(--reflect-ink); font-size: 1.1rem; }
+.reflect-inbox-empty, .reflect-inbox-card {
+  border: 1px solid var(--reflect-border); border-radius: .9rem;
+  padding: 1rem; background: var(--reflect-card);
+}
+.reflect-inbox-empty { display: grid; gap: .55rem; justify-items: start; }
+.reflect-inbox-empty h3 { margin: 0; font-weight: 700; }
+.reflect-inbox-empty p { color: var(--reflect-muted); line-height: 1.55; }
+.reflect-inbox-group { display: grid; gap: .7rem; }
+.reflect-inbox-group h3 {
+  margin: 0; display: flex; align-items: center; gap: .5rem;
+  font-size: 1.05rem; font-weight: 750;
+}
+.reflect-inbox-description { color: var(--reflect-muted); font-size: .81rem; margin: 0; }
+.reflect-inbox-list { padding: 0; margin: 0; display: grid; gap: .75rem; list-style: none; }
+.reflect-inbox-card { min-width: 0; display: grid; gap: .5rem; }
+.reflect-inbox-card--clarify { border-inline-start: 3px solid var(--reflect-accent); }
+.reflect-inbox-card--decided { opacity: .88; }
+.reflect-inbox-state {
+  display: inline-flex; justify-self: start; font-size: .75rem;
+  font-weight: 700; color: var(--reflect-accent);
+}
+.reflect-inbox-card h4 { font-size: 1rem; font-weight: 700; margin: 0; }
+.reflect-inbox-card p { margin: 0; font-size: .88rem; line-height: 1.55; overflow-wrap: anywhere; }
+.reflect-inbox-question { font-weight: 600; }
+.reflect-inbox-card small { color: var(--reflect-muted); font-size: .77rem; line-height: 1.4; }
+.reflect-inbox-footer { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.reflect-inbox-footer > small { margin-right: auto; }
+.reflect-inbox-source:focus-visible, .reflect-interaction-readiness button:focus-visible {
+  outline: 3px solid var(--reflect-accent); outline-offset: 2px;
+}
+@media (max-width: 640px) {
+  .reflect-inbox-header { flex-direction: column; }
+  .reflect-inbox-counters { width: 100%; }
+}
