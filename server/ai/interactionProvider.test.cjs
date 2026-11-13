@@ -169,3 +169,7 @@ test("M1 no/invalid/unavailable owner preferences stay structured and fail close
   }, uid);
   assert.deepEqual(unavailable, {});
 });
+
+// Keep consented context boundary covered by Stage04F's explicitly enumerated
+// server-only test invocation, without enabling provider dispatch or routes.
+require("./sessionMemory.test.cjs");
