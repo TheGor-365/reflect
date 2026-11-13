@@ -11,6 +11,7 @@ export const AI_SETTINGS_DEFAULTS = Object.freeze({
   responseTone: 'analytical',
   assistantRole: 'companion',
   empathyLevel: 'balanced',
+  addressForm: 'vy',
   askClarifyingQuestions: true,
   recommendationsEnabled: false,
   autoSaveRecommendations: false,
@@ -23,6 +24,7 @@ export const AI_SETTINGS_OPTIONS = Object.freeze({
   responseTone: Object.freeze(['supportive', 'analytical', 'strategic']),
   assistantRole: Object.freeze(['companion', 'mentor', 'challenger', 'reflective']),
   empathyLevel: Object.freeze(['low', 'balanced', 'high']),
+  addressForm: Object.freeze(['vy', 'ty']),
   recommendationFrequency: Object.freeze(['rare', 'balanced'])
 });
 
@@ -45,7 +47,7 @@ export function parseAiSettings(raw) {
   }
   // Optional V1 additions: existing owner preferences stay valid, with
   // conservative defaults, until the owner explicitly chooses a role.
-  for (const field of ['assistantRole', 'empathyLevel']) {
+  for (const field of ['assistantRole', 'empathyLevel', 'addressForm']) {
     const value = raw[field] === undefined ? AI_SETTINGS_DEFAULTS[field] : raw[field];
     if (!AI_SETTINGS_OPTIONS[field].includes(value)) return null;
     output[field] = value;
