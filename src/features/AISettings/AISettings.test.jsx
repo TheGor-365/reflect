@@ -169,7 +169,7 @@ test('switching accounts never presents another owner\'s saved depth', async () 
   const first = render(<AISettings userId="owner-A"/>);
   await choosePreference('Глубина ответа', 'Подробно');
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить настройки' }));
-  expect(await screen.findByText(/подтверждены сервером/)).toBeInTheDocument();
+  expect(await screen.findByText(/подтверждены Firebase/)).toBeInTheDocument();
   first.unmount();
 
   const second = render(<AISettings userId="owner-B"/>);
