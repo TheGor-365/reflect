@@ -127,7 +127,14 @@
 .reflect-brand-point { color: #83e5d5; }
 .reflect-brand-caption { margin-top: 5px; color: #93a9c9; font-size: 11px; }
 .reflect-sidebar-close { margin-left: auto; border-color: #35435d; color: #eff6ff; background: #1c2a43; }
-.reflect-sidebar-scroll { min-height: 0; flex: 1; overflow-y: auto; padding: 0 4px 16px; scrollbar-width: thin; scrollbar-color: #405473 transparent; }
+.reflect-sidebar-scroll {
+  min-height: 0; flex: 1; display: flex; flex-direction: column;
+  overflow: hidden; padding: 0 4px;
+}
+.reflect-sidebar-scroll > .reflect-sidebar-section-title,
+.reflect-sidebar-scroll > .reflect-side-nav,
+.reflect-sidebar-scroll > .reflect-new-session { flex-shrink: 0; }
+
 .reflect-sidebar-section-title {
   padding: 0 12px; margin: 16px 0 10px; color: #8196b6;
   font-size: 10px; font-weight: 750; letter-spacing: .16em; text-transform: uppercase;
@@ -148,7 +155,20 @@
   box-shadow: 0 11px 25px rgba(59, 174, 174, .16);
 }
 .reflect-new-session:hover { filter: brightness(1.06); }
-.reflect-session-history { border-top: 1px solid rgba(144, 170, 205, .13); padding-top: 8px; }
+.reflect-session-history {
+  min-height: 0; flex: 1; overflow-y: auto;
+  border-top: 1px solid rgba(144, 170, 205, .13);
+  padding: 8px 3px 14px 0; scrollbar-width: thin;
+  scrollbar-color: #405473 transparent;
+  overscroll-behavior: contain;
+}
+/* Fixed navigation stays in place; only the saved thread list can scroll. */
+@media (max-height: 700px) {
+  .reflect-brand { padding-bottom: 12px; }
+  .reflect-nav-item { padding-top: 9px; padding-bottom: 9px; }
+  .reflect-new-session { margin: 12px 0; }
+}
+
 .reflect-sidebar-empty { color: #8b9eba; font-size: 13px; padding: 8px 12px; line-height: 1.55; }
 .reflect-session-link {
   display: flex; flex-direction: column; gap: 5px; width: 100%;
