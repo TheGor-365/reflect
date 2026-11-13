@@ -4030,3 +4030,18 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
   color:var(--reflect-muted,#a8b3cf);
   letter-spacing:.01em;
 }
+
+
+.reflect-interaction-evidence-details {
+  margin-top:.65rem;padding:.55rem .7rem;
+  border:1px solid var(--reflect-border,#363e5f);
+  border-radius:10px;color:var(--reflect-muted,#a9b3d4);
+  font-size:.79rem;line-height:1.55;
+}
+.reflect-interaction-evidence-details summary {
+  cursor:pointer;color:var(--reflect-accent,#65e6dc);
+  font-weight:600;
+}
+.reflect-interaction-evidence-details p,
+.reflect-interaction-evidence-details ul {margin:.5rem 0 0;}
+.reflect-interaction-evidence-details li {margin-top:.25rem;}
