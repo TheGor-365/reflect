@@ -3713,7 +3713,7 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
  * Scoped only to AI preferences; security/consent controls are unchanged. */
 .reflect-app .reflect-preference-select {
   position: relative; width: min(235px, 45%); flex: none;
-  min-width: 145px; isolation: isolate;
+  min-width: 145px;
 }
 .reflect-app .reflect-preference-select-trigger {
   display: flex; align-items: center; justify-content: space-between;
