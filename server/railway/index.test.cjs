@@ -428,3 +428,94 @@ test("invalid or incomplete provider JSON gets a safe distinct status, not gener
     assert.equal(JSON.stringify(body).includes("PRIVATE_OUTPUT"), false);
   });
 });
+
+
+test("P0: signed owner receipt lookup is free even with paid outbound disabled", async () => {
+  let reads = 0, paid = 0, entitlement = 0;
+  await withServer(deps({
+    attemptRecoveryEnabled: true,
+    allowProvider: () => false,
+    authorizeAccount: async auth => {
+      entitlement++;
+      return auth.uid === UID;
+    },
+    handleAttemptStatus: async (data, uid) => {
+      reads++;
+      assert.equal(uid, UID);
+      assert.deepEqual(data, {
+        sessionId: "private-session-abc", sourceTurnId: "user-original-1234567890"
+      });
+      return {
+        sessionId: data.sessionId, sourceTurnId: data.sourceTurnId,
+        status: "failed_after_provider", billedPossible: true, canRetry: true,
+        errorCode: "invalid-provider-response", requestId: "request-original-0001",
+        assistantTurnId: null
+      };
+    },
+    handleReply: async () => { paid++; throw Error("PROVIDER_MUST_NOT_RUN"); }
+  }), async url => {
+    const response = await fetch(url + "/v1/ai/attempt-status", {
+      method: "POST",
+      headers: {
+        origin: STAGE_ORIGIN, authorization: "Bearer " + TOKEN,
+        "x-firebase-appcheck": TOKEN, "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        sessionId: "private-session-abc", sourceTurnId: "user-original-1234567890"
+      })
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual((await response.json()).status, "failed_after_provider");
+  });
+  assert.equal(paid, 0);
+  assert.equal(reads, 1);
+  assert.equal(entitlement, 1);
+});
+
+test("P0: status endpoint remains 404 with private feature flag OFF", async () => {
+  let calls = 0;
+  await withServer(deps({
+    handleAttemptStatus: async () => { calls++; return {}; }
+  }), async url => {
+    const response = await fetch(url + "/v1/ai/attempt-status", {
+      method: "POST", headers: {
+        origin: STAGE_ORIGIN, authorization: "Bearer " + TOKEN,
+        "x-firebase-appcheck": TOKEN, "content-type": "application/json"
+      }, body: JSON.stringify({
+        sessionId: "owner-session", sourceTurnId: "user-original-1234567890"
+      })
+    });
+    assert.equal(response.status, 404);
+  });
+  assert.equal(calls, 0);
+});
+
+test("P0: consumed attestation, foreign origin and denied entitlement cannot read receipts", async () => {
+  for (const options of [
+    { verifyAppCheck: async () => ({
+      appId: "1:599679789981:web:d4d8743dbff0fe40af1d74",
+      alreadyConsumed: true
+    }), expected: 401 },
+    { authorizeAccount: async () => false, expected: 403 },
+    { expected: 403, badOrigin: true }
+  ]) {
+    let reads = 0;
+    await withServer(deps({
+      attemptRecoveryEnabled: true, ...options,
+      handleAttemptStatus: async () => { reads++; return {}; }
+    }), async url => {
+      const response = await fetch(url + "/v1/ai/attempt-status", {
+        method: "POST",
+        headers: {
+          origin: options.badOrigin ? "https://another-site.invalid" : STAGE_ORIGIN,
+          authorization: "Bearer " + TOKEN,
+          "x-firebase-appcheck": TOKEN, "content-type": "application/json"
+        }, body: JSON.stringify({
+          sessionId: "owner-session", sourceTurnId: "user-original-1234567890"
+        })
+      });
+      assert.equal(response.status, options.expected);
+    });
+    assert.equal(reads, 0);
+  }
+});
