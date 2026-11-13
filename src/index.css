@@ -3870,3 +3870,23 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
   .reflect-journey-coverage {grid-template-columns:1fr 1fr;}
   .reflect-app .reflect-ui-select .reflect-preference-menu {width:100%;}
 }
+
+/* An awaiting AI recommendation is an explicit inbox item, never
+ * a confirmed achievement. Reuse existing dashboard card tokens. */
+.reflect-dashboard-pending {
+  display:grid;gap:.45rem;padding:1rem;
+  border:1px solid var(--reflect-border);border-radius:14px;
+  background:var(--reflect-bg);max-width:100%;
+}
+.reflect-dashboard-pending small {color:var(--reflect-muted);font-size:.78rem;}
+.reflect-dashboard-pending strong {font-size:.98rem;color:var(--reflect-ink);}
+.reflect-dashboard-pending p {
+  color:var(--reflect-muted);font-size:.88rem;line-height:1.6;margin:0;
+}
+.reflect-dashboard-pending button {
+  display:inline-flex;align-items:center;justify-content:center;gap:.45rem;
+  border:1px solid var(--reflect-border);border-radius:10px;
+  color:var(--reflect-ink);font-size:.82rem;min-height:39px;
+  padding:.55rem .8rem;justify-self:start;margin-top:.2rem;
+}
+.reflect-dashboard-pending button:hover {border-color:var(--reflect-accent);}
