@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import {
   Activity, ArrowRight, BookOpen, BrainCircuit, CalendarDays, CheckSquare,
-  GitBranch, MessageSquareText, Target
+  GitBranch, MessageSquareText, Target, Lightbulb, ArrowUpRight
 } from 'lucide-react';
 import { buildDashboardSnapshot } from './dashboardModel';
+import { buildRecommendationInbox } from '../Recommendations/recommendationInbox';
 
 const dateLabel=at=>at===null?'Дата не сохранена':
   new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',year:'numeric'})
@@ -18,12 +19,16 @@ const goalDue=day=>day?new Intl.DateTimeFormat('ru-RU',{
 /** A quiet activity overview sourced only from explicitly stored objects. */
 export default function Dashboard({
   sessions=[],goals=[],diaryNotes=[],onOpenGoal,onOpenSession,
-  onOpenJourney,onOpenMindspace,onOpenDiary,onOpenDiaryNote,onNewSession,nowMs
+  onOpenJourney,onOpenMindspace,onOpenDiary,onOpenDiaryNote,onNewSession,
+  onOpenRecommendations,nowMs
 }){
   const [days,setDays]=useState(7);
   const snapshot=useMemo(()=>buildDashboardSnapshot({
     sessions,goals,diaryNotes,days,nowMs
   }),[sessions,goals,diaryNotes,days,nowMs]);
+  const inbox=useMemo(()=>buildRecommendationInbox(sessions),[sessions]);
+  const waitingRecommendation=inbox.recommendations.find(item=>item.status==='pending');
+  const waitingClarification=inbox.clarifications[0]||null;
   const maxCount=Math.max(1,...snapshot.activity.map(day=>day.total));
   const hasAny=sessions.length>0||goals.length>0||diaryNotes.length>0;
   const hasPeriodEvents=snapshot.eventCounts.total>0;
@@ -61,6 +66,43 @@ export default function Dashboard({
         </div>
       ):(
         <>
+          {inbox.pendingCount>0 && (
+            <section className="reflect-dashboard-section reflect-dashboard-next-decision"
+              aria-label="Ожидающие вашего решения предложения Reflect">
+              <div className="reflect-dashboard-section-heading">
+                <h3><Lightbulb size={19} aria-hidden="true"/> Следующее решение</h3>
+                <span>{inbox.pendingCount} предложений и уточнений без решения</span>
+              </div>
+              {waitingRecommendation?(
+                <div className="reflect-dashboard-pending">
+                  <small>Идея AI · ещё не цель</small>
+                  <strong>{waitingRecommendation.title}</strong>
+                  <p>{waitingRecommendation.rationale}</p>
+                  <small>Источник: {waitingRecommendation.sessionTitle}.
+                    Предложение не означает, что действие выполнено.</small>
+                  {onOpenRecommendations&&(
+                    <button type="button" onClick={onOpenRecommendations}>
+                      <ArrowUpRight size={16} aria-hidden="true"/>
+                      Решить, что делать с предложением
+                    </button>
+                  )}
+                </div>
+              ):waitingClarification?(
+                <div className="reflect-dashboard-pending">
+                  <small>Нужна информация · не готовая рекомендация</small>
+                  <strong>{waitingClarification.question}</strong>
+                  <small>Источник: {waitingClarification.sessionTitle}</small>
+                  {onOpenSession&&(
+                    <button type="button"
+                      onClick={()=>onOpenSession(waitingClarification.sessionId)}>
+                      <ArrowUpRight size={16} aria-hidden="true"/>
+                      Ответить в сеансе
+                    </button>
+                  )}
+                </div>
+              ):null}
+            </section>
+          )}
           <section className="reflect-dashboard-section" aria-label="Что сейчас важно">
             <div className="reflect-dashboard-section-heading">
               <h3><Target size={19} aria-hidden="true"/> Что сейчас важно</h3>
