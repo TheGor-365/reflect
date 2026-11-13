@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { collection, addDoc, setDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 import { db, appId } from '../../firebase/config';
 import { AI_SESSION_ENABLED, getAnalysisFromAI } from '../../api/reflectAssistantService';
+import { createDurableSession, appendDurableTurn } from './sessionPersistence';
 import ChatMessage from './ChatMessage';
 import SessionLibrary from './SessionLibrary';
 import { sessionDisplayTitle } from '../Diary/diaryPresentation';
@@ -32,11 +33,21 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   const [currentlySpeakingId, setCurrentlySpeakingId] = useState(null);
   
   // --- ИСПРАВЛЕНИЕ: Локальное состояние для мгновенного отображения сообщений в новом сеансе ---
+  // Only an unconfirmed assistant write is kept in memory. Normal turns
+  // are immediately written to Firestore; a reload reads the owner history.
   const [localMessages, setLocalMessages] = useState([]);
+  const [localMessageScope, setLocalMessageScope] = useState(null);
+  const [openingSession, setOpeningSession] = useState(null);
+  const ownerRef = useRef(userId);
+  ownerRef.current = userId;
 
   useEffect(() => {
     pendingRecommendationGoalIds.current = {};
     setDecisionEcho({});
+    setOpeningSession(null);
+    setLocalMessages([]);
+    setLocalMessageScope(null);
+    setSessionSaveError('');
   }, [userId]);
 
   const recognitionRef = useRef(null);
@@ -44,15 +55,27 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   const chatEndRef = useRef(null);
 
   const isNewSessionView = currentSessionId === 'new';
-  const activeSession = !isNewSessionView ? sessions.find(s => s.id === currentSessionId) : null;
+  const savedSession = !isNewSessionView
+    ? sessions.find(session => session.id === currentSessionId) : null;
+  // Bridge the short subscription delay after the first confirmed write.
+  const activeSession = savedSession || (
+    openingSession?.userId === userId && openingSession?.id === currentSessionId
+      ? openingSession.session : null
+  );
+  const scopedLocalMessages = localMessageScope?.userId === userId &&
+    localMessageScope?.sessionId === currentSessionId ? localMessages : [];
 
-  // --- ИСПРАВЛЕНИЕ: Сбрасываем локальные сообщения, когда сеанс создан и загружен ---
+  // Retire optimistic replies only when the authenticated live subscription
+  // actually contains the same immutable turn IDs. No destructive overwrite.
   useEffect(() => {
-    // Если ID сеанса изменился и это больше не "новый" сеанс, очищаем временные сообщения.
-    if (currentSessionId && currentSessionId !== 'new') {
+    if (!savedSession || !scopedLocalMessages.length) return;
+    const ids = new Set((savedSession.chatHistory || []).map(turn => turn.id));
+    if (scopedLocalMessages.every(turn => ids.has(turn.id))) {
       setLocalMessages([]);
+      setLocalMessageScope(null);
+      setSessionSaveError('');
     }
-  }, [currentSessionId]);
+  }, [savedSession?.chatHistory, currentSessionId, userId, scopedLocalMessages.length]);
 
   useEffect(() => {
     if (!focusTurnId) chatEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
