@@ -4,6 +4,11 @@ import { doc, getDoc, getDocFromServer, setDoc, serverTimestamp } from 'firebase
 import AISettings from './AISettings';
 import { AI_SETTINGS_DEFAULTS } from './aiSettingsModel';
 
+// Preferences tests cover only owner-scoped settings persistence. Consent and
+// signed staging audits have separate suites; don't import their live clients.
+vi.mock('./ContextConsentPanel', () => ({ default: () => null }));
+vi.mock('./StagingSecurityAuditPanel', () => ({ default: () => null }));
+vi.mock('./StagingConsentEndpointAuditPanel', () => ({ default: () => null }));
 vi.mock('../../firebase/config', () => ({ db: {}, appId: 'reflect-8fdc8' }));
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((_db, path) => ({ path })),
