@@ -17,6 +17,10 @@ const ChatMessage = React.memo(({ message, onPlayAudio, isSpeaking, currentlySpe
       <div className="reflect-chat-message-body">
         <p className="reflect-chat-message-author">{isUser ? 'Вы' : 'Reflect'}</p>
         <div className="reflect-chat-bubble">
+          {!isUser && message.interaction?.version === 'reflect.interaction.v1' &&
+            <small className="reflect-ai-provisional-label">
+              Предварительный взгляд Reflect · возможна ошибка в объяснении
+            </small>}
           <p>{message.content}</p>
         </div>
         {!isUser && message.interaction && <InteractionResult
