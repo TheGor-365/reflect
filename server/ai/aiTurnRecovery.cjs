@@ -21,7 +21,9 @@ const SAFE_ERRORS = new Set([
   "invalid-provider-response", "xai-invalid-request",
   "xai-unauthorized", "xai-forbidden", "xai-endpoint-not-found",
   "xai-rate-limited", "xai-upstream-timeout", "xai-upstream-error",
-  "xai-request-too-large", "xai-unavailable"
+  "xai-request-too-large", "xai-unavailable",
+  "xai-response-incomplete", "xai-envelope-invalid",
+  "xai-interaction-invalid", "xai-transport-invalid"
 ]);
 const fail = code => { throw new PolicyError(code); };
 const plain = value => Boolean(value) && typeof value === "object" &&
@@ -31,6 +33,17 @@ const valid = (pattern, value) => typeof value === "string" && pattern.test(valu
 // code as non-enumerable trusted server metadata. Match the Railway gateway's
 // redacted categories on receipt; never store response content or headers.
 function codeOf(e) {
+  if (e?.code === "invalid-provider-response") {
+    const trustedStages = Object.freeze({
+      incomplete: "xai-response-incomplete",
+      envelope: "xai-envelope-invalid",
+      "interaction-contract": "xai-interaction-invalid",
+      "transport-shape": "xai-transport-invalid"
+    });
+    if (Object.hasOwn(trustedStages, e.providerFailureStage)) {
+      return trustedStages[e.providerFailureStage];
+    }
+  }
   if (e?.code === "unavailable" &&
       Number.isInteger(e.upstreamHttpStatus)) {
     const safe = Object.freeze({
