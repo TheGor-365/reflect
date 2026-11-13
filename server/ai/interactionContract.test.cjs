@@ -104,3 +104,57 @@ test("reject malformed/provider-injected payload without second request", () => 
   assert.throws(() => parseInteraction(fixture({ extra: "ignore" }), enabled,
     { intent: "decide" }), { code: "invalid-provider-response" });
 });
+
+test("M1 uncertainty: user self-explanation is a hypothesis, not a recommendation", () => {
+  const selfInquiry = "Я откладываю запуск MVP сайта, боюсь негативной оценки. " +
+    "У меня 10 дней и час ежедневно. Предложи следующий шаг.";
+  const classification = preflight(selfInquiry);
+  assert.equal(classification.intent, "plan");
+  assert.equal(classification.unverifiedCause, true);
+  assert.equal(classification.recommendationEligible, false);
+  const request = buildRequest(selfInquiry, enabled);
+  assert.match(request.body.input[0].content, /insights — до двух АЛЬТЕРНАТИВНЫХ гипотез/);
+  assert.match(request.body.input[0].content, /карточку рекомендации на данном ходе: false/);
+  assert.equal(request.body.input.length, 2);
+  const result = parseInteraction(fixture({
+    stage: "synthesize", clarifyingQuestion: "",
+    intent: "plan",
+    insights: ["Возможно, речь об опасении критики.",
+      "Возможно, критерии завершённости ещё не определены."],
+    unknowns: ["Почему откладывается выпуск"],
+    recommendationCandidates: [{
+      title: "Срочно публиковать", rationale: "Вы сказали, что срок 10 дней",
+      sourceRefs: ["current-message"]
+    }]
+  }), request.settings, classification);
+  // Defensive gate: even if the model ignores the prompt, no action card.
+  assert.deepEqual(result.recommendationCandidates, []);
+  assert.equal(result.insights.length, 2);
+});
+
+test("M1 uncertainty: open-ended personal understanding never promotes candidate", () => {
+  const question = "Почему я тревожусь перед встречей?";
+  const req = buildRequest(question, enabled);
+  assert.equal(req.classification.recommendationEligible, false);
+  const response = parseInteraction(fixture({
+    intent: "understand", stage: "clarify",
+    clarifyingQuestion: "Что именно в предстоящей встрече вызывает напряжение?",
+    recommendationCandidates: [{
+      title:"Избегайте встреч", rationale:"Предположение", sourceRefs:["current-message"]
+    }]
+  }), req.settings, req.classification);
+  assert.deepEqual(response.recommendationCandidates, []);
+});
+
+test("M1 persona: original preference documents still work, malformed role fails closed", () => {
+  const req = buildRequest(t2, {
+    ...enabled,
+    assistantRole:"challenger", empathyLevel:"high", addressForm:"ty"
+  });
+  assert.match(req.body.input[0].content, /Роль собеседника: challenger; эмпатия: high/);
+  assert.match(req.body.input[0].content, /на ты/);
+  const invalid = normalizeSettings({...enabled, assistantRole:"therapist-authority"});
+  assert.equal(invalid.recommendationsEnabled, false);
+  assert.equal(invalid.assistantRole, "companion");
+  assert.equal(normalizeSettings(enabled).addressForm,"vy");
+});

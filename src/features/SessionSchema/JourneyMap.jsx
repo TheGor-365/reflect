@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReflectSelect from '../../components/ReflectSelect';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, GitBranch, Maximize2, Minus, Plus, RotateCcw } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, GitBranch, Maximize2, Minus, Plus, RotateCcw, MessageSquareText,
+  Bot, Clock3, CheckCircle2, RefreshCw, ListChecks, Lightbulb } from 'lucide-react';
 import {
   projectJourney, filterJourney, journeyFacts, journeyCoverage, layoutJourney, journeyDate
 } from './journeyModel';
@@ -220,22 +221,42 @@ export default function JourneyMap({
         </div>
       ) : (
         <>
-          <div className="reflect-journey-evidence" aria-label="Факты по отфильтрованным данным">
-            <p><strong>{facts.acceptedDecisions}</strong> подтверждённых решений</p>
-            <p><strong>{facts.returns}</strong> собственных возвращений</p>
-            <p>{facts.stepProgress
-              ? <><strong>{facts.stepProgress.done}/{facts.stepProgress.total}</strong> шагов отмечены выполненными, за всё время</>
-              : 'Доля завершённых шагов за этот период неизвестна: даты выполнения не подтверждены'}</p>
-          </div>
-          <div className="reflect-journey-coverage"
-            aria-label="Сохранённая история пути по выбранным фильтрам">
-            <p><strong>{coverage.authored}</strong> сообщений пользователя</p>
-            <p><strong>{coverage.aiReplies}</strong> ответов Reflect</p>
-            <p><strong>{spanLabel(coverage.timespanMs)}</strong>
-              <span>{coverage.complete
-                ? ' от первого до последнего сообщения'
-                : ' — нет полной временной шкалы сообщений'}</span></p>
-            <p><strong>{coverage.proposed}</strong> открытых AI-предложений</p>
+          <div className="reflect-journey-facts-table-wrap">
+            <table className="reflect-journey-facts-table"
+              aria-label="Фактические метрики выбранной темы">
+              <caption>Что известно о вашем пути — только сохранённые события</caption>
+              <thead><tr><th scope="col">Показатель</th>
+                <th scope="col">Значение</th>
+                <th scope="col">Что учитывается</th></tr></thead>
+              <tbody>
+                <tr><th scope="row"><MessageSquareText size={16}/> Ваши сообщения</th>
+                  <td>{coverage.authored}</td>
+                  <td>Сохранённые сообщения пользователя в выбранном представлении</td></tr>
+                <tr><th scope="row"><Bot size={16}/> Ответы Reflect</th>
+                  <td>{coverage.aiReplies}</td>
+                  <td>Ответы модели; не подтверждение истинности её объяснений</td></tr>
+                <tr><th scope="row"><Clock3 size={16}/> Период обсуждения</th>
+                  <td>{spanLabel(coverage.timespanMs)}</td>
+                  <td>{coverage.complete
+                    ? 'Время между первым и последним сообщением, не длительность работы над проблемой'
+                    : 'Недостаточно подтверждённых дат для интервала'}</td></tr>
+                <tr><th scope="row"><Lightbulb size={16}/> Идеи AI</th>
+                  <td>{coverage.proposed}</td>
+                  <td>Открытые предложения, не проверенные действия</td></tr>
+                <tr><th scope="row"><CheckCircle2 size={16}/> Принятые решения</th>
+                  <td>{facts.acceptedDecisions}</td>
+                  <td>Только решения, подтверждённые вами</td></tr>
+                <tr><th scope="row"><RefreshCw size={16}/> Возвращения к теме</th>
+                  <td>{facts.returns}</td>
+                  <td>Сохранённые наблюдения о возвращении к теме</td></tr>
+                <tr><th scope="row"><ListChecks size={16}/> Выполненные шаги</th>
+                  <td>{facts.stepProgress
+                    ? `${facts.stepProgress.done}/${facts.stepProgress.total}` : 'Нет данных'}</td>
+                  <td>{facts.stepProgress
+                    ? 'Отмеченные вами шаги за всё время; дата выполнения может быть неизвестна'
+                    : 'Нет подтверждённых данных; доля за период не рассчитывается'}</td></tr>
+              </tbody>
+            </table>
           </div>
           {period!=='all'&&(
             <p className="reflect-journey-note">

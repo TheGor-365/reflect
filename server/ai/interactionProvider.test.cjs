@@ -73,7 +73,8 @@ test("valid V1 structured envelope can exceed the legacy plain-text limit", asyn
   const result = await adapter.invoke(message, settings);
   assert.equal(calls, 1);
   assert.equal(result.text, structured.answer);
-  assert.equal(result.interaction.recommendationCandidates.length, 1);
+  // Single-message choice is not enough to validate the underlying cause.
+  assert.equal(result.interaction.recommendationCandidates.length, 0);
   assert.equal(result.interaction.goalCandidates.length, 0);
 });
 
@@ -128,7 +129,7 @@ test("M1 owner preferences survive Firestore -> provider prompt and candidate ga
       calls++;
       const body = JSON.parse(options.body);
       assert.match(body.input[0].content, /Тон: strategic; глубина: deep/);
-      assert.match(body.input[0].content, /Рекомендации разрешены: true/);
+      assert.match(body.input[0].content, /Рекомендации разрешены владельцем: true/);
       assert.equal(body.input.length, 2); // No owner history, profile or diary.
       return response(payload({
         stage: "synthesize", clarifyingQuestion: "",
@@ -141,7 +142,9 @@ test("M1 owner preferences survive Firestore -> provider prompt and candidate ga
   });
   const output = await adapter.invoke(message, raw);
   assert.equal(calls, 1);
-  assert.equal(output.interaction.recommendationCandidates.length, 1);
+  // Owner preference enables advice in principle but never overrides
+  // the server's missing-evidence action gate.
+  assert.equal(output.interaction.recommendationCandidates.length, 0);
   assert.equal(output.interaction.goalCandidates.length, 0);
 });
 
@@ -160,7 +163,7 @@ test("M1 no/invalid/unavailable owner preferences stay structured and fail close
         const body = JSON.parse(options.body);
         assert.equal(body.text.format.name, "reflect_interaction_v1");
         assert.match(body.input[0].content, /Тон: analytical; глубина: balanced/);
-        assert.match(body.input[0].content, /Рекомендации разрешены: false/);
+        assert.match(body.input[0].content, /Рекомендации разрешены владельцем: false/);
         return response(payload());
       }
     });

@@ -2,7 +2,8 @@ import React from 'react';
 import { Bot, Volume2, PauseCircle } from 'lucide-react';
 import InteractionResult from './InteractionResult';
 
-const ChatMessage = React.memo(({ message, onPlayAudio, isSpeaking, currentlySpeakingId, onCompose, onDecision, onOpenGoals, onOpenRecommendations, isSaved, decisions, focused = false }) => {
+const ChatMessage = React.memo(({ message, onPlayAudio, isSpeaking, currentlySpeakingId, onCompose, onDecision, onOpenGoals, onOpenRecommendations, isSaved, decisions,
+  reviews = {}, onHypothesisReview, focused = false }) => {
   const isUser = message.role === 'user';
   const isThisMessageSpeaking = isSpeaking && currentlySpeakingId === message.id;
 
@@ -16,11 +17,16 @@ const ChatMessage = React.memo(({ message, onPlayAudio, isSpeaking, currentlySpe
       <div className="reflect-chat-message-body">
         <p className="reflect-chat-message-author">{isUser ? 'Вы' : 'Reflect'}</p>
         <div className="reflect-chat-bubble">
+          {!isUser && message.interaction?.version === 'reflect.interaction.v1' &&
+            <small className="reflect-ai-provisional-label">
+              Предварительный взгляд Reflect · возможна ошибка в объяснении
+            </small>}
           <p>{message.content}</p>
         </div>
         {!isUser && message.interaction && <InteractionResult
           interaction={message.interaction} messageId={message.id}
           isSaved={isSaved} decisions={decisions} onDecision={onDecision}
+          reviews={reviews} onHypothesisReview={onHypothesisReview}
           onOpenGoals={onOpenGoals} onOpenRecommendations={onOpenRecommendations}
           onCompose={onCompose} />}
       </div>

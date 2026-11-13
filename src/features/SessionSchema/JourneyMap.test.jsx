@@ -147,3 +147,16 @@ describe('PRODUCT-04 Journey interactive UX',()=>{
 });
 
 afterEach(()=>vi.unstubAllGlobals());
+
+it('M1.5: journey evidence is an explanatory table, not seven large score cards',()=>{
+  render(<JourneyMap sessions={sessions} goals={goals}/>);
+  const table=screen.getByRole('table',{name:'Фактические метрики выбранной темы'});
+  expect(table).toBeInTheDocument();
+  expect(table.querySelectorAll('tbody tr')).toHaveLength(7);
+  expect(table).toHaveTextContent('Ваши сообщения');
+  expect(table).toHaveTextContent('Ответы Reflect');
+  expect(table).toHaveTextContent('Период обсуждения');
+  expect(table).toHaveTextContent('не длительность работы над проблемой');
+  expect(table).toHaveTextContent('Принятые решения');
+  expect(table).not.toHaveTextContent('% роста личности');
+});

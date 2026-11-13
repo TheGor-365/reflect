@@ -29,6 +29,10 @@ export default function Dashboard({
   const inbox=useMemo(()=>buildRecommendationInbox(sessions),[sessions]);
   const waitingRecommendation=inbox.recommendations.find(item=>item.status==='pending');
   const waitingClarification=inbox.clarifications[0]||null;
+  const recommendationProvisional=Boolean(waitingRecommendation &&
+    (waitingRecommendation.reviewedCount < waitingRecommendation.hypothesisCount ||
+      waitingRecommendation.challengedCount > 0 ||
+      waitingRecommendation.unknowns.length > 0));
   const maxCount=Math.max(1,...snapshot.activity.map(day=>day.total));
   const hasAny=sessions.length>0||goals.length>0||diaryNotes.length>0;
   const hasPeriodEvents=snapshot.eventCounts.total>0;
@@ -70,20 +74,47 @@ export default function Dashboard({
             <section className="reflect-dashboard-section reflect-dashboard-next-decision"
               aria-label="Ожидающие вашего решения предложения Reflect">
               <div className="reflect-dashboard-section-heading">
-                <h3><Lightbulb size={19} aria-hidden="true"/> Следующее решение</h3>
+                <h3><Lightbulb size={19} aria-hidden="true"/>
+                  {recommendationProvisional ? 'Гипотеза на проверке' : 'Следующее решение'}
+                </h3>
                 <span>{inbox.pendingCount} предложений и уточнений без решения</span>
               </div>
               {waitingRecommendation?(
                 <div className="reflect-dashboard-pending">
-                  <small>Идея AI · ещё не цель</small>
-                  <strong>{waitingRecommendation.title}</strong>
-                  <p>{waitingRecommendation.rationale}</p>
-                  <small>Источник: {waitingRecommendation.sessionTitle}.
-                    Предложение не означает, что действие выполнено.</small>
+                  <div className="reflect-dashboard-source">
+                    <small>Тема: <strong>{waitingRecommendation.sessionTitle}</strong></small>
+                    {onOpenSession && <button type="button"
+                      onClick={()=>onOpenSession(waitingRecommendation.sessionId,
+                        waitingRecommendation.assistantMessageId)}>
+                      Открыть исходный сеанс <ArrowUpRight size={15} aria-hidden="true"/>
+                    </button>}
+                  </div>
+                  <small>Идея AI · ещё не цель · предпосылки требуют проверки</small>
+                  <strong>Я предложил вам рассмотреть: {waitingRecommendation.title}</strong>
+                  <p>Почему мне показался полезным этот вариант: {waitingRecommendation.rationale}
+                    Но я мог неверно понять вашу ситуацию.</p>
+                  <div className="reflect-dashboard-decision-path" aria-label="Путь от гипотезы к цели">
+                    <span className="is-done">1. Разговор</span>
+                    <span className="is-done">2. Гипотеза AI</span>
+                    <span className={waitingRecommendation.hypothesisCount > 0 &&
+                      waitingRecommendation.reviewedCount === waitingRecommendation.hypothesisCount &&
+                      waitingRecommendation.challengedCount === 0 ? 'is-reviewed' : 'is-pending'}>
+                      3. Проверка человеком
+                    </span>
+                    <span className="is-pending">4. Решение</span>
+                    <span className="is-pending">5. Цель</span>
+                  </div>
+                  <p className="reflect-dashboard-evidence-hint">
+                    Вы оценили {waitingRecommendation.reviewedCount} из {waitingRecommendation.hypothesisCount}
+                    {waitingRecommendation.hypothesisCount === 1 ? ' гипотезы' : ' гипотез'}.
+                    {waitingRecommendation.challengedCount > 0 &&
+                      ` ${waitingRecommendation.challengedCount} оценены как неточные.`}
+                    {' '}Модель получила только одно сообщение; вероятность точности не вычислялась.
+                  </p>
                   {onOpenRecommendations&&(
                     <button type="button" onClick={onOpenRecommendations}>
                       <ArrowUpRight size={16} aria-hidden="true"/>
-                      Решить, что делать с предложением
+                      Проверить и обсудить предложение
                     </button>
                   )}
                 </div>

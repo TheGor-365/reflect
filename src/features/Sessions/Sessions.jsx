@@ -11,6 +11,8 @@ import { sessionDisplayTitle } from '../Diary/diaryPresentation';
 import SessionComposer from './SessionComposer';
 import SessionReturnCheckIn from './SessionReturnCheckIn';
 import { applyRecommendationDecision } from './recommendationDecisions';
+import { saveHypothesisReview } from './hypothesisReviews';
+import { hypothesisReviewKey } from './hypothesisReviewModel';
 import { newGoalId } from '../Goals/goalOperations';
 import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
 import InfoCard from '../../components/common/InfoCard';
@@ -28,6 +30,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   const sendLock = useRef(false);
   const pendingRecommendationGoalIds = useRef({});
   const [decisionEcho, setDecisionEcho] = useState({});
+  const [hypothesisReviewEcho, setHypothesisReviewEcho] = useState({});
   const noteSave = useEntrySave('diaryNotes', userId);
   const sessionDraftRef = useRef(null);
   const [isUserRecording, setIsUserRecording] = useState(false);
@@ -46,6 +49,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   useEffect(() => {
     pendingRecommendationGoalIds.current = {};
     setDecisionEcho({});
+    setHypothesisReviewEcho({});
     setOpeningSession(null);
     setLocalMessages([]);
     setLocalMessageScope(null);
@@ -363,6 +367,31 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
     if (key.startsWith(scopedDecisionPrefix)) decisions[key.slice(scopedDecisionPrefix.length)] = value;
   });
   Object.assign(decisions, savedDecisions);
+  const reviews = {};
+  Object.entries(hypothesisReviewEcho).forEach(([key, value]) => {
+    if (key.startsWith(scopedDecisionPrefix)) {
+      reviews[key.slice(scopedDecisionPrefix.length)] = value;
+    }
+  });
+  Object.assign(reviews, activeSession?.hypothesisReviews || {});
+  const handleHypothesisReview = async (assistantMessageId, index, grade, comment) => {
+    if (!userId || !activeSession || !activeSession.chatHistory?.some(
+      message => message.id === assistantMessageId && message.role === 'assistant'
+    )) throw new Error('Сначала сохраните ответ Reflect в сеансе.');
+    const savedOwner = userId;
+    const sessionId = activeSession.id;
+    const result = await saveHypothesisReview({
+      userId: savedOwner, sessionId, assistantMessageId, hypothesisIndex: index,
+      grade, comment
+    });
+    if (ownerRef.current === savedOwner) {
+      const key = hypothesisReviewKey(assistantMessageId, index);
+      setHypothesisReviewEcho(prev => ({
+        ...prev, [`${savedOwner}:${sessionId}:${key}`]: result
+      }));
+    }
+    return result;
+  };
   const handleRecommendationDecision = async (assistantMessageId, candidateIndex, action, draft) => {
     if (!userId || !activeSession || !activeSession.chatHistory?.some(
       message => message.id === assistantMessageId && message.role === 'assistant'
@@ -476,7 +505,9 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
                 onPlayAudio={handlePlayAudio} isSpeaking={isSpeaking}
                 onCompose={text => { setUserInput(text); setSendError(''); }}
                 isSaved={Boolean(activeSession && index < savedMessageCount)}
-                decisions={decisions}
+                decisions={decisions} reviews={reviews}
+                onHypothesisReview={(index, grade, comment) =>
+                  handleHypothesisReview(msg.id, index, grade, comment)}
                 onDecision={(candidateIndex, action, draft) =>
                   handleRecommendationDecision(msg.id, candidateIndex, action, draft)}
                 onOpenGoals={onOpenGoals}

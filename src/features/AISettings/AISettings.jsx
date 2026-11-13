@@ -184,6 +184,28 @@ export default function AISettings({ userId, sessions = [] }) {
               onChange={change} options={[
                 ['supportive', 'Поддержка'], ['analytical', 'Анализ'], ['strategic', 'Стратегия']
               ]}/>
+            <ReflectSelectRow label="Роль собеседника"
+              description="Манера разговора, а не медицинская или психологическая квалификация."
+              name="assistantRole" value={draft.assistantRole} disabled={disabled}
+              onChange={change} options={[
+                ['companion', 'Внимательный собеседник'],
+                ['mentor', 'Наставник'],
+                ['challenger', 'Бережный оппонент'],
+                ['reflective', 'Рефлексивный собеседник']
+              ]}/>
+            <ReflectSelectRow label="Уровень эмпатии"
+              description="От сдержанного до более тёплого тона — без лести и ложной уверенности."
+              name="empathyLevel" value={draft.empathyLevel} disabled={disabled}
+              onChange={change} options={[
+                ['low', 'Сдержанный'], ['balanced', 'Сбалансированный'],
+                ['high', 'Тёплый']
+              ]}/>
+            <ReflectSelectRow label="Как обращаться к вам?"
+              description="Прямое обращение вместо канцелярского безличного текста."
+              name="addressForm" value={draft.addressForm} disabled={disabled}
+              onChange={change} options={[
+                ['vy', 'На вы'], ['ty', 'На ты']
+              ]}/>
             <ToggleRow label="Уточняющие вопросы"
               description="Предпочтение: спрашивать, когда ситуация неясна, вместо поверхностного вывода."
               name="askClarifyingQuestions" checked={draft.askClarifyingQuestions}
@@ -195,7 +217,7 @@ export default function AISettings({ userId, sessions = [] }) {
               <Lightbulb size={19}/><h3>Рекомендации</h3>
             </div>
             <ToggleRow label="Предлагать рекомендации"
-              description="Разрешает предложения по текущему сообщению. Цели не создаются автоматически."
+              description="Разрешает предложения только при достаточных предпосылках. Непроверенные причины поведения не становятся рекомендациями или целями."
               name="recommendationsEnabled" checked={draft.recommendationsEnabled}
               onChange={change} disabled={disabled}/>
             <ReflectSelectRow label="Частота"
