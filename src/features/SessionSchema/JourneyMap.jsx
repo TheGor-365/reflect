@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import ReflectSelect from '../../components/ReflectSelect';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, GitBranch, Maximize2, Minus, Plus, RotateCcw } from 'lucide-react';
 import {
-  projectJourney, filterJourney, journeyFacts, layoutJourney, journeyDate
+  projectJourney, filterJourney, journeyFacts, journeyCoverage, layoutJourney, journeyDate
 } from './journeyModel';
 
 const KINDS = [
@@ -15,6 +16,10 @@ const STATUSES = [
   ['dismissed','Отклонено']
 ];
 const PERIODS = [['all','За всё время'],['7d','7 дней'],['30d','30 дней']];
+const spanLabel = ms => ms === null ? 'Недостаточно дат'
+  : ms < 3600000 ? `${Math.round(ms/60000)} мин`
+    : ms < 86400000 ? `${Math.round(ms/3600000*10)/10} ч`
+      : `${Math.round(ms/86400000*10)/10} дн`;
 const TYPE = {
   session:'Тема',turn:'Сообщение',proposal:'AI-предложение',
   decision:'Решение',goal:'Цель',step:'Шаг',return:'Возвращение'
@@ -62,6 +67,7 @@ export default function JourneyMap({
   }),[graph,sessionFilter,period,kind,status]);
   const layout=useMemo(()=>layoutJourney(projected),[projected]);
   const facts=useMemo(()=>journeyFacts(projected,period),[projected,period]);
+  const coverage=useMemo(()=>journeyCoverage(projected),[projected]);
   const selected=projected.nodes.find(node=>node.id===selectedId) || null;
   const visibleSessions=graph.nodes.filter(n=>n.type==='session');
   useEffect(() => {
@@ -190,33 +196,17 @@ export default function JourneyMap({
         <span className="reflect-journey-version">Факты, не AI-оценка личности</span>
       </header>
       <div className="reflect-journey-filters" role="group" aria-label="Фильтры карты">
-        <label>Тема
-          <select aria-label="Тема карты" value={sessionFilter}
-            onChange={event=>setAndReset(setSessionFilter)(event.target.value)}>
-            <option value="all">Все темы</option>
-            {visibleSessions.map(session=>(
-              <option key={session.id} value={session.sessionId}>{session.label}</option>
-            ))}
-          </select>
-        </label>
-        <label>Период
-          <select aria-label="Период карты" value={period}
-            onChange={event=>setAndReset(setPeriod)(event.target.value)}>
-            {PERIODS.map(([id,label])=><option key={id} value={id}>{label}</option>)}
-          </select>
-        </label>
-        <label>Тип
-          <select aria-label="Тип событий" value={kind}
-            onChange={event=>setAndReset(setKind)(event.target.value)}>
-            {KINDS.map(([id,label])=><option key={id} value={id}>{label}</option>)}
-          </select>
-        </label>
-        <label>Статус
-          <select aria-label="Статус событий" value={status}
-            onChange={event=>setAndReset(setStatus)(event.target.value)}>
-            {STATUSES.map(([id,label])=><option key={id} value={id}>{label}</option>)}
-          </select>
-        </label>
+        <ReflectSelect label="Тема" ariaLabel="Тема карты"
+          value={sessionFilter} onChange={setAndReset(setSessionFilter)}
+          options={ [['all','Все темы'], ...visibleSessions.map(
+            session => [session.sessionId, session.label]
+          )] }/>
+        <ReflectSelect label="Период" ariaLabel="Период карты"
+          value={period} onChange={setAndReset(setPeriod)} options={PERIODS}/>
+        <ReflectSelect label="Тип" ariaLabel="Тип событий"
+          value={kind} onChange={setAndReset(setKind)} options={KINDS}/>
+        <ReflectSelect label="Статус" ariaLabel="Статус событий"
+          value={status} onChange={setAndReset(setStatus)} options={STATUSES}/>
       </div>
       {projected.nodes.length===0||!projected.nodes.some(n=>n.type!=='session') ? (
         <div className="reflect-journey-empty" role="status">
@@ -236,6 +226,16 @@ export default function JourneyMap({
             <p>{facts.stepProgress
               ? <><strong>{facts.stepProgress.done}/{facts.stepProgress.total}</strong> шагов отмечены выполненными, за всё время</>
               : 'Доля завершённых шагов за этот период неизвестна: даты выполнения не подтверждены'}</p>
+          </div>
+          <div className="reflect-journey-coverage"
+            aria-label="Сохранённая история пути по выбранным фильтрам">
+            <p><strong>{coverage.authored}</strong> сообщений пользователя</p>
+            <p><strong>{coverage.aiReplies}</strong> ответов Reflect</p>
+            <p><strong>{spanLabel(coverage.timespanMs)}</strong>
+              <span>{coverage.complete
+                ? ' от первого до последнего сообщения'
+                : ' — нет полной временной шкалы сообщений'}</span></p>
+            <p><strong>{coverage.proposed}</strong> открытых AI-предложений</p>
           </div>
           {period!=='all'&&(
             <p className="reflect-journey-note">
