@@ -13,8 +13,8 @@ vi.mock('firebase/firestore', () => ({
   serverTimestamp: vi.fn(() => ({ server: 'timestamp' }))
 }));
 
-function choosePreference(label, caption) {
-  fireEvent.click(screen.getByRole('combobox', { name: new RegExp(label) }));
+async function choosePreference(label, caption) {
+  fireEvent.click(await screen.findByRole('combobox', { name: new RegExp(label) }));
   fireEvent.click(screen.getByRole('option', { name: caption }));
 }
 
@@ -142,10 +142,10 @@ test('explicit save survives remount and reloads deep preference from Firestore'
   setDoc.mockImplementation(async (reference, data) => { stored.set(reference.path, data); });
 
   const view = render(<AISettings userId="owner-reload"/>);
-  choosePreference('Глубина ответа', 'Подробно');
+  await choosePreference('Глубина ответа', 'Подробно');
   expect(screen.getByText(/Есть несохранённые изменения/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить настройки' }));
-  expect(await screen.findByText(/Настройки сохранены и подтверждены сервером/))
+  expect(await screen.findByText(/Настройки сохранены и подтверждены Firebase/))
     .toBeInTheDocument();
   // One authoritative read on mount, and one readback after the write.
   expect(getDocFromServer).toHaveBeenCalledTimes(2);
@@ -167,7 +167,7 @@ test('switching accounts never presents another owner\'s saved depth', async () 
   setDoc.mockImplementation(async (reference, data) => { stored.set(reference.path, data); });
 
   const first = render(<AISettings userId="owner-A"/>);
-  choosePreference('Глубина ответа', 'Подробно');
+  await choosePreference('Глубина ответа', 'Подробно');
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить настройки' }));
   expect(await screen.findByText(/подтверждены сервером/)).toBeInTheDocument();
   first.unmount();
@@ -185,11 +185,11 @@ test('switching accounts never presents another owner\'s saved depth', async () 
 test('server mismatch never shows a false positive save confirmation', async () => {
   getDocFromServer.mockResolvedValue({ exists: () => false });
   render(<AISettings userId="synthetic-owner"/>);
-  choosePreference('Глубина ответа', 'Подробно');
+  await choosePreference('Глубина ответа', 'Подробно');
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить настройки' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('readback-mismatch');
   expect(screen.getByRole('combobox', { name: /Глубина ответа/ })).toHaveTextContent('Подробно');
-  expect(screen.queryByText(/Настройки сохранены и подтверждены сервером/))
+  expect(screen.queryByText(/Настройки сохранены и подтверждены Firebase/))
     .not.toBeInTheDocument();
 });
 
@@ -203,7 +203,7 @@ test('read denial shows a safe diagnostic code without exposing document paths',
 
 test('unsaved changes warn on reload and are not misrepresented as persisted', async () => {
   const view = render(<AISettings userId="synthetic-owner"/>);
-  choosePreference('Глубина ответа', 'Подробно');
+  await choosePreference('Глубина ответа', 'Подробно');
   const event = new Event('beforeunload', { cancelable: true });
   window.dispatchEvent(event);
   expect(event.defaultPrevented).toBe(true);
