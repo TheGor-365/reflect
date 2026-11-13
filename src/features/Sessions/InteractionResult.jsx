@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { BookmarkPlus, CalendarClock, CheckCircle2, CircleX,
   Goal, Lightbulb, MessageCircle, MessageSquareReply, Target, Undo2,
   SlidersHorizontal, ShieldQuestion, Check, ArrowRight } from 'lucide-react';
-import { HYPOTHESIS_GRADES } from './hypothesisReviews';
+import { HYPOTHESIS_GRADES } from './hypothesisReviewModel';
 
 // Structured AI proposals remain suggestions until a human explicitly chooses
 // an action. No Firestore access or background writes occur in this component.
