@@ -94,7 +94,11 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
     e.preventDefault();
     const message = userInput.trim();
     if (!AI_SESSION_ENABLED || !message || isLoading || sendLock.current ||
-        !db || !userId) return;
+        !db || !userId || (!isNewSessionView && !activeSession)) return;
+    if (localMessages.length && sessionSaveError) {
+      setSendError('Сначала восстановите сохранение предыдущего ответа Reflect.');
+      return;
+    }
     if (message.length > 1400 || new TextEncoder().encode(message).length > 2000) {
       setSendError('Сообщение превышает ограничение тестового AI-сервера (2000 байт).');
       return;
@@ -102,27 +106,71 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
     sendLock.current = true;
     setIsLoading(true);
     setSendError('');
-    // A new request ID is generated ONLY for an explicit click. Never auto
-    // retry after a timeout: the provider may have billed the first attempt.
+    setSessionSaveError('');
+    const owner = userId;
+    // New request ID only on a deliberate send. NEVER retry a paid call
+    // after a timeout, including if saving its response fails.
     const requestId = crypto.randomUUID();
+    const userTurn = {
+      role: 'user', content: message,
+      id: 'user-' + requestId, timestamp: Timestamp.now()
+    };
+    let durableSessionId = isNewSessionView ? null : activeSession.id;
     try {
+      // A user turn MUST be committed before invoking Grok. A failure here
+      // leaves the text in the composer; there is no paid provider call.
+      try {
+        if (!durableSessionId) {
+          const created = await createDurableSession(owner, userTurn);
+          durableSessionId = created.id;
+          if (ownerRef.current === owner) {
+            setOpeningSession({
+              userId: owner, id: durableSessionId,
+              session: {
+                id: durableSessionId, title: created.title,
+                chatHistory: [userTurn], recommendations: [], exercises: []
+              }
+            });
+            setCurrentSessionId(durableSessionId);
+          }
+        } else {
+          await appendDurableTurn(owner, durableSessionId, userTurn);
+        }
+      } catch {
+        if (ownerRef.current === owner) {
+          setSendError('Не удалось подтвердить сохранение сообщения в Firebase. Grok не вызывался, текст остался в поле ввода.');
+        }
+        return;
+      }
+      if (ownerRef.current === owner) {
+        setUserInput('');
+        await sessionDraftRef.current?.clearAfterCommit();
+      }
+
       const aiResponse = await getAnalysisFromAI(message, requestId);
-      const userMessage = {
-        role: 'user', content: message,
-        id: 'user-' + requestId, timestamp: Timestamp.now()
-      };
-      const assistantMessage = {
+      const assistantTurn = {
         role: 'assistant', content: aiResponse.response,
         ...(aiResponse.interaction ? { interaction: aiResponse.interaction } : {}),
         id: 'assistant-' + requestId, timestamp: Timestamp.now()
       };
-      // No Firebase write here. Answer is local until "Сохранить сеанс".
-      setLocalMessages(prev => [...prev, userMessage, assistantMessage]);
-      setUserInput('');
-      await sessionDraftRef.current?.clearAfterCommit();
+      // Immediate display while Firestore confirms the automatic write.
+      if (ownerRef.current === owner) {
+        setLocalMessageScope({ userId: owner, sessionId: durableSessionId });
+        setLocalMessages([assistantTurn]);
+      }
+      try {
+        await appendDurableTurn(owner, durableSessionId, assistantTurn);
+      } catch {
+        // No AI retry. Keep the exact received answer in memory for a
+        // save-only retry; never destroy it with a transcript overwrite.
+        if (ownerRef.current === owner) {
+          setSessionSaveError('Ответ Grok получен, но сохранение в Firebase не подтверждено. Повторите только сохранение ответа, не запрос к Grok.');
+        }
+      }
     } catch (error) {
-      // Known server Auth errors occur before xAI invocation and can be fixed
-      // without paid retries. Do not show raw SDK messages or credentials.
+      // The user turn is already committed. Provider failures are ambiguous
+      // and may be billed. Never silently resubmit the same message.
+      if (ownerRef.current !== owner) return;
       const code = error?.message;
       const authErrors = {
         'xai-invalid-request': 'xAI отклонил формат запроса (HTTP 400/422). Ошибка серверной интеграции, не вашего текста.',
@@ -143,44 +191,26 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
       };
       setSendError(Object.hasOwn(authErrors, code)
         ? authErrors[code]
-        : 'Grok не вернул подтверждённый ответ. Текст сохранён в поле ввода. Не повторяйте запрос автоматически: он мог быть оплачен.');
+        : 'Grok не вернул подтверждённый ответ. Ваше сообщение сохранено в сеансе. Не повторяйте запрос автоматически: он мог быть оплачен.');
     } finally {
       sendLock.current = false;
       setIsLoading(false);
     }
   };
 
+  // Recovery only. Successful AI turns are saved without any button click.
   const handleSaveSession = async () => {
-    if (!db || !userId || !localMessages.length || isLoading || savingSession) return;
+    if (!db || !userId || !scopedLocalMessages.length || !sessionSaveError ||
+        isLoading || savingSession || !activeSession) return;
     setSavingSession(true);
-    setSessionSaveError('');
-    const existing = Array.isArray(activeSession?.chatHistory)
-      ? activeSession.chatHistory : [];
-    const payload = {
-      title: activeSession?.title || 'Сеанс от ' + new Date().toLocaleString('ru-RU'),
-      chatHistory: [...existing, ...localMessages],
-      recommendations: activeSession?.recommendations || [],
-      exercises: activeSession?.exercises || []
-    };
     try {
-      if (isNewSessionView) {
-        const created = await addDoc(
-          collection(db, 'artifacts/' + appId + '/users/' + userId + '/sessions'),
-          { ...payload, createdAt: serverTimestamp() }
-        );
-        setLocalMessages([]);
-        setCurrentSessionId(created.id);
-      } else if (activeSession) {
-        await setDoc(
-          doc(db, 'artifacts/' + appId + '/users/' + userId + '/sessions',
-            currentSessionId),
-          payload, { merge: true }
-        );
-        setLocalMessages([]);
+      for (const turn of scopedLocalMessages) {
+        await appendDurableTurn(userId, activeSession.id, turn);
       }
+      setSessionSaveError('');
+      // Retain the local copy until owner-scoped onSnapshot confirms it.
     } catch {
-      // Preserve draft and local model answer for an explicit retry.
-      setSessionSaveError('Не удалось сохранить сеанс. Ответ остаётся в этом окне.');
+      setSessionSaveError('Сохранение ответа пока не подтверждено. Ответ остаётся на экране; проверьте соединение.');
     } finally {
       setSavingSession(false);
     }
