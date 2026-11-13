@@ -129,7 +129,7 @@ test("M1 owner preferences survive Firestore -> provider prompt and candidate ga
       calls++;
       const body = JSON.parse(options.body);
       assert.match(body.input[0].content, /Тон: strategic; глубина: deep/);
-      assert.match(body.input[0].content, /Рекомендации разрешены: true/);
+      assert.match(body.input[0].content, /Рекомендации разрешены владельцем: true/);
       assert.equal(body.input.length, 2); // No owner history, profile or diary.
       return response(payload({
         stage: "synthesize", clarifyingQuestion: "",
@@ -163,7 +163,7 @@ test("M1 no/invalid/unavailable owner preferences stay structured and fail close
         const body = JSON.parse(options.body);
         assert.equal(body.text.format.name, "reflect_interaction_v1");
         assert.match(body.input[0].content, /Тон: analytical; глубина: balanced/);
-        assert.match(body.input[0].content, /Рекомендации разрешены: false/);
+        assert.match(body.input[0].content, /Рекомендации разрешены владельцем: false/);
         return response(payload());
       }
     });
