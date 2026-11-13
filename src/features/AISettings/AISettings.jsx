@@ -200,6 +200,12 @@ export default function AISettings({ userId, sessions = [] }) {
                 ['low', 'Сдержанный'], ['balanced', 'Сбалансированный'],
                 ['high', 'Тёплый']
               ]}/>
+            <ReflectSelectRow label="Как обращаться к вам?"
+              description="Прямое обращение вместо канцелярского безличного текста."
+              name="addressForm" value={draft.addressForm} disabled={disabled}
+              onChange={change} options={[
+                ['vy', 'На вы'], ['ty', 'На ты']
+              ]}/>
             <ToggleRow label="Уточняющие вопросы"
               description="Предпочтение: спрашивать, когда ситуация неясна, вместо поверхностного вывода."
               name="askClarifyingQuestions" checked={draft.askClarifyingQuestions}
