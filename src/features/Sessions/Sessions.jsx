@@ -492,7 +492,12 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
         {activeSession && (
           <SessionEvidenceLedger key={activeSession.id}
             session={{...activeSession, hypothesisReviews: reviews}}
-            onCompose={text => { setUserInput(text); setSendError(''); }}
+            onCompose={text => {
+              // Inserting preview must never discard an unfinished owner draft.
+              setUserInput(previous => previous.trim()
+                ? previous + '\n\n' + text : text);
+              setSendError('');
+            }}
             onFocusTurn={turnId => {
               const match = [...document.querySelectorAll('[data-reflect-turn-id]')]
                 .find(node => node.getAttribute('data-reflect-turn-id') === turnId);
