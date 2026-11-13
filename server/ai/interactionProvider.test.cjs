@@ -40,6 +40,7 @@ test("server-only V1: exactly one Responses call, validated UI projection, no hi
       assert.equal(body.input[1].content, message);
       assert.equal(body.input.length, 2);
       assert.equal(body.store, false);
+      assert.equal(body.max_output_tokens, 1024);
       assert.equal(body.reasoning.effort, "none");
       return response(payload());
     }
