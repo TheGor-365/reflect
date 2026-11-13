@@ -3958,3 +3958,68 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
 @media(max-width:640px) {
   .reflect-hypothesis-grade {grid-template-columns:repeat(2,minmax(0,1fr));}
 }
+
+
+/* Epistemic navigation — not pseudo-psychological progress scoring. */
+.reflect-dashboard-source {
+  display:flex;align-items:center;justify-content:space-between;
+  gap:.45rem;flex-wrap:wrap;padding-bottom:.6rem;
+  border-bottom:1px solid var(--reflect-border,#353b60);
+}
+.reflect-dashboard-source small {font-size:.83rem;}
+.reflect-dashboard-source strong {font-weight:700;}
+.reflect-dashboard-decision-path {
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:.4rem;margin:.7rem 0;
+}
+.reflect-dashboard-decision-path span {
+  padding:.55rem .4rem;line-height:1.3;text-align:center;
+  border-radius:8px;border:1px dashed var(--reflect-border,#353b60);
+  font-size:.73rem;color:var(--reflect-muted,#9fa8d4);
+}
+.reflect-dashboard-decision-path .is-done {
+  border-style:solid;border-color:var(--reflect-accent,#66ddd4);
+  color:var(--reflect-ink,#edf1ff);
+}
+.reflect-dashboard-decision-path .is-reviewed {
+  border-style:solid;color:var(--reflect-ink,#edf1ff);
+}
+.reflect-dashboard-evidence-hint {font-size:.79rem;}
+.reflect-journey-facts-table-wrap {
+  width:100%;overflow-x:auto;
+  border-radius:12px;border:1px solid var(--reflect-border,#353b60);
+  margin-bottom:.75rem;
+}
+.reflect-journey-facts-table {
+  border-collapse:collapse;width:100%;min-width:630px;
+  color:var(--reflect-ink,#edf1ff);
+}
+.reflect-journey-facts-table caption {
+  text-align:left;font-size:.82rem;
+  padding:.65rem .8rem;color:var(--reflect-muted,#9fa8d4);
+}
+.reflect-journey-facts-table th,
+.reflect-journey-facts-table td {
+  padding:.55rem .8rem;border-top:1px solid var(--reflect-border,#353b60);
+  text-align:left;vertical-align:middle;font-size:.78rem;
+}
+.reflect-journey-facts-table th[scope="row"] {
+  font-weight:500;white-space:nowrap;
+}
+.reflect-journey-facts-table th[scope="row"] svg {
+  vertical-align:middle;margin-right:.4rem;
+  color:var(--reflect-accent,#66ddd4);
+}
+.reflect-journey-facts-table th[scope="col"] {
+  font-weight:600;color:var(--reflect-muted,#9fa8d4);
+  background:var(--reflect-card,#181d39);
+}
+.reflect-journey-facts-table td:nth-child(2) {
+  font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap;
+}
+.reflect-journey-facts-table td:nth-child(3) {
+  font-weight:400;color:var(--reflect-muted,#9fa8d4);
+}
+@media(max-width:680px) {
+  .reflect-dashboard-decision-path {grid-template-columns:repeat(2,minmax(0,1fr));}
+}
