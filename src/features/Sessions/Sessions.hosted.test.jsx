@@ -3,26 +3,17 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Sessions from './Sessions';
 
 const mocks = vi.hoisted(() => ({
-  ai: vi.fn(), addDoc: vi.fn(), setDoc: vi.fn(),
+  ai: vi.fn(), create: vi.fn(), append: vi.fn(),
   clearFeedback: vi.fn(), save: vi.fn(), clear: vi.fn()
 }));
-vi.mock('../../firebase/config', () => ({
-  db: {}, appId: 'reflect-8fdc8'
-}));
+vi.mock('../../firebase/config', () => ({ db: {}, appId: 'reflect-8fdc8' }));
 vi.mock('../../api/reflectAssistantService', () => ({
   AI_SESSION_ENABLED: true, getAnalysisFromAI: mocks.ai
 }));
-vi.mock('firebase/firestore', async importOriginal => {
-  const real = await importOriginal();
-  return {
-    ...real,
-    addDoc: mocks.addDoc,
-    setDoc: mocks.setDoc,
-    collection: vi.fn(() => ({ id: 'demo-session-collection' })),
-    doc: vi.fn(() => ({ id: 'demo-session-doc' })),
-    serverTimestamp: vi.fn(() => 'SERVER_TIMESTAMP')
-  };
-});
+vi.mock('./sessionPersistence', () => ({
+  createDurableSession: mocks.create,
+  appendDurableTurn: mocks.append
+}));
 vi.mock('../../hooks/useEntrySave', () => ({
   useEntrySave: () => ({
     status: 'idle', save: mocks.save, clearFeedback: mocks.clearFeedback
@@ -43,57 +34,53 @@ const defaultProps = {
   userId: 'demo-owner', currentSessionId: 'new',
   setCurrentSessionId: vi.fn(), onStartNewSession: vi.fn()
 };
-
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.ai.mockResolvedValue({ response: 'Начните с одного шага.', actualUsdTicks: 190000 });
-  mocks.addDoc.mockResolvedValue({ id: 'new-synthetic-session-id' });
-  mocks.setDoc.mockResolvedValue(undefined);
+  mocks.create.mockResolvedValue({ id: 'new-synthetic-session-id', title: 'Сеанс' });
+  mocks.append.mockResolvedValue('new-synthetic-session-id');
   mocks.clear.mockResolvedValue(undefined);
-  if (!globalThis.crypto?.randomUUID) {
-    Object.defineProperty(globalThis.crypto, 'randomUUID', {
-      configurable: true, value: () => '123e4567-e89b-42d3-a456-426614174000'
-    });
-  }
 });
 
-test('explicit send confirms only current message, no automatic save', async () => {
+test('explicit send persists owner message before Grok and automatically saves the answer', async () => {
+  const order = [];
+  mocks.create.mockImplementation(async (_owner, turn) => {
+    order.push('user-saved');
+    expect(turn.content).toBe('Только этот текст');
+    return { id: 'new-synthetic-session-id', title: 'Сеанс' };
+  });
+  mocks.ai.mockImplementation(async () => {
+    order.push('provider');
+    return { response: 'Начните с одного шага.', actualUsdTicks: 190000 };
+  });
+  mocks.append.mockImplementation(async () => { order.push('assistant-saved'); });
   render(<Sessions {...defaultProps} />);
   const textbox = screen.getByRole('textbox', { name: 'Сообщение для сеанса' });
   fireEvent.change(textbox, { target: { value: 'Только этот текст' } });
-  expect(screen.getByText(/Отправляя сообщение в Grok, вы разрешаете передать/))
-    .toBeInTheDocument();
+  expect(screen.getByText(/Отправляя сообщение в Grok, вы разрешаете передать/)).toBeInTheDocument();
   expect(screen.queryByRole('checkbox')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Отправить сообщение' }));
-  await waitFor(() => expect(mocks.ai).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(mocks.append).toHaveBeenCalledOnce());
+  expect(order).toEqual(['user-saved', 'provider', 'assistant-saved']);
+  expect(mocks.ai.mock.calls[0]).toHaveLength(2);
   expect(mocks.ai.mock.calls[0][0]).toBe('Только этот текст');
-  expect(typeof mocks.ai.mock.calls[0][1]).toBe('string');
-  expect(mocks.ai.mock.calls[0].length).toBe(2);
-  await waitFor(() => expect(screen.getByText('Начните с одного шага.')).toBeInTheDocument());
-  expect(mocks.addDoc).not.toHaveBeenCalled();
-  expect(mocks.setDoc).not.toHaveBeenCalled();
-  expect(screen.getByText(/Ответ AI пока не сохранён/)).toBeInTheDocument();
-
-  fireEvent.click(screen.getByRole('button', { name: 'Сохранить сеанс' }));
-  await waitFor(() => expect(mocks.addDoc).toHaveBeenCalledTimes(1));
-  const saved = mocks.addDoc.mock.calls[0][1];
-  expect(saved.chatHistory.map(m => m.role)).toEqual(['user', 'assistant']);
-  expect(saved.chatHistory.map(m => m.content)).toEqual([
-    'Только этот текст', 'Начните с одного шага.'
-  ]);
-  expect(JSON.stringify(saved)).not.toContain('NO_PROFILE_FOR_AI');
+  expect(JSON.stringify(mocks.append.mock.calls)).not.toContain('NO_PROFILE_FOR_AI');
+  expect(screen.getByText('Начните с одного шага.')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Сохранить сеанс' })).toBeNull();
 });
 
-test('failed provider call keeps user text, never writes or silently retries', async () => {
+test('failed provider call leaves a durable user turn; never silently retries or leaks provider errors', async () => {
   mocks.ai.mockRejectedValueOnce(new Error('SENSITIVE_PROVIDER_BODY'));
   render(<Sessions {...defaultProps} />);
-  const textbox = screen.getByRole('textbox', { name: 'Сообщение для сеанса' });
-  fireEvent.change(textbox, { target: { value: 'Исходный пользовательский текст' } });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Сообщение для сеанса' }), {
+    target: { value: 'Исходный пользовательский текст' }
+  });
   fireEvent.click(screen.getByRole('button', { name: 'Отправить сообщение' }));
-  await waitFor(() => expect(mocks.ai).toHaveBeenCalledTimes(1));
-  expect(textbox).toHaveValue('Исходный пользовательский текст');
+  await waitFor(() => expect(mocks.ai).toHaveBeenCalledOnce());
+  expect(mocks.create).toHaveBeenCalledOnce();
+  expect(mocks.create.mock.calls[0][1].content).toBe('Исходный пользовательский текст');
+  expect(mocks.append).not.toHaveBeenCalled();
+  await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
   expect(screen.getByRole('alert').textContent).not.toContain('SENSITIVE_PROVIDER_BODY');
-  expect(mocks.addDoc).not.toHaveBeenCalled();
-  expect(mocks.setDoc).not.toHaveBeenCalled();
-  expect(screen.queryByRole('button', { name: 'Сохранить сеанс' })).not.toBeInTheDocument();
+  expect(mocks.ai).toHaveBeenCalledOnce();
 });
