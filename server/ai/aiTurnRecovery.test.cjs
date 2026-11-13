@@ -204,3 +204,21 @@ test("P0: after max explicit attempts, UI cannot offer another paid retry", () =
   assert.equal(state.canRetry, false);
   assert.equal(state.billedPossible, true);
 });
+
+test("P0: upstream 400 or 502 is classified in private receipt without body", async () => {
+  const { store, db } = setup();
+  const first = await store.claim(params());
+  await store.providerStarted(first);
+  const error = { code: "unavailable", secretBody: "PRIVATE_GROK_RESPONSE" };
+  Object.defineProperty(error, "upstreamHttpStatus", {
+    value: 400, enumerable: false
+  });
+  await store.finishFailed(first, { error });
+  const state = await store.status({
+    uid: UID, sessionId: SID, sourceTurnId: USER_ID
+  });
+  assert.equal(state.status, "failed_after_provider");
+  assert.equal(state.errorCode, "xai-invalid-request");
+  assert.equal(state.canRetry, true);
+  assert.equal(JSON.stringify(db.docs.get(receiptPath(UID))).includes("PRIVATE"), false);
+});
