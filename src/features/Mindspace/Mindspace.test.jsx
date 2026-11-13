@@ -47,9 +47,10 @@ describe('PRODUCT-05B Mindspace UI',()=>{
       name:'Прокручиваемое смысловое пространство'
     })).toBeInTheDocument();
     expect(saveMindLink).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByRole('combobox',{name:/Как связаны эти темы/}),{
-      target:{value:'supports'}
-    });
+    const relation=screen.getByRole('combobox',{name:'Тип смысловой связи'});
+    fireEvent.click(relation);
+    expect(document.querySelector('select')).toBeNull();
+    fireEvent.click(screen.getByRole('option',{name:'Поддерживает'}));
     fireEvent.change(screen.getByRole('textbox',{name:/Почему вы видите связь/}),{
       target:{value:'Работа влияет на отдых'}
     });
