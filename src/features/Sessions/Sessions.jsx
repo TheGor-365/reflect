@@ -6,6 +6,7 @@ import { railwayAiRecoveryEnabled } from '../../api/reflectRailwayService';
 import ReplyRecoveryPanel from './ReplyRecoveryPanel';
 import { createDurableSession, appendDurableTurn } from './sessionPersistence';
 import ChatMessage from './ChatMessage';
+import SessionEvidenceLedger from './SessionEvidenceLedger';
 import SessionLibrary from './SessionLibrary';
 import { sessionDisplayTitle } from '../Diary/diaryPresentation';
 import SessionComposer from './SessionComposer';
@@ -487,6 +488,16 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
         {activeSession && (
           <SessionReturnCheckIn key={activeSession.id}
             session={activeSession} userId={userId} />
+        )}
+        {activeSession && (
+          <SessionEvidenceLedger key={activeSession.id}
+            session={{...activeSession, hypothesisReviews: reviews}}
+            onCompose={text => { setUserInput(text); setSendError(''); }}
+            onFocusTurn={turnId => {
+              const match = [...document.querySelectorAll('[data-reflect-turn-id]')]
+                .find(node => node.getAttribute('data-reflect-turn-id') === turnId);
+              match?.scrollIntoView?.({behavior:'smooth',block:'center'});
+            }}/>
         )}
         <div className="reflect-session-messages" role="log" aria-label="История сообщений" aria-live="polite">
           <div className="reflect-session-messages-inner">
