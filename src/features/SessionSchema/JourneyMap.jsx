@@ -253,7 +253,7 @@ export default function JourneyMap({
                   <td>{facts.stepProgress
                     ? `${facts.stepProgress.done}/${facts.stepProgress.total}` : 'Нет данных'}</td>
                   <td>{facts.stepProgress
-                    ? 'Отмеченные вами шаги за всё время; дату выполнения может быть неизвестна'
+                    ? 'Отмеченные вами шаги за всё время; дата выполнения может быть неизвестна'
                     : 'Нет подтверждённых данных; доля за период не рассчитывается'}</td></tr>
               </tbody>
             </table>
