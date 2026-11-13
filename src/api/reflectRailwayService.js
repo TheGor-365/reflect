@@ -57,7 +57,8 @@ export async function getRailwayAnalysis(payload) {
         "xai-invalid-request", "xai-unauthorized", "xai-forbidden",
         "xai-endpoint-not-found", "xai-upstream-timeout",
         "xai-request-too-large", "xai-rate-limited",
-        "xai-upstream-error", "xai-unavailable"
+        "xai-upstream-error", "xai-unavailable",
+        "invalid-provider-response"
       ];
       throw new Error(safeCodes.includes(error?.error)
         ? error.error : "ai-request-not-completed");
