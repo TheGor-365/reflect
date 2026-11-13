@@ -14,6 +14,7 @@ import AISettings from './features/AISettings/AISettings';
 import { currentTabFromLocation, pushTabToHistory } from './navigation/tabRoute';
 import Goals from './features/Goals/Goals';
 import Sessions from './features/Sessions/Sessions';
+import { buildSessionLibrary } from './features/Sessions/sessionLibrary';
 import SessionSchema from './features/SessionSchema/SessionSchema';
 import Loader from './components/common/Loader';
 import AppFailureView from './components/common/AppFailureView';
@@ -104,6 +105,23 @@ export default function App() {
     setFocusDiaryNoteSource(null);
   }, [userId]);
   const [sessionLibraryRequested, setSessionLibraryRequested] = useState(true);
+
+  useEffect(() => {
+    // A signed-in user must never inherit the previous owner's open thread.
+    setCurrentSessionId(null);
+    setSessionLibraryRequested(true);
+  }, [userId]);
+
+  useEffect(() => {
+    // Restore the newest genuinely saved thread after browser refresh.
+    // Resolve only from the authenticated owner's Firestore subscription:
+    // no private identifiers, transcripts or profile in URL/localStorage.
+    if (!userId || currentSessionId !== null || activeTab !== 'sessions') return;
+    const latest = buildSessionLibrary(sessions)[0];
+    if (!latest) return;
+    setCurrentSessionId(latest.id);
+    setSessionLibraryRequested(false);
+  }, [userId, currentSessionId, activeTab, sessions]);
 
   // --- Modal State ---
   const [viewingContent, setViewingContent] = useState(null);
@@ -236,7 +254,7 @@ export default function App() {
     setIsSidebarOpen(false);
   };
   const changeTab = (tab) => {
-    if (tab === 'sessions') setSessionLibraryRequested(true);
+    if (tab === 'sessions') setSessionLibraryRequested(!currentSessionId);
     if (tab === 'diary') setFocusDiaryNoteSource(null);
     navigateToTab(tab);
   };
