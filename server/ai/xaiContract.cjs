@@ -11,6 +11,9 @@
 const { PolicyError, LIMITS, validateAssistantReply } = require("./policy.cjs");
 
 const MODEL = "grok-4.3";
+// Structured JSON envelopes need additional tokens beyond the rendered text.
+// This server-only cap is paired with an atomic budget reservation.
+const MAX_STRUCTURED_OUTPUT_TOKENS = 1024;
 const ENDPOINT = "https://api.x.ai/v1/responses";
 const INPUT_USD_PER_MILLION = 1.25; // xAI published 2026-11-07; recheck live
 const OUTPUT_USD_PER_MILLION = 2.50;
@@ -62,7 +65,7 @@ function extractXaiText(reply, { structured = false } = {}) {
       !Number.isSafeInteger(reply.usage.input_tokens) ||
       !Number.isSafeInteger(reply.usage.output_tokens) ||
       reply.usage.input_tokens < 0 || reply.usage.output_tokens < 0 ||
-      reply.usage.output_tokens > LIMITS.maxOutputTokens) {
+      reply.usage.output_tokens > (structured ? MAX_STRUCTURED_OUTPUT_TOKENS : LIMITS.maxOutputTokens)) {
     failure("invalid-provider-response");
   }
   let text = "";
@@ -140,5 +143,5 @@ async function simulateXai({ message, fixture }) {
 module.exports = {
   MODEL, ENDPOINT, INPUT_USD_PER_MILLION, OUTPUT_USD_PER_MILLION,
   createSyntheticXaiRequest, extractXaiText,
-  estimatePublishedUsd, simulateXai
+  estimatePublishedUsd, simulateXai, MAX_STRUCTURED_OUTPUT_TOKENS
 };
