@@ -6,6 +6,7 @@ import { railwayAiRecoveryEnabled } from '../../api/reflectRailwayService';
 import ReplyRecoveryPanel from './ReplyRecoveryPanel';
 import { createDurableSession, appendDurableTurn } from './sessionPersistence';
 import ChatMessage from './ChatMessage';
+import SessionEvidenceLedger from './SessionEvidenceLedger';
 import SessionLibrary from './SessionLibrary';
 import { sessionDisplayTitle } from '../Diary/diaryPresentation';
 import SessionComposer from './SessionComposer';
@@ -488,6 +489,21 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
           <SessionReturnCheckIn key={activeSession.id}
             session={activeSession} userId={userId} />
         )}
+        {activeSession && (
+          <SessionEvidenceLedger key={activeSession.id}
+            session={{...activeSession, hypothesisReviews: reviews}}
+            onCompose={text => {
+              // Inserting preview must never discard an unfinished owner draft.
+              setUserInput(previous => previous.trim()
+                ? previous + '\n\n' + text : text);
+              setSendError('');
+            }}
+            onFocusTurn={turnId => {
+              const match = [...document.querySelectorAll('[data-reflect-turn-id]')]
+                .find(node => node.getAttribute('data-reflect-turn-id') === turnId);
+              match?.scrollIntoView?.({behavior:'smooth',block:'center'});
+            }}/>
+        )}
         <div className="reflect-session-messages" role="log" aria-label="История сообщений" aria-live="polite">
           <div className="reflect-session-messages-inner">
             {isNewSessionView && messagesToDisplay.length === 0 && (
@@ -532,7 +548,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
         <div className="reflect-session-compose-dock">
           {AI_SESSION_ENABLED && (
             <div className="reflect-ai-send-consent">
-              <p className="reflect-ai-send-disclosure" id="reflect-session-send-privacy">Отправляя сообщение в Grok, вы разрешаете передать только его текст. История, профиль и дневник не отправляются; xAI может хранить API-запрос и ответ до 30 дней.</p>
+              <p className="reflect-ai-send-disclosure" id="reflect-session-send-privacy">Отправляя сообщение в Grok, вы разрешаете передать весь текст поля ввода. История, профиль и дневник не добавляются автоматически; если вы вручную вставили выдержки предыдущих сообщений, они будут отправлены как часть этого текста. xAI может хранить API-запрос и ответ до 30 дней.</p>
               <p className="reflect-session-autosave-status" role="status">
                 Диалог сохраняется автоматически. Повторный вызов Grok не выполняется при ошибке записи.
               </p>

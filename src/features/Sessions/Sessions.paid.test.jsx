@@ -52,7 +52,9 @@ test('paid Sessions have an explicit send disclosure but no debug widgets or che
   expect(screen.getByRole('textbox', { name: 'Сообщение для сеанса' }))
     .toHaveAttribute('aria-describedby',
       'reflect-session-message-hint reflect-session-send-privacy');
-  expect(container.querySelector('input[type="checkbox"]')).toBeNull();
+  // The optional collapsed evidence ledger may contain selection checkboxes.
+  // It must never turn paid Send into a checkbox-gated action.
+  expect(container.querySelector('.reflect-session-compose-dock input[type="checkbox"]')).toBeNull();
   expect(screen.queryByText(/Railway staging · проверка доступа/)).toBeNull();
   expect(screen.queryByText(/Проверить доступ к Grok без генерации/)).toBeNull();
   expect(screen.queryByText(/Пока ИИ недоступен/)).toBeNull();
@@ -70,7 +72,9 @@ test('explicit Send invokes only one AI request without a checkbox or automatic 
   await waitFor(() => {
     expect(screen.getByText('Один синтетический ответ')).toBeInTheDocument();
   });
-  expect(container.querySelector('input[type="checkbox"]')).toBeNull();
+  // The optional collapsed evidence ledger may contain selection checkboxes.
+  // It must never turn paid Send into a checkbox-gated action.
+  expect(container.querySelector('.reflect-session-compose-dock input[type="checkbox"]')).toBeNull();
   expect(mocks.ai).toHaveBeenCalledTimes(1);
   expect(mocks.create).toHaveBeenCalledOnce();
   expect(mocks.append).toHaveBeenCalledOnce();
