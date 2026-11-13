@@ -29,6 +29,10 @@ export default function Dashboard({
   const inbox=useMemo(()=>buildRecommendationInbox(sessions),[sessions]);
   const waitingRecommendation=inbox.recommendations.find(item=>item.status==='pending');
   const waitingClarification=inbox.clarifications[0]||null;
+  const recommendationProvisional=Boolean(waitingRecommendation &&
+    (waitingRecommendation.reviewedCount < waitingRecommendation.hypothesisCount ||
+      waitingRecommendation.challengedCount > 0 ||
+      waitingRecommendation.unknowns.length > 0));
   const maxCount=Math.max(1,...snapshot.activity.map(day=>day.total));
   const hasAny=sessions.length>0||goals.length>0||diaryNotes.length>0;
   const hasPeriodEvents=snapshot.eventCounts.total>0;
@@ -70,7 +74,9 @@ export default function Dashboard({
             <section className="reflect-dashboard-section reflect-dashboard-next-decision"
               aria-label="Ожидающие вашего решения предложения Reflect">
               <div className="reflect-dashboard-section-heading">
-                <h3><Lightbulb size={19} aria-hidden="true"/> Следующее решение</h3>
+                <h3><Lightbulb size={19} aria-hidden="true"/>
+                  {recommendationProvisional ? 'Гипотеза на проверке' : 'Следующее решение'}
+                </h3>
                 <span>{inbox.pendingCount} предложений и уточнений без решения</span>
               </div>
               {waitingRecommendation?(
