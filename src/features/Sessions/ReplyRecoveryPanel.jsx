@@ -28,6 +28,8 @@ const SAFE_ERROR_EXPLANATIONS = Object.freeze({
   'xai-rate-limited': 'На стороне xAI сработало ограничение запросов.',
   'xai-upstream-timeout': 'Истекло время ожидания ответа xAI.',
   'xai-upstream-error': 'Сервис xAI завершил запрос с ошибкой.',
+  'xai-request-too-large': 'xAI отклонил размер переданного запроса.',
+  'xai-unavailable': 'xAI отклонил запрос; категория отказа не уточнена.',
   'unavailable': 'Сервис не смог подтвердить ответ. Уточнение причины недоступно.',
   'resource-exhausted': 'Сработал лимит на сервере Reflect.',
   'permission-denied': 'Операция отклонена проверкой доступа.',
