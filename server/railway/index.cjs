@@ -20,7 +20,10 @@ const ERROR_STATUS = Object.freeze({
   "resource-exhausted": 429, "unavailable": 503,
   "reauthentication-required": 401, "auth-permission-missing": 503,
   "auth-verification-unavailable": 503,
-  "attestation-unavailable": 503
+  "attestation-unavailable": 503,
+  // A complete HTTP 200 from xAI is NOT evidence of a valid JSON envelope.
+  // Give the user a safe category, never provider body, prompt or secrets.
+  "invalid-provider-response": 502
 });
 
 function respond(res, status, data, origin = "") {

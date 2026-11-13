@@ -413,3 +413,18 @@ test("CORS preflight only for approved staging origin", async () => {
     assert.equal(response.status, 204);
   });
 });
+test("invalid or incomplete provider JSON gets a safe distinct status, not generic 500", async () => {
+  await withServer(deps({
+    handleReply: async () => {
+      const error = new PolicyError("invalid-provider-response");
+      Object.defineProperty(error, "secretMessage", { value: "PRIVATE_OUTPUT" });
+      throw error;
+    }
+  }), async url => {
+    const response = await send(url);
+    assert.equal(response.status, 502);
+    const body = await response.json();
+    assert.deepEqual(body, { error: "invalid-provider-response" });
+    assert.equal(JSON.stringify(body).includes("PRIVATE_OUTPUT"), false);
+  });
+});

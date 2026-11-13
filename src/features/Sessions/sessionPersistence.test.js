@@ -49,6 +49,8 @@ describe('P0 durable chat boundary', () => {
     );
     expect(mocks.setDoc).toHaveBeenCalledOnce();
     expect(mocks.setDoc.mock.calls[0][1].chatHistory).toEqual([userTurn]);
+    expect(mocks.setDoc.mock.calls[0][1].title).toBe('разобраться');
+    expect(mocks.setDoc.mock.calls[0][1].titleSource).toBe('auto');
     expect(mocks.setDoc.mock.calls[0][1].recommendations).toEqual([]);
   });
 

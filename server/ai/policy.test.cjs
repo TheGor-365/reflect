@@ -170,3 +170,12 @@ test("policy has no logging, persistence, provider calls or imported user data",
   validateRequest(original, CONTEXT);
   assert.deepEqual(original, copy);
 });
+
+test("structured mode reserves more tokens atomically, without changing legacy calls", () => {
+  const legacy = reserve();
+  const structured = reserve({ maxOutputTokens: 1024 });
+  assert.equal(legacy.reservationTokens, 300 + LIMITS.maxOutputTokens);
+  assert.equal(structured.reservationTokens, 300 + 1024);
+  assert.equal(structured.projectReservedTokensAfter, 300 + 1024);
+  assert.throws(() => reserve({ maxOutputTokens: 2048 }), reason("invalid-argument"));
+});
