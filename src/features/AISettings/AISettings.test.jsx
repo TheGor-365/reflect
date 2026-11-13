@@ -13,6 +13,11 @@ vi.mock('firebase/firestore', () => ({
   serverTimestamp: vi.fn(() => ({ server: 'timestamp' }))
 }));
 
+function choosePreference(label, caption) {
+  fireEvent.click(screen.getByRole('combobox', { name: new RegExp(label) }));
+  fireEvent.click(screen.getByRole('option', { name: caption }));
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   getDoc.mockResolvedValue({ exists: () => false });
@@ -56,7 +61,7 @@ test('preferences write only to current owner, not to profile/diary or AI provid
     autoSaveRecommendations: true, updatedAt: { server: 'timestamp' }
   }));
   expect(serverTimestamp).toHaveBeenCalledTimes(1);
-  expect(await screen.findByText(/Подключение к AI backend ещё не выполнено/))
+  expect(await screen.findByText(/Сервер Reflect применяет их к новым структурированным ответам/))
     .toBeInTheDocument();
 });
 
@@ -69,7 +74,7 @@ test('previous saved preferences are loaded without changing Firestore', async (
   }) });
   render(<AISettings userId="existing-owner"/>);
   expect(await screen.findByRole('combobox', { name: /Глубина ответа/ }))
-    .toHaveValue('deep');
+    .toHaveTextContent('Подробно');
   expect(screen.getByRole('checkbox', { name: /Индикатор достаточности контекста/ }))
     .toBeChecked();
   expect(setDoc).not.toHaveBeenCalled();
@@ -108,7 +113,7 @@ test('write failure keeps changed values visible and allows retry', async () => 
   expect(await screen.findByRole('alert')).toHaveTextContent('Сохранение не подтверждено');
   expect(toggle).toBeChecked();
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить настройки' }));
-  expect(await screen.findByText(/Подключение к AI backend ещё не выполнено/))
+  expect(await screen.findByText(/Сервер Reflect применяет их к новым структурированным ответам/))
     .toBeInTheDocument();
   expect(setDoc).toHaveBeenCalledTimes(2);
 });
@@ -137,9 +142,7 @@ test('explicit save survives remount and reloads deep preference from Firestore'
   setDoc.mockImplementation(async (reference, data) => { stored.set(reference.path, data); });
 
   const view = render(<AISettings userId="owner-reload"/>);
-  fireEvent.change(await screen.findByRole('combobox', { name: /Глубина ответа/ }), {
-    target: { value: 'deep' }
-  });
+  choosePreference('Глубина ответа', 'Подробно');
   expect(screen.getByText(/Есть несохранённые изменения/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить настройки' }));
   expect(await screen.findByText(/Настройки сохранены и подтверждены сервером/))
@@ -150,7 +153,7 @@ test('explicit save survives remount and reloads deep preference from Firestore'
 
   render(<AISettings userId="owner-reload"/>);
   expect(await screen.findByRole('combobox', { name: /Глубина ответа/ }))
-    .toHaveValue('deep');
+    .toHaveTextContent('Подробно');
   expect(setDoc).toHaveBeenCalledTimes(1);
 });
 
@@ -164,32 +167,28 @@ test('switching accounts never presents another owner\'s saved depth', async () 
   setDoc.mockImplementation(async (reference, data) => { stored.set(reference.path, data); });
 
   const first = render(<AISettings userId="owner-A"/>);
-  fireEvent.change(await screen.findByRole('combobox', { name: /Глубина ответа/ }), {
-    target: { value: 'deep' }
-  });
+  choosePreference('Глубина ответа', 'Подробно');
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить настройки' }));
   expect(await screen.findByText(/подтверждены сервером/)).toBeInTheDocument();
   first.unmount();
 
   const second = render(<AISettings userId="owner-B"/>);
   expect(await screen.findByRole('combobox', { name: /Глубина ответа/ }))
-    .toHaveValue('balanced');
+    .toHaveTextContent('Сбалансированно');
   second.unmount();
 
   render(<AISettings userId="owner-A"/>);
   expect(await screen.findByRole('combobox', { name: /Глубина ответа/ }))
-    .toHaveValue('deep');
+    .toHaveTextContent('Подробно');
 });
 
 test('server mismatch never shows a false positive save confirmation', async () => {
   getDocFromServer.mockResolvedValue({ exists: () => false });
   render(<AISettings userId="synthetic-owner"/>);
-  fireEvent.change(await screen.findByRole('combobox', { name: /Глубина ответа/ }), {
-    target: { value: 'deep' }
-  });
+  choosePreference('Глубина ответа', 'Подробно');
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить настройки' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('readback-mismatch');
-  expect(screen.getByRole('combobox', { name: /Глубина ответа/ })).toHaveValue('deep');
+  expect(screen.getByRole('combobox', { name: /Глубина ответа/ })).toHaveTextContent('Подробно');
   expect(screen.queryByText(/Настройки сохранены и подтверждены сервером/))
     .not.toBeInTheDocument();
 });
@@ -204,9 +203,7 @@ test('read denial shows a safe diagnostic code without exposing document paths',
 
 test('unsaved changes warn on reload and are not misrepresented as persisted', async () => {
   const view = render(<AISettings userId="synthetic-owner"/>);
-  fireEvent.change(await screen.findByRole('combobox', { name: /Глубина ответа/ }), {
-    target: { value: 'deep' }
-  });
+  choosePreference('Глубина ответа', 'Подробно');
   const event = new Event('beforeunload', { cancelable: true });
   window.dispatchEvent(event);
   expect(event.defaultPrevented).toBe(true);
@@ -215,5 +212,5 @@ test('unsaved changes warn on reload and are not misrepresented as persisted', a
 
   render(<AISettings userId="synthetic-owner"/>);
   expect(await screen.findByRole('combobox', { name: /Глубина ответа/ }))
-    .toHaveValue('balanced');
+    .toHaveTextContent('Сбалансированно');
 });
