@@ -182,6 +182,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
         'xai-upstream-timeout': 'xAI не завершил запрос вовремя. Повтор может быть тарифицирован.',
         'xai-request-too-large': 'xAI отклонил размер запроса. Сократите текст сообщения.',
         'xai-unavailable': 'xAI вернул отказ. Код ошибки сохранён без раскрытия личного текста.',
+        'invalid-provider-response': 'Grok ответил, но структура или полнота результата не прошла проверку сервера. Повторный запрос может быть оплачен: не отправляйте его автоматически.',
         'reauthentication-required': 'Firebase отклонил прежнюю сессию после смены данных входа. Войдите заново в существующий аккаунт. Сообщение не было отправлено Grok.',
         'unauthenticated': 'Firebase не подтвердил вход. Повторно войдите в существующий аккаунт. Сообщение не было отправлено Grok.',
         'auth-permission-missing': 'Серверу не хватает прав чтения Firebase Authentication. Проверьте доступ service account в staging. Grok не вызывался.',
