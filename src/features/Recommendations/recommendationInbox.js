@@ -45,7 +45,11 @@ export function buildRecommendationInbox(sessions = []) {
       };
 
       const clarification = safeText(interaction.clarifyingQuestion);
-      if (interaction.stage === 'clarify' && clarification) {
+      // A later user turn means the earlier prompt has been responded to or
+      // superseded. Do not keep nagging from obsolete clarifications.
+      const hasLaterUserTurn = history.slice(i + 1).some(next =>
+        next?.role === 'user' && refOk(next.id));
+      if (interaction.stage === 'clarify' && clarification && !hasLaterUserTurn) {
         clarifications.push({
           ...base, id: session.id + ':' + turn.id + ':clarify',
           question: clarification
