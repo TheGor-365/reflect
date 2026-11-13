@@ -37,9 +37,21 @@ export function buildRecommendationInbox(sessions = []) {
       const date = readableSessionDate(turn.timestamp) ||
         readableSessionDate(session.updatedAt) ||
         readableSessionDate(session.createdAt);
+      const hypotheses = Array.isArray(interaction.insights)
+        ? interaction.insights.filter(item => safeText(item)).slice(0, 2) : [];
+      const reviews = session.hypothesisReviews || {};
+      const reviewed = hypotheses.reduce((count, _hypothesis, index) =>
+        count + (Number.isInteger(reviews[`h-${turn.id}-${index}`]?.grade) ? 1 : 0), 0);
+      const challenged = hypotheses.reduce((count, _hypothesis, index) => {
+        const grade = reviews[`h-${turn.id}-${index}`]?.grade;
+        return count + (Number.isInteger(grade) && grade <= 1 ? 1 : 0);
+      }, 0);
       const base = {
         sessionId: session.id, sessionTitle: title,
         assistantMessageId: turn.id, sourceMessageId: preceding.id,
+        hypothesisCount: hypotheses.length, reviewedCount: reviewed,
+        challengedCount: challenged,
+        contextScope: 'current-message',
         date, unknowns: Array.isArray(interaction.unknowns)
           ? interaction.unknowns.filter(x => safeText(x)).slice(0, 2) : []
       };
