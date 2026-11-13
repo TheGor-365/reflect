@@ -8,6 +8,7 @@
  */
 const { createHash } = require("node:crypto");
 const { PolicyError, LIMITS, planQuotaReservation } = require("./policy.cjs");
+const { MAX_STRUCTURED_OUTPUT_TOKENS } = require("./xaiContract.cjs");
 const { planMoneyReservation } = require("./xaiCost.cjs");
 
 const ROOT = "_reflectAiPrivate";
@@ -42,7 +43,7 @@ function createHostedBudget(db, projectId) {
       global: root.collection("globalDays").doc(day)
     };
   };
-  async function reserve({ uid, requestId, message, nowMs }) {
+  async function reserve({ uid, requestId, message, nowMs, structured = false }) {
     if (!Number.isSafeInteger(nowMs) || nowMs < 0 ||
         nowMs > 8640000000000000 ||
         typeof uid !== "string" || uid.length < 1 || uid.length > 128 ||
@@ -75,7 +76,8 @@ function createHostedBudget(db, projectId) {
         recent: owner.recent, ids: []
       }, {
         nowMs, requestId, estimatedInputTokens: estimated,
-        projectReservedTokens: globalTokens
+        projectReservedTokens: globalTokens,
+        maxOutputTokens: structured ? MAX_STRUCTURED_OUTPUT_TOKENS : LIMITS.maxOutputTokens
       });
       const spend = planMoneyReservation({
         nowMs, reserveTicks: LIMITS_TICKS.maxPerRequestTicks,
