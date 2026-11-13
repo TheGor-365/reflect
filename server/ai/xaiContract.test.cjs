@@ -188,3 +188,12 @@ test("response larger than allowed content fails before reaching caller", () => 
     ] }]
   })), denied("invalid-provider-response"));
 });
+
+test("only structured JSON has the increased output cap", () => {
+  const structured = reply({ usage: { input_tokens: 210, output_tokens: 890 } });
+  assert.equal(extractXaiText(structured, { structured: true }).usage.outputTokens, 890);
+  assert.throws(() => extractXaiText(structured), denied("invalid-provider-response"));
+  assert.throws(() => extractXaiText(reply({
+    usage: { input_tokens: 210, output_tokens: 1025 }
+  }), { structured: true }), denied("invalid-provider-response"));
+});
