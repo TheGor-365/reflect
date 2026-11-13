@@ -12,7 +12,8 @@ const source = path.resolve(__dirname, "../../ai");
 const target = path.resolve(__dirname, "../functions/lib");
 const ALLOWED = Object.freeze([
   "policy.cjs", "xaiContract.cjs", "xaiCost.cjs", "interactionContract.cjs",
-  "xaiProviderAdapter.cjs", "hostedBudget.cjs", "hostedHandler.cjs"
+  "xaiProviderAdapter.cjs", "hostedBudget.cjs", "hostedHandler.cjs",
+  "aiTurnRecovery.cjs"
 ]);
 fs.mkdirSync(target, { recursive: true, mode: 0o755 });
 for (const filename of ALLOWED) {

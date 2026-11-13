@@ -174,3 +174,6 @@ test("M1 no/invalid/unavailable owner preferences stay structured and fail close
 // Keep consented context boundary covered by Stage04F's explicitly enumerated
 // server-only test invocation, without enabling provider dispatch or routes.
 require("./sessionMemory.test.cjs");
+
+// P0: exercise server-side reply recovery transactional fixtures in Stage04F.
+require("./aiTurnRecovery.test.cjs");

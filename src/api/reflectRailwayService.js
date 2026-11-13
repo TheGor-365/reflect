@@ -13,9 +13,14 @@ const origin = (import.meta.env.VITE_REFLECT_RAILWAY_AI_ORIGIN || "").trim();
 const safeOrigin = origin === "https://reflect-ai-api-staging.up.railway.app";
 const safeClient = safeOrigin && stagingAppCheckEnabled && !hostedAiEnabled;
 export const railwayAiEnabled = requested && safeClient;
+const recoveryRequested = import.meta.env.VITE_ENABLE_REFLECT_AI_RECOVERY === "true";
+// A separate staging frontend switch. The server has its own independent OFF
+// by default receipt gate. Neither permits reading consented chat history.
+export const railwayAiRecoveryEnabled = recoveryRequested && railwayAiEnabled;
 export const railwayPrecheckEnabled = precheckRequested && safeClient && !requested;
 
-if ((requested && !railwayAiEnabled) ||
+if ((recoveryRequested && !railwayAiRecoveryEnabled) ||
+    (requested && !railwayAiEnabled) ||
     (precheckRequested && !railwayPrecheckEnabled)) {
   throw new Error("Railway AI requires the isolated signed staging configuration.");
 }
@@ -217,6 +222,68 @@ export async function checkRailwayProviderAccess() {
       throw new Error("diagnostics-unavailable");
     }
     return result.status;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+
+/**
+ * Owner-requested FREE recovery status, NEVER a provider operation. A new
+ * signed limited-use App Check token is consumed each time; zero transcript
+ * or profile is transmitted. No automatic retry and no sensitive logs.
+ */
+export async function readRailwayTurnStatus(sessionId, sourceTurnId) {
+  if (!railwayAiRecoveryEnabled || !appCheckClient || !auth.currentUser ||
+      typeof sessionId !== "string" ||
+      !/^[A-Za-z0-9_-]{1,128}$/.test(sessionId) ||
+      typeof sourceTurnId !== "string" ||
+      !/^user-[A-Za-z0-9_-]{12,80}$/.test(sourceTurnId)) {
+    throw new Error("invalid-argument");
+  }
+  const [idToken, appCheck] = await Promise.all([
+    auth.currentUser.getIdToken(), getLimitedUseToken(appCheckClient)
+  ]);
+  if (!idToken || !appCheck?.token) throw new Error("attestation-unavailable");
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), 15000);
+  try {
+    const response = await fetch(origin + "/v1/ai/attempt-status", {
+      method: "POST", mode: "cors", cache: "no-store",
+      credentials: "omit",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + idToken,
+        "X-Firebase-AppCheck": appCheck.token
+      },
+      body: JSON.stringify({ sessionId, sourceTurnId }),
+      signal: abort.signal
+    });
+    const data = await response.json().catch(() => null);
+    if (response.status !== 200) {
+      const allow = [
+        "unauthenticated", "reauthentication-required", "permission-denied",
+        "attestation-unavailable", "not-found", "invalid-argument",
+        "auth-verification-unavailable", "auth-permission-missing"
+      ];
+      throw new Error(allow.includes(data?.error) ? data.error : "recovery-unavailable");
+    }
+    const states = [
+      "not_tracked", "reply_exists", "provider_pending",
+      "outcome_unknown", "failed_before_provider",
+      "failed_after_provider", "persisted_reply"
+    ];
+    if (!states.includes(data?.status) || data.sessionId !== sessionId ||
+        data.sourceTurnId !== sourceTurnId ||
+        typeof data.billedPossible !== "boolean" ||
+        typeof data.canRetry !== "boolean") {
+      throw new Error("invalid-server-response");
+    }
+    return {
+      status: data.status, billedPossible: data.billedPossible,
+      canRetry: data.canRetry, errorCode: data.errorCode || null,
+      requestId: data.requestId || null
+    };
   } finally {
     clearTimeout(timer);
   }
