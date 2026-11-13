@@ -13,7 +13,9 @@ import Mindspace from './features/Mindspace/Mindspace';
 import AISettings from './features/AISettings/AISettings';
 import { currentTabFromLocation, pushTabToHistory } from './navigation/tabRoute';
 import Goals from './features/Goals/Goals';
+import GoalSuggestions from './features/Goals/GoalSuggestions';
 import Sessions from './features/Sessions/Sessions';
+import Recommendations from './features/Recommendations/Recommendations';
 import { buildSessionLibrary } from './features/Sessions/sessionLibrary';
 import SessionSchema from './features/SessionSchema/SessionSchema';
 import Loader from './components/common/Loader';
@@ -427,17 +429,24 @@ export default function App() {
               onOpenJourney={id => { setCurrentSessionId(id); navigateToTab('sessionSchema'); }}
               isLoading={isLoadingData}
           />;
+      case 'recommendations':
+        return <Recommendations sessions={sessions}
+          onOpenSession={selectSession}
+          onOpenGoals={() => navigateToTab('goals')} />;
       case 'aiSettings':
         return <AISettings key={userId} userId={userId} sessions={sessions}/>;
       case 'goals':
-        return <Goals 
-          goals={goals} 
-          userId={userId} 
-          onAppend={handleAppendToEntry}
-          onFeedback={setFeedbackGoal}
-          onOpenSession={selectSession}
-          focusGoalId={focusGoalId}
-        />;
+        return <>
+          <GoalSuggestions sessions={sessions} onOpenSession={selectSession}/>
+          <Goals
+            goals={goals}
+            userId={userId}
+            onAppend={handleAppendToEntry}
+            onFeedback={setFeedbackGoal}
+            onOpenSession={selectSession}
+            focusGoalId={focusGoalId}
+          />
+        </>;
       case 'sessionSchema':
         return <SessionSchema 
           sessions={sessions} 
@@ -456,6 +465,7 @@ export default function App() {
           focusTurnId={focusTurnId}
           onStartNewSession={handleNewSession}
           onOpenGoals={() => navigateToTab('goals')}
+          onOpenRecommendations={() => navigateToTab('recommendations')}
           libraryRequested={sessionLibraryRequested}
           onCloseLibrary={() => setSessionLibraryRequested(false)}
           onOpenLibrary={() => setSessionLibraryRequested(true)}
@@ -486,6 +496,7 @@ export default function App() {
         activeTab={activeTab}
         changeTab={changeTab}
         sessions={sessions}
+        goals={goals}
         currentSessionId={currentSessionId}
         selectSession={selectSession}
         handleNewSession={handleNewSession}
