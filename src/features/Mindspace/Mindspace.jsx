@@ -2,9 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowUpRight, BrainCircuit, Check, CircleHelp, Compass,
   GitBranch, Link2, Network, Pencil, RotateCcw, Sparkles,
-  Target, Trash2, X
+  Target, Trash2, X, ZoomIn, ZoomOut, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Eye, EyeOff
 } from 'lucide-react';
-import { buildMindspace, layoutMindspace, RELATIONS } from './mindspaceModel';
+import { buildMindspace, layoutMindspace, RELATIONS,
+  filterMindspace, mindspaceEvidence } from './mindspaceModel';
+import ReflectSelect from '../../components/ReflectSelect';
 import { removeMindLink, saveMindLink, renameMindTopic } from './mindspaceOperations';
 import './mindspace.css';
 
@@ -42,6 +44,9 @@ export default function Mindspace({
   sessions=[],goals=[],userId,onOpenSource,onOpenJourney
 }){
   const [showIdeas,setShowIdeas]=useState(true);
+  const [showGoals,setShowGoals]=useState(true);
+  const [onlyUserLinks,setOnlyUserLinks]=useState(false);
+  const [mapScale,setMapScale]=useState(1);
   const [selectedId,setSelectedId]=useState(null);
   const [sourceNodeId,setSourceNodeId]=useState(null);
   const [targetNodeId,setTargetNodeId]=useState(null);
@@ -63,12 +68,16 @@ export default function Mindspace({
   const availableIdeas=useMemo(()=>buildMindspace(sessions,goals,{
     includeProposals:true
   }).nodes.some(node=>node.kind==='proposal'),[sessions,goals]);
-  const layout=useMemo(()=>layoutMindspace(graph),[graph]);
-  const allNodes=graph.nodes;
+  const displayedGraph=useMemo(()=>filterMindspace(graph,{
+    showGoals,onlyUserLinks
+  }),[graph,showGoals,onlyUserLinks]);
+  const evidence=useMemo(()=>mindspaceEvidence(graph),[graph]);
+  const layout=useMemo(()=>layoutMindspace(displayedGraph),[displayedGraph]);
+  const allNodes=displayedGraph.nodes;
   const selected=allNodes.find(node=>node.id===selectedId)||null;
   const source=allNodes.find(node=>node.id===sourceNodeId)||null;
   const target=allNodes.find(node=>node.id===targetNodeId)||null;
-  const semantic=graph.edges.filter(edge=>edge.kind==='semantic');
+  const semantic=displayedGraph.edges.filter(edge=>edge.kind==='semantic');
   const connected=selected?semantic.filter(edge=>
     edge.from===selected.id||edge.to===selected.id):[];
   const sourceRecord=source?.kind==='session'?
@@ -171,12 +180,19 @@ export default function Mindspace({
     const element=canvasRef.current;
     if(!element)return;
     element.scrollTo({
-      left:Math.max(0,(layout.width-element.clientWidth)/2),
-      top:Math.max(0,(layout.height-element.clientHeight)/2),
+      left:Math.max(0,(layout.width*mapScale-element.clientWidth)/2),
+      top:Math.max(0,(layout.height*mapScale-element.clientHeight)/2),
       behavior:'smooth'
     });
   };
-  const noContent=!graph.nodes.length;
+  const noContent=!displayedGraph.nodes.length;
+  const filteredEmpty=noContent && graph.nodes.length>0;
+  const panMap=(x,y)=>{
+    const element=canvasRef.current;
+    element?.scrollBy?.({left:x,top:y,behavior:'smooth'});
+  };
+  const zoomMap=delta=>setMapScale(prev=>
+    Math.max(.55,Math.min(1.6,Math.round((prev+delta)*100)/100)));
   return (
     <section className="reflect-mindspace" aria-label="Mindspace — карта смыслов">
       <header className="reflect-mindspace-top">
@@ -202,6 +218,12 @@ export default function Mindspace({
             <Compass size={16} aria-hidden="true"/> Список
           </button>
         </div>
+        <button type="button" className="reflect-mindspace-quiet"
+          aria-pressed={showGoals} onClick={()=>{
+            setShowGoals(value=>!value);reset();
+          }}>
+          <Target size={15} aria-hidden="true"/> Цели {showGoals?'видны':'скрыты'}
+        </button>
         {availableIdeas&&(
           <button type="button" className="reflect-mindspace-quiet"
             aria-pressed={showIdeas} onClick={()=>{
@@ -209,13 +231,50 @@ export default function Mindspace({
             }}><Sparkles size={15} aria-hidden="true"/>
             Идеи AI {showIdeas?'видны':'скрыты'}</button>
         )}
+        <button type="button" className="reflect-mindspace-quiet"
+          aria-pressed={onlyUserLinks} onClick={()=>{
+            setOnlyUserLinks(value=>!value);reset();
+          }}>
+          {onlyUserLinks?<EyeOff size={15}/>:<Eye size={15}/>}
+          {onlyUserLinks?'Только связанные':'Все темы'}
+        </button>
         {viewMode==='constellation'&&!noContent&&(
-          <button type="button" className="reflect-mindspace-center"
-            onClick={center} aria-label="Центрировать карту">
-            <RotateCcw size={17} aria-hidden="true"/>
-          </button>
+          <div className="reflect-mindspace-map-controls"
+            role="group" aria-label="Навигация Mindspace">
+            <button type="button" onClick={()=>zoomMap(-.1)}
+              aria-label="Уменьшить карту"><ZoomOut size={17}/></button>
+            <output aria-label="Масштаб Mindspace">{Math.round(mapScale*100)}%</output>
+            <button type="button" onClick={()=>zoomMap(.1)}
+              aria-label="Увеличить карту"><ZoomIn size={17}/></button>
+            <button type="button" onClick={()=>panMap(-120,0)}
+              aria-label="Сдвинуть карту влево"><ArrowLeft size={16}/></button>
+            <button type="button" onClick={()=>panMap(120,0)}
+              aria-label="Сдвинуть карту вправо"><ArrowRight size={16}/></button>
+            <button type="button" onClick={()=>panMap(0,-120)}
+              aria-label="Сдвинуть карту вверх"><ArrowUp size={16}/></button>
+            <button type="button" onClick={()=>panMap(0,120)}
+              aria-label="Сдвинуть карту вниз"><ArrowDown size={16}/></button>
+            <button type="button" className="reflect-mindspace-center"
+              onClick={center} aria-label="Центрировать карту">
+              <RotateCcw size={17} aria-hidden="true"/>
+            </button>
+          </div>
         )}
       </div>
+      <div className="reflect-mindspace-evidence"
+        aria-label="Факты и фильтры карты мыслей">
+        <p><strong>{evidence.topics}</strong> тем</p>
+        <p><strong>{evidence.goals}</strong> целей пользователя</p>
+        <p><strong>{evidence.aiIdeas}</strong> предложений AI</p>
+        <p><strong>{evidence.confirmedLinks}</strong> подтверждённых смысловых связей</p>
+      </div>
+      {evidence.confirmedLinks===0&&graph.nodes.length>0&&(
+        <p className="reflect-mindspace-hint">
+          На карте пока нет подтверждённых смысловых отношений.
+          Выберите тему, нажмите «Связать с темой или целью», выберите второй узел
+          и подтвердите смысл связи. Близость карточек — не доказательство.
+        </p>
+      )}
       {source&& !target&&(
         <div className="reflect-mindspace-guidance" role="status">
           <Link2 size={17} aria-hidden="true"/>
@@ -230,8 +289,14 @@ export default function Mindspace({
             <span><Link2 size={23}/></span>
             <span><Target size={29}/></span>
           </div>
-          <h3>Смыслы появятся из ваших записей</h3>
-          <p>Сохраните первую тему или цель. Мы не создаём психологический профиль и не придумываем связи без ваших решений.</p>
+          <h3>{filteredEmpty?'Под эти фильтры нет подтверждённых связей':
+              'Смыслы появятся из ваших записей'}</h3>
+          <p>{filteredEmpty
+            ? 'Снимите фильтр «Только связанные» или покажите скрытые типы узлов.'
+            : 'Сохраните первую тему или цель. Мы не создаём психологический профиль и не придумываем связи без ваших решений.'}</p>
+          {filteredEmpty&&<button type="button" onClick={()=>{
+            setOnlyUserLinks(false);setShowGoals(true);setShowIdeas(true);
+          }}>Показать все узлы</button>}
         </div>
       ):(
         <>
@@ -239,8 +304,11 @@ export default function Mindspace({
             <div className="reflect-mindspace-viewport" ref={canvasRef}
               role="region" tabIndex={0}
               aria-label="Прокручиваемое смысловое пространство">
+              <div className="reflect-mindspace-zoom-spacer"
+                style={{width:layout.width*mapScale,height:layout.height*mapScale}}>
               <div className="reflect-mindspace-world"
-                style={{width:layout.width,height:layout.height}}>
+                style={{width:layout.width,height:layout.height,
+                  transform:`scale(${mapScale})`,transformOrigin:'top left'}}>
                 <svg className="reflect-mindspace-svg" aria-hidden="true"
                   width={layout.width} height={layout.height}>
                   <defs>
@@ -273,11 +341,12 @@ export default function Mindspace({
                     onSelect={selectNode}/>
                 ))}
               </div>
+              </div>
             </div>
           ):(
             <div className="reflect-mindspace-accessible-list"
               role="region" aria-label="Список тем, целей и AI-идей">
-              {graph.nodes.map(node=>{
+              {displayedGraph.nodes.map(node=>{
                 const Icon=ICONS[node.kind]||CircleHelp;
                 return <button type="button" key={node.id}
                   onClick={()=>selectNode(node)} aria-pressed={selectedId===node.id}
@@ -385,14 +454,9 @@ export default function Mindspace({
             <button type="button" onClick={reset} aria-label="Закрыть редактор связи"><X size={18}/></button>
           </header>
           <form onSubmit={onSave}>
-            <label>Как связаны эти темы?
-              <select value={relation} disabled={busy}
-                onChange={event=>setRelation(event.target.value)}>
-                {Object.entries(RELATIONS).map(([id,label])=>(
-                  <option key={id} value={id}>{label}</option>
-                ))}
-              </select>
-            </label>
+            <ReflectSelect label="Как связаны эти темы?"
+              ariaLabel="Тип смысловой связи" value={relation} disabled={busy}
+              options={Object.entries(RELATIONS)} onChange={setRelation}/>
             <label>Почему вы видите связь? <small>Необязательно, до 400 символов</small>
               <textarea value={note} maxLength={400} rows={2} disabled={busy}
                 placeholder="Ваша собственная формулировка…"
