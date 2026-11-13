@@ -60,9 +60,11 @@ const schema = Object.freeze({
     clarifyingQuestion: short(220),
     insights: list(short(240)),
     recommendationCandidates: list(candidate, 1),
+    // Product-02 goals are not wired to owner approval yet. Never ask xAI to
+    // generate a field that parseInteraction always rejects (hard 502).
     goalCandidates: list({ type: "object", additionalProperties: false,
       properties: { title: short(120), sourceRefs: list({ type: "string", enum: ["current-message"] }, 1) },
-      required: ["title", "sourceRefs"] }, 1),
+      required: ["title", "sourceRefs"] }, 0),
     sourceRefs: list({ type: "string", enum: ["current-message"] }, 1),
     unknowns: list(short(160)),
     safetyFlags: list({ type: "string", enum: ["support-needed", "uncertain", "none"] }, 2)
@@ -89,6 +91,8 @@ const prompt = (settings, classification) => [
   "Не утверждай, что помнишь предыдущие сообщения: передано ТОЛЬКО текущее сообщение.",
   "sourceRefs всегда только current-message — это слова пользователя, НЕ внешний проверенный источник.",
   "Кандидаты рекомендаций — предложения, не факты и не разрешения на запись.",
+  "Пока нет подтверждённой механики принятия целей: goalCandidates ВСЕГДА [];",
+  "пользователь может запросить цель, но обсуждай её только как предложение в answer.",
   "Все массивы могут быть пусты. clarifyingQuestion — пустая строка, если вопрос не нужен.",
   "stage=clarify ровно когда clarifyingQuestion непустой, иначе stage=synthesize.",
   "answer — естественный ответ без JSON-обёртки; JSON формируется согласно schema."

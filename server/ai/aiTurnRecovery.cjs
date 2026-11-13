@@ -20,13 +20,43 @@ const SAFE_ERRORS = new Set([
   "already-exists", "resource-exhausted", "unavailable",
   "invalid-provider-response", "xai-invalid-request",
   "xai-unauthorized", "xai-forbidden", "xai-endpoint-not-found",
-  "xai-rate-limited", "xai-upstream-timeout", "xai-upstream-error"
+  "xai-rate-limited", "xai-upstream-timeout", "xai-upstream-error",
+  "xai-request-too-large", "xai-unavailable",
+  "xai-response-incomplete", "xai-envelope-invalid",
+  "xai-interaction-invalid", "xai-transport-invalid"
 ]);
 const fail = code => { throw new PolicyError(code); };
 const plain = value => Boolean(value) && typeof value === "object" &&
   !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
 const valid = (pattern, value) => typeof value === "string" && pattern.test(value);
-const codeOf = e => SAFE_ERRORS.has(e?.code) ? e.code : "unavailable";
+// The provider adapter strips upstream bodies and exposes only a numeric HTTP
+// code as non-enumerable trusted server metadata. Match the Railway gateway's
+// redacted categories on receipt; never store response content or headers.
+function codeOf(e) {
+  if (e?.code === "invalid-provider-response") {
+    const trustedStages = Object.freeze({
+      incomplete: "xai-response-incomplete",
+      envelope: "xai-envelope-invalid",
+      "interaction-contract": "xai-interaction-invalid",
+      "transport-shape": "xai-transport-invalid"
+    });
+    if (Object.hasOwn(trustedStages, e.providerFailureStage)) {
+      return trustedStages[e.providerFailureStage];
+    }
+  }
+  if (e?.code === "unavailable" &&
+      Number.isInteger(e.upstreamHttpStatus)) {
+    const safe = Object.freeze({
+      400: "xai-invalid-request", 401: "xai-unauthorized",
+      403: "xai-forbidden", 404: "xai-endpoint-not-found",
+      408: "xai-upstream-timeout", 413: "xai-request-too-large",
+      422: "xai-invalid-request", 429: "xai-rate-limited"
+    });
+    return safe[e.upstreamHttpStatus] ||
+      (e.upstreamHttpStatus >= 500 ? "xai-upstream-error" : "xai-unavailable");
+  }
+  return SAFE_ERRORS.has(e?.code) ? e.code : "unavailable";
+}
 const nowOk = value => Number.isSafeInteger(value) && value > 0;
 
 function validateTurnTarget({ uid, sessionId, sourceTurnId }) {

@@ -25,6 +25,17 @@ const t1 = "Мне предложили работу в небольшой ко�
 const t2 = "Три недели не могу закончить сайт. Начинаю менять дизайн вместо того, чтобы опубликовать. Хочу выпустить MVP за десять дней, но свободен только по вечерам";
 const t4 = "Сегодня был тяжёлый день. Я просто хочу записать, что меня расстроило, не нужно давать решение";
 
+test("structured goal schema matches PRODUCT-02 fail-closed policy", () => {
+  const plan = buildRequest(t2, enabled);
+  const schema = plan.body.text.format.schema;
+  assert.equal(schema.properties.goalCandidates.maxItems, 0);
+  assert.match(plan.body.input[0].content, /goalCandidates ВСЕГДА \[\]/);
+  assert.throws(() => parseInteraction(fixture({
+    intent: "plan", stage: "synthesize", clarifyingQuestion: "",
+    goalCandidates: [{ title: "Запуск MVP", sourceRefs: ["current-message"] }]
+  }), plan.settings, plan.classification), { code: "invalid-provider-response" });
+});
+
 test("T1 decision: a genuinely useful question and no unapproved goal", () => {
   assert.equal(preflight(t1).intent, "decide");
   const request = buildRequest(t1, enabled);

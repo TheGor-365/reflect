@@ -20,6 +20,35 @@ beforeEach(() => {
   });
 });
 
+test('free receipt check exposes only safe error class, never private provider detail', async () => {
+  mocks.status.mockResolvedValueOnce({
+    status: 'failed_after_provider', billedPossible: true, canRetry: true,
+    errorCode: 'invalid-provider-response'
+  });
+  renderPanel(vi.fn());
+  fireEvent.click(screen.getByRole('button', { name: 'Проверить статус бесплатно' }));
+  await waitFor(() => expect(screen.getByRole('note')).toHaveTextContent(
+    'Ответ провайдера не прошёл проверку структуры Reflect.'
+  ));
+  expect(screen.getByRole('note')).toHaveTextContent('invalid-provider-response');
+  expect(screen.getByRole('note')).not.toHaveTextContent('PRIVATE');
+  expect(screen.getByRole('button', { name: 'Сгенерировать ответ повторно' }))
+    .toBeInTheDocument();
+});
+
+test('unrecognized receipt metadata is not rendered as a diagnostic message', async () => {
+  mocks.status.mockResolvedValueOnce({
+    status: 'failed_after_provider', billedPossible: true, canRetry: false,
+    errorCode: 'SECRET_SESSION_DATA'
+  });
+  renderPanel(vi.fn());
+  fireEvent.click(screen.getByRole('button', { name: 'Проверить статус бесплатно' }));
+  await waitFor(() => expect(screen.getByText(/Запрос мог быть оплачен/))
+    .toBeInTheDocument());
+  expect(screen.queryByText(/SECRET_SESSION_DATA/)).not.toBeInTheDocument();
+  expect(screen.queryByRole('note')).not.toBeInTheDocument();
+});
+
 test('status is free, NO implicit provider call; retry needs two explicit actions', async () => {
   const retry = vi.fn().mockResolvedValue(true);
   renderPanel(retry);
@@ -76,4 +105,21 @@ test('failed status check never triggers provider and does not leak private SDK 
   ));
   expect(screen.getByRole('alert').textContent).not.toContain('PRIVATE_FIRESTORE_REPLY');
   expect(retry).not.toHaveBeenCalled();
+});
+
+test.each([
+  ['xai-response-incomplete', 'не завершил ответ'],
+  ['xai-envelope-invalid', 'служебная структура'],
+  ['xai-interaction-invalid', 'нарушает правила структуры Reflect'],
+  ['xai-transport-invalid', 'корректным JSON-ответом']
+])('safe errorCode %s appears only after owner requests status', async (code, text) => {
+  mocks.status.mockResolvedValueOnce({
+    status: 'failed_after_provider', billedPossible: true, canRetry: true,
+    errorCode: code
+  });
+  renderPanel(vi.fn());
+  expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Проверить статус бесплатно' }));
+  await waitFor(() => expect(screen.getByRole('note')).toHaveTextContent(text));
+  expect(screen.getByRole('note')).toHaveTextContent(code);
 });

@@ -87,7 +87,10 @@ test("malformed structured output is rejected after one attempt, not exposed", a
     }
   });
   await assert.rejects(adapter.invoke(message, settings),
-    e => e instanceof PolicyError && e.code === "invalid-provider-response");
+    e => e instanceof PolicyError &&
+      e.code === "invalid-provider-response" &&
+      e.providerFailureStage === "interaction-contract" &&
+      !Object.keys(e).includes("providerFailureStage"));
   assert.equal(calls, 1);
 });
 

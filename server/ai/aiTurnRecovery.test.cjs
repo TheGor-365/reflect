@@ -204,3 +204,47 @@ test("P0: after max explicit attempts, UI cannot offer another paid retry", () =
   assert.equal(state.canRetry, false);
   assert.equal(state.billedPossible, true);
 });
+
+test("P0: upstream 400 or 502 is classified in private receipt without body", async () => {
+  const { store, db } = setup();
+  const first = await store.claim(params());
+  await store.providerStarted(first);
+  const error = { code: "unavailable", secretBody: "PRIVATE_GROK_RESPONSE" };
+  Object.defineProperty(error, "upstreamHttpStatus", {
+    value: 400, enumerable: false
+  });
+  await store.finishFailed(first, { error });
+  const state = await store.status({
+    uid: UID, sessionId: SID, sourceTurnId: USER_ID
+  });
+  assert.equal(state.status, "failed_after_provider");
+  assert.equal(state.errorCode, "xai-invalid-request");
+  assert.equal(state.canRetry, true);
+  assert.equal(JSON.stringify(db.docs.get(receiptPath(UID))).includes("PRIVATE"), false);
+});
+
+test("P0: private receipt persists only whitelisted failure stage, never raw output", async () => {
+  for (const [stage, expected] of [
+    ["incomplete", "xai-response-incomplete"],
+    ["envelope", "xai-envelope-invalid"],
+    ["interaction-contract", "xai-interaction-invalid"],
+    ["transport-shape", "xai-transport-invalid"]
+  ]) {
+    const { store, db } = setup();
+    const attempt = await store.claim(params());
+    await store.providerStarted(attempt);
+    const error = { code: "invalid-provider-response", output: "SENSITIVE_GROK_DATA" };
+    Object.defineProperty(error, "providerFailureStage", {
+      value: stage, enumerable: false
+    });
+    await store.finishFailed(attempt, { error });
+    const state = await store.status({ uid: UID, sessionId: SID, sourceTurnId: USER_ID });
+    assert.equal(state.status, "failed_after_provider");
+    assert.equal(state.errorCode, expected);
+    assert.equal(state.billedPossible, true);
+    const receipt = db.docs.get(receiptPath(UID));
+    assert.equal(receipt.errorCode, expected);
+    assert.equal(JSON.stringify(receipt).includes("SENSITIVE"), false);
+    assert.equal(JSON.stringify(state).includes("SENSITIVE"), false);
+  }
+});

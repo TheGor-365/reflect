@@ -172,6 +172,37 @@ test("timeout abort is passed to transport, with no retry", async () => {
   assert.equal(calls, 1);
 });
 
+
+test("provider failure stages classify incomplete/envelope/transport without leaking response data", async () => {
+  const examples = [
+    { stage: "incomplete", transport: async () => success(reply({
+      status: "incomplete",
+      incomplete_details: { reason: "max_output_tokens" }
+    })) },
+    { stage: "envelope", transport: async () => success(reply({
+      model: "WRONG_MODEL"
+    })) },
+    { stage: "transport-shape", transport: async () =>
+      new Response("{PRIVATE_PROVIDER_BODY", {
+        status: 200, headers: { "content-type": "application/json" }
+      }) }
+  ];
+  for (const { stage, transport } of examples) {
+    let calls = 0;
+    const adapter = createXaiProviderAdapter({
+      readSecret: () => FAKE_KEY,
+      transport: async (...args) => { calls++; return transport(...args); }
+    });
+    await assert.rejects(adapter.invoke("Синтетическая проверка"), error =>
+      denied("invalid-provider-response")(error) &&
+      error.providerFailureStage === stage &&
+      !Object.keys(error).includes("providerFailureStage") &&
+      !JSON.stringify(error).includes("PRIVATE") &&
+      !JSON.stringify(error).includes("WRONG_MODEL"));
+    assert.equal(calls, 1, "No automatic paid retry");
+  }
+});
+
 test("response with wrong content-type or malformed JSON is refused", async () => {
   const inputs = [
     new Response("<html>SECRET</html>", { status: 200 }),

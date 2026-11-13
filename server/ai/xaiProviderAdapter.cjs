@@ -39,6 +39,22 @@ function fail(code, upstreamHttpStatus) {
   throw error;
 }
 
+/**
+ * Preserve the public PolicyError code and redacted HTTP payload. Only an
+ * in-memory, non-enumerable, fixed classification reaches the private attempt
+ * receipt. Never include model content, JSON paths, headers or prompts here.
+ */
+function classifyInvalidProvider(error, stage) {
+  if (error instanceof PolicyError && error.code === "invalid-provider-response" &&
+      ["transport-shape", "incomplete", "envelope", "interaction-contract"]
+        .includes(stage)) {
+    Object.defineProperty(error, "providerFailureStage", {
+      value: stage, enumerable: false, configurable: true
+    });
+  }
+  throw error;
+}
+
 async function readLimitedJson(response) {
   const contentType = response.headers?.get?.("content-type");
   if (typeof contentType !== "string" ||
@@ -155,15 +171,36 @@ function createXaiProviderAdapter({
     try {
       payload = await readLimitedJson(response);
     } catch (error) {
-      if (error instanceof PolicyError) throw error;
-      fail("invalid-provider-response");
+      classifyInvalidProvider(error instanceof PolicyError
+        ? error : new PolicyError("invalid-provider-response"), "transport-shape");
     }
-    const parsed = extractXaiText(payload, {
-      structured: Boolean(interactionConfig)
-    });
-    // Invalid structured output is not rendered or retried. One paid call only.
-    const interaction = interactionConfig
-      ? parseInteraction(parsed.text, request.settings, request.classification) : null;
+    // An HTTP 200 with status=incomplete is not a completed model answer.
+    // xAI explicitly documents this possible result under output limits.
+    if (payload?.status === "incomplete") {
+      classifyInvalidProvider(new PolicyError("invalid-provider-response"),
+        "incomplete");
+    }
+    let parsed;
+    try {
+      parsed = extractXaiText(payload, {
+        structured: Boolean(interactionConfig)
+      });
+    } catch (error) {
+      classifyInvalidProvider(error, "envelope");
+    }
+    // Preserve the distinction between an invalid provider envelope and a
+    // response which passed transport but violates Reflect's application
+    // contract. We never expose the JSON, prompts or exact rejected fields.
+    let interaction = null;
+    if (interactionConfig) {
+      try {
+        interaction = parseInteraction(
+          parsed.text, request.settings, request.classification
+        );
+      } catch (error) {
+        classifyInvalidProvider(error, "interaction-contract");
+      }
+    }
     // Provider-reported receipt is authoritative when available; the
     // published token-rate projection is informational, never a charge.
     // A missing receipt remains null, never $0 or an estimated debit.
