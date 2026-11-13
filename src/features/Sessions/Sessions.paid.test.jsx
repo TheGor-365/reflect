@@ -3,13 +3,16 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Sessions from './Sessions';
 
 const mocks = vi.hoisted(() => ({
-  ai: vi.fn(), save: vi.fn(), clearFeedback: vi.fn()
+  ai: vi.fn(), save: vi.fn(), clearFeedback: vi.fn(), create: vi.fn(), append: vi.fn()
 }));
 vi.mock('../../api/reflectAssistantService', () => ({
   AI_SESSION_ENABLED: true, getAnalysisFromAI: mocks.ai
 }));
 vi.mock('../../firebase/config', () => ({
   db: {}, appId: 'reflect-8fdc8'
+}));
+vi.mock('./sessionPersistence', () => ({
+  createDurableSession: mocks.create, appendDurableTurn: mocks.append
 }));
 vi.mock('../../hooks/useEntrySave', () => ({
   useEntrySave: () => ({
@@ -26,6 +29,8 @@ const props = {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.ai.mockResolvedValue({ response: 'Один синтетический ответ', actualUsdTicks: null });
+  mocks.create.mockResolvedValue({ id: 'session-paid', title: 'Сеанс' });
+  mocks.append.mockResolvedValue('session-paid');
 });
 
 test('paid Sessions have an explicit send disclosure but no debug widgets or checkbox', () => {
@@ -55,4 +60,6 @@ test('explicit Send invokes only one AI request without a checkbox or automatic 
   });
   expect(container.querySelector('input[type="checkbox"]')).toBeNull();
   expect(mocks.ai).toHaveBeenCalledTimes(1);
+  expect(mocks.create).toHaveBeenCalledOnce();
+  expect(mocks.append).toHaveBeenCalledOnce();
 });
