@@ -1,0 +1,59 @@
+name: Reflect M1.5 hypothesis feedback Rules (synthetic only)
+
+on:
+  pull_request:
+    paths:
+      - 'tests/staging/firebase.hypothesis-*.json'
+      - 'tests/staging/hypothesis-rules-smoke.cjs'
+      - 'server/hosted/firestore.rules'
+      - '.github/workflows/reflect-hypothesis-rules-emulator.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  owner-feedback-firestore:
+    name: owner feedback on ${{ matrix.mode }} Rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: candidate
+            project: demo-reflect-hypothesis-candidate
+            config: tests/staging/firebase.hypothesis-candidate.json
+            auth_host: 127.0.0.1:19199
+            firestore_host: 127.0.0.1:19181
+          - mode: hosted
+            project: demo-reflect-hypothesis-hosted
+            config: tests/staging/firebase.hypothesis-hosted.json
+            auth_host: 127.0.0.1:19299
+            firestore_host: 127.0.0.1:19281
+    env:
+      GCLOUD_PROJECT: ${{ matrix.project }}
+      REFLECT_HYPOTHESIS_RULES_MODE: ${{ matrix.mode }}
+      FIREBASE_AUTH_EMULATOR_HOST: ${{ matrix.auth_host }}
+      FIRESTORE_EMULATOR_HOST: ${{ matrix.firestore_host }}
+    steps:
+      - name: Checkout PR without deploy permissions
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Java 21 for emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install pinned Firebase emulator CLI
+        run: npm install --global firebase-tools@15.34.2
+      - name: Run disposable Auth and Firestore security matrix
+        run: |
+          firebase emulators:exec \
+            --config "${{ matrix.config }}" \
+            --project "${{ matrix.project }}" \
+            --only auth,firestore \
+            "node tests/staging/hypothesis-rules-smoke.cjs"
