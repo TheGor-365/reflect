@@ -3,6 +3,8 @@
  * Projections are deterministic and read-only over existing UID-scoped
  * Sessions and Goals. No AI-generated or inferred relationship is a fact.
  */
+import { sessionDisplayTitle } from '../Diary/diaryPresentation';
+
 export const MINDSPACE_VERSION = 'reflect.mindspace.v1';
 export const RELATIONS = Object.freeze({
   related: 'Перекликаются',
@@ -48,7 +50,7 @@ export function buildMindspace(sessions=[],goals=[],{
   for(const session of safeSessions){
     addNode({
       id:`session:${session.id}`,kind:'session',refId:session.id,
-      label:title(session.mindTitle || session.title,'Моя тема'),
+      label:title(session.mindTitle || sessionDisplayTitle(session),'Моя тема'),
       subtitle:'Сохранённая тема',author:'user',status:'saved',
       sourceRef:{kind:'session',sessionId:session.id},
       at:time(session.createdAt)
@@ -132,6 +134,47 @@ export function buildMindspace(sessions=[],goals=[],{
     confirmedLinks:edges.filter(e=>e.kind==='semantic').length,
     suggestedNodes:nodes.filter(n=>n.kind==='proposal'&&n.status==='proposed').length
   };
+}
+
+/**
+ * One owner-scoped evidence projection for the map AND accessible list.
+ * 'Only linked' means explicitly user-confirmed semantic edges, not closeness
+ * on the map, AI suggestions or routine session/goal membership.
+ */
+export function filterMindspace(graph, {
+  showGoals = true, onlyUserLinks = false
+} = {}) {
+  const confirmedIds = new Set(graph.edges
+    .filter(e => e.kind === 'semantic' && e.status === 'confirmed' &&
+      e.author === 'user')
+    .flatMap(e => [e.from, e.to]));
+  const nodes = graph.nodes.filter(n =>
+    (showGoals || n.kind !== 'goal') &&
+    (!onlyUserLinks || confirmedIds.has(n.id)));
+  const ids = new Set(nodes.map(n => n.id));
+  const edges = graph.edges.filter(e => ids.has(e.from) && ids.has(e.to));
+  return { ...graph, nodes, edges,
+    confirmedLinks: edges.filter(e => e.kind === 'semantic' &&
+      e.status === 'confirmed').length,
+    suggestedNodes: nodes.filter(n => n.kind === 'proposal' &&
+      n.status === 'proposed').length };
+}
+
+export function mindspaceEvidence(graph) {
+  const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
+  const links = Array.isArray(graph?.edges) ? graph.edges : [];
+  const semantic = links.filter(e => e.kind === 'semantic' &&
+    e.status === 'confirmed' && e.author === 'user');
+  const linked = new Set(semantic.flatMap(e => [e.from,e.to]));
+  return Object.freeze({
+    topics: nodes.filter(n => n.kind === 'session').length,
+    goals: nodes.filter(n => n.kind === 'goal').length,
+    aiIdeas: nodes.filter(n => n.kind === 'proposal').length,
+    confirmedLinks: semantic.length,
+    linkedNodes: linked.size,
+    unlinkedTopics: nodes.filter(n => n.kind === 'session' &&
+      !linked.has(n.id)).length
+  });
 }
 
 /** Stable organic constellation; no LLM or random physics is used. */
