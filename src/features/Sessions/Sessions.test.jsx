@@ -123,7 +123,7 @@ test('library navigation preserves an unsaved new-session draft and blocks accid
   fireEvent.click(screen.getByRole('button', { name: 'Показать все сеансы' }));
   expect(screen.getByRole('heading', { name: 'История размышлений' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Открыть беседу' }));
-  expect(screen.getByRole('alert')).toHaveTextContent('Сначала сохраните ответ или текст');
+  expect(screen.getByRole('alert')).toHaveTextContent('Есть неотправленный текст');
   expect(setCurrentSessionId).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'К беседе' }));
   expect(screen.getByRole('textbox', { name: 'Сообщение для сеанса' }))
