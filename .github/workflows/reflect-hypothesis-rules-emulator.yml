@@ -50,6 +50,11 @@ jobs:
           java-version: '21'
       - name: Install pinned Firebase emulator CLI
         run: npm install --global firebase-tools@15.34.2
+      - name: Copy actual hosted Rules into ephemeral emulator project
+        if: matrix.mode == 'hosted'
+        run: |
+          cp server/hosted/firestore.rules tests/staging/firestore.hypothesis-hosted.runtime.rules
+          cmp server/hosted/firestore.rules tests/staging/firestore.hypothesis-hosted.runtime.rules
       - name: Run disposable Auth and Firestore security matrix
         run: |
           firebase emulators:exec \
