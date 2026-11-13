@@ -143,7 +143,7 @@ export default function InteractionResult({
                   </button>
                   {onCompose && (reviewSaved || existing) &&
                     <button type="button" onClick={() => onCompose(
-                      `Твоя гипотеза «${insight}». Моя оценка: ${HYPOTHESIS_GRADES[reviewGrade ?? existing.grade]}.`+
+                      `Ранее предложенная гипотеза «${insight}». Моя оценка: ${HYPOTHESIS_GRADES[reviewGrade ?? existing.grade]}.`+
                       (reviewComment.trim() ? ` Мой комментарий: ${reviewComment.trim()}.` : '')+
                       ' Не принимай её за факт. Задай один точный вопрос, чтобы проверить другие объяснения.'
                     )}>
@@ -276,11 +276,19 @@ export default function InteractionResult({
       })}
       {error && <p role="alert">{error}</p>}
       {feedback && <p role="status">{feedback}</p>}
-      {Array.isArray(interaction.unknowns) && interaction.unknowns.length > 0 && (
-        <p className="reflect-interaction-unknowns">
-          Неизвестно: {interaction.unknowns.join('; ')}
-        </p>
-      )}
+      <details className="reflect-interaction-evidence-details">
+        <summary>Что учтено и что ещё нужно проверить</summary>
+        <p>Источник этого ответа: только текст вашего текущего сообщения.
+          История предыдущих сеансов и дневник не были отправлены модели.</p>
+        {insights.length>0 && <p>Модель выделила {insights.length}
+          {insights.length===1?' возможное объяснение':' возможных объяснения'}.
+          Это не подтверждённые факты.</p>}
+        {Array.isArray(interaction.unknowns) && interaction.unknowns.length>0
+          ? <ul>{interaction.unknowns.map((item,index)=>
+            <li key={index}>Открытый вопрос: {item}</li>)}</ul>
+          : <p>Модель не перечислила неизвестные факты. Это не означает,
+              что весь контекст уже изучен.</p>}
+      </details>
     </div>
   );
 }
