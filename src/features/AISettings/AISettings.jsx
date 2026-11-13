@@ -4,6 +4,7 @@ import { BrainCircuit, Check, Lightbulb,
   RotateCcw, ShieldCheck, Sparkles } from 'lucide-react';
 import { db, appId } from '../../firebase/config';
 import ContextConsentPanel from './ContextConsentPanel';
+import ReflectSelectRow from './ReflectSelectRow';
 import StagingSecurityAuditPanel from './StagingSecurityAuditPanel';
 import StagingConsentEndpointAuditPanel from './StagingConsentEndpointAuditPanel';
 import {
@@ -20,17 +21,6 @@ const safeFirestoreErrorCode = error => {
   return allowed.includes(error?.code) ? error.code : 'unknown';
 };
 
-const SelectRow = ({ label, description, name, value, options, onChange, disabled }) => (
-  <label className="reflect-ai-settings-row">
-    <span className="reflect-ai-settings-row-text">
-      <strong>{label}</strong><span>{description}</span>
-    </span>
-    <select value={value} disabled={disabled}
-      onChange={event => onChange(name, event.target.value)}>
-      {options.map(([id, caption]) => <option value={id} key={id}>{caption}</option>)}
-    </select>
-  </label>
-);
 
 const ToggleRow = ({ label, description, name, checked, onChange, disabled }) => (
   <label className="reflect-ai-settings-row reflect-ai-settings-toggle-row">
@@ -184,12 +174,12 @@ export default function AISettings({ userId, sessions = [] }) {
             <div className="reflect-ai-settings-card-title">
               <BrainCircuit size={19}/><h3>Формат диалога</h3>
             </div>
-            <SelectRow label="Глубина ответа" description="Предпочитаемая длина и детализация."
+            <ReflectSelectRow label="Глубина ответа" description="Предпочитаемая длина и детализация."
               name="responseDepth" value={draft.responseDepth} disabled={disabled}
               onChange={change} options={[
                 ['concise', 'Кратко'], ['balanced', 'Сбалансированно'], ['deep', 'Подробно']
               ]}/>
-            <SelectRow label="Тон общения" description="Подход, который вам комфортнее."
+            <ReflectSelectRow label="Тон общения" description="Подход, который вам комфортнее."
               name="responseTone" value={draft.responseTone} disabled={disabled}
               onChange={change} options={[
                 ['supportive', 'Поддержка'], ['analytical', 'Анализ'], ['strategic', 'Стратегия']
@@ -208,7 +198,7 @@ export default function AISettings({ userId, sessions = [] }) {
               description="По умолчанию выключено. Не включает фактическую генерацию до подключения серверного контроля."
               name="recommendationsEnabled" checked={draft.recommendationsEnabled}
               onChange={change} disabled={disabled}/>
-            <SelectRow label="Частота"
+            <ReflectSelectRow label="Частота"
               description="В будущем рекомендации не должны повторяться и навязываться."
               name="recommendationFrequency" value={draft.recommendationFrequency}
               onChange={change} disabled={disabled || !draft.recommendationsEnabled}
