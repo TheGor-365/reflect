@@ -106,7 +106,7 @@ test("reject malformed/provider-injected payload without second request", () => 
 });
 
 test("M1 uncertainty: user self-explanation is a hypothesis, not a recommendation", () => {
-  const selfInquiry = "Я откладываю запуск сайта, боюсь негативной оценки. " +
+  const selfInquiry = "Я откладываю запуск MVP сайта, боюсь негативной оценки. " +
     "У меня 10 дней и час ежедневно. Предложи следующий шаг.";
   const classification = preflight(selfInquiry);
   assert.equal(classification.intent, "plan");
