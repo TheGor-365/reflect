@@ -63,9 +63,10 @@ describe('PRODUCT-04 Journey interactive UX',()=>{
     expect(screen.getByLabelText('Масштаб')).toHaveTextContent('90%');
     fireEvent.click(screen.getByRole('button',{name:'Сбросить масштаб и смещение'}));
     expect(screen.getByLabelText('Масштаб')).toHaveTextContent('80%');
-    fireEvent.change(screen.getByRole('combobox',{name:'Тип событий'}),{
-      target:{value:'returns'}
-    });
+    const kind=screen.getByRole('combobox',{name:'Тип событий'});
+    fireEvent.click(kind);
+    expect(document.querySelector('select')).toBeNull();
+    fireEvent.click(screen.getByRole('option',{name:'Возвращения'}));
     expect(screen.getByRole('button',{name:/Возвращение: За два дня читал один раз/}))
       .toBeTruthy();
     expect(screen.queryByRole('button',{name:/Цель: Читать каждый вечер/})).toBeNull();
