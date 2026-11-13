@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Sessions from './Sessions';
 
@@ -34,6 +34,12 @@ const defaultProps = {
   userId: 'demo-owner', currentSessionId: 'new',
   setCurrentSessionId: vi.fn(), onStartNewSession: vi.fn()
 };
+function Harness() {
+  const [selectedId, setSelectedId] = useState('new');
+  return <Sessions {...defaultProps}
+    currentSessionId={selectedId} setCurrentSessionId={setSelectedId}/>;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.ai.mockResolvedValue({ response: 'Начните с одного шага.', actualUsdTicks: 190000 });
@@ -54,7 +60,7 @@ test('explicit send persists owner message before Grok and automatically saves t
     return { response: 'Начните с одного шага.', actualUsdTicks: 190000 };
   });
   mocks.append.mockImplementation(async () => { order.push('assistant-saved'); });
-  render(<Sessions {...defaultProps} />);
+  render(<Harness />);
   const textbox = screen.getByRole('textbox', { name: 'Сообщение для сеанса' });
   fireEvent.change(textbox, { target: { value: 'Только этот текст' } });
   expect(screen.getByText(/Отправляя сообщение в Grok, вы разрешаете передать/)).toBeInTheDocument();
@@ -71,7 +77,7 @@ test('explicit send persists owner message before Grok and automatically saves t
 
 test('failed provider call leaves a durable user turn; never silently retries or leaks provider errors', async () => {
   mocks.ai.mockRejectedValueOnce(new Error('SENSITIVE_PROVIDER_BODY'));
-  render(<Sessions {...defaultProps} />);
+  render(<Harness />);
   fireEvent.change(screen.getByRole('textbox', { name: 'Сообщение для сеанса' }), {
     target: { value: 'Исходный пользовательский текст' }
   });
