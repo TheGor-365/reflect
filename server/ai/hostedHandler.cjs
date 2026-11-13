@@ -59,7 +59,7 @@ function createHostedHandler({
     const nowMs = clock();
     await budget.reserve({
       uid: input.uid, requestId: input.requestId,
-      message: input.message, nowMs
+      message: input.message, nowMs, structured: interactionEnabled
     });
     try {
       const settings = interactionEnabled
