@@ -9,7 +9,7 @@ const ID1 = "request-original-0001", ID2 = "request-retry-0000002";
 const TEXT = "Я затягиваю запуск. Можно обсудить следующий шаг?";
 const USER_ID = "user-" + ID1;
 const sessionPath = uid => `artifacts/reflect-8fdc8/users/${uid}/sessions/${SID}`;
-const receiptPath = uid => sessionPath(uid) + "/aiTurnAttempts/" + USER_ID;
+const receiptPath = uid => `_reflectAiPrivate/reflect-8fdc8/attemptOwners/${uid}/sessions/${SID}/turns/${USER_ID}`;
 const clone = obj => structuredClone(obj);
 
 class MemoryDb {
@@ -89,6 +89,8 @@ test("P0: owner-persisted user turn -> single provider attempt -> durable reply 
   assert.equal(turns[1].sourceTurnId, USER_ID);
   assert.equal(turns[1].content, "Достаточно одной проверяемой версии.");
   assert.equal(turns[1].interaction.version, "reflect.interaction.v1");
+  assert(receiptPath(UID).startsWith("_reflectAiPrivate/reflect-8fdc8/"));
+  assert(!receiptPath(UID).startsWith(sessionPath(UID)));
   assert(!JSON.stringify(db.docs.get(receiptPath(UID))).includes(TEXT));
   assert(!JSON.stringify(db.docs.get(receiptPath(UID))).includes("Достаточно одной"));
   await forbid(() => store.claim(params(ID2, true)));
