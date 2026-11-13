@@ -15,7 +15,7 @@ import InfoCard from '../../components/common/InfoCard';
 import { useEntrySave } from '../../hooks/useEntrySave';
 import { BookOpen, BarChart2, MessageSquareText, ShieldCheck } from 'lucide-react';
 
-const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, onOpenGoals, focusTurnId, libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
+const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, onOpenGoals, onOpenRecommendations, focusTurnId, libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
   const [userInput, setUserInput] = useState('');
   const [showLibrary, setShowLibrary] = useState(false);
   const [navigationWarning, setNavigationWarning] = useState('');
@@ -414,6 +414,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
                 onDecision={(candidateIndex, action, draft) =>
                   handleRecommendationDecision(msg.id, candidateIndex, action, draft)}
                 onOpenGoals={onOpenGoals}
+                onOpenRecommendations={onOpenRecommendations}
                 currentlySpeakingId={currentlySpeakingId} />
             ))}
 
