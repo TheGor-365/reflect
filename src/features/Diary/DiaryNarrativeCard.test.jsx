@@ -98,7 +98,7 @@ test('session card reads as a reflection with optional source details', () => {
     <DiaryNarrativeCard entry={session} onOpenSession={onOpenSession}
       onOpenJourney={onOpenJourney}/>
   </div>);
-  expect(screen.getByRole('heading', { name: 'Размышление с Reflect' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Первый вопрос' })).toBeInTheDocument();
   expect(screen.queryByText('Сеанс от 10.11.2026, 14:26:14')).not.toBeInTheDocument();
   expect(container.querySelector('.reflect-journal-ai-thought')).toHaveTextContent('Рефлексия от Reflect');
   expect(screen.getByRole('button', { name: 'Исходный вопрос' })).toHaveAttribute('aria-expanded', 'false');
