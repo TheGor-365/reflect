@@ -17,6 +17,22 @@ const STATES = {
   persisted_reply: 'Ответ уже сохранён сервером. Он должен появиться в сеансе.',
   reply_exists: 'Ответ уже есть в сохранённой истории.'
 };
+// Server-signed, privacy-safe diagnosis. Never render provider bodies,
+// untrusted text, request IDs, Auth headers or hidden error stacks.
+const SAFE_ERROR_EXPLANATIONS = Object.freeze({
+  'invalid-provider-response': 'Ответ провайдера не прошёл проверку структуры Reflect.',
+  'xai-invalid-request': 'xAI отклонил формат запроса.',
+  'xai-unauthorized': 'xAI отклонил авторизацию сервера.',
+  'xai-forbidden': 'xAI запретил выполнение запроса.',
+  'xai-endpoint-not-found': 'Запрошенный маршрут xAI недоступен.',
+  'xai-rate-limited': 'На стороне xAI сработало ограничение запросов.',
+  'xai-upstream-timeout': 'Истекло время ожидания ответа xAI.',
+  'xai-upstream-error': 'Сервис xAI завершил запрос с ошибкой.',
+  'unavailable': 'Сервис не смог подтвердить ответ. Уточнение причины недоступно.',
+  'resource-exhausted': 'Сработал лимит на сервере Reflect.',
+  'permission-denied': 'Операция отклонена проверкой доступа.',
+  'already-exists': 'Для этой реплики уже есть ответ либо попытка.'
+});
 export default function ReplyRecoveryPanel({
   sessionId, turn, disabled = false, onRetry
 }) {
@@ -67,6 +83,12 @@ export default function ReplyRecoveryPanel({
         </p>
       ) : <p>Текст сообщения сохранён. Проверьте результат прежней попытки
         перед созданием новой.</p>}
+      {state && Object.hasOwn(SAFE_ERROR_EXPLANATIONS, state.errorCode) && (
+        <p role="note" className="reflect-ai-recovery-diagnosis">
+          Диагностика: {SAFE_ERROR_EXPLANATIONS[state.errorCode]}
+          {' '}(код: {state.errorCode})
+        </p>
+      )}
       <div className="reflect-ai-recovery-actions">
         <button type="button" onClick={check}
           disabled={disabled || checking || retrying}>
