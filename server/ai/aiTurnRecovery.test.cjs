@@ -2,7 +2,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { createAiTurnRecovery, validateAttemptPayload,
-  validateStatusBody, LEASE_MS } = require("./aiTurnRecovery.cjs");
+  validateStatusBody, publicState, LEASE_MS } = require("./aiTurnRecovery.cjs");
 
 const UID = "synthetic-eric", SID = "session-eric-abc123";
 const ID1 = "request-original-0001", ID2 = "request-retry-0000002";
@@ -193,4 +193,14 @@ test("P0: strict new request shape never accepts other history, custom model or 
     { sessionId: SID, sourceTurnId: USER_ID });
   assert.throws(() => validateStatusBody({ sessionId: SID, sourceTurnId: USER_ID,
     uid: "synthetic-jack" }), e => e.code === "invalid-argument");
+});
+
+test("P0: after max explicit attempts, UI cannot offer another paid retry", () => {
+  const state = publicState({
+    status: "failed_after_provider", billedPossible: true,
+    requestId: ID2, attemptsCount: 6, errorCode: "unavailable"
+  }, false, Date.now());
+  assert.equal(state.status, "failed_after_provider");
+  assert.equal(state.canRetry, false);
+  assert.equal(state.billedPossible, true);
 });
