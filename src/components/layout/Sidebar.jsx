@@ -1,10 +1,11 @@
 import React from 'react';
-import { BookOpen, BrainCircuit, GitBranch, LayoutDashboard, MessageSquare, Plus, Target, User, ShieldCheck, SlidersHorizontal, X } from 'lucide-react';
+import { BookOpen, BrainCircuit, GitBranch, LayoutDashboard, Lightbulb, MessageSquare, Plus, Target, User, ShieldCheck, SlidersHorizontal, X } from 'lucide-react';
 import NavItem from './NavItem';
 import { sessionDisplayTitle, sessionExcerpt } from '../../features/Diary/diaryPresentation';
+import { buildRecommendationInbox } from '../../features/Recommendations/recommendationInbox';
 
 const Sidebar = ({
-  isOpen, onClose, activeTab, changeTab, sessions, currentSessionId,
+  isOpen, onClose, activeTab, changeTab, sessions, goals = [], currentSessionId,
   selectSession, handleNewSession, profile, userId, onProfileClick, onAccountClick, accountLabel
 }) => (
   <>
@@ -33,7 +34,13 @@ const Sidebar = ({
           <NavItem tabName="dashboard" icon={<LayoutDashboard size={20} />} label="Главная" activeTab={activeTab} changeTab={changeTab} />
           <NavItem tabName="diary" icon={<BookOpen size={20} />} label="Дневник" activeTab={activeTab} changeTab={changeTab} />
           <NavItem tabName="sessions" icon={<MessageSquare size={20} />} label="Сеансы" activeTab={activeTab} changeTab={changeTab} />
-          <NavItem tabName="goals" icon={<Target size={20} />} label="Цели" activeTab={activeTab} changeTab={changeTab} />
+          <NavItem tabName="recommendations" icon={<Lightbulb size={20} />} label="Рекомендации"
+            count={buildRecommendationInbox(sessions).pendingCount}
+            activeTab={activeTab} changeTab={changeTab} />
+          <NavItem tabName="goals" icon={<Target size={20} />} label="Цели"
+            count={goals.filter(goal => goal && goal.completed !== true &&
+              goal.status !== 'completed').length}
+            activeTab={activeTab} changeTab={changeTab} />
           <NavItem tabName="sessionSchema" icon={<GitBranch size={20} />} label="Схема сеансов" activeTab={activeTab} changeTab={changeTab} />
           <NavItem tabName="mindspace" icon={<BrainCircuit size={20} />} label="Mindspace" activeTab={activeTab} changeTab={changeTab} />
           <NavItem tabName="aiSettings" icon={<SlidersHorizontal size={20} />} label="Настройки AI" activeTab={activeTab} changeTab={changeTab} />
