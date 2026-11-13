@@ -29,7 +29,7 @@ test('saved sessions are visible, readable and source-specific with no synthetic
   expect(within(cards[0]).getByText('Как не терять спокойствие?')).toBeInTheDocument();
   expect(within(cards[0]).getByText('Назовите одну доступную границу.'))
     .toBeInTheDocument();
-  expect(within(cards[1]).getByText('План на неделю')).toBeInTheDocument();
+  expect(within(cards[1]).getByRole('heading', { name: 'План на неделю' })).toBeInTheDocument();
   expect(within(cards[1]).getByText('Без ответа Reflect')).toBeInTheDocument();
   expect(container).not.toHaveTextContent(/возвращени[йя]|прогресс в процентах/i);
   fireEvent.click(within(cards[0]).getByRole('button', { name: 'Открыть беседу' }));
@@ -45,7 +45,7 @@ test('local search and answer filter narrow results without network or AI calls'
   fireEvent.change(screen.getByRole('searchbox', { name: 'Поиск по сохранённым сеансам' }),
     { target: { value: 'неделю' } });
   expect(container.querySelectorAll('.reflect-session-library-card')).toHaveLength(1);
-  expect(screen.getByText('План на неделю')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'План на неделю' })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'С ответом Reflect' }));
   expect(screen.getByText(/Не найдено совпадений/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Все' }));
