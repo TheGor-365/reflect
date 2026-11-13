@@ -43,3 +43,31 @@ describe('account-scoped AI preference model (not a source grant)', () => {
       updatedAt: 'ignored-metadata' })).toBe(true);
   });
 });
+
+it('legacy Eric settings get opt-in persona defaults without changing permission flags',()=>{
+  const legacy={
+    schemaVersion:1,responseDepth:'deep',responseTone:'supportive',
+    askClarifyingQuestions:true,recommendationsEnabled:true,
+    autoSaveRecommendations:false,recommendationFrequency:'rare',
+    showContextIndicator:false
+  };
+  const parsed=parseAiSettings(legacy);
+  expect(parsed.assistantRole).toBe('companion');
+  expect(parsed.empathyLevel).toBe('balanced');
+  expect(parsed.addressForm).toBe('vy');
+  expect(parsed.recommendationsEnabled).toBe(true);
+  expect(parsed).not.toHaveProperty('historyAccess');
+  expect(settingsEqual(parsed,legacy)).toBe(true);
+});
+it('direct address, personality and empathy are validated and never grant memory',()=>{
+  let value=updateAiPreference(AI_SETTINGS_DEFAULTS,'assistantRole','challenger');
+  value=updateAiPreference(value,'empathyLevel','high');
+  value=updateAiPreference(value,'addressForm','ty');
+  expect(value).toEqual(expect.objectContaining({
+    assistantRole:'challenger',empathyLevel:'high',addressForm:'ty',
+    recommendationsEnabled:false
+  }));
+  expect(parseAiSettings({...value,assistantRole:'licensed-therapist'})).toBeNull();
+  expect(parseAiSettings({...value,empathyLevel:'ignore-safety'})).toBeNull();
+  expect(parseAiSettings({...value,addressForm:'administrator'})).toBeNull();
+});
