@@ -548,7 +548,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
         <div className="reflect-session-compose-dock">
           {AI_SESSION_ENABLED && (
             <div className="reflect-ai-send-consent">
-              <p className="reflect-ai-send-disclosure" id="reflect-session-send-privacy">Отправляя сообщение в Grok, вы разрешаете передать только его текст. История, профиль и дневник не отправляются; xAI может хранить API-запрос и ответ до 30 дней.</p>
+              <p className="reflect-ai-send-disclosure" id="reflect-session-send-privacy">Отправляя сообщение в Grok, вы разрешаете передать весь текст поля ввода. История, профиль и дневник не добавляются автоматически; если вы вручную вставили выдержки предыдущих сообщений, они будут отправлены как часть этого текста. xAI может хранить API-запрос и ответ до 30 дней.</p>
               <p className="reflect-session-autosave-status" role="status">
                 Диалог сохраняется автоматически. Повторный вызов Grok не выполняется при ошибке записи.
               </p>
