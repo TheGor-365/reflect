@@ -106,3 +106,20 @@ test('failed status check never triggers provider and does not leak private SDK 
   expect(screen.getByRole('alert').textContent).not.toContain('PRIVATE_FIRESTORE_REPLY');
   expect(retry).not.toHaveBeenCalled();
 });
+
+test.each([
+  ['xai-response-incomplete', 'не завершил ответ'],
+  ['xai-envelope-invalid', 'служебная структура'],
+  ['xai-interaction-invalid', 'нарушает правила структуры Reflect'],
+  ['xai-transport-invalid', 'корректным JSON-ответом']
+])('safe errorCode %s appears only after owner requests status', async (code, text) => {
+  mocks.status.mockResolvedValueOnce({
+    status: 'failed_after_provider', billedPossible: true, canRetry: true,
+    errorCode: code
+  });
+  renderPanel(vi.fn());
+  expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Проверить статус бесплатно' }));
+  await waitFor(() => expect(screen.getByRole('note')).toHaveTextContent(text));
+  expect(screen.getByRole('note')).toHaveTextContent(code);
+});
