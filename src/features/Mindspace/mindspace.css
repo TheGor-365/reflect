@@ -380,3 +380,58 @@
 .reflect-mindspace-rename form button[type=submit] {
   color:var(--reflect-accent);border-color:var(--mind-outline);
 }
+
+
+/* P1 semantic map: simple navigation + evidence, never claimed AI scoring. */
+.reflect-mindspace-map-controls {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  align-items: center; margin-inline-start: auto;
+}
+.reflect-mindspace-map-controls button {
+  min-width: 36px; min-height: 40px; display: inline-grid;
+  place-items: center; border: 1px solid var(--reflect-border);
+  border-radius: 10px; color: var(--reflect-muted);
+  background: var(--reflect-card);
+}
+.reflect-mindspace-map-controls button:hover,
+.reflect-mindspace-map-controls button:focus-visible {
+  border-color: var(--reflect-accent); color: var(--reflect-accent);
+}
+.reflect-mindspace-map-controls output {
+  min-width: 44px; color: var(--reflect-ink);
+  font-size: 12px; text-align: center; font-variant-numeric: tabular-nums;
+}
+.reflect-mindspace-map-controls button.reflect-mindspace-center {
+  padding: 0; margin-inline-start: 4px;
+}
+.reflect-mindspace-zoom-spacer {position: relative;}
+.reflect-mindspace-evidence {
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;
+}
+.reflect-mindspace-evidence p {
+  display:flex;flex-direction:column;gap:4px;min-width:0;
+  padding:11px 13px;margin:0;
+  background:var(--reflect-card);border:1px solid var(--reflect-border);
+  border-radius:13px;font-size:11px;line-height:1.4;
+  color:var(--reflect-muted);
+}
+.reflect-mindspace-evidence strong {
+  font-size:20px;color:var(--reflect-ink);
+  font-variant-numeric:tabular-nums;
+}
+.reflect-mindspace .reflect-mindspace-editor .reflect-ui-select {
+  width:100%;min-width:0;position:relative;
+}
+.reflect-mindspace .reflect-mindspace-empty button {
+  border:1px solid var(--reflect-border);border-radius:10px;
+  background:var(--reflect-card);color:var(--reflect-ink);
+  padding:9px 12px;margin-top:10px;
+}
+@media(max-width:780px) {
+  .reflect-mindspace-evidence {grid-template-columns:repeat(2,minmax(0,1fr));}
+  .reflect-mindspace-map-controls {margin-inline-start:0;}
+}
+@media(max-width:520px) {
+  .reflect-mindspace-map-controls {width:100%;}
+  .reflect-mindspace-map-controls button {min-width:42px;}
+}
