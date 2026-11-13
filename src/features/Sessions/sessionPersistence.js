@@ -2,6 +2,7 @@ import {
   collection, doc, setDoc, updateDoc, arrayUnion, serverTimestamp
 } from 'firebase/firestore';
 import { db, appId } from '../../firebase/config';
+import { deriveSessionTitle } from './sessionTitle';
 
 // The dialogue is saved before making a potentially billable AI request.
 // This is an authenticated, owner-scoped user-data write; it does NOT grant
@@ -21,9 +22,9 @@ const pathFor = userId => {
 export async function createDurableSession(userId, turn) {
   if (!turnOk(turn) || turn.role !== 'user') throw new Error('invalid-session-turn');
   const ref = doc(pathFor(userId));
-  const title = 'Сеанс · ' + new Date().toLocaleString('ru-RU');
+  const title = deriveSessionTitle(turn.content);
   await setDoc(ref, {
-    title, chatHistory: [turn], recommendations: [], exercises: [],
+    title, titleSource: 'auto', chatHistory: [turn], recommendations: [], exercises: [],
     createdAt: serverTimestamp(), updatedAt: serverTimestamp()
   });
   return { id: ref.id, title };
