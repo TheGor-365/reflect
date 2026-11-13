@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Sessions from './Sessions';
 
@@ -26,6 +26,12 @@ const props = {
   onStartNewSession: vi.fn()
 };
 
+function Harness() {
+  const [selectedId, setSelectedId] = useState('new');
+  return <Sessions {...props}
+    currentSessionId={selectedId} setCurrentSessionId={setSelectedId}/>;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.ai.mockResolvedValue({ response: 'Один синтетический ответ', actualUsdTicks: null });
@@ -34,7 +40,7 @@ beforeEach(() => {
 });
 
 test('paid Sessions have an explicit send disclosure but no debug widgets or checkbox', () => {
-  const { container } = render(<Sessions {...props} />);
+  const { container } = render(<Harness />);
   expect(screen.getByText(/Отправляя сообщение в Grok, вы разрешаете передать/))
     .toBeInTheDocument();
   expect(screen.getByRole('textbox', { name: 'Сообщение для сеанса' }))
@@ -48,7 +54,7 @@ test('paid Sessions have an explicit send disclosure but no debug widgets or che
 });
 
 test('explicit Send invokes only one AI request without a checkbox or automatic retry', async () => {
-  const { container } = render(<Sessions {...props} />);
+  const { container } = render(<Harness />);
   const input = screen.getByRole('textbox', { name: 'Сообщение для сеанса' });
   fireEvent.change(input, { target: { value: 'Синтетическая фраза.' } });
   fireEvent.click(screen.getByRole('button', { name: 'Отправить сообщение' }));
