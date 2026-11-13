@@ -13,6 +13,7 @@ import Mindspace from './features/Mindspace/Mindspace';
 import AISettings from './features/AISettings/AISettings';
 import { currentTabFromLocation, pushTabToHistory } from './navigation/tabRoute';
 import Goals from './features/Goals/Goals';
+import GoalSuggestions from './features/Goals/GoalSuggestions';
 import Sessions from './features/Sessions/Sessions';
 import Recommendations from './features/Recommendations/Recommendations';
 import { buildSessionLibrary } from './features/Sessions/sessionLibrary';
@@ -435,14 +436,17 @@ export default function App() {
       case 'aiSettings':
         return <AISettings key={userId} userId={userId} sessions={sessions}/>;
       case 'goals':
-        return <Goals 
-          goals={goals} 
-          userId={userId} 
-          onAppend={handleAppendToEntry}
-          onFeedback={setFeedbackGoal}
-          onOpenSession={selectSession}
-          focusGoalId={focusGoalId}
-        />;
+        return <>
+          <GoalSuggestions sessions={sessions} onOpenSession={selectSession}/>
+          <Goals
+            goals={goals}
+            userId={userId}
+            onAppend={handleAppendToEntry}
+            onFeedback={setFeedbackGoal}
+            onOpenSession={selectSession}
+            focusGoalId={focusGoalId}
+          />
+        </>;
       case 'sessionSchema':
         return <SessionSchema 
           sessions={sessions} 
