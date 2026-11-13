@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { db, appId } from '../../firebase/config';
 import { AI_SESSION_ENABLED, getAnalysisFromAI } from '../../api/reflectAssistantService';
+import { railwayAiRecoveryEnabled } from '../../api/reflectRailwayService';
+import ReplyRecoveryPanel from './ReplyRecoveryPanel';
 import { createDurableSession, appendDurableTurn } from './sessionPersistence';
 import ChatMessage from './ChatMessage';
 import SessionLibrary from './SessionLibrary';
@@ -147,7 +149,11 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
         await sessionDraftRef.current?.clearAfterCommit();
       }
 
-      const aiResponse = await getAnalysisFromAI(message, requestId);
+      const aiResponse = railwayAiRecoveryEnabled
+        ? await getAnalysisFromAI(message, requestId, {
+          sessionId: durableSessionId, sourceTurnId: userTurn.id
+        })
+        : await getAnalysisFromAI(message, requestId);
       const assistantTurn = {
         role: 'assistant', content: aiResponse.response,
         ...(aiResponse.interaction ? { interaction: aiResponse.interaction } : {}),
@@ -159,7 +165,11 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
         setLocalMessages([assistantTurn]);
       }
       try {
-        await appendDurableTurn(owner, durableSessionId, assistantTurn);
+        // In recovery mode the server already atomically persisted the answer
+        // with the receipt. Never append a second client-side copy.
+        if (!railwayAiRecoveryEnabled) {
+          await appendDurableTurn(owner, durableSessionId, assistantTurn);
+        }
       } catch {
         // No AI retry. Keep the exact received answer in memory for a
         // save-only retry; never destroy it with a transcript overwrite.
@@ -197,6 +207,60 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
       sendLock.current = false;
       setIsLoading(false);
     }
+  };
+
+  // Explicit, owner-confirmed NEW paid attempt for an existing saved user
+  // turn. No duplicate user turn, no silent retry, no history sent to Grok.
+  const handleRetrySavedTurn = async turn => {
+    if (!railwayAiRecoveryEnabled || sendLock.current || isLoading ||
+        !db || !userId || !activeSession ||
+        !Array.isArray(activeSession.chatHistory) ||
+        !activeSession.chatHistory.some(t =>
+          t.id === turn?.id && t.role === 'user' && t.content === turn.content)) {
+      throw new Error('recovery-unavailable');
+    }
+    const owner = userId, sessionId = activeSession.id;
+    const requestId = crypto.randomUUID();
+    sendLock.current = true;
+    setIsLoading(true);
+    setSendError('');
+    try {
+      const value = await getAnalysisFromAI(turn.content, requestId, {
+        sessionId, sourceTurnId: turn.id, retryConfirmed: true
+      });
+      if (ownerRef.current === owner) {
+        const assistantTurn = {
+          id: 'assistant-' + requestId, role: 'assistant',
+          sourceTurnId: turn.id, content: value.response,
+          ...(value.interaction ? { interaction: value.interaction } : {}),
+          timestamp: Timestamp.now()
+        };
+        setLocalMessageScope({ userId: owner, sessionId });
+        setLocalMessages([assistantTurn]);
+      }
+      // The server has already committed; onSnapshot replaces optimistic UI.
+      return true;
+    } catch {
+      if (ownerRef.current === owner) {
+        setSendError('Новая попытка не подтвердилась. Не повторяйте отправку без бесплатной проверки статуса.');
+      }
+      throw new Error('recovery-outcome-unknown');
+    } finally {
+      sendLock.current = false;
+      setIsLoading(false);
+    }
+  };
+
+  const unansweredTurn = (turn, index, all) => {
+    if (turn?.role !== 'user' || typeof turn.id !== 'string' ||
+        !/^user-[A-Za-z0-9_-]{12,80}$/.test(turn.id)) return false;
+    if (all.some(next => next?.role === 'assistant' &&
+        next?.sourceTurnId === turn.id)) return false;
+    for (let i = index + 1; i < all.length; i++) {
+      if (all[i]?.role === 'user') break;
+      if (all[i]?.role === 'assistant') return false;
+    }
+    return true;
   };
 
   // Recovery only. Successful AI turns are saved without any button click.
@@ -406,7 +470,8 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
             )}
 
             {messagesToDisplay.map((msg, index) => (
-              <ChatMessage key={msg.id || index} message={msg}
+              <React.Fragment key={msg.id || index}>
+              <ChatMessage message={msg}
                 focused={Boolean(activeSession && msg.id && msg.id === focusTurnId)}
                 onPlayAudio={handlePlayAudio} isSpeaking={isSpeaking}
                 onCompose={text => { setUserInput(text); setSendError(''); }}
@@ -417,6 +482,15 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
                 onOpenGoals={onOpenGoals}
                 onOpenRecommendations={onOpenRecommendations}
                 currentlySpeakingId={currentlySpeakingId} />
+              {railwayAiRecoveryEnabled && activeSession &&
+                savedHistory.some(t => t.id === msg.id) &&
+                unansweredTurn(msg, index, messagesToDisplay) && (
+                  <ReplyRecoveryPanel
+                    key={userId + ':' + activeSession.id + ':' + msg.id}
+                    sessionId={activeSession.id} turn={msg}
+                    onRetry={handleRetrySavedTurn} disabled={isLoading}/>
+                )}
+              </React.Fragment>
             ))}
 
             {isLoading && <div className="reflect-session-typing" role="status">Сеанс обрабатывается…</div>}
