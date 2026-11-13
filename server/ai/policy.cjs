@@ -116,7 +116,8 @@ function safeState(input, nowMs) {
  * When the provider fails, retain reservations (no free spam retries).
  */
 function planQuotaReservation(state, {
-  nowMs, requestId, estimatedInputTokens, projectReservedTokens = 0
+  nowMs, requestId, estimatedInputTokens, projectReservedTokens = 0,
+  maxOutputTokens = LIMITS.maxOutputTokens
 }) {
   const prior = safeState(state, nowMs);
   if (typeof requestId !== "string" || !ID.test(requestId) ||
@@ -124,12 +125,13 @@ function planQuotaReservation(state, {
       estimatedInputTokens < 1 ||
       estimatedInputTokens > LIMITS.maxInputTokens ||
       !Number.isSafeInteger(projectReservedTokens) ||
-      projectReservedTokens < 0) fail("invalid-argument");
+      projectReservedTokens < 0 ||
+      ![LIMITS.maxOutputTokens, 1024].includes(maxOutputTokens)) fail("invalid-argument");
   if (prior.ids.includes(requestId)) fail("already-exists");
   const recent = prior.recent.filter(timestamp => timestamp > nowMs - 60000);
   if (recent.length >= LIMITS.maxPerMinute) fail("resource-exhausted");
   if (prior.count >= LIMITS.maxPerUtcDay) fail("resource-exhausted");
-  const tokens = estimatedInputTokens + LIMITS.maxOutputTokens;
+  const tokens = estimatedInputTokens + maxOutputTokens;
   if (prior.reservedTokens + tokens > LIMITS.maxUserTokensPerUtcDay ||
       projectReservedTokens + tokens > LIMITS.maxGlobalTokensPerUtcDay) {
     fail("resource-exhausted");
