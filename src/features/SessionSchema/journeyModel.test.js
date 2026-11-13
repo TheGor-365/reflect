@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  projectJourney, filterJourney, layoutJourney, journeyFacts,
+  projectJourney, filterJourney, layoutJourney, journeyFacts, journeyCoverage,
   JOURNEY_VERSION
 } from './journeyModel';
 
@@ -161,5 +161,36 @@ describe('PRODUCT-04 Journey provenance projection',()=>{
     expect(graph.edges.every(edge=>
       graph.nodes.some(node=>node.id===edge.from)&&
       graph.nodes.some(node=>node.id===edge.to))).toBe(true);
+  });
+});
+
+describe('P1 factual first-to-last coverage',()=>{
+  it('shows exact time difference only when every displayed chat turn is dated',()=>{
+    const coverage=journeyCoverage(projectJourney([session],goals));
+    expect(coverage).toEqual(expect.objectContaining({
+      turns:2,authored:1,aiReplies:1,dated:2,complete:true,
+      timespanMs:60000
+    }));
+    expect(coverage.firstAt).toBe(Date.parse('2026-11-09T18:00:00Z'));
+    expect(coverage.lastAt).toBe(Date.parse('2026-11-09T18:01:00Z'));
+  });
+  it('reports insufficient evidence for missing/partial timestamps, not a fictitious duration',()=>{
+    const undated={...session,chatHistory:[
+      session.chatHistory[0],
+      {...session.chatHistory[1],timestamp:undefined}
+    ]};
+    const result=journeyCoverage(projectJourney([undated],[]));
+    expect(result).toEqual(expect.objectContaining({
+      turns:2,dated:1,complete:false,timespanMs:null,
+      firstAt:null,lastAt:null
+    }));
+  });
+  it('projection uses canonical semantic title but preserves user-renamed title',()=>{
+    const dated={...session,title:'Сеанс · 13.11.2026, 17:18'};
+    const named={...dated,manualTitle:'Мой запуск'};
+    expect(projectJourney([named],[]).nodes.find(x=>x.type==='session').label)
+      .toBe('Мой запуск');
+    expect(projectJourney([dated],[]).nodes.find(x=>x.type==='session').label)
+      .not.toContain('Сеанс ·');
   });
 });

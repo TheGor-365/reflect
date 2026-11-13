@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReflectSelect from '../ReflectSelect';
 import { ArrowRight, Heart, Sparkles, UserRound, X } from 'lucide-react';
 
 const ProfileModal = ({
@@ -58,16 +59,11 @@ const ProfileModal = ({
                 placeholder="Полных лет" disabled={saving} />
             </span>
           </label>
-          <label htmlFor="gender">Пол <span className="reflect-auth-optional">необязательно</span>
-            <span className="reflect-auth-field">
-              <select id="gender" value={profileData.gender} disabled={saving}
-                onChange={e => setProfileData(prev => ({ ...prev, gender: e.target.value }))}>
-                <option value="не указан">Не указан</option>
-                <option value="мужской">Мужской</option>
-                <option value="женский">Женский</option>
-              </select>
-            </span>
-          </label>
+          <ReflectSelect label="Пол (необязательно)" ariaLabel="Пол"
+            value={profileData.gender} disabled={saving}
+            options={[['не указан','Не указан'],['мужской','Мужской'],
+              ['женский','Женский']]}
+            onChange={gender => setProfileData(prev => ({ ...prev, gender }))}/>
           {(error || saveError) && <p className="reflect-auth-error" role="alert">{error || saveError}</p>}
           <button type="submit" className="reflect-auth-primary" disabled={saving}>
             {saving ? 'Сохранение…' : 'Сохранить и продолжить'}

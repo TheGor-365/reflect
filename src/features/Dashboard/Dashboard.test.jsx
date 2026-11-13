@@ -89,3 +89,53 @@ it('opens the exact diary entry provenance rather than only the diary section',(
     kind:'diaryNote',recordId:'real-note',entryIndex:1
   });
 });
+
+test('P1: pending AI recommendation changes dashboard without inventing a completed goal',()=>{
+  const onOpenRecommendations=vi.fn();
+  const ownerSessions=[{
+    id:'product-topic',title:'Запуск продукта',
+    chatHistory:[
+      {id:'user-abc',role:'user',content:'Хочу выпустить первую версию',
+        timestamp:at('2026-11-13T10:00:00Z')},
+      {id:'assistant-def',role:'assistant',content:'Для MVP оставьте три основные функции',
+        timestamp:at('2026-11-13T10:00:30Z'),
+        interaction:{version:'reflect.interaction.v1',stage:'synthesize',
+          recommendationCandidates:[{
+            title:'Зафиксировать минимальный scope',
+            rationale:'Проверить спрос без бесконечных доработок',
+            sourceRefs:['current-message']
+          }]
+        }}
+    ]
+  }];
+  render(<Dashboard sessions={ownerSessions} goals={[]}
+    nowMs={nowMs} onOpenRecommendations={onOpenRecommendations}/>);
+  expect(screen.getByRole('heading',{name:'Следующее решение'})).toBeInTheDocument();
+  expect(screen.getByText('Зафиксировать минимальный scope')).toBeInTheDocument();
+  expect(screen.getByText(/Идея AI · ещё не цель/)).toBeInTheDocument();
+  expect(screen.queryByText('Цель подтверждена')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{
+    name:'Решить, что делать с предложением'
+  }));
+  expect(onOpenRecommendations).toHaveBeenCalledOnce();
+});
+
+test('P1: a decided recommendation disappears from the pending-decision panel',()=>{
+  const ownerSessions=[{
+    id:'product-topic',title:'Запуск продукта',chatHistory:[
+      {id:'user-abc',role:'user',content:'Я готов запускать'},
+      {id:'assistant-def',role:'assistant',content:'Определите scope',
+        interaction:{version:'reflect.interaction.v1',
+          recommendationCandidates:[{
+            title:'Ограничить MVP',rationale:'Проверить спрос',
+            sourceRefs:['current-message']
+          }]}}
+    ],
+    recommendationDecisions:{
+      'r-assistant-def-0':{status:'saved'}
+    }
+  }];
+  render(<Dashboard sessions={ownerSessions} goals={[]} nowMs={nowMs}/>);
+  expect(screen.queryByRole('heading',{name:'Следующее решение'}))
+    .not.toBeInTheDocument();
+});

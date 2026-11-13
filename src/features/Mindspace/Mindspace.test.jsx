@@ -47,9 +47,10 @@ describe('PRODUCT-05B Mindspace UI',()=>{
       name:'Прокручиваемое смысловое пространство'
     })).toBeInTheDocument();
     expect(saveMindLink).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByRole('combobox',{name:/Как связаны эти темы/}),{
-      target:{value:'supports'}
-    });
+    const relation=screen.getByRole('combobox',{name:'Тип смысловой связи'});
+    fireEvent.click(relation);
+    expect(document.querySelector('select')).toBeNull();
+    fireEvent.click(screen.getByRole('option',{name:'Поддерживает'}));
     fireEvent.change(screen.getByRole('textbox',{name:/Почему вы видите связь/}),{
       target:{value:'Работа влияет на отдых'}
     });
@@ -171,4 +172,24 @@ it('a map-only rename requires confirmation and never mutates the session transc
     title:'Работа и приоритеты'
   }));
   expect(sessions[0].title).toBe('Работа и развитие');
+});
+
+test('P1: Mindspace zoom and semantic-only focus preserve source data',()=>{
+  render(<Mindspace sessions={sessions} goals={goals} userId="synthetic-owner"/>);
+  const scale=screen.getByLabelText('Масштаб Mindspace');
+  expect(scale).toHaveTextContent('100%');
+  fireEvent.click(screen.getByRole('button',{name:'Увеличить карту'}));
+  expect(scale).toHaveTextContent('110%');
+  fireEvent.click(screen.getByRole('button',{name:'Уменьшить карту'}));
+  expect(scale).toHaveTextContent('100%');
+  fireEvent.click(screen.getByRole('button',{name:'Цели видны'}));
+  expect(screen.queryByRole('button',{name:/Цель: Готовить MVP/}))
+    .not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Все темы'}));
+  expect(screen.getByText('Под эти фильтры нет подтверждённых связей'))
+    .toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Показать все узлы'}));
+  expect(screen.getByRole('button',{name:/Цель: Готовить MVP/}))
+    .toBeInTheDocument();
+  expect(saveMindLink).not.toHaveBeenCalled();
 });

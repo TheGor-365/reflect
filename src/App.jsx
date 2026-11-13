@@ -408,6 +408,7 @@ export default function App() {
           onOpenSession={selectSession}
           onOpenJourney={() => navigateToTab('sessionSchema')}
           onOpenMindspace={() => navigateToTab('mindspace')}
+          onOpenRecommendations={() => navigateToTab('recommendations')}
           onOpenDiary={() => {
             setFocusDiaryNoteSource(null);
             navigateToTab('diary');

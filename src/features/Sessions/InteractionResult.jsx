@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { BookmarkPlus, CalendarClock, CheckCircle2, CircleX,
+  Goal, Lightbulb, MessageCircle, MessageSquareReply, Target, Undo2 } from 'lucide-react';
 
 // Structured AI proposals remain suggestions until a human explicitly chooses
 // an action. No Firestore access or background writes occur in this component.
@@ -50,7 +52,7 @@ export default function InteractionResult({
             : 'Нет подтверждённого предложения для действия. Можно продолжить разговор.'}</p>
         {onOpenRecommendations && (candidates.length > 0 || needsClarification) &&
           <button type="button" onClick={onOpenRecommendations}>
-            Открыть рекомендации и уточнения
+            <Lightbulb size={15} aria-hidden="true"/> Открыть рекомендации и уточнения
           </button>}
       </div>
       {insights.length > 0 && <section className="reflect-interaction-section"
@@ -64,7 +66,7 @@ export default function InteractionResult({
           <p>{question}</p>
           {onCompose && <button type="button"
             onClick={() => onCompose('Мой ответ на вопрос «' + question + '»: ')}>
-            Ответить
+            <MessageSquareReply size={15} aria-hidden="true"/> Ответить
           </button>}
         </section>
       )}
@@ -77,7 +79,7 @@ export default function InteractionResult({
               aria-label="Отклонённая рекомендация">
               <small>Предложение отклонено и скрыто по вашему решению.</small>
               <button type="button" onClick={() => setReconsiderIndex(index)}>
-                Показать отклонённое предложение
+                <Undo2 size={15} aria-hidden="true"/> Показать отклонённое предложение
               </button>
             </section>
           );
@@ -91,7 +93,7 @@ export default function InteractionResult({
             <div className="reflect-interaction-actions">
               {onCompose && <button type="button"
                 onClick={() => onCompose('Хочу обсудить предложение «' + item.title + '»: ')}>
-                Обсудить
+                <MessageCircle size={15} aria-hidden="true"/> Обсудить
               </button>}
               {onDecision && !isSaved && <small>Сначала сохраните сеанс, чтобы принять решение.</small>}
               {onDecision && isSaved && (
@@ -105,22 +107,22 @@ export default function InteractionResult({
                   {status !== 'accepted' && (
                     <>
                       <button type="button" disabled={busyIndex !== null}
-                        onClick={() => decide(index, 'saved')}>Сохранить идею</button>
+                        onClick={() => decide(index, 'saved')}><BookmarkPlus size={15} aria-hidden="true"/> Сохранить идею</button>
                       <button type="button" disabled={busyIndex !== null}
-                        onClick={() => decide(index, 'postponed')}>Отложить</button>
+                        onClick={() => decide(index, 'postponed')}><CalendarClock size={15} aria-hidden="true"/> Отложить</button>
                       <button type="button" disabled={busyIndex !== null}
-                        onClick={() => decide(index, 'dismissed')}>Не подходит</button>
+                        onClick={() => decide(index, 'dismissed')}><CircleX size={15} aria-hidden="true"/> Не подходит</button>
                       <button type="button" disabled={busyIndex !== null}
                         aria-expanded={editingGoal === index}
                         onClick={() => {
                           setEditingGoal(editingGoal === index ? null : index);
                           setGoalDraft({ title: item.title, purpose: '', step: '', dueDay: '', criteria: '' });
                           setError('');
-                        }}>Превратить в цель</button>
+                        }}><Target size={15} aria-hidden="true"/> Превратить в цель</button>
                     </>
                   )}
                   {status === 'accepted' && onOpenGoals && (
-                    <button type="button" onClick={onOpenGoals}>Открыть цели</button>
+                    <button type="button" onClick={onOpenGoals}><Goal size={15} aria-hidden="true"/> Открыть цели</button>
                   )}
                 </>
               )}
@@ -158,10 +160,10 @@ export default function InteractionResult({
                     onChange={event => setGoalDraft(value => ({ ...value, criteria: event.target.value }))}/>
                 </label>
                 <button type="submit" disabled={busyIndex !== null || !goalDraft.title.trim()}>
-                  {busyIndex !== null ? 'Сохранение…' : 'Подтвердить создание цели'}
+                  <CheckCircle2 size={15} aria-hidden="true"/> {busyIndex !== null ? 'Сохранение…' : 'Подтвердить создание цели'}
                 </button>
                 <button type="button" disabled={busyIndex !== null}
-                  onClick={() => setEditingGoal(null)}>Отмена</button>
+                  onClick={() => setEditingGoal(null)}><Undo2 size={15} aria-hidden="true"/> Отмена</button>
               </form>
             )}
           </section>
