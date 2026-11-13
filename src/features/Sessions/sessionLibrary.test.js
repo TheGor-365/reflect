@@ -25,7 +25,7 @@ describe('saved-session library (read-only)', () => {
       question: 'Я сделал первый шаг', reflection: 'Вы описали конкретное действие'
     });
     expect(items[1]).toMatchObject({
-      title: 'Размышление с Reflect', messageCount: 1, answerCount: 0
+      title: 'Как изменить привычку', messageCount: 1, answerCount: 0
     });
     expect(items[2].dateLabel).toBe('Дата не указана');
     expect(items[0]).not.toHaveProperty('resumeCount');
