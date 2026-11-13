@@ -10,6 +10,7 @@ const plain = v => !!v && typeof v === "object" && !Array.isArray(v) &&
 const fail = () => { throw new PolicyError("invalid-provider-response"); };
 const defaults = Object.freeze({
   responseDepth: "balanced", responseTone: "analytical",
+  assistantRole: "companion", empathyLevel: "balanced",
   askClarifyingQuestions: true, recommendationsEnabled: false,
   recommendationFrequency: "rare"
 });
@@ -23,6 +24,10 @@ function normalizeSettings(raw) {
       typeof raw.autoSaveRecommendations !== "boolean") return { ...defaults };
   return {
     responseDepth: raw.responseDepth, responseTone: raw.responseTone,
+    assistantRole: ["companion", "mentor", "challenger", "reflective"].includes(raw.assistantRole)
+      ? raw.assistantRole : defaults.assistantRole,
+    empathyLevel: ["low", "balanced", "high"].includes(raw.empathyLevel)
+      ? raw.empathyLevel : defaults.empathyLevel,
     askClarifyingQuestions: raw.askClarifyingQuestions,
     recommendationsEnabled: raw.recommendationsEnabled,
     recommendationFrequency: raw.recommendationFrequency
@@ -38,7 +43,14 @@ function preflight(message) {
       ? "plan"
       : /не могу решить|выбрать|выбор|стоит ли|предложили работу/i.test(m)
         ? "decide" : "understand";
-  return Object.freeze({ intent });
+  // These are explicit linguistic uncertainty markers, NOT a diagnosis or a
+  // probability of a psychological condition. Do not promote a single-message
+  // causal story into an action card before the owner has checked the premise.
+  const unverifiedCause = /страх|боюсь|тревож|не понимаю|почему|откладыв|прокрастин|кажется|возможно|не уверен|тормоз|не могу разобраться|хочу понять/i.test(m);
+  return Object.freeze({
+    intent, unverifiedCause,
+    recommendationEligible: intent === "plan" && !unverifiedCause
+  });
 }
 const short = max => ({ type: "string", maxLength: max });
 const list = (schema, max = 2) => ({ type: "array", items: schema, maxItems: max });
@@ -83,9 +95,26 @@ const prompt = (settings, classification) => [
   "Намерение preflight: " + classification.intent + ". Если vent — только выслушай;",
   "никаких рекомендаций, целей и уточняющих вопросов, если пользователь не просит.",
   "Тон: " + settings.responseTone + "; глубина: " + settings.responseDepth + ".",
+  "Роль собеседника: " + settings.assistantRole + "; эмпатия: " + settings.empathyLevel + ".",
+  "Роль — манера общения, а не профессиональная квалификация: не выдавай себя за психотерапевта.",
+  "Обращайся напрямую к человеку на вы, естественно и уважительно. Вместо приказов",
+  "«Зафиксировать...», говори «Я бы предложил вам... потому что...», если совет уместен.",
+  "При низкой эмпатии — лаконично, но доброжелательно; при высокой — тепло без лести.",
+  "Никогда не называй одну гипотезу точным объяснением причины поведения.",
+  "insights — до двух АЛЬТЕРНАТИВНЫХ гипотез, каждая с «возможно/может быть»",
+  "и указанием, какой факт её подтвердил бы или опроверг; не выдавай их за результаты проверки.",
+  "Если есть несколько объяснений или существенные неизвестные, задай один точный",
+  "диагностический для ситуации (не медицинский) вопрос, не вопрос ради вопроса.",
+  "Нельзя писать «Что удалось прояснить» или объявлять мотив человека доказанным.",
   "Уточняющие вопросы разрешены: " + settings.askClarifyingQuestions + ".",
-  "Рекомендации разрешены: " + settings.recommendationsEnabled +
+  "Рекомендации разрешены владельцем: " + settings.recommendationsEnabled +
     ", частота: " + settings.recommendationFrequency + ".",
+  "Сервер разрешает карточку рекомендации на данном ходе: " +
+    classification.recommendationEligible + ".",
+  "Если разрешение ложно, recommendationCandidates ВСЕГДА [] — обсуждай возможные",
+  "варианты только как гипотезы; воздержись от целей и директивных рекомендаций.",
+  "Если вопрос существенен, неизвестна причина или гипотеза не подтверждена,",
+  "не создавай actionable-кандидат даже при желании пользователя получить совет.",
   "Если вопрос нужен для надёжного решения, задай ровно один важный вопрос,",
   "не повторяя уже изложенные детали. Иначе дай содержательный краткий ответ.",
   "Не утверждай, что помнишь предыдущие сообщения: передано ТОЛЬКО текущее сообщение.",
@@ -157,6 +186,12 @@ function parseInteraction(text, settings, classification) {
          x.goalCandidates.length)) ||
       (x.recommendationCandidates.length && !x.recommendationCandidates[0].sourceRefs.length) ||
       x.goalCandidates.length) fail(); // goal creation is reserved for PRODUCT-02
-  return Object.freeze({ ...x, clarifyingQuestion: question });
+  // Fail-safe promotion gate: the model cannot create a new actionable card
+  // from unverified explanations or open-ended personal inquiry. Preserve
+  // the harmless answer/alternatives but discard any accidental candidate.
+  // This is NOT a prediction of how ready the owner actually is.
+  const recommendationCandidates = classification?.recommendationEligible
+    ? x.recommendationCandidates : [];
+  return Object.freeze({ ...x, clarifyingQuestion: question, recommendationCandidates });
 }
 module.exports = { VERSION, schema, normalizeSettings, preflight, buildRequest, parseInteraction };
