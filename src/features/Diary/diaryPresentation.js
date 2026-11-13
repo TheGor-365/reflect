@@ -1,17 +1,27 @@
-/** Pure display policy. Never present a date or an inferred headline as an AI title. */
-const DATE_TITLE = /^Сеанс от\s+\d{1,2}[./]\d{1,2}[./]\d{4}/i;
+/** Pure display policy. Local source extracts are not AI assertions. */
+import { deriveSessionTitle, isAutomaticSessionTitle } from '../Sessions/sessionTitle';
 
 export function sessionDisplayTitle(session = {}) {
-  // Manual renaming always wins over a later model suggestion.
-  const choices = session.titleSource === 'user'
-    ? [session.title, session.manualTitle, session.aiTitle]
-    : [session.manualTitle, session.aiTitle, session.title];
-  for (const value of choices) {
-    if (typeof value !== 'string') continue;
-    const cleaned = value.trim();
-    if (cleaned && !DATE_TITLE.test(cleaned)) return cleaned;
+  // Explicit user rename always wins, including over any approved AI title.
+  const manual = typeof session.manualTitle === 'string' && session.manualTitle.trim()
+    ? session.manualTitle.trim()
+    : session.titleSource === 'user' && typeof session.title === 'string'
+      ? session.title.trim() : '';
+  if (manual) return manual;
+  if (typeof session.aiTitle === 'string' && session.aiTitle.trim() &&
+      !isAutomaticSessionTitle(session.aiTitle)) {
+    return session.aiTitle.trim();
   }
-  return 'Размышление с Reflect';
+  if (typeof session.title === 'string' && session.title.trim() &&
+      !isAutomaticSessionTitle(session.title)) {
+    return session.title.trim();
+  }
+  // No migration/write, no extra AI usage. The authenticated owner's first
+  // authored turn provides the entire provenance of the displayed label.
+  const first = Array.isArray(session.chatHistory)
+    ? session.chatHistory.find(turn => turn?.role === 'user' &&
+        typeof turn.content === 'string' && turn.content.trim()) : null;
+  return deriveSessionTitle(first?.content);
 }
 
 export function sessionExcerpt(session = {}) {
