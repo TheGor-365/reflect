@@ -17,6 +17,9 @@ vi.mock('firebase/app-check', () => ({
 beforeEach(() => {
   vi.resetModules();
   vi.clearAllMocks();
+  // Owner-run staging release exports recovery=true for its build; precheck
+  // cannot coexist with AI send/recovery. Isolate the pure precheck test.
+  vi.stubEnv('VITE_ENABLE_REFLECT_AI_RECOVERY', 'false');
   vi.stubEnv('VITE_ENABLE_REFLECT_RAILWAY_AI', 'false');
   vi.stubEnv('VITE_ENABLE_REFLECT_RAILWAY_PRECHECK', 'true');
   vi.stubEnv(
