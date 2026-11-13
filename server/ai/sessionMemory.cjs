@@ -20,7 +20,7 @@ const { PROJECT_ID, NAMESPACE, SCOPE } = require("../privacy/contextConsent.cjs"
 const { clipUtf8 } = require("../privacy/sessionContextPreview.cjs");
 
 const MAX_PRIOR_TURNS = 4;
-const MAX_TURN_BYTES = 400;
+const MAX_TURN_BYTES = 300;
 const MAX_TOTAL_BYTES = 1200;
 const MAX_SOURCE_TURNS = 1000;
 const VALID_ID = /^[A-Za-z0-9_-]{1,128}$/;
