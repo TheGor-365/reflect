@@ -14,6 +14,7 @@ import AISettings from './features/AISettings/AISettings';
 import { currentTabFromLocation, pushTabToHistory } from './navigation/tabRoute';
 import Goals from './features/Goals/Goals';
 import Sessions from './features/Sessions/Sessions';
+import Recommendations from './features/Recommendations/Recommendations';
 import { buildSessionLibrary } from './features/Sessions/sessionLibrary';
 import SessionSchema from './features/SessionSchema/SessionSchema';
 import Loader from './components/common/Loader';
@@ -427,6 +428,10 @@ export default function App() {
               onOpenJourney={id => { setCurrentSessionId(id); navigateToTab('sessionSchema'); }}
               isLoading={isLoadingData}
           />;
+      case 'recommendations':
+        return <Recommendations sessions={sessions}
+          onOpenSession={selectSession}
+          onOpenGoals={() => navigateToTab('goals')} />;
       case 'aiSettings':
         return <AISettings key={userId} userId={userId} sessions={sessions}/>;
       case 'goals':
@@ -486,6 +491,7 @@ export default function App() {
         activeTab={activeTab}
         changeTab={changeTab}
         sessions={sessions}
+        goals={goals}
         currentSessionId={currentSessionId}
         selectSession={selectSession}
         handleNewSession={handleNewSession}
