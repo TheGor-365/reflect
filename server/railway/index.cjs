@@ -23,7 +23,8 @@ const ERROR_STATUS = Object.freeze({
   "attestation-unavailable": 503,
   // A complete HTTP 200 from xAI is NOT evidence of a valid JSON envelope.
   // Give the user a safe category, never provider body, prompt or secrets.
-  "invalid-provider-response": 502
+  "invalid-provider-response": 502, "not-found": 404,
+  "invalid-session-history": 400
 });
 
 function respond(res, status, data, origin = "") {
@@ -80,7 +81,11 @@ function mapAuthError(error) {
   }
 }
 
-function createRequestListener({ ready, allowProvider, authorizeAccount, verifyAuth, verifyAppCheck, checkRuntime, checkProvider, handleReply }) {
+function createRequestListener({
+  ready, allowProvider, authorizeAccount, verifyAuth, verifyAppCheck,
+  checkRuntime, checkProvider, handleReply,
+  attemptRecoveryEnabled = false, handleAttemptStatus
+}) {
   if (typeof ready !== "function" || typeof allowProvider !== "function" ||
       typeof authorizeAccount !== "function" || typeof checkRuntime !== "function" ||
       typeof checkProvider !== "function" ||
@@ -101,12 +106,14 @@ function createRequestListener({ ready, allowProvider, authorizeAccount, verifyA
     }
     const diagnostics = req.url === "/v1/ai/diagnostics";
     const providerDiagnostics = req.url === "/v1/ai/provider-diagnostics";
+    const attemptStatus = attemptRecoveryEnabled &&
+      req.url === "/v1/ai/attempt-status";
     if (req.method === "OPTIONS" &&
-        (req.url === "/v1/ai/reply" || diagnostics || providerDiagnostics)) {
+        (req.url === "/v1/ai/reply" || diagnostics || providerDiagnostics || attemptStatus)) {
       return respond(res, 204, {}, origin);
     }
     if (req.method !== "POST" ||
-        (req.url !== "/v1/ai/reply" && !diagnostics && !providerDiagnostics)) {
+        (req.url !== "/v1/ai/reply" && !diagnostics && !providerDiagnostics && !attemptStatus)) {
       return respond(res, 404, { error: "not-found" }, origin);
     }
     if (!ready()) {
@@ -144,7 +151,7 @@ function createRequestListener({ ready, allowProvider, authorizeAccount, verifyA
       }
       // Current verified Firebase account + short-lived private entitlement;
       // no browser-supplied role or recurring Railway UID variable.
-      if ((allowProvider() || diagnostics || providerDiagnostics) &&
+      if ((allowProvider() || diagnostics || providerDiagnostics || attemptStatus) &&
           !(await authorizeAccount(auth))) {
         throw new PolicyError("permission-denied");
       }
@@ -165,6 +172,15 @@ function createRequestListener({ ready, allowProvider, authorizeAccount, verifyA
         const privateEnabled = await checkRuntime();
         const status = privateEnabled ? await checkProvider() : "runtime-disabled";
         return respond(res, 200, { status, model: "grok-4.3" }, origin);
+      }
+      if (attemptStatus) {
+        // Read-only, zero-token/zero-dollar check. Signed Auth, consumed
+        // App Check and approved account are required; never return text.
+        if (typeof handleAttemptStatus !== "function") {
+          throw new PolicyError("unavailable");
+        }
+        const result = await handleAttemptStatus(data, auth.uid);
+        return respond(res, 200, result, origin);
       }
       // A second independent, default-OFF egress gate protects real
       // credentials even if a private Firestore runtime flag were mis-set.
@@ -216,6 +232,9 @@ function createRuntime() {
   const consentEnabled = process.env.REFLECT_CONTEXT_CONSENT_API_ENABLED === "yes";
   // Separate read-only preview gate; OFF independently of consent grants.
   const previewEnabled = process.env.REFLECT_CONTEXT_PREVIEW_API_ENABLED === "yes";
+  // Isolated recovery receipts. OFF independent of Grok, consent and preview.
+  const attemptRecoveryEnabled =
+    process.env.REFLECT_AI_ATTEMPT_RECEIPTS_ENABLED === "yes";
   const valid = process.env.REFLECT_AI_APPROVED_PROJECT === STAGE_PROJECT &&
     process.env.REFLECT_AI_APP_CHECK_APP_ID === STAGE_APP_ID &&
     process.env.REFLECT_AI_ALLOWED_ORIGIN === STAGE_ORIGIN;
@@ -227,12 +246,16 @@ function createRuntime() {
   if (previewEnabled && (!enabled || !valid || !consentEnabled)) {
     throw Error("Context preview API requires trusted staging and active consent API");
   }
+  if (attemptRecoveryEnabled && (!enabled || !valid)) {
+    throw Error("AI recovery requires exact isolated staging project/app/origin");
+  }
   let verifyAuth = async () => { throw new Error("AI disabled"); };
   let verifyAppCheck = async () => { throw new Error("AI disabled"); };
   let authorizeAccount = async () => false;
   let checkRuntime = async () => false;
   let checkProvider = async () => "provider-unavailable";
   let handleReply = async () => { throw new Error("AI disabled"); };
+  let handleAttemptStatus = async () => { throw new Error("AI disabled"); };
   let consentRoute = null;
   let previewRoute = null;
   let ready = false;
@@ -257,7 +280,8 @@ function createRuntime() {
       db, projectId: STAGE_PROJECT, appId: STAGE_APP_ID,
       readSecret: () => providerKey, transport: fetch,
       // Separate default-OFF staging flag; existing Grok stays operational.
-      interactionEnabled: process.env.REFLECT_AI_INTERACTION_V1_ENABLED === "yes"
+      interactionEnabled: process.env.REFLECT_AI_INTERACTION_V1_ENABLED === "yes",
+      attemptRecoveryEnabled
     });
     authorizeAccount = createStagingEntitlementVerifier({
       db, projectId: STAGE_PROJECT, getUser: uid => getAuth(app).getUser(uid)
@@ -283,6 +307,15 @@ function createRuntime() {
       return firstUse ? result : { ...result, alreadyConsumed: true };
     };
     handleReply = handler;
+    if (attemptRecoveryEnabled) {
+      const { createAiTurnRecovery, validateStatusBody } =
+        require("../ai/aiTurnRecovery.cjs");
+      const receipts = createAiTurnRecovery({ db, projectId: STAGE_PROJECT });
+      handleAttemptStatus = async (data, uid) => {
+        const target = validateStatusBody(data);
+        return receipts.status({ ...target, uid });
+      };
+    }
     // No new API exists unless the owner deliberately opts into an isolated
     // staging deployment AND sets the dedicated server-only feature flag.
     // The existing AI reply handler remains strictly one-message-only.
@@ -315,7 +348,8 @@ function createRuntime() {
   const aiRoute = createRequestListener({
     ready: () => ready, allowProvider: () => outboundEnabled,
     authorizeAccount, checkRuntime, checkProvider,
-    verifyAuth, verifyAppCheck, handleReply
+    verifyAuth, verifyAppCheck, handleReply,
+    attemptRecoveryEnabled, handleAttemptStatus
   });
   return (req, res) => {
     // Exact route match; no wildcard routes, query strings, or fallthrough.
