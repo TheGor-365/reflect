@@ -10,6 +10,8 @@ const { PolicyError, validateRequest, CONSENT_VERSION } = require("./policy.cjs"
 const { createXaiProviderAdapter } = require("./xaiProviderAdapter.cjs");
 const { createHostedBudget, MAX_MESSAGE_BYTES } = require("./hostedBudget.cjs");
 const { VERSION } = require("./interactionContract.cjs");
+const { createAiTurnRecovery, validateAttemptPayload } =
+  require("./aiTurnRecovery.cjs");
 
 async function readOwnerSettings(db, uid) {
   try {
@@ -33,7 +35,7 @@ async function readOwnerSettings(db, uid) {
 const fail = code => { throw new PolicyError(code); };
 function createHostedHandler({
   db, projectId, appId, readSecret, transport, clock = Date.now,
-  interactionEnabled = false
+  interactionEnabled = false, attemptRecoveryEnabled = false
 }) {
   if (!appId || typeof appId !== "string" ||
       !/^1:[0-9]+:web:[A-Za-z0-9]+$/.test(appId) ||
@@ -41,6 +43,8 @@ function createHostedHandler({
       typeof transport !== "function" ||
       typeof clock !== "function") fail("unsafe-environment");
   const budget = createHostedBudget(db, projectId);
+  const recovery = attemptRecoveryEnabled
+    ? createAiTurnRecovery({ db, projectId, clock }) : null;
   const adapter = createXaiProviderAdapter({
     readSecret, transport, timeoutMs: 20000
   });
@@ -50,44 +54,78 @@ function createHostedHandler({
         request.app?.alreadyConsumed === true) {
       fail("unauthenticated");
     }
-    const input = validateRequest(request.data, {
+    const envelope = recovery ? validateAttemptPayload(request.data) : null;
+    const input = validateRequest(envelope ? envelope.base : request.data, {
       uid: request.auth.uid, appCheckVerified: true
     });
     if (Buffer.byteLength(input.message, "utf8") > MAX_MESSAGE_BYTES) {
       fail("invalid-argument");
     }
     const nowMs = clock();
-    await budget.reserve({
-      uid: input.uid, requestId: input.requestId,
-      message: input.message, nowMs, structured: interactionEnabled
-    });
+    const attempt = recovery ? await recovery.claim({
+      uid: input.uid, sessionId: envelope.sessionId,
+      sourceTurnId: envelope.sourceTurnId,
+      requestId: input.requestId, message: input.message,
+      retryConfirmed: envelope.retryConfirmed
+    }) : null;
+    try {
+      await budget.reserve({
+        uid: input.uid, requestId: input.requestId,
+        message: input.message, nowMs, structured: interactionEnabled
+      });
+    } catch (error) {
+      if (recovery) {
+        try { await recovery.finishFailed(attempt, { beforeProvider: true, error }); }
+        catch { /* provider was never invoked; remain conservatively locked */ }
+      }
+      throw error;
+    }
     try {
       const settings = interactionEnabled
         ? await readOwnerSettings(db, input.uid) : null;
+      // If the private receipt cannot be marked "potentially billable",
+      // fail BEFORE contacting xAI. No silent automatic provider retry.
+      if (recovery) await recovery.providerStarted(attempt);
       const value = await adapter.invoke(input.message, settings);
-      // Charge receipt is kept internal. No diary/profile is read or written.
-      await budget.finish({
-        uid: input.uid, requestId: input.requestId,
-        status: "completed", nowMs: clock(),
-        actualUsdTicks: value.actualUsdTicks
-      });
+      if (recovery) {
+        // Atomic server-owned answer + receipt BEFORE HTTP 200.
+        await recovery.persistReply(attempt, value);
+      }
+      // Budget closeout is best effort after a durably committed response.
+      // Failure leaves the full existing reserve, never grants extra credit.
+      try {
+        await budget.finish({
+          uid: input.uid, requestId: input.requestId,
+          status: "completed", nowMs: clock(),
+          actualUsdTicks: value.actualUsdTicks
+        });
+      } catch {
+        if (!recovery) throw new PolicyError("unavailable");
+      }
       return Object.freeze({
         text: value.text,
         ...(interactionEnabled && value.interaction
           ? { interaction: value.interaction, promptVersion: VERSION } : {}),
         model: value.model,
         actualUsdTicks: value.actualUsdTicks,
-        estimatedUsd: value.estimatedUsdFromPublishedRates
+        estimatedUsd: value.estimatedUsdFromPublishedRates,
+        ...(recovery ? {
+          persistedByServer: true, sourceTurnId: attempt.sourceTurnId
+        } : {})
       });
     } catch (error) {
-      // Failure is ambiguous and may still be billed: keep the reservation
-      // and immutable ID. The same request is never automatically retried.
+      // Any provider or Firestore failure may be billable. No automatic
+      // second invocation; the owner must use the free status route first.
+      if (recovery) {
+        try { await recovery.finishFailed(attempt, { beforeProvider: false, error }); }
+        catch { /* status endpoint reports stale/unknown without granting retries */ }
+      }
       try {
         await budget.finish({
           uid: input.uid, requestId: input.requestId,
           status: "failed", nowMs: clock()
         });
-      } catch { /* never expose storage/provider internals */ }
+      } catch { /* full reserve is retained; no retry budget is freed */ }
       if (error instanceof PolicyError) throw error;
       fail("unavailable");
     }
