@@ -173,3 +173,23 @@ it('a map-only rename requires confirmation and never mutates the session transc
   }));
   expect(sessions[0].title).toBe('Работа и развитие');
 });
+
+test('P1: Mindspace zoom and semantic-only focus preserve source data',()=>{
+  render(<Mindspace sessions={sessions} goals={goals} userId="synthetic-owner"/>);
+  const scale=screen.getByLabelText('Масштаб Mindspace');
+  expect(scale).toHaveTextContent('100%');
+  fireEvent.click(screen.getByRole('button',{name:'Увеличить карту'}));
+  expect(scale).toHaveTextContent('110%');
+  fireEvent.click(screen.getByRole('button',{name:'Уменьшить карту'}));
+  expect(scale).toHaveTextContent('100%');
+  fireEvent.click(screen.getByRole('button',{name:'Цели видны'}));
+  expect(screen.queryByRole('button',{name:/Цель: Готовить MVP/}))
+    .not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Все темы'}));
+  expect(screen.getByText('Под эти фильтры нет подтверждённых связей'))
+    .toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Показать все узлы'}));
+  expect(screen.getByRole('button',{name:/Цель: Готовить MVP/}))
+    .toBeInTheDocument();
+  expect(saveMindLink).not.toHaveBeenCalled();
+});
