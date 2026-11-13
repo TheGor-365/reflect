@@ -111,11 +111,14 @@ test('P1: pending AI recommendation changes dashboard without inventing a comple
   render(<Dashboard sessions={ownerSessions} goals={[]}
     nowMs={nowMs} onOpenRecommendations={onOpenRecommendations}/>);
   expect(screen.getByRole('heading',{name:'Следующее решение'})).toBeInTheDocument();
-  expect(screen.getByText('Зафиксировать минимальный scope')).toBeInTheDocument();
+  expect(screen.getByText(/Я предложил вам рассмотреть: Зафиксировать минимальный scope/)).toBeInTheDocument();
   expect(screen.getByText(/Идея AI · ещё не цель/)).toBeInTheDocument();
   expect(screen.queryByText('Цель подтверждена')).not.toBeInTheDocument();
+  expect(screen.getByText(/Тема:/)).toHaveTextContent('Запуск продукта');
+  expect(screen.getByLabelText('Путь от гипотезы к цели')).toHaveTextContent('3. Проверка человеком');
+  expect(screen.getByText(/Модель получила только одно сообщение/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button',{
-    name:'Решить, что делать с предложением'
+    name:'Проверить и обсудить предложение'
   }));
   expect(onOpenRecommendations).toHaveBeenCalledOnce();
 });
