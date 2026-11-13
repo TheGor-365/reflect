@@ -5,6 +5,8 @@
  * Output: explicitly sourced graph nodes/edges. No AI call, persistence,
  * inferred causal links, psychiatric scoring or invented completion dates.
  */
+import { sessionDisplayTitle } from '../Diary/diaryPresentation';
+
 export const JOURNEY_VERSION = 'reflect.journey.v1';
 export const NODE_LIMIT = 160;
 const safe = (value, fallback = '') => typeof value === 'string' && value.trim()
@@ -56,7 +58,7 @@ export function projectJourney(sessions = [], goals = [], { maxNodes = NODE_LIMI
     const sessionId = session.id;
     const sid = `session:${sessionId}`;
     const messages = Array.isArray(session.chatHistory) ? session.chatHistory : [];
-    add(node(sid, 'session', sessionId, safe(session.title, 'Сохранённый сеанс'), {
+    add(node(sid, 'session', sessionId, sessionDisplayTitle(session), {
       status: 'stored', author: 'record',
       timestampMs: timestampMs(session.createdAt), timestampSource: 'saved',
       sourceRef: source('session', sessionId)
@@ -264,6 +266,33 @@ export function journeyFacts(graph, period='all') {
       : null,
     datedEvents:nodes.filter(n=>n.timestampMs!==null).length
   };
+}
+
+/**
+ * Read-only duration and evidence coverage. This is time between saved
+ * messages, NEVER a psychological 'distance' or success score. A complete
+ * timespan requires timestamps on every displayed message, otherwise NULL.
+ */
+export function journeyCoverage(graph) {
+  const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
+  const turns = nodes.filter(n => n.type === 'turn');
+  const authored = turns.filter(n => n.author === 'user');
+  const modelReplies = turns.filter(n => n.author === 'ai');
+  const dated = turns.filter(n => Number.isFinite(n.timestampMs) && n.timestampMs >= 0);
+  const ordered = dated.map(n => n.timestampMs).sort((a,b) => a-b);
+  const complete = turns.length >= 2 && dated.length === turns.length;
+  const firstAt = complete ? ordered[0] : null;
+  const lastAt = complete ? ordered[ordered.length-1] : null;
+  return Object.freeze({
+    turns: turns.length,
+    authored: authored.length,
+    aiReplies: modelReplies.length,
+    dated: dated.length,
+    complete,
+    firstAt, lastAt,
+    timespanMs: complete ? Math.max(0, lastAt-firstAt) : null,
+    proposed: nodes.filter(n => n.type === 'proposal' && n.status === 'proposed').length
+  });
 }
 
 export function layoutJourney(graph) {
