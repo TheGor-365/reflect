@@ -140,7 +140,10 @@ export function prepareOwnerContextDraft(session, selectedUserTurnIds, {
     const suffix = '»';
     const budget = maxChars - used - prefix.length - suffix.length - 1;
     if (budget < 35) break;
-    const excerpt = flat.slice(0, budget);
+    // Mark truncation explicitly; never imply the entire old turn was shown.
+    const clipped = flat.length > budget;
+    const excerpt = flat.slice(0, budget - (clipped ? 1 : 0)) +
+      (clipped ? '…' : '');
     lines.push(prefix + excerpt + suffix);
     used += prefix.length + excerpt.length + suffix.length + 1;
   }
