@@ -1,6 +1,6 @@
 {
   "firestore": {
-    "rules": "../../server/hosted/firestore.rules"
+    "rules": "firestore.hypothesis-hosted.runtime.rules"
   },
   "emulators": {
     "auth": {
