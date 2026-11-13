@@ -38,7 +38,10 @@ function sessionPath(target) {
   return `artifacts/${NAMESPACE}/users/${target.uid}/sessions/${target.sessionId}`;
 }
 function receiptPath(target) {
-  return sessionPath(target) + "/aiTurnAttempts/" + target.sourceTurnId;
+  // Existing Firestore Rules deny ALL browser access to _reflectAiPrivate.
+  // The authenticated user session remains the only content storage.
+  return `_reflectAiPrivate/${NAMESPACE}/attemptOwners/${target.uid}` +
+    `/sessions/${target.sessionId}/turns/${target.sourceTurnId}`;
 }
 function sourceEvidence(data, sourceTurnId, expectedMessage) {
   const history = data?.chatHistory;
