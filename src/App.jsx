@@ -461,6 +461,7 @@ export default function App() {
           focusTurnId={focusTurnId}
           onStartNewSession={handleNewSession}
           onOpenGoals={() => navigateToTab('goals')}
+          onOpenRecommendations={() => navigateToTab('recommendations')}
           libraryRequested={sessionLibraryRequested}
           onCloseLibrary={() => setSessionLibraryRequested(false)}
           onOpenLibrary={() => setSessionLibraryRequested(true)}
