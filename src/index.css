@@ -4023,3 +4023,10 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
 @media(max-width:680px) {
   .reflect-dashboard-decision-path {grid-template-columns:repeat(2,minmax(0,1fr));}
 }
+
+.reflect-ai-provisional-label {
+  display:block;margin-bottom:.4rem;
+  font-size:.73rem;line-height:1.35;
+  color:var(--reflect-muted,#a8b3cf);
+  letter-spacing:.01em;
+}
