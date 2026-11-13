@@ -87,7 +87,9 @@ function publicState(receipt, hasReply, nowMs) {
   const canRetry = !hasReply && (
     status === "failed_before_provider" ||
     status === "failed_after_provider" || status === "outcome_unknown"
-  ) && receipt.status !== "persisted_reply";
+  ) && receipt.status !== "persisted_reply" &&
+    Number.isInteger(receipt.attemptsCount) &&
+    receipt.attemptsCount < MAX_ATTEMPTS;
   return {
     status: hasReply && status !== "persisted_reply" ? "reply_exists" : status,
     billedPossible: possible, canRetry: canRetry && !hasReply,
