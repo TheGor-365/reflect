@@ -10,7 +10,7 @@ const plain = v => !!v && typeof v === "object" && !Array.isArray(v) &&
 const fail = () => { throw new PolicyError("invalid-provider-response"); };
 const defaults = Object.freeze({
   responseDepth: "balanced", responseTone: "analytical",
-  assistantRole: "companion", empathyLevel: "balanced",
+  assistantRole: "companion", empathyLevel: "balanced", addressForm: "vy",
   askClarifyingQuestions: true, recommendationsEnabled: false,
   recommendationFrequency: "rare"
 });
@@ -21,13 +21,21 @@ function normalizeSettings(raw) {
       typeof raw.askClarifyingQuestions !== "boolean" ||
       typeof raw.recommendationsEnabled !== "boolean" ||
       !["rare", "balanced"].includes(raw.recommendationFrequency) ||
-      typeof raw.autoSaveRecommendations !== "boolean") return { ...defaults };
+      typeof raw.autoSaveRecommendations !== "boolean" ||
+      (raw.assistantRole !== undefined &&
+        !["companion", "mentor", "challenger", "reflective"].includes(raw.assistantRole)) ||
+      (raw.empathyLevel !== undefined &&
+        !["low", "balanced", "high"].includes(raw.empathyLevel)) ||
+      (raw.addressForm !== undefined &&
+        !["vy", "ty"].includes(raw.addressForm))) return { ...defaults };
   return {
     responseDepth: raw.responseDepth, responseTone: raw.responseTone,
     assistantRole: ["companion", "mentor", "challenger", "reflective"].includes(raw.assistantRole)
       ? raw.assistantRole : defaults.assistantRole,
     empathyLevel: ["low", "balanced", "high"].includes(raw.empathyLevel)
       ? raw.empathyLevel : defaults.empathyLevel,
+    addressForm: ["vy", "ty"].includes(raw.addressForm)
+      ? raw.addressForm : defaults.addressForm,
     askClarifyingQuestions: raw.askClarifyingQuestions,
     recommendationsEnabled: raw.recommendationsEnabled,
     recommendationFrequency: raw.recommendationFrequency
@@ -97,7 +105,8 @@ const prompt = (settings, classification) => [
   "Тон: " + settings.responseTone + "; глубина: " + settings.responseDepth + ".",
   "Роль собеседника: " + settings.assistantRole + "; эмпатия: " + settings.empathyLevel + ".",
   "Роль — манера общения, а не профессиональная квалификация: не выдавай себя за психотерапевта.",
-  "Обращайся напрямую к человеку на вы, естественно и уважительно. Вместо приказов",
+  "Обращайся напрямую к человеку (" + (settings.addressForm === "ty" ? "на ты" : "на вы") +
+    "), естественно и уважительно. Вместо приказов",
   "«Зафиксировать...», говори «Я бы предложил вам... потому что...», если совет уместен.",
   "При низкой эмпатии — лаконично, но доброжелательно; при высокой — тепло без лести.",
   "Никогда не называй одну гипотезу точным объяснением причины поведения.",
