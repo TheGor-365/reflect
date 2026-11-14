@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Lightbulb, MessageCircleQuestion, Target, ArrowUpRight } from 'lucide-react';
 import { buildRecommendationInbox } from './recommendationInbox';
+import RecommendationMark from '../../components/RecommendationMark';
 
 const statusText = {
   pending: 'Ожидает вашего решения',
@@ -78,7 +79,7 @@ export default function Recommendations({ sessions = [], onOpenSession, onOpenGo
               <ol className="reflect-inbox-list">
                 {pending.map(item => (
                   <li key={item.id} className="reflect-inbox-card">
-                    <span className="reflect-inbox-state">{statusText[item.status]}</span>
+                    <RecommendationMark qualifier={statusText[item.status]}/>
                     <h4>{item.title}</h4>
                     <p>{item.rationale}</p>
                     <small>Обосновано только сообщением в указанном сеансе;
@@ -101,7 +102,7 @@ export default function Recommendations({ sessions = [], onOpenSession, onOpenGo
               <ol className="reflect-inbox-list">
                 {decided.map(item => (
                   <li key={item.id} className="reflect-inbox-card reflect-inbox-card--decided">
-                    <span className="reflect-inbox-state">{statusText[item.status]}</span>
+                    <RecommendationMark qualifier={statusText[item.status]}/>
                     <h4>{item.title}</h4>
                     <div className="reflect-inbox-footer">
                       <small>{item.sessionTitle}</small>
