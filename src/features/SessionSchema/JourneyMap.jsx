@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReflectSelect from '../../components/ReflectSelect';
+import RecommendationMark from '../../components/RecommendationMark';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, GitBranch, Maximize2, Minus, Plus, RotateCcw, MessageSquareText,
   Bot, Clock3, CheckCircle2, RefreshCw, ListChecks, Lightbulb } from 'lucide-react';
 import {
@@ -22,7 +23,7 @@ const spanLabel = ms => ms === null ? 'Недостаточно дат'
     : ms < 86400000 ? `${Math.round(ms/3600000*10)/10} ч`
       : `${Math.round(ms/86400000*10)/10} дн`;
 const TYPE = {
-  session:'Тема',turn:'Сообщение',proposal:'AI-предложение',
+  session:'Тема',turn:'Сообщение',proposal:'Рекомендация AI',
   decision:'Решение',goal:'Цель',step:'Шаг',return:'Возвращение'
 };
 const STATUS = {
@@ -321,7 +322,7 @@ export default function JourneyMap({
                   onClick={()=>setSelectedId(node.id)}
                   aria-pressed={selectedId===node.id}
                   aria-label={describe(node)}>
-                  <small>{TYPE[node.type]} · {STATUS[node.status]}</small>
+                  <small>{node.type==='proposal' ? <RecommendationMark/> : TYPE[node.type]} · {STATUS[node.status]}</small>
                   <span>{node.label}</span>
                 </button>
               ))}
@@ -335,7 +336,7 @@ export default function JourneyMap({
               <li key={node.id}>
                 <button type="button" aria-pressed={selectedId===node.id}
                   onClick={()=>setSelectedId(node.id)}>
-                  <small>{TYPE[node.type]} · {journeyDate(node.timestampMs)}</small>
+                  <small>{node.type==='proposal' ? <RecommendationMark/> : TYPE[node.type]} · {journeyDate(node.timestampMs)}</small>
                   <strong>{node.label}</strong>
                   <span>{STATUS[node.status]}</span>
                 </button>
