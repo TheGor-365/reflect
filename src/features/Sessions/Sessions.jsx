@@ -7,6 +7,7 @@ import ReplyRecoveryPanel from './ReplyRecoveryPanel';
 import { createDurableSession, appendDurableTurn } from './sessionPersistence';
 import ChatMessage from './ChatMessage';
 import SessionEvidenceLedger from './SessionEvidenceLedger';
+import SessionMemoryReview from './SessionMemoryReview';
 import SessionLibrary from './SessionLibrary';
 import { sessionDisplayTitle } from '../Diary/diaryPresentation';
 import SessionComposer from './SessionComposer';
@@ -546,6 +547,11 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
         </div>
 
         <div className="reflect-session-compose-dock">
+          {AI_SESSION_ENABLED && activeSession && (
+            <SessionMemoryReview key={userId + ':' + activeSession.id}
+              userId={userId} sessionId={activeSession.id}
+              draftMessage={userInput} disabled={isLoading}/>
+          )}
           {AI_SESSION_ENABLED && (
             <div className="reflect-ai-send-consent">
               <p className="reflect-ai-send-disclosure" id="reflect-session-send-privacy">Отправляя сообщение в Grok, вы разрешаете передать весь текст поля ввода. История, профиль и дневник не добавляются автоматически; если вы вручную вставили выдержки предыдущих сообщений, они будут отправлены как часть этого текста. xAI может хранить API-запрос и ответ до 30 дней.</p>
