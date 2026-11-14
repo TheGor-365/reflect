@@ -271,7 +271,7 @@ export default function Mindspace({
         aria-label="Факты и фильтры карты мыслей">
         <p><strong>{evidence.topics}</strong> тем</p>
         <p><strong>{evidence.goals}</strong> целей пользователя</p>
-        <p><strong>{evidence.aiIdeas}</strong> предложений AI</p>
+        <p><strong>{evidence.aiIdeas}</strong> рекомендаций AI (предложений)</p>
         <p><strong>{evidence.confirmedLinks}</strong> подтверждённых смысловых связей</p>
       </div>
       <div className="reflect-mindspace-zones" role="group"
