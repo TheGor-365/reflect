@@ -84,7 +84,8 @@ function mapAuthError(error) {
 function createRequestListener({
   ready, allowProvider, authorizeAccount, verifyAuth, verifyAppCheck,
   checkRuntime, checkProvider, handleReply,
-  attemptRecoveryEnabled = false, handleAttemptStatus
+  attemptRecoveryEnabled = false, handleAttemptStatus,
+  contextReplyEnabled = false, handleContextReply = null
 }) {
   if (typeof ready !== "function" || typeof allowProvider !== "function" ||
       typeof authorizeAccount !== "function" || typeof checkRuntime !== "function" ||
@@ -92,6 +93,9 @@ function createRequestListener({
       typeof verifyAuth !== "function" ||
       typeof verifyAppCheck !== "function" || typeof handleReply !== "function") {
     throw Error("Stage04H requires explicit injected server dependencies");
+  }
+  if (contextReplyEnabled && typeof handleContextReply !== "function") {
+    throw Error("M3d reply needs an explicit trusted server handler");
   }
   return async (req, res) => {
     const origin = req.headers.origin;
@@ -108,12 +112,16 @@ function createRequestListener({
     const providerDiagnostics = req.url === "/v1/ai/provider-diagnostics";
     const attemptStatus = attemptRecoveryEnabled &&
       req.url === "/v1/ai/attempt-status";
+    const contextReply = contextReplyEnabled &&
+      req.url === "/v1/ai/session-memory-reply";
     if (req.method === "OPTIONS" &&
-        (req.url === "/v1/ai/reply" || diagnostics || providerDiagnostics || attemptStatus)) {
+        (req.url === "/v1/ai/reply" || diagnostics || providerDiagnostics ||
+         attemptStatus || contextReply)) {
       return respond(res, 204, {}, origin);
     }
     if (req.method !== "POST" ||
-        (req.url !== "/v1/ai/reply" && !diagnostics && !providerDiagnostics && !attemptStatus)) {
+        (req.url !== "/v1/ai/reply" && !diagnostics && !providerDiagnostics &&
+         !attemptStatus && !contextReply)) {
       return respond(res, 404, { error: "not-found" }, origin);
     }
     if (!ready()) {
@@ -188,7 +196,8 @@ function createRequestListener({
       if (!allowProvider()) {
         return respond(res, 503, { error: "provider-disabled" }, origin);
       }
-      const output = await handleReply({
+      const selectedHandler = contextReply ? handleContextReply : handleReply;
+      const output = await selectedHandler({
         auth: { uid: auth.uid },
         app: { appId: app.appId, alreadyConsumed: app.alreadyConsumed },
         data
@@ -236,6 +245,9 @@ function createRuntime() {
   // Must stay OFF until a separate staging release and signed browser acceptance.
   const memoryPreviewEnabled =
     process.env.REFLECT_AI_SESSION_MEMORY_PREVIEW_ENABLED === "yes";
+  // Paid context transport: independent opt-in, remains OFF on all live hosts.
+  const contextReplyEnabled =
+    process.env.REFLECT_AI_SESSION_MEMORY_REPLY_ENABLED === "yes";
   // Isolated recovery receipts. OFF independent of Grok, consent and preview.
   const attemptRecoveryEnabled =
     process.env.REFLECT_AI_ATTEMPT_RECEIPTS_ENABLED === "yes";
@@ -258,12 +270,19 @@ function createRuntime() {
        process.env.REFLECT_AI_INTERACTION_V1_ENABLED !== "yes")) {
     throw Error("M3d preview needs approved staging consent, receipts and structured AI");
   }
+  if (contextReplyEnabled &&
+      (!enabled || !valid || !memoryPreviewEnabled ||
+       !consentEnabled || !attemptRecoveryEnabled ||
+       process.env.REFLECT_AI_INTERACTION_V1_ENABLED !== "yes")) {
+    throw Error("M3d reply needs approved staging preview, consent, receipts and structured AI");
+  }
   let verifyAuth = async () => { throw new Error("AI disabled"); };
   let verifyAppCheck = async () => { throw new Error("AI disabled"); };
   let authorizeAccount = async () => false;
   let checkRuntime = async () => false;
   let checkProvider = async () => "provider-unavailable";
   let handleReply = async () => { throw new Error("AI disabled"); };
+  let handleContextReply = null;
   let handleAttemptStatus = async () => { throw new Error("AI disabled"); };
   let consentRoute = null;
   let previewRoute = null;
@@ -338,6 +357,13 @@ function createRuntime() {
         execute: (command, principal) => consentStore.execute(command, principal),
         list: principal => consentStore.list(principal)
       });
+      if (contextReplyEnabled) {
+        const { createMemoryReplyHandler } = require("../ai/memoryReply.cjs");
+        handleContextReply = createMemoryReplyHandler({
+          db, projectId: STAGE_PROJECT, appId: STAGE_APP_ID,
+          readSecret: () => providerKey, transport: fetch, consentStore
+        });
+      }
       if (memoryPreviewEnabled) {
         const { createSessionMemoryAdapter } = require("../ai/sessionMemory.cjs");
         const { createSessionMemoryPreviewHttpListener } =
@@ -374,7 +400,8 @@ function createRuntime() {
     ready: () => ready, allowProvider: () => outboundEnabled,
     authorizeAccount, checkRuntime, checkProvider,
     verifyAuth, verifyAppCheck, handleReply,
-    attemptRecoveryEnabled, handleAttemptStatus
+    attemptRecoveryEnabled, handleAttemptStatus,
+    contextReplyEnabled, handleContextReply
   });
   return (req, res) => {
     // Exact route match; no wildcard routes, query strings, or fallthrough.
