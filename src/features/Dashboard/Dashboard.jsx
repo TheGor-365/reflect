@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { buildDashboardSnapshot } from './dashboardModel';
 import { buildRecommendationInbox } from '../Recommendations/recommendationInbox';
+import RecommendationMark from '../../components/RecommendationMark';
 
 const dateLabel=at=>at===null?'Дата не сохранена':
   new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',year:'numeric'})
@@ -75,7 +76,7 @@ export default function Dashboard({
               aria-label="Ожидающие вашего решения предложения Reflect">
               <div className="reflect-dashboard-section-heading">
                 <h3><Lightbulb size={19} aria-hidden="true"/>
-                  {recommendationProvisional ? 'Гипотеза на проверке' : 'Следующее решение'}
+                  {recommendationProvisional ? 'Рекомендация на проверке' : 'Следующее решение'}
                 </h3>
                 <span>{inbox.pendingCount} предложений и уточнений без решения</span>
               </div>
@@ -89,7 +90,8 @@ export default function Dashboard({
                       Открыть исходный сеанс <ArrowUpRight size={15} aria-hidden="true"/>
                     </button>}
                   </div>
-                  <small>Идея AI · ещё не цель · предпосылки требуют проверки</small>
+                  <RecommendationMark qualifier={recommendationProvisional ? 'предпосылки требуют проверки' : 'ожидает решения'}/>
+                  <small>Предложение AI ещё не подтверждённая цель и не факт.</small>
                   <strong>Я предложил вам рассмотреть: {waitingRecommendation.title}</strong>
                   <p>Почему мне показался полезным этот вариант: {waitingRecommendation.rationale}
                     Но я мог неверно понять вашу ситуацию.</p>
