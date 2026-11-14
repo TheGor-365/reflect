@@ -262,6 +262,8 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
       };
       await appendDurableTurn(owner, sessionId, userTurn);
       committed = true;
+      if (activeScopeRef.current.userId !== owner ||
+          activeScopeRef.current.currentSessionId !== sessionId) return false;
       if (ownerRef.current === owner) {
         setUserInput('');
         try { await sessionDraftRef.current?.clearAfterCommit(); }
