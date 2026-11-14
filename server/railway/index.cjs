@@ -232,6 +232,10 @@ function createRuntime() {
   const consentEnabled = process.env.REFLECT_CONTEXT_CONSENT_API_ENABLED === "yes";
   // Separate read-only preview gate; OFF independently of consent grants.
   const previewEnabled = process.env.REFLECT_CONTEXT_PREVIEW_API_ENABLED === "yes";
+  // M3d owner-scoped transcript inspection; independent of old preview rollback.
+  // Must stay OFF until a separate staging release and signed browser acceptance.
+  const memoryPreviewEnabled =
+    process.env.REFLECT_AI_SESSION_MEMORY_PREVIEW_ENABLED === "yes";
   // Isolated recovery receipts. OFF independent of Grok, consent and preview.
   const attemptRecoveryEnabled =
     process.env.REFLECT_AI_ATTEMPT_RECEIPTS_ENABLED === "yes";
@@ -249,6 +253,11 @@ function createRuntime() {
   if (attemptRecoveryEnabled && (!enabled || !valid)) {
     throw Error("AI recovery requires exact isolated staging project/app/origin");
   }
+  if (memoryPreviewEnabled &&
+      (!enabled || !valid || !consentEnabled || !attemptRecoveryEnabled ||
+       process.env.REFLECT_AI_INTERACTION_V1_ENABLED !== "yes")) {
+    throw Error("M3d preview needs approved staging consent, receipts and structured AI");
+  }
   let verifyAuth = async () => { throw new Error("AI disabled"); };
   let verifyAppCheck = async () => { throw new Error("AI disabled"); };
   let authorizeAccount = async () => false;
@@ -258,6 +267,7 @@ function createRuntime() {
   let handleAttemptStatus = async () => { throw new Error("AI disabled"); };
   let consentRoute = null;
   let previewRoute = null;
+  let memoryPreviewRoute = null;
   let ready = false;
   if (enabled) {
     const secretJson = process.env.REFLECT_FIREBASE_SERVICE_ACCOUNT_JSON || "";
@@ -328,6 +338,21 @@ function createRuntime() {
         execute: (command, principal) => consentStore.execute(command, principal),
         list: principal => consentStore.list(principal)
       });
+      if (memoryPreviewEnabled) {
+        const { createSessionMemoryAdapter } = require("../ai/sessionMemory.cjs");
+        const { createSessionMemoryPreviewHttpListener } =
+          require("../ai/sessionMemoryPreviewHttp.cjs");
+        const { createPreviewQuota } = require("../privacy/contextPreviewQuota.cjs");
+        const memory = createSessionMemoryAdapter({
+          db, consentStore, projectId: STAGE_PROJECT
+        });
+        const quota = createPreviewQuota({ db, projectId: STAGE_PROJECT });
+        memoryPreviewRoute = createSessionMemoryPreviewHttpListener({
+          verifyAuth, verifyAppCheck, authorizeAccount,
+          rateLimit: uid => quota.consume(uid),
+          preview: args => memory.preview(args)
+        });
+      }
       if (previewEnabled) {
         const { createSessionContextPreview } = require("../privacy/sessionContextPreview.cjs");
         const { createPreviewQuota } = require("../privacy/contextPreviewQuota.cjs");
@@ -358,6 +383,9 @@ function createRuntime() {
     }
     if (previewRoute && req.url === "/v1/privacy/context-preview") {
       return previewRoute(req, res);
+    }
+    if (memoryPreviewRoute && req.url === "/v1/ai/session-memory-preview") {
+      return memoryPreviewRoute(req, res);
     }
     return aiRoute(req, res);
   };
