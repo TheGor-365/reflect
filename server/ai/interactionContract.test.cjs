@@ -246,3 +246,12 @@ test("M3b quoted injection stays in untrusted user data, not system instructions
   assert.equal(req.body.input[1].role,"user");
   assert.equal(req.body.input[2].content,"Мне нужен один уточняющий вопрос.");
 });
+
+
+test("M3b packaged context limits equal already-reviewed private session memory",()=>{
+  const { CONTEXT_LIMITS } = require("./providerSessionContext.cjs");
+  const privateLimits = require("./sessionMemory.cjs");
+  for (const [key,value] of Object.entries(CONTEXT_LIMITS)) {
+    assert.equal(privateLimits[key],value,key);
+  }
+});
