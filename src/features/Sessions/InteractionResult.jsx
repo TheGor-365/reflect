@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { BookmarkPlus, CalendarClock, CheckCircle2, CircleX,
   Goal, Lightbulb, MessageCircle, MessageSquareReply, Target, Undo2,
-  SlidersHorizontal, ShieldQuestion, Check, ArrowRight, XCircle, TrendingDown, CircleDot, TargetIcon } from 'lucide-react';
+  SlidersHorizontal, ShieldQuestion, Check, ArrowRight, XCircle, TrendingDown, CircleDot } from 'lucide-react';
 import { HYPOTHESIS_GRADES } from './hypothesisReviewModel';
 import RecommendationMark from '../../components/RecommendationMark';
 
-const GRADE_ICONS = [XCircle, TrendingDown, CircleDot, TargetIcon, CheckCircle2];
+const GRADE_ICONS = [XCircle, TrendingDown, CircleDot, Target, CheckCircle2];
 
 // Structured AI proposals remain suggestions until a human explicitly chooses
 // an action. No Firestore access or background writes occur in this component.
