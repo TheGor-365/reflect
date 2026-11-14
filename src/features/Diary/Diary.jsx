@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { Timestamp } from 'firebase/firestore';
 import {
   ArrowUp, BarChart3, Check, ChevronDown,
-  LockKeyhole, Search, SlidersHorizontal, Smile, Type, X, CalendarDays, Lightbulb
+  LockKeyhole, Search, SlidersHorizontal, Smile, Type, X, CalendarDays, Compass
 } from 'lucide-react';
 import { useEntrySave } from '../../hooks/useEntrySave';
 import SaveFeedback from '../../components/common/SaveFeedback';
@@ -429,7 +429,7 @@ const Diary = ({
         {!isLoading && !diaryGroups.length &&
           (visibleKind === 'recommendation'
             ? <div className="reflect-diary-recommendations-empty" role="status">
-                <Lightbulb size={23} aria-hidden="true"/>
+                <Compass size={23} aria-hidden="true"/>
                 <h3>Рекомендаций пока нет</h3>
                 <p>Эта рубрика будет содержать только рекомендации, основанные на достаточном контексте.
                   Автоматическая подготовка и управление в настройках AI появятся на следующем этапе.</p>
