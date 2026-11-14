@@ -43,19 +43,29 @@ function createHostedBudget(db, projectId) {
       global: root.collection("globalDays").doc(day)
     };
   };
-  async function reserve({ uid, requestId, message, nowMs, structured = false }) {
+  async function reserve({ uid, requestId, message, nowMs, structured = false, trustedContextBytes = 0 }) {
     if (!Number.isSafeInteger(nowMs) || nowMs < 0 ||
         nowMs > 8640000000000000 ||
         typeof uid !== "string" || uid.length < 1 || uid.length > 128 ||
         typeof requestId !== "string" ||
         typeof message !== "string" ||
-        Buffer.byteLength(message, "utf8") > MAX_MESSAGE_BYTES) {
+        Buffer.byteLength(message, "utf8") > MAX_MESSAGE_BYTES ||
+        !Number.isSafeInteger(trustedContextBytes) ||
+        trustedContextBytes < 0 || trustedContextBytes > 1200) {
       fail("invalid-argument");
     }
     const keys = dayRefs(uid, nowMs);
     const req = ledger(uid, requestId);
-    const estimated = Math.min(LIMITS.maxInputTokens,
-      Math.ceil(Buffer.byteLength(message, "utf8") / 2) + 100);
+    // Context bytes are SERVER-owned output of memory.authorize(), never
+    // client budget parameters. Fail closed when estimated prompt grows
+    // past the established staging per-request input ceiling.
+    const estimatedRaw = Math.ceil(
+      (Buffer.byteLength(message, "utf8") + trustedContextBytes) / 2
+    ) + 100;
+    if (trustedContextBytes && estimatedRaw > LIMITS.maxInputTokens) {
+      fail("resource-exhausted");
+    }
+    const estimated = Math.min(LIMITS.maxInputTokens, estimatedRaw);
     return db.runTransaction(async tx => {
       const [flagSnap, ledgerSnap, ownerSnap, globalSnap] = await Promise.all([
         tx.get(flag), tx.get(req), tx.get(keys.owner), tx.get(keys.global)
