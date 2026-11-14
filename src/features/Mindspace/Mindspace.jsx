@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { buildMindspace, layoutMindspace, RELATIONS,
   filterMindspace, mindspaceEvidence } from './mindspaceModel';
-import { MINDSPACE_ZONES, UNASSIGNED_ZONE, zoneForNode,
+import { MINDSPACE_ZONES, zoneForNode,
   zoneCounts, filterMindspaceZone } from './mindspaceZones';
 import ReflectSelect from '../../components/ReflectSelect';
 import { removeMindLink, saveMindLink, renameMindTopic } from './mindspaceOperations';
@@ -320,10 +320,10 @@ export default function Mindspace({
             <span><Link2 size={23}/></span>
             <span><Target size={29}/></span>
           </div>
-          <h3>{filteredEmpty?'Под эти фильтры нет подтверждённых связей':
+          <h3>{filteredEmpty?(zoneFocus!=='all'?'В этом направлении пока нет узлов':'Под эти фильтры нет подтверждённых связей'):
               'Смыслы появятся из ваших записей'}</h3>
           <p>{filteredEmpty
-            ? 'Снимите фильтр «Только связанные» или покажите скрытые типы узлов.'
+            ? 'Снимите фильтр направления или «Только связанные», чтобы увидеть остальные узлы.'
             : 'Сохраните первую тему или цель. Мы не создаём психологический профиль и не придумываем связи без ваших решений.'}</p>
           {filteredEmpty&&<button type="button" onClick={()=>{
             setOnlyUserLinks(false);setShowGoals(true);setShowIdeas(true);
@@ -430,7 +430,7 @@ export default function Mindspace({
         <aside className="reflect-mindspace-inspector" aria-label="Выбранный смысловой узел">
           <div className="reflect-mindspace-inspector-heading">
             <div>
-              <small>{LABELS[selected.kind]} · {LABELS[selected.status]||'Сохранено'}</small>
+              <small>{selected.kind==='proposal'&&<Compass size={13} aria-hidden="true"/>}{LABELS[selected.kind]} · {LABELS[selected.status]||'Сохранено'}</small>
               <h3>{selected.label}</h3>
             </div>
             <button type="button" onClick={()=>setSelectedId(null)}
