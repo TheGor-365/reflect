@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   Activity, ArrowRight, BookOpen, BrainCircuit, CalendarDays, CheckSquare,
-  GitBranch, MessageSquareText, Target, Lightbulb, ArrowUpRight
+  GitBranch, MessageSquareText, Target, Compass, ArrowUpRight
 } from 'lucide-react';
 import { buildDashboardSnapshot } from './dashboardModel';
 import { buildRecommendationInbox } from '../Recommendations/recommendationInbox';
@@ -75,7 +75,7 @@ export default function Dashboard({
             <section className="reflect-dashboard-section reflect-dashboard-next-decision"
               aria-label="Ожидающие вашего решения предложения Reflect">
               <div className="reflect-dashboard-section-heading">
-                <h3><Lightbulb size={19} aria-hidden="true"/>
+                <h3><Compass size={19} aria-hidden="true"/>
                   {recommendationProvisional ? 'Рекомендация на проверке' : 'Следующее решение'}
                 </h3>
                 <span>{inbox.pendingCount} предложений и уточнений без решения</span>
