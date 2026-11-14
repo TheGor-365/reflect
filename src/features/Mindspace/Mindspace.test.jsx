@@ -135,17 +135,17 @@ describe('PRODUCT-05B Mindspace UI',()=>{
     }]},sessions[1]];
     render(<Mindspace sessions={withAi} goals={goals}
       userId="synthetic-owner"/>);
-    expect(screen.getByRole('button',{name:/Идея AI: Отдохнуть 10 минут/}))
+    expect(screen.getByRole('button',{name:/Рекомендация AI: Отдохнуть 10 минут/}))
       .toBeInTheDocument();
     expect(screen.getByLabelText('Подтверждённые смысловые связи'))
       .toHaveTextContent('0');
     fireEvent.click(screen.getByRole('button',{name:/Идеи AI видны/}));
     expect(screen.queryByRole('button',{
-      name:/Идея AI: Отдохнуть 10 минут/
+      name:/Рекомендация AI: Отдохнуть 10 минут/
     })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button',{name:/Идеи AI скрыты/}));
     expect(screen.getByRole('button',{
-      name:/Идея AI: Отдохнуть 10 минут/
+      name:/Рекомендация AI: Отдохнуть 10 минут/
     })).toBeInTheDocument();
   });
   it('shows honest empty state without synthetic psychological facts',()=>{
