@@ -38,7 +38,16 @@ else
   printf '\nVITE_ENABLE_REFLECT_AI_RECOVERY=true\n' >> .env.staging.local
 fi
 chmod 600 .env.staging.local
+# Public, non-secret, staging-only release flags. The archived baseline
+# staging.env predates the signed Railway bridge. Always prefer these explicit
+# effective environment values; never modify credentials or publish Rules.
 export VITE_ENABLE_REFLECT_AI_RECOVERY=true
+export VITE_ENABLE_REFLECT_RAILWAY_AI=true
+export VITE_ENABLE_REFLECT_RAILWAY_PRECHECK=false
+export VITE_REFLECT_RAILWAY_AI_ORIGIN=https://reflect-ai-api-staging.up.railway.app
+export VITE_ENABLE_REFLECT_CONTEXT_PREVIEW=false
+export VITE_ENABLE_REFLECT_PREVIEW_GATE5_QA=false
+export VITE_ENABLE_REFLECT_CONTEXT_CONSENT=false
 export REFLECT_STAGING_EXPECTED_SHA="$SHA"
 [[ "$(git rev-parse HEAD)" == "$SHA" ]] || fail "Worktree HEAD changed"
 npm run qa:staging:preflight
