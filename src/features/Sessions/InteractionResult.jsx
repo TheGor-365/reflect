@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { BookmarkPlus, CalendarClock, CheckCircle2, CircleX,
   Goal, Lightbulb, MessageCircle, MessageSquareReply, Target, Undo2,
-  SlidersHorizontal, ShieldQuestion, Check, ArrowRight } from 'lucide-react';
+  SlidersHorizontal, ShieldQuestion, Check, ArrowRight, XCircle, TrendingDown, CircleDot, TargetIcon } from 'lucide-react';
 import { HYPOTHESIS_GRADES } from './hypothesisReviewModel';
+import RecommendationMark from '../../components/RecommendationMark';
+
+const GRADE_ICONS = [XCircle, TrendingDown, CircleDot, TargetIcon, CheckCircle2];
 
 // Structured AI proposals remain suggestions until a human explicitly chooses
 // an action. No Firestore access or background writes occur in this component.
@@ -22,7 +25,6 @@ export default function InteractionResult({
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewError, setReviewError] = useState('');
-  const [reviewSaved, setReviewSaved] = useState(false);
   if (!interaction || interaction.version !== 'reflect.interaction.v1') return null;
   const question = typeof interaction.clarifyingQuestion === 'string'
     ? interaction.clarifyingQuestion : '';
@@ -41,7 +43,6 @@ export default function InteractionResult({
     setReviewGrade(Number.isInteger(existing?.grade) ? existing.grade : null);
     setReviewComment(typeof existing?.comment === 'string' ? existing.comment : '');
     setReviewError('');
-    setReviewSaved(false);
     setReviewIndex(index);
   };
   const saveReview = async event => {
@@ -51,7 +52,11 @@ export default function InteractionResult({
     setReviewSaving(true); setReviewError('');
     try {
       await onHypothesisReview(reviewIndex, reviewGrade, reviewComment);
-      setReviewSaved(true);
+      // The parent publishes the confirmed Firestore echo; never leave an
+      // editable, apparently-unsaved form open after successful persistence.
+      setReviewIndex(null);
+      setReviewGrade(null);
+      setReviewComment('');
     } catch {
       setReviewError('Отклик не подтверждён сервером. Текст остался на экране — повторите сохранение.');
     } finally { setReviewSaving(false); }
@@ -108,32 +113,59 @@ export default function InteractionResult({
           const existing = reviews[`h-${messageId}-${index}`];
           return <div className="reflect-hypothesis-card" key={index}>
             <p><small>Гипотеза {index+1}</small> {insight}</p>
-            {Number.isInteger(existing?.grade) &&
-              <p className="reflect-hypothesis-existing" role="status">
-                Ваш отклик: {HYPOTHESIS_GRADES[existing.grade] || 'Не оценено'}
-                {existing.comment && ' · ' + existing.comment}
-              </p>}
-            {onHypothesisReview && isSaved && <button type="button"
-              onClick={() => openReview(index)}>
-              <SlidersHorizontal size={15} aria-hidden="true"/>
-              {existing ? 'Изменить мою оценку' : 'Оценить гипотезу'}
-            </button>}
+            {Number.isInteger(existing?.grade) && reviewIndex !== index &&
+              <div className="reflect-hypothesis-saved" role="status">
+                <span className={`reflect-hypothesis-chip reflect-hypothesis-chip--${existing.grade}`}>
+                  {React.createElement(GRADE_ICONS[existing.grade], {
+                    size: 17, 'aria-hidden': true
+                  })}
+                  Ваш отклик: {HYPOTHESIS_GRADES[existing.grade]}
+                </span>
+                {existing.comment && <p className="reflect-hypothesis-comment">
+                  {existing.comment}
+                </p>}
+                <small>Сохранено в сеансе · в Grok не отправлено</small>
+              </div>}
+            {onHypothesisReview && isSaved && reviewIndex !== index &&
+              <div className="reflect-hypothesis-saved-actions">
+                <button type="button" onClick={() => openReview(index)}>
+                  <SlidersHorizontal size={15} aria-hidden="true"/>
+                  {Number.isInteger(existing?.grade) ? 'Изменить мою оценку' : 'Оценить гипотезу'}
+                </button>
+                {Number.isInteger(existing?.grade) && onCompose &&
+                  <button type="button" onClick={() => onCompose(
+                    `Ранее предложенная гипотеза «${insight}». Моя оценка: ${HYPOTHESIS_GRADES[existing.grade]}.`+
+                    (existing.comment?.trim() ? ` Мой комментарий: ${existing.comment.trim()}.` : '')+
+                    ' Это мой отзыв, не доказательство. Задай один точный вопрос и проверь другую версию.'
+                  )}>
+                    <ArrowRight size={15} aria-hidden="true"/> Продолжить разбор
+                  </button>}
+              </div>}
             {reviewIndex === index && onHypothesisReview && isSaved &&
               <form className="reflect-hypothesis-feedback" onSubmit={saveReview}>
                 <div role="group" aria-label={`Оценка гипотезы ${index+1}`}
                   className="reflect-hypothesis-grade">
-                  {HYPOTHESIS_GRADES.map((label, grade) =>
-                    <button type="button" key={label}
+                  {HYPOTHESIS_GRADES.map((label, grade) => {
+                    const Icon = GRADE_ICONS[grade];
+                    return <button type="button" key={label}
+                      className={`reflect-hypothesis-grade-choice reflect-hypothesis-grade-choice--${grade}`}
+                      aria-label={label}
                       aria-pressed={reviewGrade === grade}
                       disabled={reviewSaving}
-                      onClick={() => {setReviewGrade(grade); setReviewSaved(false);}}>
-                      {label}
-                    </button>)}
+                      onClick={() => setReviewGrade(grade)}>
+                      <Icon size={19} aria-hidden="true"/>
+                      <span>{label}</span>
+                    </button>;
+                  })}
                 </div>
+                <p className="reflect-hypothesis-grade-caption">
+                  Оценка показывает, насколько версия соответствует вашим ощущениям,
+                  а не вероятность её истинности.
+                </p>
                 <label>Что я понял неверно? (по желанию)
                   <textarea value={reviewComment} rows={2} maxLength={500}
                     disabled={reviewSaving}
-                    onChange={event => {setReviewComment(event.target.value);setReviewSaved(false);}}
+                    onChange={event => setReviewComment(event.target.value)}
                     placeholder="Например: я не боюсь оценки — причина в другом..."/>
                 </label>
                 <div className="reflect-hypothesis-feedback-actions">
@@ -141,19 +173,11 @@ export default function InteractionResult({
                     <Check size={15} aria-hidden="true"/>
                     {reviewSaving ? 'Сохраняется…' : 'Сохранить мой отклик'}
                   </button>
-                  {onCompose && (reviewSaved || existing) &&
-                    <button type="button" onClick={() => onCompose(
-                      `Ранее предложенная гипотеза «${insight}». Моя оценка: ${HYPOTHESIS_GRADES[reviewGrade ?? existing.grade]}.`+
-                      (reviewComment.trim() ? ` Мой комментарий: ${reviewComment.trim()}.` : '')+
-                      ' Не принимай её за факт. Задай один точный вопрос, чтобы проверить другие объяснения.'
-                    )}>
-                      <ArrowRight size={15} aria-hidden="true"/> Продолжить разбор
-                    </button>}
+                  <button type="button" disabled={reviewSaving}
+                    onClick={() => {setReviewIndex(null); setReviewError('');}}>
+                    Отмена
+                  </button>
                 </div>
-                {reviewSaved && <p role="status">
-                  Отклик сохранён в вашем сеансе. В Grok он не отправлен.
-                  Для продолжения нажмите «Продолжить разбор» и отправьте подготовленный текст.
-                </p>}
                 {reviewError && <p role="alert">{reviewError}</p>}
               </form>}
           </div>;
@@ -176,6 +200,7 @@ export default function InteractionResult({
           return (
             <section className="reflect-interaction-section" key={index}
               aria-label="Отклонённая рекомендация">
+              <RecommendationMark qualifier="отклонена"/>
               <small>Предложение отклонено и скрыто по вашему решению.</small>
               <button type="button" onClick={() => setReconsiderIndex(index)}>
                 <Undo2 size={15} aria-hidden="true"/> Показать отклонённое предложение
@@ -184,8 +209,9 @@ export default function InteractionResult({
           );
         }
         return (
-          <section className="reflect-interaction-section" key={index}
+          <section className="reflect-interaction-section reflect-interaction-section--recommendation" key={index}
             aria-label="Предложенная рекомендация">
+            <RecommendationMark qualifier={oldRecommendationWithOpenHypotheses ? 'требует проверки' : 'к рассмотрению'}/>
             <strong>{item.title}</strong>
             <p>{item.rationale}</p>
             <small>Источник: только текущее сообщение. Идея AI — не доказательство
