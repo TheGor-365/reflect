@@ -4045,3 +4045,92 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
 .reflect-interaction-evidence-details p,
 .reflect-interaction-evidence-details ul {margin:.5rem 0 0;}
 .reflect-interaction-evidence-details li {margin-top:.25rem;}
+
+
+/* RC05: consistent type marker. A recommendation is never a fact or goal. */
+.reflect-recommendation-mark {
+  display:inline-flex;align-items:center;gap:.45rem;justify-self:start;
+  width:fit-content;max-width:100%;flex-wrap:wrap;
+  padding:.3rem .6rem;border-radius:.58rem;
+  border:1px solid rgba(231,185,141,.45);
+  background:rgba(231,185,141,.11);
+  color:var(--reflect-ink);font-size:.76rem;font-weight:750;
+  line-height:1.3;
+}
+.reflect-recommendation-mark svg {flex:none;color:#edbd78;}
+.reflect-interaction-section--recommendation {
+  border-inline-start:3px solid #edbd78;
+  background:linear-gradient(110deg,rgba(231,185,141,.075),transparent 65%),var(--reflect-card);
+}
+.reflect-hypothesis-saved {
+  display:grid;gap:.35rem;justify-items:start;margin:.45rem 0;
+  border-radius:10px;padding:.4rem .2rem;
+}
+.reflect-hypothesis-saved small {
+  font-size:.72rem;color:var(--reflect-muted);
+}
+.reflect-hypothesis-chip {
+  display:inline-flex;gap:.45rem;align-items:center;
+  max-width:100%;flex-wrap:wrap;
+  border-radius:9px;padding:.43rem .65rem;
+  border:1px solid var(--reflect-border);
+  background:var(--reflect-card);font-size:.78rem;font-weight:700;
+}
+.reflect-hypothesis-chip--0 {border-color:#f57484;}
+.reflect-hypothesis-chip--1 {border-color:#e6a46c;}
+.reflect-hypothesis-chip--2 {border-color:#e4c565;}
+.reflect-hypothesis-chip--3 {border-color:#a7ce8e;}
+.reflect-hypothesis-chip--4 {border-color:#65d6ab;}
+.reflect-hypothesis-comment {font-size:.82rem;line-height:1.45;overflow-wrap:anywhere;}
+.reflect-hypothesis-saved-actions {
+  display:flex;align-items:center;gap:.48rem;flex-wrap:wrap;
+}
+.reflect-hypothesis-grade {
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.35rem;
+  border-radius:13px;padding:6px;
+  background:linear-gradient(90deg,
+    rgba(231,84,110,.17),rgba(233,147,96,.13) 24%,
+    rgba(236,204,113,.12) 49%,
+    rgba(169,214,131,.12) 75%,rgba(83,217,168,.16));
+}
+.reflect-hypothesis-grade .reflect-hypothesis-grade-choice {
+  --grade-tone:#a4aab7;
+  display:flex;flex-direction:column;align-items:center;gap:.42rem;
+  min-width:0;min-height:76px;padding:.65rem .22rem;
+  font-size:.75rem;line-height:1.25;text-align:center;
+  border:1px solid color-mix(in srgb,var(--grade-tone) 58%,transparent);
+  box-shadow:inset 0 -3px 0 var(--grade-tone);
+  background:var(--reflect-card);
+  color:var(--reflect-ink);
+  transition:border-color .12s ease,background-color .12s ease;
+}
+.reflect-hypothesis-grade-choice svg {color:var(--grade-tone);flex:none;}
+.reflect-hypothesis-grade .reflect-hypothesis-grade-choice--0 {--grade-tone:#f57887;}
+.reflect-hypothesis-grade .reflect-hypothesis-grade-choice--1 {--grade-tone:#f0ac76;}
+.reflect-hypothesis-grade .reflect-hypothesis-grade-choice--2 {--grade-tone:#e9cb71;}
+.reflect-hypothesis-grade .reflect-hypothesis-grade-choice--3 {--grade-tone:#a9dc91;}
+.reflect-hypothesis-grade .reflect-hypothesis-grade-choice--4 {--grade-tone:#69d6ac;}
+.reflect-hypothesis-grade .reflect-hypothesis-grade-choice[aria-pressed="true"] {
+  border-color:var(--grade-tone);
+  box-shadow:inset 0 -4px 0 var(--grade-tone),0 0 0 2px var(--grade-tone);
+  background:color-mix(in srgb,var(--grade-tone) 16%,var(--reflect-card));
+  color:var(--reflect-ink);
+}
+.reflect-hypothesis-grade-choice:focus-visible {
+  outline:3px solid var(--reflect-accent);outline-offset:3px;
+}
+.reflect-hypothesis-grade-caption {
+  color:var(--reflect-muted);font-size:.75rem;line-height:1.5;margin:0;
+}
+@media(max-width:640px) {
+  .reflect-hypothesis-grade {
+    display:flex;overflow-x:auto;scroll-snap-type:x proximity;
+    padding:8px 5px 10px;
+  }
+  .reflect-hypothesis-grade .reflect-hypothesis-grade-choice {
+    flex:0 0 126px;scroll-snap-align:center;
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  .reflect-hypothesis-grade .reflect-hypothesis-grade-choice {transition:none;}
+}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Sparkles, NotebookPen, Smile, Lightbulb, Target } from 'lucide-react';
+import { BookOpen, Sparkles, NotebookPen, Smile, Compass, Target } from 'lucide-react';
 
 /**
  * UI-only diary lenses. "recommendation" is intentionally an empty lens
@@ -11,7 +11,7 @@ export const DIARY_KINDS = Object.freeze([
   { key: 'session', label: 'Мысли Reflect', icon: Sparkles },
   { key: 'note', label: 'Мои записи', icon: NotebookPen },
   { key: 'mood', label: 'Настроение', icon: Smile },
-  { key: 'recommendation', label: 'Рекомендации', icon: Lightbulb },
+  { key: 'recommendation', label: 'Рекомендации', icon: Compass },
   { key: 'goal', label: 'Цели', icon: Target }
 ]);
 

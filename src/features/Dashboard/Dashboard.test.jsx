@@ -112,7 +112,8 @@ test('P1: pending AI recommendation changes dashboard without inventing a comple
     nowMs={nowMs} onOpenRecommendations={onOpenRecommendations}/>);
   expect(screen.getByRole('heading',{name:'Следующее решение'})).toBeInTheDocument();
   expect(screen.getByText(/Я предложил вам рассмотреть: Зафиксировать минимальный scope/)).toBeInTheDocument();
-  expect(screen.getByText(/Идея AI · ещё не цель/)).toBeInTheDocument();
+  expect(screen.getByText(/Предложение AI ещё не подтверждённая цель/)).toBeInTheDocument();
+  expect(screen.getByText(/Рекомендация AI · ожидает решения/)).toBeInTheDocument();
   expect(screen.queryByText('Цель подтверждена')).not.toBeInTheDocument();
   expect(screen.getByText(/Тема:/)).toHaveTextContent('Запуск продукта');
   expect(screen.getByLabelText('Путь от гипотезы к цели')).toHaveTextContent('3. Проверка человеком');

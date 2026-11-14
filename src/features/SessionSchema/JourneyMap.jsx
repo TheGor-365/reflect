@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReflectSelect from '../../components/ReflectSelect';
+import RecommendationMark from '../../components/RecommendationMark';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, GitBranch, Maximize2, Minus, Plus, RotateCcw, MessageSquareText,
-  Bot, Clock3, CheckCircle2, RefreshCw, ListChecks, Lightbulb } from 'lucide-react';
+  Bot, Clock3, CheckCircle2, RefreshCw, ListChecks, Compass } from 'lucide-react';
 import {
   projectJourney, filterJourney, journeyFacts, journeyCoverage, layoutJourney, journeyDate
 } from './journeyModel';
@@ -22,13 +23,13 @@ const spanLabel = ms => ms === null ? 'Недостаточно дат'
     : ms < 86400000 ? `${Math.round(ms/3600000*10)/10} ч`
       : `${Math.round(ms/86400000*10)/10} дн`;
 const TYPE = {
-  session:'Тема',turn:'Сообщение',proposal:'AI-предложение',
+  session:'Тема',turn:'Сообщение',proposal:'Рекомендация AI',
   decision:'Решение',goal:'Цель',step:'Шаг',return:'Возвращение'
 };
 const STATUS = {
   stored:'Сохранено',authored:'Слова пользователя',
   'ai-response':'Ответ AI — не подтверждённый факт',
-  proposed:'Предположение AI',saved:'Сохранено как идея',
+  proposed:'Предложение AI',saved:'Сохранено как идея',
   postponed:'Отложено',dismissed:'Отклонено',
   accepted:'Принято пользователем',active:'В работе',
   paused:'На паузе',completed:'Отмечено выполненным'
@@ -240,7 +241,7 @@ export default function JourneyMap({
                   <td>{coverage.complete
                     ? 'Время между первым и последним сообщением, не длительность работы над проблемой'
                     : 'Недостаточно подтверждённых дат для интервала'}</td></tr>
-                <tr><th scope="row"><Lightbulb size={16}/> Идеи AI</th>
+                <tr><th scope="row"><Compass size={16}/> Рекомендации AI</th>
                   <td>{coverage.proposed}</td>
                   <td>Открытые предложения, не проверенные действия</td></tr>
                 <tr><th scope="row"><CheckCircle2 size={16}/> Принятые решения</th>
@@ -321,7 +322,7 @@ export default function JourneyMap({
                   onClick={()=>setSelectedId(node.id)}
                   aria-pressed={selectedId===node.id}
                   aria-label={describe(node)}>
-                  <small>{TYPE[node.type]} · {STATUS[node.status]}</small>
+                  <small>{node.type==='proposal' ? <RecommendationMark/> : TYPE[node.type]} · {STATUS[node.status]}</small>
                   <span>{node.label}</span>
                 </button>
               ))}
@@ -335,7 +336,7 @@ export default function JourneyMap({
               <li key={node.id}>
                 <button type="button" aria-pressed={selectedId===node.id}
                   onClick={()=>setSelectedId(node.id)}>
-                  <small>{TYPE[node.type]} · {journeyDate(node.timestampMs)}</small>
+                  <small>{node.type==='proposal' ? <RecommendationMark/> : TYPE[node.type]} · {journeyDate(node.timestampMs)}</small>
                   <strong>{node.label}</strong>
                   <span>{STATUS[node.status]}</span>
                 </button>
@@ -345,7 +346,7 @@ export default function JourneyMap({
           {selected&&(
             <aside className="reflect-journey-source" aria-label="Источник выбранного события">
               <div>
-                <h3>{TYPE[selected.type]} — {selected.label}</h3>
+                <h3>{selected.type==='proposal' ? <RecommendationMark/> : TYPE[selected.type]} — {selected.label}</h3>
                 <p>{STATUS[selected.status]}. Источник: {selected.author==='ai'
                   ? 'ответ модели' : selected.author==='user' ? 'запись пользователя' : 'сохранённый сеанс'}.</p>
                 <p>Дата: {journeyDate(selected.timestampMs)}

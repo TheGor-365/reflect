@@ -6,13 +6,15 @@ import {
 } from 'lucide-react';
 import { buildMindspace, layoutMindspace, RELATIONS,
   filterMindspace, mindspaceEvidence } from './mindspaceModel';
+import { MINDSPACE_ZONES, zoneForNode,
+  zoneCounts, filterMindspaceZone } from './mindspaceZones';
 import ReflectSelect from '../../components/ReflectSelect';
 import { removeMindLink, saveMindLink, renameMindTopic } from './mindspaceOperations';
 import './mindspace.css';
 
-const ICONS={session:BrainCircuit,goal:Target,proposal:Sparkles};
+const ICONS={session:BrainCircuit,goal:Target,proposal:Compass};
 const LABELS={
-  session:'Тема',goal:'Цель',proposal:'Идея AI',
+  session:'Тема',goal:'Цель',proposal:'Рекомендация AI',
   active:'В работе',completed:'Выполнено',paused:'На паузе',
   saved:'Сохранено',accepted:'Принято пользователем',
   proposed:'Предложение AI',dismissed:'Отклонено',
@@ -33,7 +35,7 @@ function MindNode({node,selected,pendingSource,onSelect}){
         strokeWidth={1.6} aria-hidden="true"/></span>
       <span className="reflect-mind-node-label">{node.label}</span>
       <span className="reflect-mind-node-metadata">
-        {node.kind==='proposal'?'Предположение AI':LABELS[node.kind]}
+        {node.kind==='proposal'?'Рекомендация AI':LABELS[node.kind]}
       </span>
     </button>
   );
@@ -47,6 +49,7 @@ export default function Mindspace({
   const [showGoals,setShowGoals]=useState(true);
   const [onlyUserLinks,setOnlyUserLinks]=useState(false);
   const [mapScale,setMapScale]=useState(1);
+  const [zoneFocus,setZoneFocus]=useState('all');
   const [selectedId,setSelectedId]=useState(null);
   const [sourceNodeId,setSourceNodeId]=useState(null);
   const [targetNodeId,setTargetNodeId]=useState(null);
@@ -68,10 +71,13 @@ export default function Mindspace({
   const availableIdeas=useMemo(()=>buildMindspace(sessions,goals,{
     includeProposals:true
   }).nodes.some(node=>node.kind==='proposal'),[sessions,goals]);
-  const displayedGraph=useMemo(()=>filterMindspace(graph,{
+  const baseGraph=useMemo(()=>filterMindspace(graph,{
     showGoals,onlyUserLinks
   }),[graph,showGoals,onlyUserLinks]);
+  const displayedGraph=useMemo(()=>filterMindspaceZone(baseGraph,zoneFocus),
+    [baseGraph,zoneFocus]);
   const evidence=useMemo(()=>mindspaceEvidence(graph),[graph]);
+  const sectorCounts=useMemo(()=>zoneCounts(baseGraph),[baseGraph]);
   const layout=useMemo(()=>layoutMindspace(displayedGraph),[displayedGraph]);
   const allNodes=displayedGraph.nodes;
   const selected=allNodes.find(node=>node.id===selectedId)||null;
@@ -87,7 +93,7 @@ export default function Mindspace({
   useEffect(()=>{
     setSelectedId(null);setSourceNodeId(null);setTargetNodeId(null);
     setError('');setNotice('');setEditLinkId(null);
-    setEditingTitle(false);setTitleDraft('');
+    setEditingTitle(false);setTitleDraft('');setZoneFocus('all');
   },[userId]);
   useEffect(()=>{
     if(selectedId&&!allNodes.some(node=>node.id===selectedId))setSelectedId(null);
@@ -265,9 +271,34 @@ export default function Mindspace({
         aria-label="Факты и фильтры карты мыслей">
         <p><strong>{evidence.topics}</strong> тем</p>
         <p><strong>{evidence.goals}</strong> целей пользователя</p>
-        <p><strong>{evidence.aiIdeas}</strong> предложений AI</p>
+        <p><strong>{evidence.aiIdeas}</strong> рекомендаций AI (предложений)</p>
         <p><strong>{evidence.confirmedLinks}</strong> подтверждённых смысловых связей</p>
       </div>
+      <div className="reflect-mindspace-zones" role="group"
+        aria-label="Предварительные направления карты">
+        <button type="button" aria-pressed={zoneFocus==='all'}
+          onClick={()=>setZoneFocus('all')}>
+          Все направления <span>{baseGraph.nodes.length}</span>
+        </button>
+        {MINDSPACE_ZONES.map(zone=>(
+          <button key={zone.id} type="button"
+            aria-pressed={zoneFocus===zone.id}
+            onClick={()=>setZoneFocus(zone.id)}>
+            {zone.label} <span>{sectorCounts[zone.id]}</span>
+          </button>
+        ))}
+        {sectorCounts.unassigned>0&&(
+          <button type="button" aria-pressed={zoneFocus==='unassigned'}
+            onClick={()=>setZoneFocus('unassigned')}>
+            Без направления <span>{sectorCounts.unassigned}</span>
+          </button>
+        )}
+      </div>
+      <p className="reflect-mindspace-zone-disclaimer">
+        Направления назначены автоматически по названию темы и могут не совпадать
+        с вашим смыслом. Это навигация, не оценка личности, роста или состояния.
+        Близость карточек не подтверждает связь.
+      </p>
       {evidence.confirmedLinks===0&&graph.nodes.length>0&&(
         <p className="reflect-mindspace-hint">
           На карте пока нет подтверждённых смысловых отношений.
@@ -289,13 +320,14 @@ export default function Mindspace({
             <span><Link2 size={23}/></span>
             <span><Target size={29}/></span>
           </div>
-          <h3>{filteredEmpty?'Под эти фильтры нет подтверждённых связей':
+          <h3>{filteredEmpty?(zoneFocus!=='all'?'В этом направлении пока нет узлов':'Под эти фильтры нет подтверждённых связей'):
               'Смыслы появятся из ваших записей'}</h3>
           <p>{filteredEmpty
-            ? 'Снимите фильтр «Только связанные» или покажите скрытые типы узлов.'
+            ? 'Снимите фильтр направления или «Только связанные», чтобы увидеть остальные узлы.'
             : 'Сохраните первую тему или цель. Мы не создаём психологический профиль и не придумываем связи без ваших решений.'}</p>
           {filteredEmpty&&<button type="button" onClick={()=>{
             setOnlyUserLinks(false);setShowGoals(true);setShowIdeas(true);
+            setZoneFocus('all');
           }}>Показать все узлы</button>}
         </div>
       ):(
@@ -323,6 +355,13 @@ export default function Mindspace({
                     className="reflect-mindspace-orbit"/>
                   <circle cx={layout.width/2} cy={layout.height/2} r="194"
                     className="reflect-mindspace-orbit"/>
+                  {MINDSPACE_ZONES.map(zone=>(
+                    <line key={zone.id}
+                      x1={layout.width/2} y1={layout.height/2}
+                      x2={layout.width/2+Math.cos(zone.angle)*455}
+                      y2={layout.height/2+Math.sin(zone.angle)*345}
+                      className="reflect-mindspace-sector-line"/>
+                  ))}
                   {layout.edges.map(edge=>(
                     <line key={edge.id} x1={edge.x1} y1={edge.y1}
                       x2={edge.x2} y2={edge.y2}
@@ -330,6 +369,14 @@ export default function Mindspace({
                         reflect-mind-edge--${edge.relation}`}/>
                   ))}
                 </svg>
+                {MINDSPACE_ZONES.map(zone=>(
+                  <span key={zone.id} className="reflect-mindspace-sector-label"
+                    aria-hidden="true"
+                    style={{left:layout.width/2+Math.cos(zone.angle)*470,
+                      top:layout.height/2+Math.sin(zone.angle)*345}}>
+                    {zone.label}
+                  </span>
+                ))}
                 <span className="reflect-mindspace-centerlabel" aria-hidden="true">
                   <Sparkles size={20} strokeWidth={1.5}/>
                   моё пространство
@@ -354,7 +401,8 @@ export default function Mindspace({
                     ${LABELS[node.status]||node.subtitle}`}>
                   <Icon size={20} aria-hidden="true"/>
                   <span><strong>{node.label}</strong>
-                    <small>{LABELS[node.kind]} · {LABELS[node.status]||node.subtitle}</small>
+                    <small>{LABELS[node.kind]} · {LABELS[node.status]||node.subtitle} ·
+                      {MINDSPACE_ZONES.find(zone=>zone.id===zoneForNode(node,displayedGraph))?.label||'Без направления'}</small>
                   </span><ArrowUpRight size={16} aria-hidden="true"/>
                 </button>;
               })}
@@ -364,7 +412,7 @@ export default function Mindspace({
             <p className="reflect-mindspace-legend">
               <span className="reflect-mindspace-dot reflect-mindspace-dot--session"/> Тема
               <span className="reflect-mindspace-dot reflect-mindspace-dot--goal"/> Цель
-              <span className="reflect-mindspace-dot reflect-mindspace-dot--proposal"/> Идея AI
+              <Compass size={14} aria-hidden="true" className="reflect-mindspace-recommendation-icon"/> Рекомендация AI
               <span className="reflect-mindspace-legend-line"/> Подтверждённая связь
             </p>
             <p className="reflect-mindspace-hint">
@@ -382,7 +430,7 @@ export default function Mindspace({
         <aside className="reflect-mindspace-inspector" aria-label="Выбранный смысловой узел">
           <div className="reflect-mindspace-inspector-heading">
             <div>
-              <small>{LABELS[selected.kind]} · {LABELS[selected.status]||'Сохранено'}</small>
+              <small>{selected.kind==='proposal'&&<Compass size={13} aria-hidden="true"/>}{LABELS[selected.kind]} · {LABELS[selected.status]||'Сохранено'}</small>
               <h3>{selected.label}</h3>
             </div>
             <button type="button" onClick={()=>setSelectedId(null)}
