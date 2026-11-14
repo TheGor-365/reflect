@@ -4,6 +4,7 @@
  * Sessions and Goals. No AI-generated or inferred relationship is a fact.
  */
 import { sessionDisplayTitle } from '../Diary/diaryPresentation';
+import { MINDSPACE_ZONES, zoneForNode } from './mindspaceZones';
 
 export const MINDSPACE_VERSION = 'reflect.mindspace.v1';
 export const RELATIONS = Object.freeze({
@@ -186,21 +187,36 @@ export function layoutMindspace(graph,{
   const sessions=graph.nodes.filter(n=>n.kind==='session');
   const goals=graph.nodes.filter(n=>n.kind==='goal');
   const suggestions=graph.nodes.filter(n=>n.kind==='proposal');
-  const n=sessions.length;
-  // Elliptic orbit is deliberately asymmetric like the existing Aurora
-  // gradients, but deterministic across refresh and screenshot QA.
-  sessions.forEach((node,i)=>{
-    const angle=-Math.PI/2+(i/(Math.max(n,1)))*Math.PI*2;
-    const rad=n===1?0:n===2?Math.PI/2:angle;
-    const r=n===1?0:1;
-    pos.set(node.id,{x:cx+Math.cos(rad)*320*r,
-      y:cy+Math.sin(rad)*242*r});
-  });
-  if(n===2){
-    sessions.forEach((node,i)=>pos.set(node.id,{
-      x:cx+(i===0?-260:260),y:cy+((i%2)?50:-50)
-    }));
+  // RC05: category compass is a deterministic, *provisional* location from
+  // the user's title, not an inferred fact or a mental-health score.
+  // Child goals/proposals inherit the saved parent topic's provisional sector.
+  const grouped=new Map();
+  for (const node of sessions) {
+    const zone=zoneForNode(node,graph);
+    const group=grouped.get(zone)||[];
+    group.push(node); grouped.set(zone,group);
   }
+  for (const zone of MINDSPACE_ZONES) {
+    const bucket=grouped.get(zone.id)||[];
+    bucket.forEach((node,index)=>{
+      const lane=Math.floor(index/4);
+      const rowIndex=index%4;
+      const rowCount=Math.min(bucket.length-lane*4,4);
+      const drift=(rowIndex-(rowCount-1)/2)*125;
+      const radialX=Math.min(370,292+lane*58);
+      const radialY=Math.min(278,212+lane*45);
+      pos.set(node.id,{
+        x:cx+Math.cos(zone.angle)*radialX-Math.sin(zone.angle)*drift,
+        y:cy+Math.sin(zone.angle)*radialY+Math.cos(zone.angle)*drift*.78
+      });
+    });
+  }
+  const unknown=grouped.get('unassigned')||[];
+  unknown.forEach((node,index)=>{
+    const a=index*2.399963229728653;
+    const r=60+Math.floor(index/7)*40;
+    pos.set(node.id,{x:cx+Math.cos(a)*r,y:cy+Math.sin(a)*r*.8});
+  });
   const goalsBySession=new Map();
   goals.forEach(node=>{
     const owner=node.sourceRef?.sessionId;
@@ -219,8 +235,13 @@ export function layoutMindspace(graph,{
   }
   const orphans=goals.filter(node=>!pos.has(node.id));
   orphans.forEach((node,index)=>{
-    const angle=Math.PI/4+(index/(Math.max(orphans.length,1)))*Math.PI*2;
-    pos.set(node.id,{x:cx+Math.cos(angle)*460,y:cy+Math.sin(angle)*325});
+    const zone=MINDSPACE_ZONES.find(item=>item.id===zoneForNode(node,graph));
+    const a=zone?.angle ?? index*2.399963229728653;
+    const tangential=(index%3-1)*94;
+    pos.set(node.id,{
+      x:cx+Math.cos(a)*(zone?350:125)-Math.sin(a)*tangential,
+      y:cy+Math.sin(a)*(zone?245:100)+Math.cos(a)*tangential*.7
+    });
   });
   const ideasBySession=new Map();
   suggestions.forEach(node=>{
