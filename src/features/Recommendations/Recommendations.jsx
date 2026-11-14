@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Lightbulb, MessageCircleQuestion, Target, ArrowUpRight } from 'lucide-react';
+import { Compass, MessageCircleQuestion, Target, ArrowUpRight } from 'lucide-react';
 import { buildRecommendationInbox } from './recommendationInbox';
 import RecommendationMark from '../../components/RecommendationMark';
 
@@ -39,7 +39,7 @@ export default function Recommendations({ sessions = [], onOpenSession, onOpenGo
 
       {!inbox.pendingCount && !decided.length ? (
         <div className="reflect-inbox-empty">
-          <Lightbulb size={25} aria-hidden="true" />
+          <Compass size={25} aria-hidden="true" />
           <h3>Пока нет структурированных рекомендаций</h3>
           <p>После ответа AI с подтверждённым контрактом interaction.v1 здесь автоматически
             появятся предложения и вопросы. Старые обычные ответы и тестовые записи
@@ -70,7 +70,7 @@ export default function Recommendations({ sessions = [], onOpenSession, onOpenGo
           )}
           {pending.length > 0 && (
             <section className="reflect-inbox-group" aria-labelledby="reflect-inbox-pending">
-              <h3 id="reflect-inbox-pending"><Lightbulb size={20} aria-hidden="true" />
+              <h3 id="reflect-inbox-pending"><Compass size={20} aria-hidden="true" />
                 Предложения к рассмотрению</h3>
               <p className="reflect-inbox-description">
                 Сначала показаны решения без ответа, затем более свежие.
