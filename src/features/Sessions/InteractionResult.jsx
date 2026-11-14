@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BookmarkPlus, CalendarClock, CheckCircle2, CircleX,
-  Goal, Lightbulb, MessageCircle, MessageSquareReply, Target, Undo2,
+  Goal, Compass, MessageCircle, MessageSquareReply, Target, Undo2,
   SlidersHorizontal, ShieldQuestion, Check, ArrowRight, XCircle, TrendingDown, CircleDot } from 'lucide-react';
 import { HYPOTHESIS_GRADES } from './hypothesisReviewModel';
 import RecommendationMark from '../../components/RecommendationMark';
@@ -101,7 +101,7 @@ export default function InteractionResult({
         </p>
         {onOpenRecommendations && (candidates.length > 0 || needsClarification) &&
           <button type="button" onClick={onOpenRecommendations}>
-            <Lightbulb size={15} aria-hidden="true"/> Открыть рекомендации и уточнения
+            <Compass size={15} aria-hidden="true"/> Открыть рекомендации и уточнения
           </button>}
       </div>
       {insights.length > 0 && <section className="reflect-interaction-section"
