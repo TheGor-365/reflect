@@ -12,6 +12,12 @@
  * staging runtime must inject an explicit fetch-compatible transport and
  * a Firebase Secret Manager-bound credential reader. No automatic retries.
  * NEVER import this module from src/ or expose it as a public route.
+ *
+ * M3 optional third argument is SERVER-ONLY and DEFAULT OFF. It must come
+ * exclusively from a fresh consented sessionMemory.authorize() result after
+ * preview digest approval and durable user-turn persistence. The adapter is
+ * not an Auth, App Check, consent, receipt, idempotency or budget gate.
+ * Hosted/Railway live handlers currently call invoke() with two arguments.
  */
 const { PolicyError } = require("./policy.cjs");
 const { readProviderCharge } = require("./xaiCost.cjs");
@@ -117,11 +123,20 @@ function createXaiProviderAdapter({
     fail("unsafe-environment");
   }
 
-  async function invoke(message, interactionConfig = null) {
+  async function invoke(message, interactionConfig = null, consentedContext = null) {
+    // M3: only a server-authorized excerpt bundle may become provider input.
+    // The legacy one-message path MUST NOT silently drop a supplied context:
+    // that would conceal a consent/transport mismatch from the owner.
+    if (consentedContext !== null && !interactionConfig) {
+      fail("permission-denied");
+    }
     // Keep legacy preflight strict; only the server chooses V1 interaction mode.
     const checked = createSyntheticXaiRequest(message);
+    // buildRequest validates source/turn/request binding BEFORE reading a key,
+    // reserving a provider request, or performing network I/O.
     const request = interactionConfig
-      ? buildRequest(checked.body.input[1].content, interactionConfig) : checked;
+      ? buildRequest(checked.body.input[1].content, interactionConfig, consentedContext)
+      : checked;
     let secret;
     try {
       secret = await readSecret();
