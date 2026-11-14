@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReflectSelect from '../../components/ReflectSelect';
 import RecommendationMark from '../../components/RecommendationMark';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, GitBranch, Maximize2, Minus, Plus, RotateCcw, MessageSquareText,
-  Bot, Clock3, CheckCircle2, RefreshCw, ListChecks, Lightbulb } from 'lucide-react';
+  Bot, Clock3, CheckCircle2, RefreshCw, ListChecks, Compass } from 'lucide-react';
 import {
   projectJourney, filterJourney, journeyFacts, journeyCoverage, layoutJourney, journeyDate
 } from './journeyModel';
@@ -241,7 +241,7 @@ export default function JourneyMap({
                   <td>{coverage.complete
                     ? 'Время между первым и последним сообщением, не длительность работы над проблемой'
                     : 'Недостаточно подтверждённых дат для интервала'}</td></tr>
-                <tr><th scope="row"><Lightbulb size={16}/> Идеи AI</th>
+                <tr><th scope="row"><Compass size={16}/> Рекомендации AI</th>
                   <td>{coverage.proposed}</td>
                   <td>Открытые предложения, не проверенные действия</td></tr>
                 <tr><th scope="row"><CheckCircle2 size={16}/> Принятые решения</th>
