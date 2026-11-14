@@ -312,7 +312,7 @@ test('neon icon lenses isolate every real content type and recommendations show 
       .toBeInTheDocument()
   );
   expect(screen.queryByTestId('diary-timeline-event')).not.toBeInTheDocument();
-  expect(screen.getByText(/готовность контекста не оценивается/)).toBeInTheDocument();
+  expect(screen.getByText(/не добавляются в дневник автоматически/)).toBeInTheDocument();
   expect(container.querySelectorAll('.reflect-diary-type-switch button')).toHaveLength(6);
   expect(setDoc).not.toHaveBeenCalled(); // visual switching never writes to Firestore
   fireEvent.click(screen.getByRole('button', { name: 'Весь дневник' }));
