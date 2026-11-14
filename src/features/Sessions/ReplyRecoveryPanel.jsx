@@ -40,7 +40,7 @@ const SAFE_ERROR_EXPLANATIONS = Object.freeze({
   'already-exists': 'Для этой реплики уже есть ответ либо попытка.'
 });
 export default function ReplyRecoveryPanel({
-  sessionId, turn, disabled = false, onRetry
+  sessionId, turn, disabled = false, onRetry, allowRetry = true
 }) {
   const [state, setState] = useState(null);
   const [checking, setChecking] = useState(false);
@@ -62,7 +62,8 @@ export default function ReplyRecoveryPanel({
     }
   };
   const retry = async () => {
-    if (disabled || retrying || !confirming || !state?.canRetry) return;
+    if (disabled || retrying || !allowRetry || !onRetry ||
+        !confirming || !state?.canRetry) return;
     setRetrying(true); setConfirming(false); setError('');
     try {
       await onRetry(turn);
@@ -101,14 +102,14 @@ export default function ReplyRecoveryPanel({
           <RefreshCcw size={15} aria-hidden="true"/>
           {checking ? 'Проверка…' : 'Проверить статус бесплатно'}
         </button>
-        {state?.canRetry && !confirming && (
+        {allowRetry && onRetry && state?.canRetry && !confirming && (
           <button type="button" disabled={disabled || retrying}
             onClick={() => setConfirming(true)}>
             Сгенерировать ответ повторно
           </button>
         )}
       </div>
-      {confirming && state?.canRetry && (
+      {allowRetry && onRetry && confirming && state?.canRetry && (
         <div className="reflect-ai-recovery-confirm" role="group"
           aria-label="Подтвердить возможную новую оплату">
           <strong>Это новый платный запрос к Grok.</strong>
@@ -124,6 +125,10 @@ export default function ReplyRecoveryPanel({
           </div>
         </div>
       )}
+      {!allowRetry && <p role="note">Это сообщение отправлялось с отдельным
+        разрешением на историю. Повторная генерация через обычный маршрут
+        заблокирована. Статус можно проверить бесплатно; для нового запроса
+        создайте новый черновик и новое разрешение.</p>}
       {retrying && <p role="status">Запрашиваем ответ один раз. Не закрывайте
         страницу для повторного нажатия — результат сохранит сервер.</p>}
       {error && <p role="alert">{error}</p>}
