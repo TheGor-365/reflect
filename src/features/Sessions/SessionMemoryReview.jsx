@@ -4,6 +4,7 @@ import { requestContextConsent, CONTEXT_SCOPE } from '../../api/contextConsentSe
 import {
   sessionMemoryPreviewUiEnabled, requestSessionMemoryPreview
 } from '../../api/sessionMemoryPreviewService';
+import { sessionMemoryReplyUiEnabled } from '../../api/sessionMemoryReplyService';
 
 /**
  * M3d.2a: owner-driven, preview-only inspector. Never sends any transcript
@@ -11,11 +12,14 @@ import {
  * composer remains the only SEND pathway.
  */
 export default function SessionMemoryReview({
-  sessionId, userId, draftMessage = '', disabled = false
+  sessionId, userId, draftMessage = '', disabled = false,
+  onConfirmHistory = null
 }) {
   const [grant, setGrant] = useState(null);
   const [preview, setPreview] = useState(null);
   const [acknowledged, setAcknowledged] = useState(false);
+  const [externalApproved, setExternalApproved] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const generation = useRef(0);
@@ -23,6 +27,7 @@ export default function SessionMemoryReview({
   useEffect(() => {
     generation.current++;
     setGrant(null); setPreview(null); setAcknowledged(false);
+    setExternalApproved(false); setSubmitted(false);
     setBusy(false); setNotice('');
   }, [userId, sessionId, draftMessage]);
 
@@ -32,7 +37,7 @@ export default function SessionMemoryReview({
   const draftReady = bytes > 0 && bytes <= 2000;
   const safeGrant = grant && grant.sourceId === sessionId &&
     grant.scope === CONTEXT_SCOPE && grant.expiresAtMs > Date.now();
-  const canInteract = !disabled && !busy;
+  const canInteract = !disabled && !busy && !submitted;
   const failMessage = 'Просмотр не подтверждён. Разрешение могло истечь или быть отозвано. ' +
     'Проверьте его заново; история не отправлялась в Grok.';
 
@@ -40,6 +45,7 @@ export default function SessionMemoryReview({
     if (!canInteract) return;
     const marker = generation.current;
     setGrant(null); setPreview(null); setAcknowledged(false);
+    setExternalApproved(false);
     setBusy(true); setNotice('');
     try {
       const result = await requestContextConsent({ action: 'list' });
@@ -64,7 +70,8 @@ export default function SessionMemoryReview({
     const marker = generation.current;
     const requestId = globalThis.crypto?.randomUUID?.();
     if (!requestId) { setNotice('Предпросмотр на этом устройстве недоступен.'); return; }
-    setBusy(true); setPreview(null); setAcknowledged(false); setNotice('');
+    setBusy(true); setPreview(null); setAcknowledged(false);
+    setExternalApproved(false); setNotice('');
     try {
       const result = await requestSessionMemoryPreview({
         grantId: grant.grantId, sourceId: sessionId, requestId,
@@ -75,6 +82,28 @@ export default function SessionMemoryReview({
       setNotice('Выдержки получены только с сервера Reflect. В Grok они не отправлялись.');
     } catch { if (marker === generation.current) setNotice(failMessage); }
     finally { if (marker === generation.current) setBusy(false); }
+  };
+
+  const sendWithHistory = async () => {
+    if (!sessionMemoryReplyUiEnabled || typeof onConfirmHistory !== 'function' ||
+        !canInteract || !safeGrant || !preview || !acknowledged ||
+        !externalApproved || !draftReady || submitted) return;
+    const snapshot = Object.freeze({
+      sourceId: sessionId, message: draftMessage.trim(),
+      requestId: preview.requestId, approvedDigest: preview.approvalDigest,
+      grantId: grant.grantId, confirmed: true
+    });
+    // One deliberate click consumes this UI authorization irreversibly.
+    // A failed or ambiguous response cannot be sent again with this preview.
+    setSubmitted(true); setBusy(true);
+    setPreview(null); setAcknowledged(false); setExternalApproved(false);
+    setNotice('Отправка инициирована один раз. Если ответ не появится, ' +
+      'проверьте квитанцию бесплатно. Не повторяйте платный запрос.');
+    try { await onConfirmHistory(snapshot); }
+    catch {
+      setNotice('Результат не подтверждён. Проверьте бесплатный статус ' +
+        'сохранённой реплики. Повторная отправка отключена.');
+    } finally { setBusy(false); }
   };
 
   return (
@@ -88,8 +117,9 @@ export default function SessionMemoryReview({
           черновика при просмотре передаётся только на сервер Reflect, не в Grok.</p>
         <p><LockKeyhole size={15} aria-hidden="true"/>
           <strong>Это предварительный просмотр, не разрешение передать историю в xAI.</strong>
-          В текущем режиме кнопка «Отправить» по-прежнему передаёт Grok
-          только текст поля ввода; история автоматически не прикладывается.</p>
+          Обычная кнопка «Отправить» передаёт Grok только текст поля.
+          Для контекста потребуется отдельное подтверждение ниже;
+          никаких автоматических отправок или повторов.</p>
         <div className="reflect-memory-review-actions">
           <button type="button" disabled={!canInteract}
             onClick={refreshGrant}>Проверить разрешение</button>
@@ -122,11 +152,35 @@ export default function SessionMemoryReview({
               отправить их в Grok.
             </label>
             {acknowledged && <p role="status">
-              Просмотр отмечен только на этом экране. Передача истории
-              провайдеру останется запрещена, пока не будет реализован
-              отдельный подтверждаемый запрос.</p>}
+              Просмотр отмечен только на этом экране. Само по себе
+              ознакомление не разрешает передачу данных провайдеру.</p>}
+            {sessionMemoryReplyUiEnabled &&
+              typeof onConfirmHistory === 'function' && acknowledged && (
+                <div className="reflect-memory-review-confirm" role="group"
+                  aria-label="Отдельное разрешение отправить историю в Grok">
+                  <p><strong>Передача внешнему провайдеру xAI / Grok.</strong>
+                    Будет передан ваш новый вопрос и только показанные
+                    выдержки текущего сеанса (максимум 4).
+                    xAI может хранить API-запрос и ответ до 30 дней.
+                    Это один потенциально платный запрос; повтор не производится
+                    автоматически. Разрешение можно отозвать до отправки,
+                    сняв отметку или закрыв предпросмотр.</p>
+                  <label><input type="checkbox"
+                    checked={externalApproved}
+                    onChange={event => setExternalApproved(event.target.checked)}/>
+                    Я отдельно разрешаю передать именно эти выдержки
+                    и мой текущий вопрос в xAI для одного ответа.
+                  </label>
+                  <button type="button" onClick={sendWithHistory}
+                    disabled={!canInteract || !safeGrant || !externalApproved ||
+                      !acknowledged || !draftReady}>
+                    Отправить в Grok с историей (один платный запрос)
+                  </button>
+                </div>
+              )}
             <button type="button" onClick={() => {
               setPreview(null); setAcknowledged(false);
+              setExternalApproved(false);
             }}>Скрыть просмотр</button>
           </section>
         )}
