@@ -34,7 +34,7 @@ test('owner can grade a wrong hypothesis, comment and explicitly submit for pers
     grade:0, comment:'На самом деле проблема не в критике'
   });
   const onCompose=vi.fn();
-  render(<InteractionResult {...base}
+  const {rerender}=render(<InteractionResult {...base}
     onHypothesisReview={onHypothesisReview} onCompose={onCompose}/>);
   fireEvent.click(screen.getAllByRole('button',{name:'Оценить гипотезу'})[0]);
   fireEvent.click(screen.getByRole('button',{name:'Совсем мимо'}));
@@ -47,7 +47,15 @@ test('owner can grade a wrong hypothesis, comment and explicitly submit for pers
   await waitFor(()=>expect(onHypothesisReview).toHaveBeenCalledWith(
     0,0,'На самом деле проблема не в критике'
   ));
-  expect(screen.getByText(/В Grok он не отправлен/)).toBeInTheDocument();
+  await waitFor(()=>expect(screen.queryByRole('group',{
+    name:'Оценка гипотезы 1'
+  })).not.toBeInTheDocument());
+  // The caller supplies the confirmed saved echo after Firestore persistence.
+  rerender(<InteractionResult {...base}
+    reviews={{'h-assistant-a100-0':{
+      grade:0,comment:'На самом деле проблема не в критике'
+    }}} onHypothesisReview={onHypothesisReview} onCompose={onCompose}/>);
+  expect(screen.getByText(/в Grok не отправлено/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button',{name:'Продолжить разбор'}));
   expect(onCompose).toHaveBeenCalledTimes(1);
   expect(onCompose.mock.calls[0][0]).toContain('На самом деле проблема не в критике');
