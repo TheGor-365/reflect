@@ -100,11 +100,15 @@ function boundedPreviousTurns(history, { requestId, message, requireCommitted = 
   });
 }
 
-function digestFor({ uid, sourceId, requestId, turns }) {
+function digestFor({ uid, sourceId, requestId, message, turns }) {
+  // Preview approval binds the EXACT new question as well as old excerpts.
+  // An altered composer must not reuse an already inspected digest.
+  if (typeof message !== "string" || !message.trim() ||
+      Buffer.byteLength(message, "utf8") > 2000) fail("invalid-argument");
   // Binds the approval to the exact owner, request, source and untrusted text.
   // A document change, newer turn or a different UID invalidates approval.
   const canonical = JSON.stringify({
-    v: 1, uid, sourceId, requestId,
+    v: 2, uid, sourceId, requestId, message,
     turns: turns.map(x => [x.sourceTurnId, x.role, x.content])
   });
   return createHash("sha256").update(canonical, "utf8").digest("hex");
@@ -142,7 +146,7 @@ function createSessionMemoryAdapter({ db, consentStore, projectId }) {
     });
     const digest = digestFor({
       uid: target.uid, sourceId: target.sourceId,
-      requestId: args.requestId, turns: selected.turns
+      requestId: args.requestId, message: args.message, turns: selected.turns
     });
     if (approvedDigest !== undefined && !sameDigest(approvedDigest, digest)) {
       fail("permission-denied");
