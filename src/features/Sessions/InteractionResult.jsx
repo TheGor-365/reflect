@@ -33,14 +33,18 @@ export default function InteractionResult({
   const insights = Array.isArray(interaction.insights) ? interaction.insights : [];
   const needsClarification = interaction.stage === 'clarify';
   const reviewedCount = insights.filter((_, index) =>
-    Number.isInteger(reviews[`h-${messageId}-${index}`]?.grade)).length;
+    Number.isInteger(reviews[`h-${messageId}-${index}`]?.grade) &&
+    reviews[`h-${messageId}-${index}`].grade >= 0 &&
+    reviews[`h-${messageId}-${index}`].grade < HYPOTHESIS_GRADES.length).length;
   const oldRecommendationWithOpenHypotheses =
     candidates.length > 0 && (needsClarification ||
     (insights.length > 0 && reviewedCount < insights.length) ||
     (Array.isArray(interaction.unknowns) && interaction.unknowns.length > 0));
   const openReview = index => {
     const existing = reviews[`h-${messageId}-${index}`];
-    setReviewGrade(Number.isInteger(existing?.grade) ? existing.grade : null);
+    setReviewGrade(Number.isInteger(existing?.grade) &&
+      existing.grade >= 0 && existing.grade < HYPOTHESIS_GRADES.length
+      ? existing.grade : null);
     setReviewComment(typeof existing?.comment === 'string' ? existing.comment : '');
     setReviewError('');
     setReviewIndex(index);
@@ -111,9 +115,13 @@ export default function InteractionResult({
           от «совсем мимо» до «очень точно». Это ваш отклик, не вероятность.</p>
         {insights.map((insight, index) => {
           const existing = reviews[`h-${messageId}-${index}`];
+          const validReview = Number.isInteger(existing?.grade) &&
+            existing.grade >= 0 && existing.grade < HYPOTHESIS_GRADES.length;
+          const safeComment = typeof existing?.comment === 'string'
+            ? existing.comment.slice(0,500) : '';
           return <div className="reflect-hypothesis-card" key={index}>
             <p><small>Гипотеза {index+1}</small> {insight}</p>
-            {Number.isInteger(existing?.grade) && reviewIndex !== index &&
+            {validReview && reviewIndex !== index &&
               <div className="reflect-hypothesis-saved" role="status">
                 <span className={`reflect-hypothesis-chip reflect-hypothesis-chip--${existing.grade}`}>
                   {React.createElement(GRADE_ICONS[existing.grade], {
@@ -121,8 +129,8 @@ export default function InteractionResult({
                   })}
                   Ваш отклик: {HYPOTHESIS_GRADES[existing.grade]}
                 </span>
-                {existing.comment && <p className="reflect-hypothesis-comment">
-                  {existing.comment}
+                {safeComment && <p className="reflect-hypothesis-comment">
+                  {safeComment}
                 </p>}
                 <small>Сохранено в сеансе · в Grok не отправлено</small>
               </div>}
@@ -130,12 +138,12 @@ export default function InteractionResult({
               <div className="reflect-hypothesis-saved-actions">
                 <button type="button" onClick={() => openReview(index)}>
                   <SlidersHorizontal size={15} aria-hidden="true"/>
-                  {Number.isInteger(existing?.grade) ? 'Изменить мою оценку' : 'Оценить гипотезу'}
+                  {validReview ? 'Изменить мою оценку' : 'Оценить гипотезу'}
                 </button>
-                {Number.isInteger(existing?.grade) && onCompose &&
+                {validReview && onCompose &&
                   <button type="button" onClick={() => onCompose(
                     `Ранее предложенная гипотеза «${insight}». Моя оценка: ${HYPOTHESIS_GRADES[existing.grade]}.`+
-                    (existing.comment?.trim() ? ` Мой комментарий: ${existing.comment.trim()}.` : '')+
+                    (safeComment.trim() ? ` Мой комментарий: ${safeComment.trim()}.` : '')+
                     ' Это мой отзыв, не доказательство. Задай один точный вопрос и проверь другую версию.'
                   )}>
                     <ArrowRight size={15} aria-hidden="true"/> Продолжить разбор
