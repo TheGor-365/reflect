@@ -49,6 +49,8 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   const [openingSession, setOpeningSession] = useState(null);
   const ownerRef = useRef(userId);
   ownerRef.current = userId;
+  const activeScopeRef = useRef({ userId, currentSessionId });
+  activeScopeRef.current = { userId, currentSessionId };
 
   useEffect(() => {
     pendingRecommendationGoalIds.current = {};
@@ -265,6 +267,10 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
         try { await sessionDraftRef.current?.clearAfterCommit(); }
         catch { /* The owner turn is already committed; never auto-repeat. */ }
       }
+      // The owner can switch accounts or sessions while Firestore saves.
+      // Never send the old owner's question under a newly signed account.
+      if (activeScopeRef.current.userId !== owner ||
+          activeScopeRef.current.currentSessionId !== sessionId) return false;
       const reply = await sendSessionMemoryReply({
         sessionId, requestId, message, grantId: approval.grantId,
         approvedDigest: approval.approvedDigest, confirmed: true
