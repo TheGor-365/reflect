@@ -519,3 +519,95 @@ test("P0: consumed attestation, foreign origin and denied entitlement cannot rea
     assert.equal(reads, 0);
   }
 });
+
+test("M3d context reply is 404 by default and never reaches existing /reply", async () => {
+  let regular = 0;
+  await withServer(deps({ handleReply: async () => {
+    regular++; return {};
+  }}), async url => {
+    const response = await fetch(url + "/v1/ai/session-memory-reply", {
+      method: "POST",
+      headers: { origin: STAGE_ORIGIN, authorization: "Bearer " + TOKEN,
+        "x-firebase-appcheck": TOKEN, "content-type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    assert.equal(response.status, 404);
+  });
+  assert.equal(regular, 0);
+});
+
+test("M3d new route uses signed same-owner Railway gates and an independent handler", async () => {
+  let memory = 0, regular = 0, seen = null;
+  await withServer(deps({
+    contextReplyEnabled: true,
+    handleContextReply: async request => {
+      memory++; seen = request;
+      return { text: "Синтетический ответ", historyUsed: true };
+    },
+    handleReply: async () => { regular++; throw Error("not-existing-route"); }
+  }), async url => {
+    const response = await fetch(url + "/v1/ai/session-memory-reply", {
+      method: "POST",
+      headers: { origin: STAGE_ORIGIN, authorization: "Bearer " + TOKEN,
+        "x-firebase-appcheck": TOKEN, "content-type": "application/json" },
+      body: JSON.stringify({ test: "safe synthetic data" })
+    });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).historyUsed, true);
+  });
+  assert.equal(memory, 1);
+  assert.equal(regular, 0);
+  assert.equal(seen.auth.uid, UID);
+  assert.equal(seen.app.alreadyConsumed, false);
+  assert.equal(seen.app.appId, "1:599679789981:web:d4d8743dbff0fe40af1d74");
+});
+
+test("M3d context reply refuses egress OFF, expired account or consumed App Check", async () => {
+  const cases = [
+    { allowProvider: () => false, expected: 503 },
+    { authorizeAccount: async () => false, expected: 403 },
+    { verifyAppCheck: async () => ({
+      appId: "1:599679789981:web:d4d8743dbff0fe40af1d74",
+      alreadyConsumed: true
+    }), expected: 401 }
+  ];
+  for (const { expected, ...override } of cases) {
+    let calls = 0;
+    await withServer(deps({
+      contextReplyEnabled: true, handleContextReply: async () => {
+        calls++; throw Error("unreachable");
+      },
+      ...override
+    }), async url => {
+      const response = await fetch(url + "/v1/ai/session-memory-reply", {
+        method: "POST",
+        headers: { origin: STAGE_ORIGIN, authorization: "Bearer " + TOKEN,
+          "x-firebase-appcheck": TOKEN, "content-type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      assert.equal(response.status, expected);
+    });
+    assert.equal(calls, 0);
+  }
+});
+
+test("M3d query params and third-party Origin cannot reach history handler", async () => {
+  let calls = 0;
+  await withServer(deps({
+    contextReplyEnabled: true,
+    handleContextReply: async () => { calls++; return {}; }
+  }), async url => {
+    const options = {
+      method: "POST",
+      headers: { origin: STAGE_ORIGIN, authorization: "Bearer " + TOKEN,
+        "x-firebase-appcheck": TOKEN, "content-type": "application/json" },
+      body: JSON.stringify(payload)
+    };
+    assert.equal((await fetch(url + "/v1/ai/session-memory-reply?src=other",
+      options)).status, 404);
+    assert.equal((await fetch(url + "/v1/ai/session-memory-reply", {
+      ...options, headers: { ...options.headers, origin: "https://other.invalid" }
+    })).status, 403);
+  });
+  assert.equal(calls, 0);
+});

@@ -215,3 +215,7 @@ test("wrong project fails closed before contacting Firestore", () => {
 
 // M3d.1: signed owner-only preview, explicit grant and no-provider fixtures.
 require("./sessionMemoryPreviewHttp.test.cjs");
+
+// M3d.2b: same hosted CI gate, entirely synthetic and never calls xAI.
+require("./memoryReply.test.cjs");
+require("./sessionMemory.test.cjs");

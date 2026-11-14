@@ -162,12 +162,25 @@ test("M3: approval fingerprint binds UID and source ID; no supplied client UID a
   const turns = boundedPreviousTurns([userTurn("1")], {
     requestId: args.requestId, message: args.message
   }).turns;
-  const a = digestFor({ uid: "synthetic-eric", sourceId: "s1", requestId: args.requestId, turns });
-  const b = digestFor({ uid: "jack", sourceId: "s1", requestId: args.requestId, turns });
+  const a = digestFor({ uid: "synthetic-eric", sourceId: "s1", requestId: args.requestId, message: args.message, turns });
+  const b = digestFor({ uid: "jack", sourceId: "s1", requestId: args.requestId, message: args.message, turns });
   assert.notEqual(a, b);
   const h = harness([userTurn("1")]);
   await denied(() => h.adapter.preview({
     ...args, principal: { ...principal, appCheckVerified: false }
   }));
   assert.equal(h.calls.paths.length, 0);
+});
+
+test("M3d: approved excerpt digest cannot be reused after editing the new question", async () => {
+  const history = [userTurn("1", "Я хочу уложиться в срок"), assistantTurn("1")];
+  const h = harness(history);
+  const preview = await h.adapter.preview(args);
+  const edited = "Измененный после предпросмотра вопрос";
+  h.setHistory([...history, {
+    id: "user-" + args.requestId, role: "user", content: edited
+  }]);
+  await denied(() => h.adapter.authorize({
+    ...args, message: edited, approvedDigest: preview.approvalDigest
+  }));
 });
