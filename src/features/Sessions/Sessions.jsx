@@ -8,6 +8,8 @@ import { createDurableSession, appendDurableTurn } from './sessionPersistence';
 import ChatMessage from './ChatMessage';
 import SessionEvidenceLedger from './SessionEvidenceLedger';
 import SessionMemoryReview from './SessionMemoryReview';
+import { sessionMemoryReplyUiEnabled, sendSessionMemoryReply }
+  from '../../api/sessionMemoryReplyService';
 import SessionLibrary from './SessionLibrary';
 import { sessionDisplayTitle } from '../Diary/diaryPresentation';
 import SessionComposer from './SessionComposer';
@@ -47,6 +49,8 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   const [openingSession, setOpeningSession] = useState(null);
   const ownerRef = useRef(userId);
   ownerRef.current = userId;
+  const activeScopeRef = useRef({ userId, currentSessionId });
+  activeScopeRef.current = { userId, currentSessionId };
 
   useEffect(() => {
     pendingRecommendationGoalIds.current = {};
@@ -215,10 +219,96 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
     }
   };
 
+  /**
+   * M3d.3: separately confirmed, history-assisted send. The preview's
+   * requestId survives unchanged through Firestore commit and ONE paid API
+   * attempt. The ordinary composer still sends a single message only.
+   *
+   * Never retry after any network/server ambiguity. The owner can inspect
+   * the previously saved turn through the free status endpoint instead.
+   */
+  const handleHistorySend = async approval => {
+    const message = userInput.trim();
+    const owner = userId, sessionId = activeSession?.id;
+    const requestId = approval?.requestId;
+    if (!sessionMemoryReplyUiEnabled || !railwayAiRecoveryEnabled ||
+        !AI_SESSION_ENABLED || !db || !owner || !sessionId ||
+        isNewSessionView || !savedSession || isLoading || sendLock.current ||
+        sessionSaveError || scopedLocalMessages.length ||
+        approval?.confirmed !== true ||
+        approval?.sourceId !== sessionId ||
+        approval?.message !== message ||
+        typeof requestId !== 'string' ||
+        !/^[A-Za-z0-9_-]{12,80}$/.test(requestId) ||
+        typeof approval.grantId !== 'string' ||
+        !/^[A-Za-z0-9_-]{16,80}$/.test(approval.grantId) ||
+        typeof approval.approvedDigest !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(approval.approvedDigest) ||
+        !message || message.length > 1400 ||
+        new TextEncoder().encode(message).length > 2000 ||
+        savedHistory.some(turn => turn?.id === 'user-' + requestId)) {
+      setSendError('Контекст или вопрос изменён. Проверьте разрешение и просмотр заново.');
+      return false;
+    }
+
+    sendLock.current = true;
+    setIsLoading(true); setSendError(''); setSessionSaveError('');
+    let committed = false;
+    try {
+      // Adds EXACTLY one owner-authored turn before any provider contact.
+      const userTurn = {
+        id: 'user-' + requestId, role: 'user', content: message,
+        contextMode: 'consented-session', timestamp: Timestamp.now()
+      };
+      await appendDurableTurn(owner, sessionId, userTurn);
+      committed = true;
+      if (activeScopeRef.current.userId !== owner ||
+          activeScopeRef.current.currentSessionId !== sessionId) return false;
+      if (ownerRef.current === owner) {
+        setUserInput('');
+        try { await sessionDraftRef.current?.clearAfterCommit(); }
+        catch { /* The owner turn is already committed; never auto-repeat. */ }
+      }
+      // The owner can switch accounts or sessions while Firestore saves.
+      // Never send the old owner's question under a newly signed account.
+      if (activeScopeRef.current.userId !== owner ||
+          activeScopeRef.current.currentSessionId !== sessionId) return false;
+      const reply = await sendSessionMemoryReply({
+        sessionId, requestId, message, grantId: approval.grantId,
+        approvedDigest: approval.approvedDigest, confirmed: true
+      });
+      if (ownerRef.current === owner) {
+        setLocalMessageScope({ userId: owner, sessionId });
+        setLocalMessages([{
+          id: 'assistant-' + requestId, role: 'assistant',
+          sourceTurnId: userTurn.id, content: reply.response,
+          ...(reply.interaction ? { interaction: reply.interaction } : {}),
+          timestamp: Timestamp.now()
+        }]);
+      }
+      // Server has atomically saved reply + receipt. Do NOT client append.
+      return true;
+    } catch {
+      if (ownerRef.current === owner) {
+        setSendError(committed
+          ? 'Сообщение сохранено. Результат вызова Grok не подтверждён и ' +
+            'мог быть оплачен. Проверьте квитанцию бесплатно ниже; ' +
+            'не отправляйте его повторно.'
+          : 'Сообщение не удалось сохранить в Firebase. Grok не вызывался. ' +
+            'Проверьте соединение и заново запросите предварительный просмотр.');
+      }
+      return false;
+    } finally {
+      sendLock.current = false;
+      setIsLoading(false);
+    }
+  };
+
   // Explicit, owner-confirmed NEW paid attempt for an existing saved user
   // turn. No duplicate user turn, no silent retry, no history sent to Grok.
   const handleRetrySavedTurn = async turn => {
-    if (!railwayAiRecoveryEnabled || sendLock.current || isLoading ||
+    if (!railwayAiRecoveryEnabled || turn?.contextMode === 'consented-session' ||
+        sendLock.current || isLoading ||
         !db || !userId || !activeSession ||
         !Array.isArray(activeSession.chatHistory) ||
         !activeSession.chatHistory.some(t =>
@@ -422,7 +512,8 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
 
   // Switching threads must not silently discard an unsaved paid response or typed draft.
   const canLeaveConversation = () => {
-    if (userInput.trim() || (scopedLocalMessages.length && sessionSaveError)) {
+    if (isLoading || sendLock.current || userInput.trim() ||
+        (scopedLocalMessages.length && sessionSaveError)) {
       setNavigationWarning('Есть неотправленный текст или ответ с ошибкой сохранения. Сохраните данные перед переходом.');
       return false;
     }
@@ -536,7 +627,8 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
                   <ReplyRecoveryPanel
                     key={userId + ':' + activeSession.id + ':' + msg.id}
                     sessionId={activeSession.id} turn={msg}
-                    onRetry={handleRetrySavedTurn} disabled={isLoading}/>
+                    onRetry={handleRetrySavedTurn} disabled={isLoading}
+                    allowRetry={msg.contextMode !== 'consented-session'}/>
                 )}
               </React.Fragment>
             ))}
@@ -550,7 +642,8 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
           {AI_SESSION_ENABLED && activeSession && (
             <SessionMemoryReview key={userId + ':' + activeSession.id}
               userId={userId} sessionId={activeSession.id}
-              draftMessage={userInput} disabled={isLoading}/>
+              draftMessage={userInput} disabled={isLoading}
+              onConfirmHistory={handleHistorySend}/>
           )}
           {AI_SESSION_ENABLED && (
             <div className="reflect-ai-send-consent">

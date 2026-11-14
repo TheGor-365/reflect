@@ -123,3 +123,19 @@ test.each([
   await waitFor(() => expect(screen.getByRole('note')).toHaveTextContent(text));
   expect(screen.getByRole('note')).toHaveTextContent(code);
 });
+
+test('history-assisted owner turn has free status but no legacy contextless retry', async () => {
+  const retry = vi.fn();
+  render(<ReplyRecoveryPanel sessionId="owner-session-1"
+    turn={{ ...turn, contextMode: 'consented-session' }}
+    onRetry={retry} allowRetry={false}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Проверить статус бесплатно' }));
+  await waitFor(() => expect(mocks.status).toHaveBeenCalledTimes(1));
+  expect(screen.getByText(/Повторная генерация через обычный маршрут/))
+    .toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Сгенерировать ответ повторно' }))
+    .not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Подтверждаю новую генерацию' }))
+    .not.toBeInTheDocument();
+  expect(retry).not.toHaveBeenCalled();
+});
