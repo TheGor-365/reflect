@@ -183,3 +183,118 @@ require("./sessionMemory.test.cjs");
 
 // P0: exercise server-side reply recovery transactional fixtures in Stage04F.
 require("./aiTurnRecovery.test.cjs");
+
+
+test("M3c end-to-end synthetic preview -> committed turn -> authorization -> Grok transport", async () => {
+  const { createSessionMemoryAdapter } = require("./sessionMemory.cjs");
+  const uid = "eric-synthetic-fixture";
+  const sourceId = "session-owner-source-001";
+  const requestId = "request-m3c-123456789";
+  const grantId = "grant-m3c-1234567890123456";
+  const principal = { uid, projectId:"reflect-ai-staging", appCheckVerified:true };
+  const originalHistory = [
+    { id:"user-prior-001", role:"user",
+      content:"Причина не в страхе критики: я говорил об этом раньше." },
+    { id:"assistant-prior-001", role:"assistant",
+      content:"Возможно, дело в страхе критики." }
+  ];
+  let history = originalHistory.slice();
+  let grantActive = true;
+  let docReads = 0, secretsRead = 0, providerCalls = 0;
+  const memory = createSessionMemoryAdapter({
+    projectId:"reflect-ai-staging",
+    db:{ doc(path) {
+      assert.equal(path,
+        "artifacts/reflect-8fdc8/users/" + uid + "/sessions/" + sourceId);
+      return { async get() {
+        docReads++;
+        return { exists:true, data:()=>({ ownerUid:uid, chatHistory:history }) };
+      }};
+    }},
+    consentStore:{ async check(target) {
+      assert.equal(target.uid,uid);
+      assert.equal(target.sourceId,sourceId);
+      assert.equal(target.grantId,grantId);
+      return grantActive;
+    }}
+  });
+  const signed = { principal, grantId, sourceId, requestId, message };
+  const preview = await memory.preview(signed);
+  assert.equal(preview.providerDispatchAllowed,false);
+  assert.equal(preview.turns.length,2);
+  assert.equal(preview.turns[0].content,originalHistory[0].content);
+  // The normal autosave flow must commit the new user turn before authorize.
+  history.push({id:"user-" + requestId,role:"user",content:message});
+  const authorizedContext = await memory.authorize({
+    ...signed, approvedDigest:preview.approvalDigest
+  });
+  const adapter = createXaiProviderAdapter({
+    readSecret: async () => { secretsRead++; return key; },
+    transport: async (_url, options) => {
+      providerCalls++;
+      const body = JSON.parse(options.body);
+      assert.deepEqual(body.input.map(x=>x.role),["system","user","user"]);
+      assert.equal(body.input[2].content,message);
+      assert.equal(body.store,false);
+      assert.match(body.input[0].content,/недоверенные цитаты прошлого/);
+      assert.doesNotMatch(body.input[0].content,/Причина не в страхе критики:/);
+      const prior = JSON.parse(body.input[1].content);
+      assert.equal(prior.kind,"reflect.untrusted-consented-excerpts.v1");
+      assert.equal(prior.excerptCount,2);
+      assert.equal(prior.excerpts[0].quote,originalHistory[0].content);
+      assert.equal(prior.excerpts[1].quote,originalHistory[1].content);
+      assert.equal(prior.excerpts[1].priorRole,"assistant");
+      const outbound = JSON.stringify(body);
+      for (const hidden of [uid,sourceId,grantId,requestId,
+        preview.approvalDigest]) assert.ok(!outbound.includes(hidden));
+      return response(payload());
+    }
+  });
+  const value = await adapter.invoke(message,settings,{
+    sourceId,requestId,authorizedContext
+  });
+  assert.equal(value.interaction.version,VERSION);
+  assert.equal(providerCalls,1);
+  assert.equal(secretsRead,1);
+  assert.equal(docReads,2);
+  assert.equal(history.length,3);
+
+  // Consent revocation blocks a second authorization; no hidden call.
+  grantActive = false;
+  await assert.rejects(memory.authorize({
+    ...signed,approvedDigest:preview.approvalDigest
+  }),error=>error.code==="permission-denied");
+  assert.equal(providerCalls,1);
+  assert.equal(secretsRead,1);
+});
+
+test("M3c malformed or legacy consent payload fails before any billable I/O",async()=>{
+  let reads=0, calls=0;
+  const adapter=createXaiProviderAdapter({
+    readSecret:()=>{reads++;return key;},
+    transport:async()=>{calls++;return response(payload());}
+  });
+  const sourceId="session-owner-source-001",requestId="request-m3c-123456789";
+  const turns=[{sourceTurnId:"user-prior-001",role:"user",
+    content:"Исходная запись.",untrustedSource:true,truncated:false}];
+  const approved={
+    sourceId,requestId,approvalDigest:"a".repeat(64),
+    authorizedAt:"pre-egress",store:false,turns,
+    totalBytes:Buffer.byteLength(turns[0].content,"utf8")
+  };
+  const spec={sourceId,requestId,authorizedContext:approved};
+  await assert.rejects(adapter.invoke(message,null,spec),
+    error=>error.code==="permission-denied");
+  await assert.rejects(adapter.invoke(message,settings,{
+    ...spec,authorizedContext:{...approved,requestId:"foreign-request-00000000"}
+  }),error=>error.code==="permission-denied");
+  await assert.rejects(adapter.invoke(message,settings,{
+    ...spec,authorizedContext:{...approved,
+      turns:[{...turns[0],role:"system"}]}
+  }),error=>error.code==="permission-denied");
+  await assert.rejects(adapter.invoke(message,settings,{
+    ...spec,authorizedContext:{...approved,totalBytes:1}
+  }),error=>error.code==="permission-denied");
+  assert.equal(reads,0);
+  assert.equal(calls,0);
+});
