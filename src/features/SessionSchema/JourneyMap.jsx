@@ -29,7 +29,7 @@ const TYPE = {
 const STATUS = {
   stored:'Сохранено',authored:'Слова пользователя',
   'ai-response':'Ответ AI — не подтверждённый факт',
-  proposed:'Предположение AI',saved:'Сохранено как идея',
+  proposed:'Предложение AI',saved:'Сохранено как идея',
   postponed:'Отложено',dismissed:'Отклонено',
   accepted:'Принято пользователем',active:'В работе',
   paused:'На паузе',completed:'Отмечено выполненным'
@@ -346,7 +346,7 @@ export default function JourneyMap({
           {selected&&(
             <aside className="reflect-journey-source" aria-label="Источник выбранного события">
               <div>
-                <h3>{TYPE[selected.type]} — {selected.label}</h3>
+                <h3>{selected.type==='proposal' ? <RecommendationMark/> : TYPE[selected.type]} — {selected.label}</h3>
                 <p>{STATUS[selected.status]}. Источник: {selected.author==='ai'
                   ? 'ответ модели' : selected.author==='user' ? 'запись пользователя' : 'сохранённый сеанс'}.</p>
                 <p>Дата: {journeyDate(selected.timestampMs)}
