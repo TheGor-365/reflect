@@ -74,4 +74,7 @@ function approvedProviderHistory(spec) {
     })
   });
 }
-module.exports = { approvedProviderHistory };
+module.exports = {
+  approvedProviderHistory,
+  CONTEXT_LIMITS: Object.freeze({ MAX_PRIOR_TURNS, MAX_TURN_BYTES, MAX_TOTAL_BYTES })
+};
