@@ -212,3 +212,6 @@ test("wrong project fails closed before contacting Firestore", () => {
     transport: async () => validReply()
   }), denied("unsafe-environment"));
 });
+
+// M3d.1: signed owner-only preview, explicit grant and no-provider fixtures.
+require("./sessionMemoryPreviewHttp.test.cjs");
