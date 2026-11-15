@@ -100,11 +100,13 @@ test('failed provider call leaves a durable user turn; never silently retries or
 
 test('M4.2 new session stores selected AI mode before first paid provider call', async () => {
   render(<Harness />);
-  const select = screen.getByRole('combobox', {
+  fireEvent.click(screen.getByRole('button', {
     name: 'Режим AI этого сеанса'
-  });
-  fireEvent.change(select, { target: { value: 'coach' } });
-  expect(select).toHaveValue('coach');
+  }));
+  fireEvent.click(screen.getByRole('option', { name: 'Коучинг' }));
+  expect(screen.getByRole('button', {
+    name: 'Режим AI этого сеанса'
+  })).toHaveAttribute('title', 'Режим AI: Коучинг');
   expect(mocks.create).not.toHaveBeenCalled();
   expect(mocks.ai).not.toHaveBeenCalled();
   fireEvent.change(screen.getByRole('textbox', {
