@@ -167,9 +167,22 @@ test('user-confirmed linked goal exposes its actual source session without mutat
     ...goal, sessionId: 'saved-session', sourceRecommendationKey: 'r-a1-0'
   }]} onOpenSession={onOpenSession}/>);
   fireEvent.click(screen.getByRole('button', { name: 'Источник: открыть сеанс' }));
-  expect(onOpenSession).toHaveBeenCalledExactlyOnceWith('saved-session');
+  expect(onOpenSession).toHaveBeenCalledExactlyOnceWith('saved-session', null);
   expect(updateGoal).not.toHaveBeenCalled();
   expect(createGoal).not.toHaveBeenCalled();
+});
+
+test('source-linked goal opens the exact saved assistant answer without mutations', () => {
+  const onOpenSession = vi.fn();
+  render(<Goals userId="synthetic-uid" goals={[{
+    ...goal, sessionId: 'saved-session',
+    sourceAssistantMessageId: 'assistant-answer-verified',
+    sourceRecommendationKey: 'r-assistant-answer-verified-0'
+  }]} onOpenSession={onOpenSession}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Источник: открыть ответ Reflect' }));
+  expect(onOpenSession).toHaveBeenCalledExactlyOnceWith(
+    'saved-session', 'assistant-answer-verified');
+  expect(updateGoal).not.toHaveBeenCalled();
 });
 
 test('authored success criterion is visible but never marks goal complete', () => {
