@@ -113,7 +113,7 @@ describe('PRODUCT-03 confirmed return visits', () => {
     await expect(saveSessionReturn({ ...input, goalId: '../foreign',
       nextStep: 'Выполнить' })).rejects.toThrow();
     await expect(saveSessionReturn({ ...input, nextStep: 'z'.repeat(241) })).rejects.toThrow();
-    await expect(saveSessionReturn({ ...input, nextStep: 'X\\u0000' })).rejects.toThrow();
+    await expect(saveSessionReturn({ ...input, nextStep: 'X' + String.fromCharCode(0) })).rejects.toThrow();
     const standalone = await saveSessionReturn({
       ...input, nextStep: '  Продолжить тему завтра  '
     });
