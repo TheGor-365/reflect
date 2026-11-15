@@ -65,6 +65,8 @@ export default function Mindspace({
   const [titleDraft,setTitleDraft]=useState('');
   const [zoneDraft,setZoneDraft]=useState('other');
   const canvasRef=useRef(null);
+  const selectedScopeRef=useRef({userId,selectedId});
+  selectedScopeRef.current={userId,selectedId};
   const graph=useMemo(()=>buildMindspace(sessions,goals,{
     includeProposals:showIdeas
   }),[sessions,goals,showIdeas]);
@@ -203,14 +205,16 @@ export default function Mindspace({
   const onSaveZone=async()=>{
     if(busy||!userId||selected?.kind!=='session'||!zoneDraft)return;
     setBusy(true);setError('');setNotice('');
-    const scope=`${userId}:${selected.refId}`;
     try{
       await saveMindZone({userId,sourceSessionId:selected.refId,zoneId:zoneDraft});
-      if(scope===`${userId}:${selected.refId}`) {
+      if(selectedScopeRef.current.userId===userId &&
+          selectedScopeRef.current.selectedId===selected.id) {
         setNotice('Расположение темы подтверждено. Карта обновится из вашего сеанса.');
       }
     }catch{
-      setError('Не удалось подтвердить зону. Выбранный вариант сохранён в форме.');
+      if(selectedScopeRef.current.userId===userId &&
+          selectedScopeRef.current.selectedId===selected.id)
+        setError('Не удалось подтвердить зону. Выбранный вариант сохранён в форме.');
     }finally{setBusy(false);}
   };
   return (
