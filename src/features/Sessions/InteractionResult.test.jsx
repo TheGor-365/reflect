@@ -126,7 +126,14 @@ it('M6a UI allows one deliberate goal only after all owner feedback is source-ma
   };
   render(<InteractionResult {...props}/>);
   fireEvent.click(screen.getByRole('button', { name: 'Превратить в цель' }));
-  expect(screen.getByRole('button', { name: 'Подтвердить создание цели' }))
-    .toBeEnabled();
+  const confirm = screen.getByRole('button', { name: 'Подтвердить создание цели' });
+  expect(confirm).toBeDisabled();
+  fireEvent.change(screen.getByRole('textbox', { name: 'Первый проверяемый шаг' }), {
+    target: { value: 'Проверить короткий план на практике' }
+  });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Как я пойму, что цель достигнута?' }), {
+    target: { value: 'План выполнен и результат записан' }
+  });
+  expect(confirm).toBeEnabled();
   expect(onDecision).not.toHaveBeenCalled();
 });

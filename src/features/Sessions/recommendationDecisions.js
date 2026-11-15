@@ -37,8 +37,7 @@ export async function applyRecommendationDecision({
   if (action === 'goal' &&
       (!idOk(goalId) || !textOk(goalTitle, 240) ||
         typeof goalPurpose !== 'string' || goalPurpose.length > 1000 ||
-        typeof goalStep !== 'string' || goalStep.length > 240 ||
-        typeof goalCriteria !== 'string' || goalCriteria.length > 500 ||
+        !textOk(goalStep, 240) || !textOk(goalCriteria, 500) ||
         (goalDueDay !== '' && !isDateOnly(goalDueDay)))) {
     throw new Error('Проверьте название и описание цели.');
   }
@@ -108,9 +107,9 @@ export async function applyRecommendationDecision({
           text: goalTitle.trim(), purpose: goalPurpose.trim(),
           successCriteria: goalCriteria.trim(),
           type: 'checklist',
-          subItems: goalStep.trim() ? [{
+          subItems: [{
             id: `${goalId}-step-0`, text: goalStep.trim(), completed: false
-          }] : [],
+          }],
           ...(goalDueDay ? {
             dueDay: goalDueDay, date: goalDueDay,
             dueDate: Timestamp.fromDate(localNoonForDueDay(goalDueDay))
