@@ -101,3 +101,20 @@ describe('M1 source-backed recommendations inbox', () => {
     expect(buildRecommendationInbox(sessions).pendingCount).toBe(0);
   });
 });
+
+it('UX R2: owner v2 recommendation is indexed with exact first-party source excerpt', () => {
+  const result=buildRecommendationInbox([{
+    id:'synthetic-m5-source',title:'Новая тема',chatHistory:[
+      {id:'user-m5-v2',role:'user',content:'Хочу закончить первый релиз без лишнего функционала'},
+      {id:'assistant-m5-v2',role:'assistant',interaction:make({
+        version:'reflect.interaction.v2'
+      })}
+    ]
+  }]);
+  expect(result.recommendations).toHaveLength(1);
+  expect(result.recommendations[0].sourceMessageId).toBe('user-m5-v2');
+  expect(result.recommendations[0].sourceExcerpt)
+    .toBe('Хочу закончить первый релиз без лишнего функционала');
+  expect(result.recommendations[0].sessionTitle).toBe('Новая тема');
+  expect(result.recommendations[0].status).toBe('pending');
+});
