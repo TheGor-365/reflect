@@ -527,7 +527,11 @@ async function runBrowserSuite() {
     await first.locator(".reflect-side-nav")
       .getByRole("button", { name: "Цели" }).click();
     await first.getByRole("heading", { name: "Ваши цели" }).waitFor();
-    if (await first.getByLabel("Зачем это нужно? (необязательно)").count()) {
+    // Animated form stays in DOM so a partially entered draft survives
+    // close/reopen. The initial control must still be inaccessible/hidden.
+    const goalAdvanced = first.locator(".reflect-goals-advanced-motion");
+    if (await goalAdvanced.getAttribute("aria-hidden") !== "true" ||
+        await first.getByLabel("Зачем это нужно? (необязательно)").isVisible()) {
       throw new Error("Goal advanced options must start closed");
     }
     await first.getByLabel("Название цели").fill("Synthetic goal without deadline");
