@@ -8,6 +8,7 @@ export const AI_SETTINGS_VERSION = 1;
 export const AI_SETTINGS_DEFAULTS = Object.freeze({
   schemaVersion: AI_SETTINGS_VERSION,
   responseDepth: 'balanced',
+  interactionMode: 'reflection', // AI behavior only, never history access
   contextLevel: 'optimal', // scope size only; NOT a history grant
   responseTone: 'analytical',
   assistantRole: 'companion',
@@ -22,6 +23,7 @@ export const AI_SETTINGS_DEFAULTS = Object.freeze({
 
 export const AI_SETTINGS_OPTIONS = Object.freeze({
   responseDepth: Object.freeze(['concise', 'balanced', 'deep']),
+  interactionMode: Object.freeze(['reflection', 'support', 'coach', 'companion', 'analytic']),
   contextLevel: Object.freeze(['optimal', 'detailed', 'deep']),
   responseTone: Object.freeze(['supportive', 'analytical', 'strategic']),
   assistantRole: Object.freeze(['companion', 'mentor', 'challenger', 'reflective']),
@@ -49,7 +51,7 @@ export function parseAiSettings(raw) {
   }
   // Optional V1 additions: existing owner preferences stay valid, with
   // conservative defaults, until the owner explicitly chooses a role.
-  for (const field of ['assistantRole', 'empathyLevel', 'addressForm', 'contextLevel']) {
+  for (const field of ['assistantRole', 'empathyLevel', 'addressForm', 'contextLevel', 'interactionMode']) {
     const value = raw[field] === undefined ? AI_SETTINGS_DEFAULTS[field] : raw[field];
     if (!AI_SETTINGS_OPTIONS[field].includes(value)) return null;
     output[field] = value;
