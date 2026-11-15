@@ -112,6 +112,36 @@ export function buildDiaryTimeline({
     const id = sourceId(record, index, 'session');
     events.push(makeEvent('session', record, id, `session:${id}`,
       record.createdAt, id));
+
+    // M8a: separate, stable Diary projections of explicit owner return visits.
+    // Never infer a return from assistant turns or a goal status. Duplicate
+    // IDs in damaged historical data are ignored instead of rendering twice.
+    const seenReturnIds = new Set<string>();
+    asRecords(record.returnCheckIns).forEach((returnEntry, returnIndex) => {
+      const returnId = returnEntry.id;
+      if (returnEntry.type !== 'return-check-in' || returnEntry.author !== 'user' ||
+          typeof returnId !== 'string' ||
+          !/^[A-Za-z0-9_-]{1,128}$/.test(returnId) ||
+          seenReturnIds.has(returnId) ||
+          typeof returnEntry.text !== 'string' || !returnEntry.text.trim()) return;
+      seenReturnIds.add(returnId);
+      // Read-only short source projection: no AI transcript or other check-ins.
+      const ownerReturn: LegacyRecord = {
+        id: returnId, type: 'return-check-in', author: 'user',
+        text: returnEntry.text, recordedAtClient: returnEntry.recordedAtClient
+      };
+      if (typeof returnEntry.nextStep === 'string' && returnEntry.nextStep.trim()) {
+        ownerReturn.nextStep = returnEntry.nextStep;
+      }
+      if (typeof returnEntry.goalId === 'string' && returnEntry.goalId.trim()) {
+        ownerReturn.goalId = returnEntry.goalId;
+      }
+      events.push(makeEvent('session', {
+        title: record.title,
+        returnCheckIns: [ownerReturn],
+      }, id, `session:${id}:return:${returnId}`,
+      returnEntry.recordedAtClient, id, true, returnIndex));
+    });
   });
   goals.forEach((raw, index) => {
     const record = asRecord(raw);
@@ -204,6 +234,11 @@ function searchableText(event: DiaryTimelineEvent): string {
   }
   if (event.type === 'session') {
     fragments.push(...asRecords(data.chatHistory).map(e => e.content));
+    for (const record of asRecords(data.returnCheckIns)) {
+      if (record.author === 'user' && record.type === 'return-check-in') {
+        fragments.push(record.text, record.nextStep);
+      }
+    }
   }
   return fragments.filter((part): part is string => typeof part === 'string')
     .join(' ').toLocaleLowerCase('ru-RU');
