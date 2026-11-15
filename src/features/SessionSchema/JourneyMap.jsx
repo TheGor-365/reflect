@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReflectSelect from '../../components/ReflectSelect';
+import SmoothDisclosure from '../../components/common/SmoothDisclosure';
+import ReflectContentIcon from '../../components/common/ReflectContentIcon';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, GitBranch, Maximize2, Minus, Plus, RotateCcw, MessageSquareText,
   Bot, Clock3, CheckCircle2, RefreshCw, ListChecks, Lightbulb } from 'lucide-react';
 import {
@@ -221,43 +223,65 @@ export default function JourneyMap({
         </div>
       ) : (
         <>
-          <div className="reflect-journey-facts-table-wrap">
-            <table className="reflect-journey-facts-table"
-              aria-label="Фактические метрики выбранной темы">
-              <caption>Что известно о вашем пути — только сохранённые события</caption>
-              <thead><tr><th scope="col">Показатель</th>
-                <th scope="col">Значение</th>
-                <th scope="col">Что учитывается</th></tr></thead>
-              <tbody>
-                <tr><th scope="row"><MessageSquareText size={16}/> Ваши сообщения</th>
-                  <td>{coverage.authored}</td>
-                  <td>Сохранённые сообщения пользователя в выбранном представлении</td></tr>
-                <tr><th scope="row"><Bot size={16}/> Ответы Reflect</th>
-                  <td>{coverage.aiReplies}</td>
-                  <td>Ответы модели; не подтверждение истинности её объяснений</td></tr>
-                <tr><th scope="row"><Clock3 size={16}/> Период обсуждения</th>
-                  <td>{spanLabel(coverage.timespanMs)}</td>
-                  <td>{coverage.complete
-                    ? 'Время между первым и последним сообщением, не длительность работы над проблемой'
-                    : 'Недостаточно подтверждённых дат для интервала'}</td></tr>
-                <tr><th scope="row"><Lightbulb size={16}/> Идеи AI</th>
-                  <td>{coverage.proposed}</td>
-                  <td>Открытые предложения, не проверенные действия</td></tr>
-                <tr><th scope="row"><CheckCircle2 size={16}/> Принятые решения</th>
-                  <td>{facts.acceptedDecisions}</td>
-                  <td>Только решения, подтверждённые вами</td></tr>
-                <tr><th scope="row"><RefreshCw size={16}/> Возвращения к теме</th>
-                  <td>{facts.returns}</td>
-                  <td>Сохранённые наблюдения о возвращении к теме</td></tr>
-                <tr><th scope="row"><ListChecks size={16}/> Выполненные шаги</th>
-                  <td>{facts.stepProgress
-                    ? `${facts.stepProgress.done}/${facts.stepProgress.total}` : 'Нет данных'}</td>
-                  <td>{facts.stepProgress
-                    ? 'Отмеченные вами шаги за всё время; дата выполнения может быть неизвестна'
-                    : 'Нет подтверждённых данных; доля за период не рассчитывается'}</td></tr>
-              </tbody>
-            </table>
+          <div className="reflect-journey-fact-strips"
+            aria-label="Краткие показатели выбранной темы">
+            {[
+              ['session','Ваши сообщения',coverage.authored],
+              ['reflection','Ответы Reflect',coverage.aiReplies],
+              ['recommendation','Идеи AI',coverage.proposed],
+              ['goal','Ваши решения',facts.acceptedDecisions],
+              ['return','Возвращения',facts.returns],
+              ['goal','Выполненные шаги',
+                facts.stepProgress
+                  ? `${facts.stepProgress.done}/${facts.stepProgress.total}`
+                  : '—']
+            ].map(([kind,label,value])=>(
+              <div className="reflect-journey-fact-strip" key={label}>
+                <ReflectContentIcon kind={kind} size={17}/>
+                <span><strong>{value}</strong><small>{label}</small></span>
+              </div>
+            ))}
           </div>
+          <SmoothDisclosure label="Подробные показатели и методика"
+            iconKind="information" className="reflect-journey-metrics-disclosure">
+            <div className="reflect-journey-facts-table-wrap">
+              <table className="reflect-journey-facts-table"
+                aria-label="Фактические метрики выбранной темы">
+                <caption>Что известно о вашем пути — только сохранённые события</caption>
+                <thead><tr><th scope="col">Показатель</th>
+                  <th scope="col">Значение</th>
+                  <th scope="col">Что учитывается</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row"><MessageSquareText size={16}/> Ваши сообщения</th>
+                    <td>{coverage.authored}</td>
+                    <td>Сохранённые сообщения пользователя в выбранном представлении</td></tr>
+                  <tr><th scope="row"><Bot size={16}/> Ответы Reflect</th>
+                    <td>{coverage.aiReplies}</td>
+                    <td>Ответы модели; не подтверждение истинности её объяснений</td></tr>
+                  <tr><th scope="row"><Clock3 size={16}/> Период обсуждения</th>
+                    <td>{spanLabel(coverage.timespanMs)}</td>
+                    <td>{coverage.complete
+                      ? 'Время между первым и последним сообщением, не длительность работы над проблемой'
+                      : 'Недостаточно подтверждённых дат для интервала'}</td></tr>
+                  <tr><th scope="row"><Lightbulb size={16}/> Идеи AI</th>
+                    <td>{coverage.proposed}</td>
+                    <td>Открытые предложения, не проверенные действия</td></tr>
+                  <tr><th scope="row"><CheckCircle2 size={16}/> Принятые решения</th>
+                    <td>{facts.acceptedDecisions}</td>
+                    <td>Только решения, подтверждённые вами</td></tr>
+                  <tr><th scope="row"><RefreshCw size={16}/> Возвращения к теме</th>
+                    <td>{facts.returns}</td>
+                    <td>Сохранённые наблюдения о возвращении к теме</td></tr>
+                  <tr><th scope="row"><ListChecks size={16}/> Выполненные шаги</th>
+                    <td>{facts.stepProgress
+                      ? `${facts.stepProgress.done}/${facts.stepProgress.total}` : 'Нет данных'}</td>
+                    <td>{facts.stepProgress
+                      ? 'Отмеченные вами шаги за всё время; дата выполнения может быть неизвестна'
+                      : 'Нет подтверждённых данных; доля за период не рассчитывается'}</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </SmoothDisclosure>
           {period!=='all'&&(
             <p className="reflect-journey-note">
               Фильтр периода показывает только события с датой. Шаги без собственной временной отметки не приписываются выбранной неделе или месяцу.
@@ -321,7 +345,13 @@ export default function JourneyMap({
                   onClick={()=>setSelectedId(node.id)}
                   aria-pressed={selectedId===node.id}
                   aria-label={describe(node)}>
-                  <small>{TYPE[node.type]} · {STATUS[node.status]}</small>
+                  <small><ReflectContentIcon
+                    kind={node.type==='proposal'?'recommendation':
+                      node.type==='goal'||node.type==='step'?'goal':
+                      node.type==='return'?'return':
+                      node.type==='session'?'session':'reflection'}
+                    size={15}/>
+                    {TYPE[node.type]} · {STATUS[node.status]}</small>
                   <span>{node.label}</span>
                 </button>
               ))}
@@ -343,7 +373,9 @@ export default function JourneyMap({
             ))}</ol>
           </div>
           {selected&&(
-            <aside className="reflect-journey-source" aria-label="Источник выбранного события">
+            <aside key={selected.id}
+              className="reflect-journey-source reflect-journey-source--animated"
+              aria-label="Источник выбранного события">
               <div>
                 <h3>{TYPE[selected.type]} — {selected.label}</h3>
                 <p>{STATUS[selected.status]}. Источник: {selected.author==='ai'
@@ -357,9 +389,13 @@ export default function JourneyMap({
               </button>
             </aside>
           )}
-          <p className="reflect-journey-note">
-            Линия «содержит» означает принадлежность сеансу, а «принято как цель» — только подтверждённую транзакцией связь. Отсутствующее событие не восстанавливается догадкой.
-          </p>
+          <SmoothDisclosure label="Что означают линии и связи"
+            iconKind="information" className="reflect-journey-methodology">
+            <p>Линия «содержит» показывает принадлежность сеансу.
+              «Принято как цель» означает связь с подтверждённым
+              пользовательским решением. Пропущенные события нельзя
+              восстановить догадкой.</p>
+          </SmoothDisclosure>
         </>
       )}
     </section>
