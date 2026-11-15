@@ -31,10 +31,20 @@ describe('PRODUCT-02 decisions UI', () => {
     expect(onDecision).not.toHaveBeenCalled();
     const input = screen.getByRole('textbox', { name: 'Название цели' });
     fireEvent.change(input, { target: { value: 'Выпустить тестовую версию' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить создание цели' }));
+    const submit = screen.getByRole('button', { name: 'Подтвердить создание цели' });
+    expect(submit).toBeDisabled();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Первый проверяемый шаг' }), {
+      target: { value: 'Проверить прототип с пользователем' }
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Как я пойму, что цель достигнута?' }), {
+      target: { value: 'Получен конкретный отзыв на прототип' }
+    });
+    expect(submit).not.toBeDisabled();
+    fireEvent.click(submit);
     await waitFor(() => expect(onDecision).toHaveBeenCalledWith(0, 'goal', {
       title: 'Выпустить тестовую версию', purpose: '',
-      step: '', dueDay: '', criteria: ''
+      step: 'Проверить прототип с пользователем', dueDay: '',
+      criteria: 'Получен конкретный отзыв на прототип'
     }));
     expect(screen.getByText(/Цель подтверждена и связана/)).toBeTruthy();
   });
@@ -44,7 +54,7 @@ describe('PRODUCT-02 decisions UI', () => {
     expect(screen.getByText('Принято как цель')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Превратить в цель' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Открыть цели' }));
-    expect(props.onOpenGoals).toHaveBeenCalledTimes(1);
+    expect(props.onOpenGoals).toHaveBeenCalledExactlyOnceWith('g1');
   });
   it('preserves the goal draft after a failed transaction and does not retry automatically', async () => {
     const onDecision = vi.fn().mockRejectedValue(new Error('Сеть недоступна'));
@@ -52,6 +62,12 @@ describe('PRODUCT-02 decisions UI', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Превратить в цель' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Название цели' }), {
       target: { value: 'Не потерять черновик' }
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Первый проверяемый шаг' }), {
+      target: { value: 'Запустить проверяемый тест' }
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Как я пойму, что цель достигнута?' }), {
+      target: { value: 'Тест выполнен и результат зафиксирован' }
     });
     fireEvent.click(screen.getByRole('button', { name: 'Подтвердить создание цели' }));
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Сеть недоступна'));
