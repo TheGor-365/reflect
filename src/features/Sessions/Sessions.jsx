@@ -30,7 +30,7 @@ import InfoCard from '../../components/common/InfoCard';
 import { useEntrySave } from '../../hooks/useEntrySave';
 import { BookOpen, BarChart2, MessageSquareText, ShieldCheck } from 'lucide-react';
 
-const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, onOpenGoals, onOpenRecommendations, focusTurnId, libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
+const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, onOpenGoals, onOpenRecommendations, focusTurnId, libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
   const [userInput, setUserInput] = useState('');
   const [ownerContextLevel, setOwnerContextLevel] = useState(null);
   const [newSessionMode, setNewSessionMode] = useState(ACCOUNT_MODE);
@@ -662,7 +662,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
             onClose={() => setActiveToolPanel(null)}>
             {activeToolPanel === 'return' && (
               <SessionReturnCheckIn key={activeSession.id}
-                session={activeSession} userId={userId} expanded/>
+                session={activeSession} userId={userId} goals={goals} expanded/>
             )}
             {activeToolPanel === 'evidence' && (
               <SessionEvidenceLedger key={activeSession.id}

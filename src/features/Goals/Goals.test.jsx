@@ -211,6 +211,47 @@ test('authored success criterion is visible but never marks goal complete', () =
   expect(screen.getByRole('button', { name: 'В работе' })).toHaveAttribute('aria-pressed', 'true');
 });
 
+test('M7a: goal shows only user-authored returns from its own saved session', () => {
+  const sharedGoal = {
+    ...goal, sessionId: 'saved-session',
+    sourceType: 'user-accepted-ai-recommendation'
+  };
+  render(<Goals userId="synthetic-uid" goals={[sharedGoal]} sessions={[{
+    id: 'saved-session',
+    returnCheckIns: [
+      { id: 'v1', type: 'return-check-in', author: 'user',
+        goalId: 'g1', text: 'Проверил рабочую форму',
+        nextStep: 'Проверить ввод на мобильном' },
+      { id: 'other', type: 'return-check-in', author: 'user',
+        goalId: 'another-goal', text: 'Не связанное наблюдение' },
+      { id: 'fabricated', type: 'return-check-in', author: 'assistant',
+        goalId: 'g1', text: 'Фальшивое завершение AI' }
+    ]
+  }]}/>);
+  expect(screen.getByText('Ваши возвращения к цели (1)')).toBeInTheDocument();
+  fireEvent.click(screen.getByText('Ваши возвращения к цели (1)'));
+  expect(screen.getByText('Проверил рабочую форму')).toBeInTheDocument();
+  expect(screen.getByText(/Проверить ввод на мобильном/)).toBeInTheDocument();
+  expect(screen.queryByText('Не связанное наблюдение')).toBeNull();
+  expect(screen.queryByText('Фальшивое завершение AI')).toBeNull();
+  expect(screen.getByRole('button', { name: 'В работе' }))
+    .toHaveAttribute('aria-pressed', 'true');
+  expect(updateGoal).not.toHaveBeenCalled();
+});
+
+test('M7a: returns do not leak from another session with a different source ID', () => {
+  render(<Goals userId="synthetic-uid" goals={[{
+    ...goal, sessionId: 'owner-session'
+  }]} sessions={[{
+    id: 'other-session', returnCheckIns: [{
+      id: 'v1', goalId: 'g1', type: 'return-check-in',
+      author: 'user', text: 'Приватная запись другой темы'
+    }]
+  }]}/>);
+  expect(screen.queryByText(/Ваши возвращения к цели/)).not.toBeInTheDocument();
+  expect(screen.queryByText('Приватная запись другой темы')).not.toBeInTheDocument();
+});
+
 test('Journey opens a specific confirmed goal, including paused goals, without writing', () => {
   const selected = { ...goal, id: 'paused-from-map',
     text: 'Цель со ссылкой', status: 'paused' };

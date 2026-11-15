@@ -21,7 +21,10 @@ const targetFor = (item, index) => item?.id
   ? { id: item.id, text: item.text }
   : { index, text: item?.text };
 
-function GoalCard({ goal, userId, onAppend, onFeedback, onOpenSession, focused = false }) {
+function GoalCard({
+  goal, userId, onAppend, onFeedback, onOpenSession,
+  returnEntries = [], focused = false
+}) {
   const status = statusOf(goal);
   const progress = progressOf(goal);
   const dueDay = dueDayOf(goal);
@@ -264,6 +267,25 @@ function GoalCard({ goal, userId, onAppend, onFeedback, onOpenSession, focused =
         </div>
       )}
 
+      {returnEntries.length > 0 && (
+        <details className="reflect-goal-return-log">
+          <summary>Ваши возвращения к цели ({returnEntries.length})</summary>
+          <p className="reflect-goal-purpose">
+            Это ваши записи из сохранённого сеанса. Они не меняют статус цели
+            и не считаются независимой проверкой результата.
+          </p>
+          {[...returnEntries].reverse().map((entry, index) => (
+            <article key={entry.id || `return-${index}`} className="reflect-goal-return-entry">
+              <strong>Что изменилось (по вашим словам)</strong>
+              <p>{entry.text}</p>
+              {typeof entry.nextStep === 'string' && entry.nextStep.trim() && (
+                <p><strong>Ваш следующий шаг:</strong> {entry.nextStep}</p>
+              )}
+            </article>
+          ))}
+        </details>
+      )}
+
       {error && <p role="alert" className="reflect-goal-error">{error}</p>}
       {busy && <p role="status" className="reflect-goal-feedback">Сохранение…</p>}
       {!busy && notice && <p role="status" className="reflect-goal-feedback">{notice}</p>}
@@ -271,7 +293,10 @@ function GoalCard({ goal, userId, onAppend, onFeedback, onOpenSession, focused =
   );
 }
 
-export default function Goals({ goals = [], userId, onAppend, onFeedback, onOpenSession, focusGoalId = null }) {
+export default function Goals({
+  goals = [], sessions = [], userId, onAppend, onFeedback,
+  onOpenSession, focusGoalId = null
+}) {
   const [draft, setDraft] = useState(DEFAULT_DRAFT);
   const [newStep, setNewStep] = useState('');
   const [advanced, setAdvanced] = useState(false);
@@ -475,12 +500,22 @@ export default function Goals({ goals = [], userId, onAppend, onFeedback, onOpen
                 : 'В этом разделе пока нет целей.'}
             </p>
           )}
-          {currentGroup.items.map(goal => (
-            <GoalCard key={goal.id} goal={goal} userId={userId}
+          {currentGroup.items.map(goal => {
+            const source = sessions.find(session => session.id === goal.sessionId);
+            const returnEntries = Array.isArray(source?.returnCheckIns)
+              ? source.returnCheckIns.filter(entry =>
+                entry?.type === 'return-check-in' &&
+                entry.author === 'user' &&
+                entry.goalId === goal.id &&
+                typeof entry.text === 'string'
+              ) : [];
+            return <GoalCard key={`${userId}:${goal.id}`}
+              goal={goal} userId={userId}
+              returnEntries={returnEntries}
               onAppend={onAppend} onFeedback={onFeedback}
               onOpenSession={onOpenSession}
-              focused={goal.id === focusGoalId}/>
-          ))}
+              focused={goal.id === focusGoalId}/>;
+          })}
         </div>
       </section>
     </section>
