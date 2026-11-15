@@ -4,7 +4,8 @@ import Sessions from './Sessions';
 
 const mocks = vi.hoisted(() => ({
   append: vi.fn(), create: vi.fn(), history: vi.fn(),
-  regular: vi.fn(), save: vi.fn(), clearFeedback: vi.fn()
+  regular: vi.fn(), save: vi.fn(), clearFeedback: vi.fn(),
+  context: vi.fn()
 }));
 vi.mock('../../firebase/config', () => ({ db: {}, appId: 'reflect-8fdc8' }));
 vi.mock('../../api/reflectAssistantService', () => ({
@@ -16,6 +17,9 @@ vi.mock('../../api/reflectRailwayService', () => ({
 vi.mock('../../api/sessionMemoryReplyService', () => ({
   sessionMemoryReplyUiEnabled: true,
   sendSessionMemoryReply: mocks.history
+}));
+vi.mock('../../api/ownerContextLevel', () => ({
+  readOwnerContextLevel: mocks.context
 }));
 vi.mock('./sessionPersistence', () => ({
   appendDurableTurn: mocks.append, createDurableSession: mocks.create
@@ -31,7 +35,8 @@ vi.mock('./SessionMemoryReview', () => ({
       sourceId: 'synthetic-session', message: 'Это новый вопрос',
       requestId: 'synthetic-request-123456',
       grantId: 'grant-synthetic123456789',
-      approvedDigest: 'a'.repeat(64), confirmed: true
+      approvedDigest: 'a'.repeat(64), confirmed: true,
+      contextLevel: 'optimal'
     })}>Отправить просмотренную историю (тест)</button>
   )
 }));
@@ -68,18 +73,19 @@ const base = {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.append.mockResolvedValue('synthetic-session');
+  mocks.context.mockResolvedValue('optimal');
   mocks.history.mockResolvedValue({
     response: 'Ответ с историей', historyUsed: true,
     sourceTurnId: 'user-synthetic-request-123456',
     persistedByServer: true
   });
 });
-function prepare() {
+async function prepare() {
   render(<Sessions {...base}/>);
   fireEvent.change(screen.getByRole('textbox', {
     name: 'Сообщение для сеанса'
   }), { target: { value: 'Это новый вопрос' } });
-  return screen.getByRole('button', {
+  return screen.findByRole('button', {
     name:'Отправить просмотренную историю (тест)'
   });
 }
@@ -94,7 +100,7 @@ test('M3d3 stores exact owner turn before invoking one context-assisted provider
     return { response: 'Ответ с историей', historyUsed: true,
       sourceTurnId: 'user-synthetic-request-123456', persistedByServer: true };
   });
-  const button = prepare();
+  const button = await prepare();
   fireEvent.click(button);
   await waitFor(() => expect(mocks.history).toHaveBeenCalledTimes(1));
   expect(sequence).toEqual(['commit', 'provider']);
@@ -109,7 +115,8 @@ test('M3d3 stores exact owner turn before invoking one context-assisted provider
   expect(mocks.history.mock.calls[0][0]).toEqual({
     sessionId:'synthetic-session', requestId:'synthetic-request-123456',
     message:'Это новый вопрос', grantId:'grant-synthetic123456789',
-    approvedDigest:'a'.repeat(64), confirmed:true
+    approvedDigest:'a'.repeat(64), confirmed:true,
+    contextLevel:'optimal'
   });
   expect(mocks.regular).not.toHaveBeenCalled();
   expect(mocks.append).toHaveBeenCalledTimes(1); // answer saved on server
@@ -117,7 +124,7 @@ test('M3d3 stores exact owner turn before invoking one context-assisted provider
 
 test('M3d3 Firestore write failure prevents any paid provider request', async () => {
   mocks.append.mockRejectedValueOnce(new Error('offline'));
-  const button = prepare();
+  const button = await prepare();
   fireEvent.click(button);
   await waitFor(() => expect(screen.getByRole('alert'))
     .toHaveTextContent('не удалось сохранить'));
@@ -129,7 +136,7 @@ test('M3d3 Firestore write failure prevents any paid provider request', async ()
 
 test('M3d3 network ambiguity never triggers a provider retry or ordinary fallback', async () => {
   mocks.history.mockRejectedValueOnce(new Error('history-result-unknown'));
-  const button = prepare();
+  const button = await prepare();
   fireEvent.click(button);
   await waitFor(() => expect(screen.getByRole('alert'))
     .toHaveTextContent('мог быть оплачен'));
@@ -143,9 +150,10 @@ test('M3d3 stale consent question is rejected before Firestore and provider', as
   fireEvent.change(screen.getByRole('textbox', {
     name: 'Сообщение для сеанса'
   }), { target: { value: 'Уже другой вопрос' } });
-  fireEvent.click(screen.getByRole('button', {
+  const button = await screen.findByRole('button', {
     name:'Отправить просмотренную историю (тест)'
-  }));
+  });
+  fireEvent.click(button);
   expect(mocks.append).not.toHaveBeenCalled();
   expect(mocks.history).not.toHaveBeenCalled();
 });

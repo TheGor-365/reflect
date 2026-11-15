@@ -148,8 +148,9 @@ export default function AISettings({ userId, sessions = [] }) {
         <span className="reflect-ai-settings-kicker"><Sparkles size={16}/> Личный ассистент</span>
         <h2>Настройки Reflect AI</h2>
         <p>Здесь сохраняются предпочтения. Разрешения на доступ к истории
-          управляются отдельно и не включают чтение истории моделью Grok.
-          Эти настройки применяются только к новым структурированным ответам Grok.</p>
+          управляются отдельно. Уровень контекста определяет предел выдержек
+          выбранного сеанса, но не даёт модели доступа автоматически.
+          Другие настройки применяются к новым ответам Grok.</p>
       </div>
       <div className="reflect-ai-settings-notice" role="note">
         <ShieldCheck size={18} aria-hidden="true"/>
@@ -233,6 +234,29 @@ export default function AISettings({ userId, sessions = [] }) {
               description="Резервная настройка. Статус ответа виден в беседе; история по-прежнему закрыта."
               name="showContextIndicator" checked={draft.showContextIndicator}
               onChange={change} disabled={disabled}/>
+          </div>
+
+          <div className="reflect-ai-settings-card" aria-label="Уровень доступа к контексту">
+            <div className="reflect-ai-settings-card-title">
+              <ShieldCheck size={19}/><h3>Глубина контекста</h3>
+            </div>
+            <p className="reflect-context-consent-intro">
+              Настраивает, сколько предыдущих реплик из одного выбранного
+              сеанса можно показать перед отправкой. Сам по себе выбор уровня
+              не разрешает доступ к истории или передачу в Grok.
+            </p>
+            <ReflectSelectRow label="Уровень контекста"
+              description="Оптимальный: 2 реплики / 400 байт; подробный: 4 / 800; глубокий: 6 / 1100. Действуют лимиты стоимости и согласия."
+              name="contextLevel" value={draft.contextLevel} disabled={disabled}
+              onChange={change} options={[
+                ['optimal', 'Оптимальный — короткий контекст'],
+                ['detailed', 'Подробный — больше деталей'],
+                ['deep', 'Глубокий — до шести реплик']
+              ]}/>
+            <p>После изменения нажмите «Сохранить настройки».
+              Новый уровень применяется к следующему предпросмотру.
+              История, дневник, профиль и другие сеансы остаются закрытыми
+              без отдельного разрешения.</p>
           </div>
 
           {/* Consent management is deliberately separate from AI preferences. */}

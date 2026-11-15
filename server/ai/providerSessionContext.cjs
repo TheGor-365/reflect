@@ -14,7 +14,7 @@ const { PolicyError } = require("./policy.cjs");
 // Constant bounds mirrored from the private sessionMemory adapter. They are
 // asserted equal in isolated tests; the separately packaged Functions runtime
 // must not import the Admin consent store or owner-session reader.
-const MAX_PRIOR_TURNS = 4;
+const MAX_PRIOR_TURNS = 6;
 const MAX_TURN_BYTES = 300;
 const MAX_TOTAL_BYTES = 1200;
 

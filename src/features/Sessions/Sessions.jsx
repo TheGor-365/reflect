@@ -10,6 +10,7 @@ import SessionEvidenceLedger from './SessionEvidenceLedger';
 import SessionMemoryReview from './SessionMemoryReview';
 import { sessionMemoryReplyUiEnabled, sendSessionMemoryReply }
   from '../../api/sessionMemoryReplyService';
+import { readOwnerContextLevel } from '../../api/ownerContextLevel';
 import SessionLibrary from './SessionLibrary';
 import { sessionDisplayTitle } from '../Diary/diaryPresentation';
 import SessionComposer from './SessionComposer';
@@ -25,6 +26,7 @@ import { BookOpen, BarChart2, MessageSquareText, ShieldCheck } from 'lucide-reac
 
 const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, onOpenGoals, onOpenRecommendations, focusTurnId, libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
   const [userInput, setUserInput] = useState('');
+  const [ownerContextLevel, setOwnerContextLevel] = useState(null);
   const [showLibrary, setShowLibrary] = useState(false);
   const [navigationWarning, setNavigationWarning] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -61,6 +63,17 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
     setLocalMessageScope(null);
     setSessionSaveError('');
   }, [userId]);
+
+  useEffect(() => {
+    let active = true;
+    setOwnerContextLevel(null);
+    if (userId && sessionMemoryReplyUiEnabled) {
+      readOwnerContextLevel(userId)
+        .then(level => { if (active) setOwnerContextLevel(level); })
+        .catch(() => { if (active) setOwnerContextLevel(null); });
+    }
+    return () => { active = false; };
+  }, [userId, currentSessionId]);
 
   const recognitionRef = useRef(null);
   const utteranceRef = useRef(null);
@@ -236,6 +249,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
         isNewSessionView || !savedSession || isLoading || sendLock.current ||
         sessionSaveError || scopedLocalMessages.length ||
         approval?.confirmed !== true ||
+        !ownerContextLevel || approval?.contextLevel !== ownerContextLevel ||
         approval?.sourceId !== sessionId ||
         approval?.message !== message ||
         typeof requestId !== 'string' ||
@@ -275,7 +289,8 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
           activeScopeRef.current.currentSessionId !== sessionId) return false;
       const reply = await sendSessionMemoryReply({
         sessionId, requestId, message, grantId: approval.grantId,
-        approvedDigest: approval.approvedDigest, confirmed: true
+        approvedDigest: approval.approvedDigest, confirmed: true,
+        contextLevel: ownerContextLevel
       });
       if (ownerRef.current === owner) {
         setLocalMessageScope({ userId: owner, sessionId });
@@ -639,10 +654,11 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
         </div>
 
         <div className="reflect-session-compose-dock">
-          {AI_SESSION_ENABLED && activeSession && (
+          {AI_SESSION_ENABLED && activeSession && ownerContextLevel && (
             <SessionMemoryReview key={userId + ':' + activeSession.id}
               userId={userId} sessionId={activeSession.id}
               draftMessage={userInput} disabled={isLoading}
+              contextLevel={ownerContextLevel}
               onConfirmHistory={handleHistorySend}/>
           )}
           {AI_SESSION_ENABLED && (

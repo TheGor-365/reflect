@@ -8,8 +8,8 @@
  */
 const { PolicyError } = require("./policy.cjs");
 const { PROJECT_ID, SCOPE } = require("../privacy/contextConsent.cjs");
-const { MAX_PRIOR_TURNS, MAX_TURN_BYTES, MAX_TOTAL_BYTES } =
-  require("./sessionMemory.cjs");
+const { MAX_TURN_BYTES } = require("./sessionMemory.cjs");
+const { contextWindow } = require("./contextLevels.cjs");
 
 const PATH = "/v1/ai/session-memory-preview";
 const ORIGIN = "https://reflect-ai-staging.web.app";
@@ -65,25 +65,32 @@ async function readPayload(req) {
   let command;
   try { command = JSON.parse(Buffer.concat(parts).toString("utf8")); }
   catch { deny("invalid-argument"); }
-  if (!exact(command, ["grantId", "sourceId", "requestId", "message", "scope"]) ||
+  const oldKeys = ["grantId", "sourceId", "requestId", "message", "scope"];
+  if (!(exact(command, oldKeys) ||
+        exact(command, [...oldKeys, "contextLevel"])) ||
       !GRANT.test(command.grantId || "") ||
       !SOURCE.test(command.sourceId || "") ||
       !REQUEST.test(command.requestId || "") ||
       typeof command.message !== "string" ||
       !command.message.trim() || Buffer.byteLength(command.message, "utf8") > 2000 ||
       command.scope !== SCOPE) deny("invalid-argument");
+  contextWindow(command.contextLevel); // Reject unknown levels before a scoped read.
   return command;
 }
 
 function validatePreview(value, command) {
+  const window = contextWindow(command.contextLevel);
   if (!plain(value) || value.providerDispatchAllowed !== false ||
       value.scope !== SCOPE || value.sourceId !== command.sourceId ||
       value.requestId !== command.requestId ||
+      (command.contextLevel === undefined
+        ? value.contextLevel !== undefined
+        : value.contextLevel !== window.contextLevel) ||
       !DIGEST.test(value.approvalDigest || "") ||
       !Array.isArray(value.turns) || value.turns.length < 1 ||
-      value.turns.length > MAX_PRIOR_TURNS ||
+      value.turns.length > window.maxTurns ||
       !Number.isSafeInteger(value.totalBytes) ||
-      value.totalBytes < 1 || value.totalBytes > MAX_TOTAL_BYTES ||
+      value.totalBytes < 1 || value.totalBytes > window.maxBytes ||
       typeof value.truncated !== "boolean") deny("unavailable");
   const seen = new Set();
   let sum = 0;
@@ -105,6 +112,7 @@ function validatePreview(value, command) {
   // or other owner's text. This digest is NOT consent to provider egress.
   return Object.freeze({
     sourceId: command.sourceId, requestId: command.requestId,
+    ...(command.contextLevel === undefined ? {} : { contextLevel: command.contextLevel }),
     scope: SCOPE, turns: value.turns, totalBytes: value.totalBytes,
     truncated: value.truncated, approvalDigest: value.approvalDigest,
     providerDispatchAllowed: false, disclosureRequired: true

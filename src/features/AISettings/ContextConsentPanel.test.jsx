@@ -63,7 +63,7 @@ test('grant requires selecting a specific session and a separate confirmation', 
       sourceId: 'session-001', consentVersion: '2026-11-10-01'
     });
     expect(screen.getByRole('button', { name: 'Отозвать' })).toBeInTheDocument();
-    expect(screen.getByText(/Передача истории в Grok ещё выключена/)).toBeInTheDocument();
+    expect(screen.getByText(/Передача в Grok требует отдельного просмотра/)).toBeInTheDocument();
   } finally {
     spy.mockRestore();
   }

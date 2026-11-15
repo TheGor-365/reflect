@@ -184,3 +184,50 @@ test("M3d: approved excerpt digest cannot be reused after editing the new questi
     ...args, message: edited, approvedDigest: preview.approvalDigest
   }));
 });
+
+
+test("M3 tiers: 2/4/6 owner turns, bound bytes and digest to the exact level", async () => {
+  const history = Array.from({ length: 8 }, (_, i) => i % 2
+    ? assistantTurn("tier-" + i, "Проверенный фрагмент " + i + " ".repeat(20))
+    : userTurn("tier-" + i, "Мой факт " + i + " ".repeat(20)));
+  const h = harness(history);
+  const lengths = { optimal: 2, detailed: 4, deep: 6 };
+  const maxBytes = { optimal: 400, detailed: 800, deep: 1100 };
+  const previews = {};
+  for (const level of Object.keys(lengths)) {
+    const p = await h.adapter.preview({ ...args, contextLevel: level });
+    assert.equal(p.contextLevel, level);
+    assert.equal(p.turns.length, lengths[level]);
+    assert(p.totalBytes <= maxBytes[level]);
+    assert(p.turns.every(t => t.untrustedSource === true));
+    previews[level] = p;
+  }
+  assert.notEqual(previews.optimal.approvalDigest, previews.detailed.approvalDigest);
+  assert.notEqual(previews.detailed.approvalDigest, previews.deep.approvalDigest);
+  h.setHistory([...history, current()]);
+  await denied(() => h.adapter.authorize({
+    ...args, contextLevel: "deep",
+    approvedDigest: previews.optimal.approvalDigest
+  }));
+  const correct = await h.adapter.authorize({
+    ...args, contextLevel: "deep",
+    approvedDigest: previews.deep.approvalDigest
+  });
+  assert.equal(correct.contextLevel, "deep");
+  assert.equal(correct.turns.length, 6);
+  for (const level of ["all", "diagnostic", null, {}]) {
+    await denied(() => h.adapter.preview({ ...args, contextLevel: level }),
+      "invalid-argument");
+  }
+});
+
+test("M3 tiers: deep never reads unrelated sessions, while legacy digest stays v2", async () => {
+  const history = Array.from({ length: 8 }, (_, i) => userTurn(String(i)));
+  const h = harness(history);
+  const legacy = await h.adapter.preview(args);
+  assert.equal(legacy.turns.length, MAX_PRIOR_TURNS);
+  assert.equal(legacy.contextLevel, undefined);
+  const deep = await h.adapter.preview({ ...args, contextLevel: "deep" });
+  assert.equal(deep.turns.length, 6);
+  assert.equal(h.calls.paths.every(p => p.endsWith("/sessions/" + args.sourceId)), true);
+});

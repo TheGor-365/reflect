@@ -25,6 +25,7 @@ const { createXaiProviderAdapter } = require("./xaiProviderAdapter.cjs");
 const { readOwnerSettings } = require("./hostedHandler.cjs");
 const { VERSION } = require("./interactionContract.cjs");
 const { PROJECT_ID } = require("../privacy/contextConsent.cjs");
+const { contextWindow } = require("./contextLevels.cjs");
 
 const APP_ID = "1:599679789981:web:d4d8743dbff0fe40af1d74";
 const RESOURCE = /^[A-Za-z0-9_-]{1,128}$/;
@@ -40,7 +41,9 @@ const plain = value => Boolean(value) && typeof value === "object" &&
 const fail = code => { throw new PolicyError(code); };
 
 function validateMemoryReplyPayload(data) {
-  if (!plain(data) || Object.keys(data).length !== KEYS.length ||
+  if (!plain(data) || !(Object.keys(data).length === KEYS.length ||
+      (Object.keys(data).length === KEYS.length + 1 &&
+       Object.hasOwn(data, "contextLevel"))) ||
       !KEYS.every(key => Object.hasOwn(data, key)) ||
       !REQUEST.test(data.requestId || "") ||
       !RESOURCE.test(data.sessionId || "") ||
@@ -54,12 +57,14 @@ function validateMemoryReplyPayload(data) {
       Buffer.byteLength(data.message, "utf8") > MAX_MESSAGE_BYTES) {
     fail("invalid-argument");
   }
+  contextWindow(data.contextLevel); // Reject missing/malformed new-level impersonation.
   // Legacy single-message consent is REQUIRED, not a substitute for separate
   // explicit history approval. validateRequest() verifies the exact schema.
   return Object.freeze({
     base: { requestId: data.requestId, message: data.message, consent: data.consent },
     sessionId: data.sessionId, sourceTurnId: data.sourceTurnId,
-    grantId: data.grantId, approvedDigest: data.approvedDigest
+    grantId: data.grantId, approvedDigest: data.approvedDigest,
+    ...(data.contextLevel === undefined ? {} : { contextLevel: data.contextLevel })
   });
 }
 
@@ -96,7 +101,8 @@ function createMemoryReplyExecutor({
       principal: { uid, projectId: PROJECT_ID, appCheckVerified: true },
       sourceId: envelope.sessionId, grantId: envelope.grantId,
       requestId: input.requestId, message: input.message,
-      approvedDigest: envelope.approvedDigest
+      approvedDigest: envelope.approvedDigest,
+      ...(envelope.contextLevel === undefined ? {} : { contextLevel: envelope.contextLevel })
     });
 
     // First private read: reject uncommitted/foreign/stale/revoked or modified

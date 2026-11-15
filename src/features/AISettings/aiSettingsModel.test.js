@@ -71,3 +71,17 @@ it('direct address, personality and empathy are validated and never grant memory
   expect(parseAiSettings({...value,empathyLevel:'ignore-safety'})).toBeNull();
   expect(parseAiSettings({...value,addressForm:'administrator'})).toBeNull();
 });
+
+
+it('account context level is persisted as a preference, not blanket history access', () => {
+  const original = AI_SETTINGS_DEFAULTS;
+  expect(original.contextLevel).toBe('optimal');
+  const detailed = updateAiPreference(original, 'contextLevel', 'detailed');
+  const deep = updateAiPreference(detailed, 'contextLevel', 'deep');
+  expect(deep.contextLevel).toBe('deep');
+  expect(deep).not.toHaveProperty('historyAccess');
+  expect(parseAiSettings({ ...deep, contextLevel: 'unlimited' })).toBeNull();
+  const { contextLevel, ...oldOwnerSettings } = original;
+  expect(parseAiSettings(oldOwnerSettings).contextLevel).toBe('optimal');
+  expect(settingsEqual(oldOwnerSettings, original)).toBe(true);
+});

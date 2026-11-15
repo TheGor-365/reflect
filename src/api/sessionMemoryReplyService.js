@@ -11,6 +11,7 @@ import {
 import { sessionMemoryPreviewUiEnabled } from './sessionMemoryPreviewService';
 import { railwayAiRecoveryEnabled } from './reflectRailwayService';
 import { createRequestBody } from './reflectAssistantService';
+import { contextLevelPolicy } from './contextLevels';
 
 const requested = import.meta.env.VITE_ENABLE_REFLECT_SESSION_MEMORY_REPLY === 'true';
 const origin = (import.meta.env.VITE_REFLECT_RAILWAY_AI_ORIGIN || '').trim();
@@ -38,7 +39,7 @@ const SAFE_ERRORS = Object.freeze([
 ]);
 
 export function buildSessionMemoryReplyPayload({
-  sessionId, requestId, message, grantId, approvedDigest, confirmed
+  sessionId, requestId, message, grantId, approvedDigest, confirmed, contextLevel
 }) {
   if (!sessionMemoryReplyUiEnabled || confirmed !== true ||
       !RESOURCE.test(sessionId || '') || !REQUEST.test(requestId || '') ||
@@ -47,6 +48,7 @@ export function buildSessionMemoryReplyPayload({
       message !== message.trim()) {
     throw new Error('history-send-disabled');
   }
+  if (contextLevel !== undefined) contextLevelPolicy(contextLevel);
   // Existing producer owns exact one-message consent + durable turn IDs.
   // Its recovery mode MUST be enabled; never inject UID or client excerpts.
   const sourceTurnId = 'user-' + requestId;
@@ -54,15 +56,16 @@ export function buildSessionMemoryReplyPayload({
   if (base.sessionId !== sessionId || base.sourceTurnId !== sourceTurnId ||
       base.retryConfirmed !== undefined) throw new Error('history-send-disabled');
   return Object.freeze({
-    ...base, grantId, approvedDigest, externalHistoryApproved: true
+    ...base, grantId, approvedDigest, externalHistoryApproved: true,
+    ...(contextLevel === undefined ? {} : { contextLevel })
   });
 }
 
 export async function sendSessionMemoryReply({ sessionId, requestId,
-  message, grantId, approvedDigest, confirmed
+  message, grantId, approvedDigest, confirmed, contextLevel
 }) {
   const payload = buildSessionMemoryReplyPayload({
-    sessionId, requestId, message, grantId, approvedDigest, confirmed
+    sessionId, requestId, message, grantId, approvedDigest, confirmed, contextLevel
   });
   if (!appCheckClient || !auth.currentUser) throw new Error('unauthenticated');
   const principal = auth.currentUser;
@@ -101,7 +104,8 @@ export async function sendSessionMemoryReply({ sessionId, requestId,
         data.sourceTurnId !== payload.sourceTurnId ||
         data.historyUsed !== true ||
         !Number.isSafeInteger(data.excerptCount) ||
-        data.excerptCount < 1 || data.excerptCount > 4 ||
+        data.excerptCount < 1 || data.excerptCount >
+          (contextLevel === undefined ? 4 : contextLevelPolicy(contextLevel).maxTurns) ||
         typeof data.text !== 'string' ||
         !data.text.trim() || data.text.length > 2400) {
       throw new Error('history-result-unknown');

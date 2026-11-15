@@ -187,3 +187,31 @@ test('changing question or session invalidates paid confirmation without a call'
     .not.toBeInTheDocument());
   expect(onConfirmHistory).not.toHaveBeenCalled();
 });
+
+test('M3 tier change invalidates inspected deep excerpts and blocks stale send', async () => {
+  const onConfirmHistory = vi.fn();
+  const deepPreview = { ...one, contextLevel: 'deep' };
+  mocks.preview.mockResolvedValueOnce(deepPreview);
+  const { rerender } = render(<SessionMemoryReview {...props}
+    contextLevel="deep" onConfirmHistory={onConfirmHistory}/>);
+  fireEvent.click(screen.getByRole('button', {
+    name:'Проверить разрешение',hidden:true
+  }));
+  await waitFor(() => expect(screen.getByRole('button', {
+    name:'Посмотреть до 6 реплик',hidden:true
+  })).toBeEnabled());
+  fireEvent.click(screen.getByRole('button', {
+    name:'Посмотреть до 6 реплик',hidden:true
+  }));
+  await screen.findByText('Ранее я уже объяснил ограничение.');
+  expect(mocks.preview.mock.calls[0][0].contextLevel).toBe('deep');
+  rerender(<SessionMemoryReview {...props}
+    contextLevel="optimal" onConfirmHistory={onConfirmHistory}/>);
+  await waitFor(() => expect(screen.queryByText(
+    'Ранее я уже объяснил ограничение.'
+  )).not.toBeInTheDocument());
+  expect(screen.getByRole('button', {
+    name:'Посмотреть до 2 реплик',hidden:true
+  })).toBeDisabled();
+  expect(onConfirmHistory).not.toHaveBeenCalled();
+});
