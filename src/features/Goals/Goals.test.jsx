@@ -103,8 +103,11 @@ test('goal creator starts as a single compact field with optional details closed
   expect(screen.getByRole('textbox', { name: 'Название цели' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Дополнительные параметры цели' }))
     .toHaveAttribute('aria-expanded', 'false');
-  expect(screen.queryByLabelText(/Зачем это нужно/)).not.toBeInTheDocument();
-  expect(screen.queryByLabelText(/Срок/)).not.toBeInTheDocument();
+  // Keep the form mounted for reversible CSS animation and draft survival.
+  expect(document.querySelector('.reflect-goals-advanced-motion'))
+    .toHaveAttribute('aria-hidden', 'true');
+  expect(screen.getByLabelText(/Зачем это нужно/)).toBeInTheDocument();
+  expect(screen.getByLabelText(/Срок/)).toBeInTheDocument();
   expect(screen.getAllByRole('tabpanel')).toHaveLength(1);
 });
 
@@ -119,7 +122,11 @@ test('advanced fields keep typed purpose and steps when collapsed and reopened',
     target: { value: 'Тихий первый шаг' }
   });
   fireEvent.click(options);
+  expect(document.querySelector('.reflect-goals-advanced-motion'))
+    .toHaveAttribute('aria-hidden', 'true');
   fireEvent.click(options);
+  expect(document.querySelector('.reflect-goals-advanced-motion'))
+    .toHaveAttribute('aria-hidden', 'false');
   expect(screen.getByLabelText(/Зачем это нужно/)).toHaveValue('Личное намерение');
   expect(screen.getByLabelText('Шаг новой цели')).toHaveValue('Тихий первый шаг');
   fireEvent.click(screen.getByRole('button', { name: 'Добавить шаг' }));
