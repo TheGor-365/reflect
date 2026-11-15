@@ -136,6 +136,49 @@ test('manual title edit commits only title request and preserves draft on error'
     .not.toBeInTheDocument());
 });
 
+test('M8a: return event reads as owner observation, not an AI interpretation', () => {
+  const onOpenSession = vi.fn();
+  const record = entry({
+    type: 'session', sourceKind: 'session', sourceId: 'saved-session',
+    parentSessionId: 'saved-session', isAppend: true,
+    eventKey: 'session:saved-session:return:visit-1',
+    data: { returnCheckIns: [{
+      id: 'visit-1', type: 'return-check-in', author: 'user',
+      text: 'Я исправил форму, но не проверил мобильную версию',
+      nextStep: 'Проверить форму на телефоне', goalId: 'g1'
+    }] }
+  });
+  const { container } = render(<DiaryNarrativeCard entry={record}
+    onOpenSession={onOpenSession}/>);
+  expect(screen.getByLabelText('Рубрика: Моё возвращение')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Моё наблюдение после возвращения' }))
+    .toBeInTheDocument();
+  expect(screen.getByText('Я исправил форму, но не проверил мобильную версию'))
+    .toBeInTheDocument();
+  expect(screen.getByText(/Проверить форму на телефоне/)).toBeInTheDocument();
+  expect(screen.getByText(/Время записи — с устройства/)).toBeInTheDocument();
+  expect(screen.queryByText('Мысль Reflect')).not.toBeInTheDocument();
+  expect(container.querySelector('.reflect-journal-ai-thought')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Открыть исходный сеанс' }));
+  expect(onOpenSession).toHaveBeenCalledExactlyOnceWith('saved-session');
+});
+
+test('M8a: session root still renders original AI thought without false return UI', () => {
+  const original = entry({
+    type: 'session', sourceKind: 'session', sourceId: 'root-session',
+    isAppend: false,
+    data: { title: 'Тема', chatHistory: [
+      { role: 'user', content: 'Исходный вопрос' },
+      { role: 'assistant', content: 'Отражение от Reflect' }
+    ] }
+  });
+  render(<DiaryNarrativeCard entry={original}/>);
+  expect(screen.getByLabelText('Рубрика: Мысль Reflect')).toBeInTheDocument();
+  expect(screen.getByText('Отражение от Reflect')).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Моё наблюдение после возвращения' }))
+    .not.toBeInTheDocument();
+});
+
 test('mood and goal cards reuse Midnight Aurora semantic title and muted date', () => {
   const goal = entry({ type: 'goal', sourceKind: 'goal', sourceId: 'g1',
     data: { text: 'Сформулировать цель', purpose: 'Важная причина', completed: false } });
