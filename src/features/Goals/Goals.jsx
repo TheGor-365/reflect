@@ -397,7 +397,9 @@ export default function Goals({ goals = [], userId, onAppend, onFeedback, onOpen
           </button>
         </div>
 
-        {advanced && (
+        <div className="reflect-disclosure-content reflect-goals-advanced-motion"
+          data-open={advanced} aria-hidden={!advanced}>
+          <div className="reflect-disclosure-inner">
           <div id="reflect-goals-advanced" className="reflect-goals-advanced">
             <div className="reflect-goal-type-picker" role="group" aria-label="Тип цели">
               <button type="button" aria-pressed={draft.type === 'checklist'}
@@ -441,7 +443,8 @@ export default function Goals({ goals = [], userId, onAppend, onFeedback, onOpen
               </div>
             )}
           </div>
-        )}
+          </div>
+        </div>
         {createError && <p role="alert" className="reflect-goal-error">{createError}</p>}
         {createNotice && <p role="status" className="reflect-goal-feedback">{createNotice}</p>}
       </form>
