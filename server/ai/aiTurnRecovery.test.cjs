@@ -248,3 +248,32 @@ test("P0: private receipt persists only whitelisted failure stage, never raw out
     assert.equal(JSON.stringify(state).includes("SENSITIVE"), false);
   }
 });
+
+
+test("M4.2: owner committed turn locks chosen mode into one receipt and assistant reply", async () => {
+  const { store, db } = setup();
+  db.docs.get(sessionPath(UID)).chatHistory[0].interactionMode = "coach";
+  const attempt = await store.claim(params());
+  assert.equal(attempt.interactionMode, "coach");
+  await store.providerStarted(attempt);
+  await store.persistReply(attempt, { text: "Проверенный ответ коучинга" });
+  const turns = db.docs.get(sessionPath(UID)).chatHistory;
+  assert.equal(turns[1].interactionMode, "coach");
+  assert.equal(db.docs.get(receiptPath(UID)).interactionMode, undefined);
+  assert.equal(JSON.stringify(db.docs.get(receiptPath(UID))).includes(TEXT), false);
+});
+
+test("M4.2: tampered/unknown mode blocks receipt before provider and cost", async () => {
+  for (const bad of ["admin", "therapist", "unlimited", "", {}, null]) {
+    const { store, db } = setup();
+    db.docs.get(sessionPath(UID)).chatHistory[0].interactionMode = bad;
+    await forbid(() => store.claim(params()), "invalid-session-history");
+    assert.equal(db.docs.has(receiptPath(UID)), false);
+  }
+});
+
+test("M4.2: old owner turn without mode is still compatible with account preference", async () => {
+  const { store } = setup();
+  const attempt = await store.claim(params());
+  assert.equal(attempt.interactionMode, undefined);
+});
