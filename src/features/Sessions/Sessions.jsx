@@ -5,6 +5,9 @@ import { AI_SESSION_ENABLED, getAnalysisFromAI } from '../../api/reflectAssistan
 import { railwayAiRecoveryEnabled } from '../../api/reflectRailwayService';
 import ReplyRecoveryPanel from './ReplyRecoveryPanel';
 import { createDurableSession, appendDurableTurn } from './sessionPersistence';
+import SessionModePicker from './SessionModePicker';
+import { ACCOUNT_MODE, normalizedSessionMode, turnModeFields }
+  from './sessionModeModel';
 import ChatMessage from './ChatMessage';
 import SessionEvidenceLedger from './SessionEvidenceLedger';
 import SessionMemoryReview from './SessionMemoryReview';
@@ -27,6 +30,8 @@ import { BookOpen, BarChart2, MessageSquareText, ShieldCheck } from 'lucide-reac
 const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, onOpenGoals, onOpenRecommendations, focusTurnId, libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
   const [userInput, setUserInput] = useState('');
   const [ownerContextLevel, setOwnerContextLevel] = useState(null);
+  const [newSessionMode, setNewSessionMode] = useState(ACCOUNT_MODE);
+  const [sessionModeEcho, setSessionModeEcho] = useState(null);
   const [showLibrary, setShowLibrary] = useState(false);
   const [navigationWarning, setNavigationWarning] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -55,6 +60,8 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   activeScopeRef.current = { userId, currentSessionId };
 
   useEffect(() => {
+    setNewSessionMode(ACCOUNT_MODE);
+    setSessionModeEcho(null);
     pendingRecommendationGoalIds.current = {};
     setDecisionEcho({});
     setHypothesisReviewEcho({});
@@ -87,6 +94,15 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
     openingSession?.userId === userId && openingSession?.id === currentSessionId
       ? openingSession.session : null
   );
+  // A server-confirmed mode for this session overrides the account default.
+  // The echo exists only after a readback, so it never presents unsaved
+  // preferences as active. Account fallback never grants history access.
+  const storedMode = normalizedSessionMode(activeSession?.interactionMode);
+  const effectiveSessionMode = isNewSessionView ? newSessionMode :
+    (sessionModeEcho?.userId === userId &&
+     sessionModeEcho?.sessionId === currentSessionId
+      ? sessionModeEcho.mode : storedMode);
+
   const scopedLocalMessages = localMessageScope?.userId === userId &&
     localMessageScope?.sessionId === currentSessionId ? localMessages : [];
 
@@ -118,6 +134,11 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   const handleSendMessage = async (e) => {
     e.preventDefault();
     const message = userInput.trim();
+    if (effectiveSessionMode === null) {
+      setSendError('Недопустимый режим сеанса. Проверьте настройки и повторите.');
+      return;
+    }
+    const turnMode = effectiveSessionMode;
     if (!AI_SESSION_ENABLED || !message || isLoading || sendLock.current ||
         !db || !userId || (!isNewSessionView && !activeSession)) return;
     if (localMessages.length && sessionSaveError) {
@@ -138,7 +159,8 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
     const requestId = crypto.randomUUID();
     const userTurn = {
       role: 'user', content: message,
-      id: 'user-' + requestId, timestamp: Timestamp.now()
+      id: 'user-' + requestId, timestamp: Timestamp.now(),
+      ...turnModeFields(turnMode)
     };
     let durableSessionId = isNewSessionView ? null : activeSession.id;
     try {
@@ -146,13 +168,14 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
       // leaves the text in the composer; there is no paid provider call.
       try {
         if (!durableSessionId) {
-          const created = await createDurableSession(owner, userTurn);
+          const created = await createDurableSession(owner, userTurn, turnMode);
           durableSessionId = created.id;
           if (ownerRef.current === owner) {
             setOpeningSession({
               userId: owner, id: durableSessionId,
               session: {
                 id: durableSessionId, title: created.title,
+                ...turnModeFields(turnMode),
                 chatHistory: [userTurn], recommendations: [], exercises: []
               }
             });
@@ -243,11 +266,12 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   const handleHistorySend = async approval => {
     const message = userInput.trim();
     const owner = userId, sessionId = activeSession?.id;
+    const turnMode = effectiveSessionMode;
     const requestId = approval?.requestId;
     if (!sessionMemoryReplyUiEnabled || !railwayAiRecoveryEnabled ||
         !AI_SESSION_ENABLED || !db || !owner || !sessionId ||
         isNewSessionView || !savedSession || isLoading || sendLock.current ||
-        sessionSaveError || scopedLocalMessages.length ||
+        sessionSaveError || scopedLocalMessages.length || turnMode === null ||
         approval?.confirmed !== true ||
         !ownerContextLevel || approval?.contextLevel !== ownerContextLevel ||
         approval?.sourceId !== sessionId ||
@@ -272,7 +296,8 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
       // Adds EXACTLY one owner-authored turn before any provider contact.
       const userTurn = {
         id: 'user-' + requestId, role: 'user', content: message,
-        contextMode: 'consented-session', timestamp: Timestamp.now()
+        contextMode: 'consented-session', timestamp: Timestamp.now(),
+        ...turnModeFields(turnMode)
       };
       await appendDurableTurn(owner, sessionId, userTurn);
       committed = true;
@@ -654,6 +679,20 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
         </div>
 
         <div className="reflect-session-compose-dock">
+          {AI_SESSION_ENABLED && (
+            <SessionModePicker key={userId + ':' + currentSessionId}
+              userId={userId}
+              sessionId={isNewSessionView ? null : activeSession?.id}
+              value={effectiveSessionMode}
+              disabled={isLoading || savingSession || sendLock.current}
+              onNewSessionMode={setNewSessionMode}
+              onSaved={mode => {
+                if (activeScopeRef.current.userId === userId &&
+                    activeScopeRef.current.currentSessionId === currentSessionId) {
+                  setSessionModeEcho({userId, sessionId: currentSessionId, mode});
+                }
+              }}/>
+          )}
           {AI_SESSION_ENABLED && activeSession && ownerContextLevel && (
             <SessionMemoryReview key={userId + ':' + activeSession.id}
               userId={userId} sessionId={activeSession.id}
