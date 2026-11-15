@@ -30,7 +30,8 @@ import InfoCard from '../../components/common/InfoCard';
 import { useEntrySave } from '../../hooks/useEntrySave';
 import { BookOpen, BarChart2, MessageSquareText, ShieldCheck } from 'lucide-react';
 
-const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, onOpenGoals, onOpenRecommendations, focusTurnId, libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
+const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, onOpenGoals, onOpenRecommendations, focusTurnId, returnGoalIntent = null,
+  libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
   const [userInput, setUserInput] = useState('');
   const [ownerContextLevel, setOwnerContextLevel] = useState(null);
   const [newSessionMode, setNewSessionMode] = useState(ACCOUNT_MODE);
@@ -107,6 +108,15 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
     openingSession?.userId === userId && openingSession?.id === currentSessionId
       ? openingSession.session : null
   );
+  // A navigation intent is not a write nor AI request. It opens the owner
+  // session's return tool only after that saved session is loaded.
+  useEffect(() => {
+    if (!returnGoalIntent || returnGoalIntent.userId !== userId ||
+        returnGoalIntent.sessionId !== currentSessionId ||
+        !activeSession?.id || activeSession.id !== returnGoalIntent.sessionId) return;
+    setActiveToolPanel('return');
+  }, [returnGoalIntent?.requestId, returnGoalIntent?.sessionId,
+    returnGoalIntent?.userId, userId, currentSessionId, activeSession?.id]);
   // A server-confirmed mode for this session overrides the account default.
   // The echo exists only after a readback, so it never presents unsaved
   // preferences as active. Account fallback never grants history access.
@@ -662,7 +672,11 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
             onClose={() => setActiveToolPanel(null)}>
             {activeToolPanel === 'return' && (
               <SessionReturnCheckIn key={activeSession.id}
-                session={activeSession} userId={userId} goals={goals} expanded/>
+                session={activeSession} userId={userId} goals={goals}
+                requestedGoalId={returnGoalIntent?.sessionId === activeSession.id &&
+                  returnGoalIntent?.userId === userId ? returnGoalIntent.goalId : null}
+                requestId={returnGoalIntent?.requestId || null}
+                expanded/>
             )}
             {activeToolPanel === 'evidence' && (
               <SessionEvidenceLedger key={activeSession.id}
