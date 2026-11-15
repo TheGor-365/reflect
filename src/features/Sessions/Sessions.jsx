@@ -82,6 +82,13 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
     return () => { active = false; };
   }, [userId, currentSessionId]);
 
+  // A newly entered session starts with account defaults, and an optimistic
+  // server-confirmed override must never leak into a different session.
+  useEffect(() => {
+    setSessionModeEcho(null);
+    setNewSessionMode(ACCOUNT_MODE);
+  }, [userId, currentSessionId]);
+
   const recognitionRef = useRef(null);
   const utteranceRef = useRef(null);
   const chatEndRef = useRef(null);
@@ -168,7 +175,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
       // leaves the text in the composer; there is no paid provider call.
       try {
         if (!durableSessionId) {
-          const created = await createDurableSession(owner, userTurn, turnMode);
+          const created = await createDurableSession(owner, userTurn);
           durableSessionId = created.id;
           if (ownerRef.current === owner) {
             setOpeningSession({
