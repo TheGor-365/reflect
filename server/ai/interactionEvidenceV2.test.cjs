@@ -60,6 +60,21 @@ test("M5b v2 is independent, strict and carries NO unapproved previous history",
   assert.equal(v1.buildRequest(message,settings).body.text.format.name,"reflect_interaction_v1");
 });
 
+test("M7c: v2 inherits explicit ty/vy natural-person rules, not implicit diary memory",()=>{
+  for (const addressForm of ["ty","vy"]) {
+    const req = v2.buildRequest(message,{...settings,addressForm});
+    const system=req.body.input[0].content;
+    assert.match(system, /ОБЯЗАТЕЛЬНО: обращайся к человеку во втором лице/);
+    assert.match(system,/Запрещено отвечать о собеседнике безлично/);
+    assert.match(system,addressForm==="ty"
+      ? /Форма обращения — «ты»/ : /Форма обращения — «вы»/);
+    assert.match(system,/Не утверждай, что помнишь предыдущие сообщения/);
+    assert.equal(req.body.input.length,2);
+    assert.equal(req.body.store,false);
+    assert.equal(req.body.text.format.name,"reflect_interaction_v2");
+  }
+});
+
 test("M5b T2: literal current-owner citation resolves trusted source ID server-side",()=>{
   const result=parse();
   assert.equal(result.version,v2.VERSION);
