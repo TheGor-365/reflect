@@ -3,13 +3,15 @@ import { BookmarkPlus, CalendarClock, CheckCircle2, CircleX,
   Goal, Lightbulb, MessageCircle, MessageSquareReply, Target, Undo2,
   SlidersHorizontal, ShieldQuestion, Check, ArrowRight } from 'lucide-react';
 import { HYPOTHESIS_GRADES } from './hypothesisReviewModel';
+import { isSupportedInteraction, INTERACTION_V2, EVIDENCE_SLOT_LABELS }
+  from './interactionVersions';
 
 // Structured AI proposals remain suggestions until a human explicitly chooses
 // an action. No Firestore access or background writes occur in this component.
 export default function InteractionResult({
   interaction, messageId, isSaved = false, decisions = {},
   onCompose, onDecision, onOpenGoals, onOpenRecommendations,
-  reviews = {}, onHypothesisReview
+  reviews = {}, onHypothesisReview, onFocusTurn
 }) {
   const [editingGoal, setEditingGoal] = useState(null);
   const [reconsiderIndex, setReconsiderIndex] = useState(null);
@@ -23,7 +25,19 @@ export default function InteractionResult({
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewError, setReviewError] = useState('');
   const [reviewSaved, setReviewSaved] = useState(false);
-  if (!interaction || interaction.version !== 'reflect.interaction.v1') return null;
+  if (!isSupportedInteraction(interaction)) return null;
+  const isV2 = interaction.version === INTERACTION_V2;
+  const claims = isV2 && Array.isArray(interaction.evidenceClaims)
+    ? interaction.evidenceClaims.filter(item =>
+      typeof item?.quote === 'string' &&
+      item.sourceRef === 'current-message' &&
+      /^[A-Za-z0-9_-]{1,128}$/.test(item.sourceTurnId || '')
+    ) : [];
+  const evidence = isV2 && interaction.evidenceSummary &&
+    typeof interaction.evidenceSummary === 'object' &&
+    Array.isArray(interaction.evidenceSummary.confirmedSlots) &&
+    Array.isArray(interaction.evidenceSummary.missingSlots)
+    ? interaction.evidenceSummary : null;
   const question = typeof interaction.clarifyingQuestion === 'string'
     ? interaction.clarifyingQuestion : '';
   const candidates = Array.isArray(interaction.recommendationCandidates)
@@ -81,10 +95,11 @@ export default function InteractionResult({
         <strong><ShieldQuestion size={17} aria-hidden="true"/>
           Проработка: предварительная
         </strong>
-        <p>Я вижу только переданное мне сообщение, а не всю историю сеанса.
-          Сейчас это возможные объяснения, не установленные причины.</p>
+        <p>Основой ответа является ваше сообщение. Выдержки истории
+          используются только после отдельного подтверждения.
+          Возможные объяснения остаются гипотезами, не установленными причинами.</p>
         <div className="reflect-hypothesis-evidence" aria-label="Проверяемые показатели">
-          <span>Контекст модели: 1 сообщение</span>
+          <span>История — только по отдельному разрешению</span>
           <span>Ваши оценки: {reviewedCount} из {insights.length} гипотез</span>
           <span>Открытых вопросов: {needsClarification ? 1 : 0}</span>
         </div>
@@ -99,6 +114,48 @@ export default function InteractionResult({
             <Lightbulb size={15} aria-hidden="true"/> Открыть рекомендации и уточнения
           </button>}
       </div>
+      {isV2 && <section className="reflect-interaction-section"
+        aria-label="Источники и неизвестное — версия 2">
+        <strong>Что подтверждено вами, а что ещё неизвестно</strong>
+        <p>Дословные цитаты ниже — только ваши слова из текущего сообщения.
+          Это не независимая проверка их достоверности и не мнение специалиста.</p>
+        {claims.length ? (
+          <ul aria-label="Слова владельца с источниками">
+            {claims.map((item, i) => (
+              <li key={i}>
+                <q>{item.quote}</q>{' '}
+                {onFocusTurn && <button type="button"
+                  onClick={() => onFocusTurn(item.sourceTurnId)}>
+                  Показать исходное сообщение
+                </button>}
+              </li>
+            ))}
+          </ul>
+        ) : <p>В этом ответе нет дословно выделенных фактов.</p>}
+        {evidence && <>
+          <p>По состоянию на момент ответа подтверждено категорий:
+            {' '}{evidence.completeCount} из 4. Это показатель заполненности
+            ваших сведений, а не вероятность правильного совета.</p>
+          {evidence.missingSlots.length > 0 && (
+            <p>Ещё требуют вашего подтверждения:
+              {' '}{evidence.missingSlots
+                .filter(slot => EVIDENCE_SLOT_LABELS[slot])
+                .map(slot => EVIDENCE_SLOT_LABELS[slot]).join(', ')}.</p>
+          )}
+          {Array.isArray(evidence.disputedSlots) &&
+            evidence.disputedSlots.length > 0 && (
+              <p>Вы оспорили:
+                {' '}{evidence.disputedSlots
+                  .filter(slot => EVIDENCE_SLOT_LABELS[slot])
+                  .map(slot => EVIDENCE_SLOT_LABELS[slot]).join(', ')}.</p>
+            )}
+        </>}
+        {question && interaction.clarificationSlot &&
+          EVIDENCE_SLOT_LABELS[interaction.clarificationSlot] && (
+            <p>Тема уточнения:
+              {' '}{EVIDENCE_SLOT_LABELS[interaction.clarificationSlot]}.</p>
+          )}
+      </section>}
       {insights.length > 0 && <section className="reflect-interaction-section"
         aria-label="Непроверенные гипотезы Reflect">
         <strong>Возможные объяснения — пока гипотезы</strong>
@@ -278,8 +335,9 @@ export default function InteractionResult({
       {feedback && <p role="status">{feedback}</p>}
       <details className="reflect-interaction-evidence-details">
         <summary>Что учтено и что ещё нужно проверить</summary>
-        <p>Источник этого ответа: только текст вашего текущего сообщения.
-          История предыдущих сеансов и дневник не были отправлены модели.</p>
+        <p>Основной источник: текущее сообщение. История выбранного сеанса
+          может использоваться только после отдельного разрешения.
+          Другие сеансы и дневник не добавляются автоматически.</p>
         {insights.length>0 && <p>Модель выделила {insights.length}
           {insights.length===1?' возможное объяснение':' возможных объяснения'}.
           Это не подтверждённые факты.</p>}

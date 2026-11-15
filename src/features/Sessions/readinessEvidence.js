@@ -7,6 +7,8 @@
  * the screen renders. Invalid/edited sources and disputed slots score ZERO.
  * AI-generated text and saved hypotheses are never valid sources.
  */
+import { isSupportedInteraction } from './interactionVersions';
+
 export const READINESS_SLOTS = Object.freeze([
   Object.freeze({ id: 'situation', label: 'Ситуация',
     hint: 'Что произошло или с чем вы столкнулись?' }),
@@ -68,7 +70,7 @@ export function isReadinessApplicable(session, effectiveMode, currentDraft = '')
   const turns = Array.isArray(history) ? history : [];
   const ownerIndex = turns.findLastIndex(t => t?.role === 'user');
   const aiIndex = turns.findLastIndex(t => t?.role === 'assistant' &&
-    t?.interaction?.version === 'reflect.interaction.v1');
+    isSupportedInteraction(t?.interaction));
   const prior = ownerIndex >= 0 ? turns[ownerIndex] : null;
   const latestAssessedIntent = aiIndex > ownerIndex
     ? turns[aiIndex]?.interaction?.intent : null;

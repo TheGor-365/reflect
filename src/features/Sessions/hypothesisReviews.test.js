@@ -83,3 +83,12 @@ describe('owner-scoped user feedback on unverified AI hypothesis',()=>{
     expect(HYPOTHESIS_GRADES).toHaveLength(5);
   });
 });
+
+
+it('M5c v2 explicit owner review retains same trusted assistant source',async()=>{
+  session.chatHistory[1].interaction.version='reflect.interaction.v2';
+  const result=await saveHypothesisReview(opts);
+  expect(result.assistantMessageId).toBe('assistant-654321');
+  expect(writes).toHaveLength(1);
+  expect(session.hypothesisReviews['h-assistant-654321-0'].grade).toBe(0);
+});

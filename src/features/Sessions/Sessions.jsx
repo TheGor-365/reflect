@@ -687,6 +687,11 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
                   handleRecommendationDecision(msg.id, candidateIndex, action, draft)}
                 onOpenGoals={onOpenGoals}
                 onOpenRecommendations={onOpenRecommendations}
+                onFocusTurn={turnId => {
+                  const match = [...document.querySelectorAll('[data-reflect-turn-id]')]
+                    .find(node => node.getAttribute('data-reflect-turn-id') === turnId);
+                  match?.scrollIntoView?.({behavior:'smooth',block:'center'});
+                }}
                 currentlySpeakingId={currentlySpeakingId} />
               {railwayAiRecoveryEnabled && activeSession &&
                 savedHistory.some(t => t.id === msg.id) &&

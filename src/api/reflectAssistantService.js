@@ -5,6 +5,7 @@
  */
 import { httpsCallable } from 'firebase/functions';
 import { aiFunctions, hostedAiEnabled } from '../firebase/config';
+import { isSupportedInteraction } from '../features/Sessions/interactionVersions';
 import { railwayAiEnabled, railwayAiRecoveryEnabled, getRailwayAnalysis } from './reflectRailwayService';
 
 export const AI_SESSION_ENABLED = hostedAiEnabled || railwayAiEnabled;
@@ -67,7 +68,7 @@ export async function getAnalysisFromAI(message, requestId, turnRecovery = null)
     persistedByServer: railwayAiRecoveryEnabled,
     response: data.text.trim(),
     // Validated by the server. Never interpreted as an authorized Firestore write.
-    interaction: data.interaction?.version === 'reflect.interaction.v1'
+    interaction: isSupportedInteraction(data.interaction)
       ? data.interaction : null,
     actualUsdTicks: Number.isSafeInteger(data.actualUsdTicks)
       ? data.actualUsdTicks : null

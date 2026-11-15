@@ -132,3 +132,30 @@ test('M3 tiers: exact one-shot payload carries level but no client transcript', 
     ...input, contextLevel: 'all-history'
   })).toThrow();
 });
+
+
+test('M5c v2 history response retains versioned evidence, no repeat or client source upgrade',async()=>{
+  const { sendSessionMemoryReply } =
+    await import('./sessionMemoryReplyService');
+  const fetchMock=vi.fn().mockResolvedValue({
+    status:200,
+    json:async()=>({
+      text:'Синтетический ответ v2',model:'grok-4.3',
+      persistedByServer:true,sourceTurnId:'user-'+input.requestId,
+      historyUsed:true,excerptCount:1,
+      interaction:{
+        version:'reflect.interaction.v2',stage:'synthesize',
+        evidenceClaims:[{ quote:'Это вымышленный вопрос.',
+          sourceRef:'current-message',sourceTurnId:'user-'+input.requestId }],
+        evidenceSummary:{ confirmedSlots:[],disputedSlots:[],
+          missingSlots:['situation','desiredResult','circumstances','constraints'],
+          completeCount:0 }
+      }
+    })
+  });
+  vi.stubGlobal('fetch',fetchMock);
+  const value=await sendSessionMemoryReply(input);
+  expect(value.interaction.version).toBe('reflect.interaction.v2');
+  expect(value.interaction.evidenceSummary.completeCount).toBe(0);
+  expect(fetchMock).toHaveBeenCalledOnce();
+});

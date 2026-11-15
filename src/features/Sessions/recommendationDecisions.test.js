@@ -143,3 +143,14 @@ it('refuses impossible deadlines without writing either session or goal', async 
   })).rejects.toThrow(/Проверьте/);
   expect(writes).toHaveLength(0);
 });
+
+
+it('M5c v2 still requires an owner decision and never auto-creates a goal',async()=>{
+  session.chatHistory[1].interaction.version='reflect.interaction.v2';
+  const result=await applyRecommendationDecision({...params,action:'saved'});
+  expect(result.promptVersion).toBe('reflect.interaction.v2');
+  expect(goal).toBeNull();
+  expect(writes).toHaveLength(1);
+  await applyRecommendationDecision({...params,action:'saved'});
+  expect(writes).toHaveLength(1);
+});

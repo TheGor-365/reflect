@@ -2,6 +2,7 @@
 // session. Does NOT infer facts, readiness, diagnosis, truth probabilities or
 // permission to send prior turns to Grok. A grade means self-reported fit only.
 import { hypothesisReviewKey } from './hypothesisReviewModel';
+import { isSupportedInteraction } from './interactionVersions';
 
 const idOk = id => typeof id === 'string' &&
   /^[A-Za-z0-9_-]{1,128}$/.test(id);
@@ -51,7 +52,7 @@ export function buildSessionEvidenceLedger(session) {
     // Old plain-text replies are not retroactively treated as structured
     // facts, hypotheses or source-grounded assertions.
     if (!idOk(turn.id) ||
-        turn.interaction?.version !== 'reflect.interaction.v1') continue;
+        !isSupportedInteraction(turn.interaction)) continue;
     const record = turn.interaction;
     const alternatives = Array.isArray(record.insights)
       ? record.insights.slice(0, 2) : [];
