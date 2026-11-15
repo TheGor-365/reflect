@@ -65,14 +65,16 @@ export function validatedReadiness(session) {
 export function isReadinessApplicable(session, effectiveMode, currentDraft = '') {
   if (!['coach','analytic'].includes(effectiveMode)) return false;
   const history = session?.chatHistory;
-  const prior = Array.isArray(history)
-    ? [...history].reverse().find(t => t?.role === 'user') : null;
-  const intent = [...(Array.isArray(history) ? history : [])].reverse()
-    .find(t => t?.role === 'assistant' &&
-      t?.interaction?.version === 'reflect.interaction.v1')?.interaction?.intent;
-  // An explicitly venting current draft or last saved turn suppresses
-  // unsolicited fact counting; user can still choose a different mode.
+  const turns = Array.isArray(history) ? history : [];
+  const ownerIndex = turns.findLastIndex(t => t?.role === 'user');
+  const aiIndex = turns.findLastIndex(t => t?.role === 'assistant' &&
+    t?.interaction?.version === 'reflect.interaction.v1');
+  const prior = ownerIndex >= 0 ? turns[ownerIndex] : null;
+  const latestAssessedIntent = aiIndex > ownerIndex
+    ? turns[aiIndex]?.interaction?.intent : null;
+  // Only the latest completed AI response can classify the current topic.
+  // An earlier venting turn must not hide facts after a NEW plan request.
   if (VENT.test(currentDraft) || VENT.test(prior?.content || '') ||
-      intent === 'vent') return false;
+      latestAssessedIntent === 'vent') return false;
   return true;
 }
