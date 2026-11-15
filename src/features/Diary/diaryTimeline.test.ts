@@ -35,6 +35,78 @@ describe('schema-preserving diary event timeline', () => {
       .toEqual(['2026-11-04', '2026-11-01']);
   });
 
+  it('M8a: a user return is one separate dated event with stable source identity', () => {
+    const ownerReturn = Object.freeze({
+      id: 'visit-fixed', type: 'return-check-in', author: 'user',
+      text: 'Проверил два сценария из трёх',
+      nextStep: 'Исправить ошибку третьего сценария',
+      goalId: 'owner-goal',
+      recordedAtClient: ts('2026-11-16T18:40:00Z')
+    });
+    const session = Object.freeze({
+      id: 'saved-session', title: 'Отложенный проект',
+      createdAt: ts('2026-09-10T10:00:00Z'),
+      chatHistory: Object.freeze([{ id: 'assistant-1', role: 'assistant',
+        content: 'Предыдущая AI гипотеза' }]),
+      returnCheckIns: Object.freeze([ownerReturn])
+    });
+    const events = buildDiaryTimeline({ sessions: [session] });
+    expect(events).toHaveLength(2);
+    expect(events.map(event => event.eventKey))
+      .toEqual(['session:saved-session:return:visit-fixed', 'session:saved-session']);
+    expect(events[0]!.sourceKind).toBe('session');
+    expect(events[0]!.sourceId).toBe('saved-session');
+    expect(events[0]!.parentSessionId).toBe('saved-session');
+    expect(events[0]!.isAppend).toBe(true);
+    expect(events[0]!.displayAt?.toISOString()).toBe('2026-11-16T18:40:00.000Z');
+    expect(events[0]!.data.returnCheckIns).toEqual([ownerReturn]);
+    expect(events[0]!.data).not.toHaveProperty('chatHistory');
+    expect(filterDiaryTimeline(events, { kind: 'session', query: 'третьего сценария' })
+      .map(event => event.eventKey)).toEqual(['session:saved-session:return:visit-fixed']);
+    const reload = buildDiaryTimeline({ sessions: [{ ...session }] });
+    expect(reload.map(event => event.eventKey)).toEqual(events.map(event => event.eventKey));
+    expect(session.returnCheckIns[0]).toBe(ownerReturn);
+  });
+
+  it('M8a: ignores assistant-authored, missing, malformed and duplicate returns', () => {
+    const visits = [
+      { id: 'real', type: 'return-check-in', author: 'user',
+        text: 'Мой реальный итог', recordedAtClient: ts('2026-11-16T10:00:00Z') },
+      { id: 'real', type: 'return-check-in', author: 'user',
+        text: 'Копия с тем же ID' },
+      { id: 'fake-ai', type: 'return-check-in', author: 'assistant',
+        text: 'AI объявляет успех' },
+      { id: '../unsafe', type: 'return-check-in', author: 'user',
+        text: 'Опасный идентификатор' },
+      { id: 'empty', type: 'return-check-in', author: 'user', text: '    ' },
+      { id: 'invalid', type: 'automatic-prediction', author: 'user',
+        text: 'Несуществующее действие' }
+    ];
+    const events = buildDiaryTimeline({
+      sessions: [{ id: 's1', returnCheckIns: visits }]
+    });
+    expect(events.map(event => event.eventKey))
+      .toEqual(['session:s1:return:real', 'session:s1']);
+    const serialized = events.map(event => JSON.stringify(event.data)).join(' ');
+    expect(serialized).not.toContain('AI объявляет успех');
+    expect(serialized).not.toContain('Копия с тем же ID');
+  });
+
+  it('M8a: no timestamp stays undated and a removed check-in disappears', () => {
+    const session = { id: 's1', returnCheckIns: [
+      { id: 'v1', type: 'return-check-in', author: 'user',
+        text: 'Без клиентских часов' }
+    ] };
+    const first = buildDiaryTimeline({ sessions: [session] });
+    expect(first.find(event => event.eventKey === 'session:s1:return:v1')!.isPending)
+      .toBe(true);
+    expect(groupDiaryTimeline(first)[0]!.key).toBe('undated');
+    const afterRemoval = buildDiaryTimeline({
+      sessions: [{ ...session, returnCheckIns: [] }]
+    });
+    expect(afterRemoval.map(event => event.eventKey)).toEqual(['session:s1']);
+  });
+
   it('M6c: one accepted goal is one confirmed Diary projection; edits do not duplicate and deletion removes it', () => {
     const createdAt = ts('2026-11-15T10:00:00Z');
     const acceptedGoal = Object.freeze({
