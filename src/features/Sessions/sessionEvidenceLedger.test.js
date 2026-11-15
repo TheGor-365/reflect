@@ -95,3 +95,22 @@ describe('local owner-approved context preview',()=>{
     },['user-forged'])).toBeNull();
   });
 });
+
+
+it('M5c versioned v2 insights and question remain visible in the owner-only ledger', () => {
+  const v2 = { ...assistant1, id: 'assistant-v2',
+    interaction: { ...assistant1.interaction,
+      version: 'reflect.interaction.v2',
+      evidenceClaims: [{ quote: 'Я не боюсь критики',
+        sourceRef: 'current-message', sourceTurnId: 'user-one' }],
+      evidenceSummary: { confirmedSlots: [], disputedSlots: [],
+        missingSlots: ['constraints'], completeCount: 0 }
+    } };
+  const led = buildSessionEvidenceLedger({
+    ...session, chatHistory: [user1,v2,user2], hypothesisReviews: {}
+  });
+  expect(led.questions).toHaveLength(1);
+  expect(led.hypotheses).toHaveLength(2);
+  expect(led.questions[0].sourceUserMessageId).toBe('user-one');
+  expect(led.providerContextSent).toBe(false);
+});
