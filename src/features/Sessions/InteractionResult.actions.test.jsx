@@ -57,6 +57,7 @@ describe('PRODUCT-02 decisions UI', () => {
     expect(props.onOpenGoals).toHaveBeenCalledExactlyOnceWith('g1');
   });
   it('shows a deleted confirmed goal as a historical decision, with no broken goal link', () => {
+    const key = 'r-assistant-request1234567890-0';
     const onOpenGoals = vi.fn();
     render(<InteractionResult {...props} onOpenGoals={onOpenGoals}
       decisions={{ [key]: {
