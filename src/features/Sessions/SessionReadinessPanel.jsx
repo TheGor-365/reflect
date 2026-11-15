@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { readOwnerInteractionMode } from '../../api/ownerContextLevel';
 import { READINESS_SLOTS, exactOwnerSource, isReadinessApplicable,
   validatedReadiness } from './readinessEvidence';
@@ -30,6 +30,8 @@ export default function SessionReadinessPanel({
   const [ack, setAck] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const scopeRef = useRef({ userId, sessionId: session?.id });
+  scopeRef.current = { userId, sessionId: session?.id };
   useEffect(() => {
     let active = true;
     setAccountMode(null);
@@ -73,22 +75,37 @@ export default function SessionReadinessPanel({
       await saveReadinessEvidence({
         ...snapshot, slot, sourceTurnId, quote, status, confirmed: true
       });
+      if (scopeRef.current.userId !== snapshot.userId ||
+          scopeRef.current.sessionId !== snapshot.sessionId) return;
       setAck(false);
       setNotice('Подтверждение записано в Firebase. Обновление индикатора происходит по данным сеанса.');
     } catch {
-      setNotice('Не удалось подтвердить источник и сохранение. Индикатор не изменён.');
-    } finally { setBusy(false); }
+      if (scopeRef.current.userId === snapshot.userId &&
+          scopeRef.current.sessionId === snapshot.sessionId)
+        setNotice('Не удалось подтвердить источник и сохранение. Индикатор не изменён.');
+    } finally {
+      if (scopeRef.current.userId === snapshot.userId &&
+          scopeRef.current.sessionId === snapshot.sessionId) setBusy(false);
+    }
   };
   const clear = async () => {
     if (!applicable || busy || !userId || !session?.id) return;
+    const snapshot = { userId, sessionId: session.id };
     setBusy(true); setNotice('');
     try {
-      await clearReadinessEvidence({ userId, sessionId: session.id, slot });
+      await clearReadinessEvidence({ ...snapshot, slot });
+      if (scopeRef.current.userId !== snapshot.userId ||
+          scopeRef.current.sessionId !== snapshot.sessionId) return;
       setAck(false);
       setNotice('Отметка удалена из Firebase. Индикатор обновится из сеанса.');
     } catch {
-      setNotice('Не удалось подтвердить удаление. Проверьте соединение.');
-    } finally { setBusy(false); }
+      if (scopeRef.current.userId === snapshot.userId &&
+          scopeRef.current.sessionId === snapshot.sessionId)
+        setNotice('Не удалось подтвердить удаление. Проверьте соединение.');
+    } finally {
+      if (scopeRef.current.userId === snapshot.userId &&
+          scopeRef.current.sessionId === snapshot.sessionId) setBusy(false);
+    }
   };
   if (!session?.id || !applicable) return null;
   return (
