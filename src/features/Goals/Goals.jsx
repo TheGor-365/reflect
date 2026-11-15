@@ -23,7 +23,7 @@ const targetFor = (item, index) => item?.id
 
 function GoalCard({
   goal, userId, onAppend, onFeedback, onOpenSession,
-  returnEntries = [], focused = false
+  onOpenGoalReturn, returnEntries = [], focused = false
 }) {
   const status = statusOf(goal);
   const progress = progressOf(goal);
@@ -129,6 +129,12 @@ function GoalCard({
               onClick={() => onOpenSession(goal.sessionId, goal.sourceAssistantMessageId || null)}>
               {goal.sourceAssistantMessageId
                 ? 'Источник: открыть ответ Reflect' : 'Источник: открыть сеанс'}
+            </button>
+          )}
+          {onOpenGoalReturn && (
+            <button type="button" className="reflect-goal-source-link"
+              onClick={() => onOpenGoalReturn(goal.id)}>
+              Записать результат по цели
             </button>
           )}
         </div>
@@ -295,7 +301,7 @@ function GoalCard({
 
 export default function Goals({
   goals = [], sessions = [], userId, onAppend, onFeedback,
-  onOpenSession, focusGoalId = null
+  onOpenSession, onOpenGoalReturn, focusGoalId = null
 }) {
   const [draft, setDraft] = useState(DEFAULT_DRAFT);
   const [newStep, setNewStep] = useState('');
@@ -502,6 +508,11 @@ export default function Goals({
           )}
           {currentGroup.items.map(goal => {
             const source = sessions.find(session => session.id === goal.sessionId);
+            const decision = source?.recommendationDecisions?.[goal.sourceRecommendationKey];
+            const canOpenReturn = goal.sourceType === 'user-accepted-ai-recommendation' &&
+              decision?.status === 'accepted' && !decision.goalRemovedAt &&
+              decision.goalId === goal.id &&
+              decision.assistantMessageId === goal.sourceAssistantMessageId;
             const returnEntries = Array.isArray(source?.returnCheckIns)
               ? source.returnCheckIns.filter(entry =>
                 entry?.type === 'return-check-in' &&
@@ -514,6 +525,7 @@ export default function Goals({
               returnEntries={returnEntries}
               onAppend={onAppend} onFeedback={onFeedback}
               onOpenSession={onOpenSession}
+              onOpenGoalReturn={canOpenReturn ? onOpenGoalReturn : undefined}
               focused={goal.id === focusGoalId}/>;
           })}
         </div>

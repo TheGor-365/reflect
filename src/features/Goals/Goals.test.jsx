@@ -211,6 +211,49 @@ test('authored success criterion is visible but never marks goal complete', () =
   expect(screen.getByRole('button', { name: 'В работе' })).toHaveAttribute('aria-pressed', 'true');
 });
 
+test('M7b: only a current accepted linked goal offers direct return to its source session', () => {
+  const onOpenGoalReturn = vi.fn();
+  const linked = {
+    ...goal, sourceType: 'user-accepted-ai-recommendation',
+    sourceRecommendationKey: 'r-assistant-a-0',
+    sourceAssistantMessageId: 'assistant-a',
+    sessionId: 'saved-session'
+  };
+  const session = {
+    id: 'saved-session', recommendationDecisions: {
+      'r-assistant-a-0': {
+        status: 'accepted', goalId: 'g1', assistantMessageId: 'assistant-a'
+      }
+    }
+  };
+  const { rerender } = render(<Goals goals={[linked]} sessions={[session]}
+    userId="synthetic-uid" onOpenGoalReturn={onOpenGoalReturn}/>);
+  fireEvent.click(screen.getByRole('button', {
+    name: 'Записать результат по цели'
+  }));
+  expect(onOpenGoalReturn).toHaveBeenCalledExactlyOnceWith('g1');
+  expect(updateGoal).not.toHaveBeenCalled();
+
+  rerender(<Goals goals={[linked]} sessions={[{
+    ...session, recommendationDecisions: {
+      'r-assistant-a-0': { ...session.recommendationDecisions['r-assistant-a-0'],
+        goalRemovedAt: { seconds: 1 } }
+    }
+  }]} userId="synthetic-uid" onOpenGoalReturn={onOpenGoalReturn}/>);
+  expect(screen.queryByRole('button', { name: 'Записать результат по цели' }))
+    .not.toBeInTheDocument();
+});
+
+test('M7b: ordinary and foreign-session goals never offer return action', () => {
+  const onOpenGoalReturn = vi.fn();
+  render(<Goals goals={[goal]} sessions={[{
+    id: 'unrelated', recommendationDecisions: {}
+  }]} userId="synthetic-uid" onOpenGoalReturn={onOpenGoalReturn}/>);
+  expect(screen.queryByRole('button', { name: 'Записать результат по цели' }))
+    .not.toBeInTheDocument();
+  expect(onOpenGoalReturn).not.toHaveBeenCalled();
+});
+
 test('M7a: goal shows only user-authored returns from its own saved session', () => {
   const sharedGoal = {
     ...goal, sessionId: 'saved-session',

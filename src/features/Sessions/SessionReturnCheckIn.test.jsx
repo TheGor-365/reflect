@@ -164,3 +164,36 @@ test('M7a: a failed linked return preserves step, selected goal and stable retry
   expect(saveSessionReturn.mock.calls[0][0].visitId)
     .toBe(saveSessionReturn.mock.calls[1][0].visitId);
 });
+
+test('M7b: goal navigation preselects the exact accepted goal, but never writes on open', async () => {
+  const view = render(<SessionReturnCheckIn {...props}
+    goals={acceptedGoals} session={linkedSession}
+    requestId={1} requestedGoalId="confirmed-goal" expanded/>);
+  const chooser = screen.getByRole('combobox', {
+    name: 'Связать наблюдение с принятой целью'
+  });
+  await waitFor(() => expect(chooser).toHaveTextContent('Проверить прототип'));
+  expect(saveSessionReturn).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Сохранить наблюдение' }))
+    .toBeDisabled();
+
+  // The user can still opt out of linking the return: don't fight their edit
+  // on ordinary parent renders while requestId is unchanged.
+  fireEvent.click(chooser);
+  fireEvent.click(screen.getByRole('option', { name: 'Без привязки к цели' }));
+  view.rerender(<SessionReturnCheckIn {...props}
+    goals={[...acceptedGoals]} session={{...linkedSession}}
+    requestId={1} requestedGoalId="confirmed-goal" expanded/>);
+  expect(chooser).toHaveTextContent('Без привязки к цели');
+  expect(saveSessionReturn).not.toHaveBeenCalled();
+});
+
+test('M7b: forged, deleted or foreign goal navigation cannot preselect or write', async () => {
+  render(<SessionReturnCheckIn {...props} session={linkedSession}
+    goals={acceptedGoals} requestId={2} requestedGoalId="foreign-goal" expanded/>);
+  const chooser = screen.getByRole('combobox', {
+    name: 'Связать наблюдение с принятой целью'
+  });
+  expect(chooser).toHaveTextContent('Без привязки к цели');
+  expect(saveSessionReturn).not.toHaveBeenCalled();
+});

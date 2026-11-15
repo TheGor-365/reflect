@@ -20,6 +20,7 @@ vi.mock('./components/layout/Sidebar', () => ({
   default: ({ changeTab }) => <nav aria-label="Test section nav">
     <button type="button" onClick={() => changeTab('aiSettings')}>AI Settings nav</button>
     <button type="button" onClick={() => changeTab('diary')}>Diary nav</button>
+    <button type="button" onClick={() => changeTab('goals')}>Goals nav</button>
   </nav>
 }));
 vi.mock('./components/layout/Header', () => ({ default: () => null }));
@@ -29,8 +30,18 @@ vi.mock('./features/AISettings/AISettings', () => ({
 vi.mock('./features/Diary/Diary', () => ({
   default: () => <div data-testid="diary-content">Diary</div>
 }));
-vi.mock('./features/Goals/Goals', () => ({ default: () => null }));
-vi.mock('./features/Sessions/Sessions', () => ({ default: () => null }));
+vi.mock('./features/Goals/Goals', () => ({
+  default: ({ onOpenGoalReturn }) =>
+    <button type="button" onClick={() => onOpenGoalReturn?.('linked-goal')}>
+      Test direct return
+    </button>
+}));
+vi.mock('./features/Sessions/Sessions', () => ({
+  default: ({ returnGoalIntent, currentSessionId }) =>
+    <div data-testid="session-intent">
+      {currentSessionId}|{returnGoalIntent?.goalId || 'none'}
+    </div>
+}));
 vi.mock('./features/SessionSchema/SessionSchema', () => ({ default: () => null }));
 vi.mock('./components/common/Loader', () => ({
   default: () => <div data-testid="loading" />
@@ -150,4 +161,52 @@ test('browser back navigation restores diary after visiting AI Settings', async 
   window.history.replaceState(null, '', '/');
   act(() => window.dispatchEvent(new PopStateEvent('popstate')));
   expect(await screen.findByTestId('diary-content')).toBeInTheDocument();
+});
+
+test('M7b: direct goal return opens only an owner-loaded accepted source session', async () => {
+  getDoc.mockResolvedValue({ exists: () => true, data: () => ({ name: 'Demo' }) });
+  useFirestore.mockImplementation(kind => ({
+    data: kind === 'sessions' ? [{
+      id: 'saved-session', recommendationDecisions: {
+        'r-assistant-0': {
+          status: 'accepted', goalId: 'linked-goal', assistantMessageId: 'assistant'
+        }
+      }
+    }] : kind === 'goals' ? [{
+      id: 'linked-goal', sessionId: 'saved-session',
+      sourceRecommendationKey: 'r-assistant-0',
+      sourceAssistantMessageId: 'assistant',
+      sourceType: 'user-accepted-ai-recommendation'
+    }] : [],
+    loading: false, error: null
+  }));
+  render(<App />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Goals nav' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Test direct return' }));
+  expect(await screen.findByTestId('session-intent')).toHaveTextContent(
+    'saved-session|linked-goal');
+  expect(window.location.search).not.toContain('linked-goal');
+});
+
+test('M7b: forged source decision cannot switch sessions or expose a goal ID', async () => {
+  getDoc.mockResolvedValue({ exists: () => true, data: () => ({ name: 'Demo' }) });
+  useFirestore.mockImplementation(kind => ({
+    data: kind === 'sessions' ? [{
+      id: 'saved-session', recommendationDecisions: {
+        'r-assistant-0': {
+          status: 'accepted', goalId: 'another-goal', assistantMessageId: 'assistant'
+        }
+      }
+    }] : kind === 'goals' ? [{
+      id: 'linked-goal', sessionId: 'saved-session',
+      sourceRecommendationKey: 'r-assistant-0',
+      sourceAssistantMessageId: 'assistant',
+      sourceType: 'user-accepted-ai-recommendation'
+    }] : [],
+    loading: false, error: null
+  }));
+  render(<App />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Goals nav' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Test direct return' }));
+  expect(screen.queryByTestId('session-intent')).not.toBeInTheDocument();
 });
