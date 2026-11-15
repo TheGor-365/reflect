@@ -32,6 +32,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   const [ownerContextLevel, setOwnerContextLevel] = useState(null);
   const [newSessionMode, setNewSessionMode] = useState(ACCOUNT_MODE);
   const [sessionModeEcho, setSessionModeEcho] = useState(null);
+  const [modeDraftScope, setModeDraftScope] = useState(null);
   const [showLibrary, setShowLibrary] = useState(false);
   const [navigationWarning, setNavigationWarning] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -104,6 +105,9 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   // A server-confirmed mode for this session overrides the account default.
   // The echo exists only after a readback, so it never presents unsaved
   // preferences as active. Account fallback never grants history access.
+  const modeChangePending = modeDraftScope?.userId === userId &&
+    modeDraftScope?.sessionId === currentSessionId &&
+    modeDraftScope?.dirty === true;
   const storedMode = normalizedSessionMode(activeSession?.interactionMode);
   const effectiveSessionMode = isNewSessionView ? newSessionMode :
     (sessionModeEcho?.userId === userId &&
@@ -141,6 +145,10 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   const handleSendMessage = async (e) => {
     e.preventDefault();
     const message = userInput.trim();
+    if (modeChangePending) {
+      setSendError('Сначала сохраните выбранный режим сеанса. Grok не вызывался.');
+      return;
+    }
     if (effectiveSessionMode === null) {
       setSendError('Недопустимый режим сеанса. Проверьте настройки и повторите.');
       return;
@@ -278,7 +286,8 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
     if (!sessionMemoryReplyUiEnabled || !railwayAiRecoveryEnabled ||
         !AI_SESSION_ENABLED || !db || !owner || !sessionId ||
         isNewSessionView || !savedSession || isLoading || sendLock.current ||
-        sessionSaveError || scopedLocalMessages.length || turnMode === null ||
+        sessionSaveError || scopedLocalMessages.length ||
+        modeChangePending || turnMode === null ||
         approval?.confirmed !== true ||
         !ownerContextLevel || approval?.contextLevel !== ownerContextLevel ||
         approval?.sourceId !== sessionId ||
@@ -693,6 +702,9 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
               value={effectiveSessionMode}
               disabled={isLoading || savingSession || sendLock.current}
               onNewSessionMode={setNewSessionMode}
+              onDirtyChange={dirty => {
+                setModeDraftScope({userId, sessionId: currentSessionId, dirty});
+              }}
               onSaved={mode => {
                 if (activeScopeRef.current.userId === userId &&
                     activeScopeRef.current.currentSessionId === currentSessionId) {
@@ -700,10 +712,14 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
                 }
               }}/>
           )}
+          {modeChangePending && (
+            <p role="status">Сохраните режим сеанса, чтобы использовать его
+              для следующего ответа. Пока отправка в Grok заблокирована.</p>
+          )}
           {AI_SESSION_ENABLED && activeSession && ownerContextLevel && (
             <SessionMemoryReview key={userId + ':' + activeSession.id}
               userId={userId} sessionId={activeSession.id}
-              draftMessage={userInput} disabled={isLoading}
+              draftMessage={userInput} disabled={isLoading || modeChangePending}
               contextLevel={ownerContextLevel}
               onConfirmHistory={handleHistorySend}/>
           )}
@@ -728,6 +744,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
             value={userInput}
             onChange={(value) => { noteSave.clearFeedback(); setSendError(''); setUserInput(value); }}
             onSubmit={handleSendMessage}
+            sendDisabled={modeChangePending || effectiveSessionMode === null}
             onToggleRecording={handleToggleUserRecording}
             onSaveToDiary={handleSaveToDiary}
             diarySaveStatus={noteSave.status}
