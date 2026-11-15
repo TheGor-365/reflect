@@ -248,10 +248,16 @@ test("M3b quoted injection stays in untrusted user data, not system instructions
 });
 
 
-test("M3b packaged context limits equal already-reviewed private session memory",()=>{
+test("M3 packaged provider boundary matches bounded levels; legacy v2 still 4 turns",()=>{
   const { CONTEXT_LIMITS } = require("./providerSessionContext.cjs");
   const privateLimits = require("./sessionMemory.cjs");
-  for (const [key,value] of Object.entries(CONTEXT_LIMITS)) {
-    assert.equal(privateLimits[key],value,key);
-  }
+  const { MAX_CONTEXT_TURNS, MAX_CONTEXT_BYTES, contextWindow } =
+    require("./contextLevels.cjs");
+  assert.equal(CONTEXT_LIMITS.MAX_PRIOR_TURNS, MAX_CONTEXT_TURNS);
+  assert.equal(CONTEXT_LIMITS.MAX_TOTAL_BYTES, MAX_CONTEXT_BYTES);
+  assert.equal(CONTEXT_LIMITS.MAX_TURN_BYTES, privateLimits.MAX_TURN_BYTES);
+  assert.equal(privateLimits.MAX_PRIOR_TURNS, 4, "Legacy v2 preserved");
+  assert.equal(contextWindow(undefined).maxTurns, 4);
+  assert.equal(contextWindow("deep").maxTurns, 6);
+  assert(contextWindow("deep").maxBytes <= CONTEXT_LIMITS.MAX_TOTAL_BYTES);
 });
