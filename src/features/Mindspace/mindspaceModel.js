@@ -4,6 +4,7 @@
  * Sessions and Goals. No AI-generated or inferred relationship is a fact.
  */
 import { sessionDisplayTitle } from '../Diary/diaryPresentation';
+import { MINDSPACE_ZONES, resolveMindZone } from './mindspaceZones';
 
 export const MINDSPACE_VERSION = 'reflect.mindspace.v1';
 export const RELATIONS = Object.freeze({
@@ -48,9 +49,11 @@ export function buildMindspace(sessions=[],goals=[],{
     if(!edges.some(existing=>existing.id===edge.id))edges.push(edge);
   };
   for(const session of safeSessions){
+    const label=title(session.mindTitle || sessionDisplayTitle(session),'Моя тема');
+    const zone=resolveMindZone(session,label);
     addNode({
       id:`session:${session.id}`,kind:'session',refId:session.id,
-      label:title(session.mindTitle || sessionDisplayTitle(session),'Моя тема'),
+      label,zone:zone.id,zoneConfirmedByOwner:zone.confirmedByOwner,
       subtitle:'Сохранённая тема',author:'user',status:'saved',
       sourceRef:{kind:'session',sessionId:session.id},
       at:time(session.createdAt)
@@ -187,19 +190,27 @@ export function layoutMindspace(graph,{
   const goals=graph.nodes.filter(n=>n.kind==='goal');
   const suggestions=graph.nodes.filter(n=>n.kind==='proposal');
   const n=sessions.length;
-  // Elliptic orbit is deliberately asymmetric like the existing Aurora
-  // gradients, but deterministic across refresh and screenshot QA.
-  sessions.forEach((node,i)=>{
-    const angle=-Math.PI/2+(i/(Math.max(n,1)))*Math.PI*2;
-    const rad=n===1?0:n===2?Math.PI/2:angle;
-    const r=n===1?0:1;
-    pos.set(node.id,{x:cx+Math.cos(rad)*320*r,
-      y:cy+Math.sin(rad)*242*r});
+  // Perimeter placement has explanatory meaning: only a confirmed
+  // owner-selected zone is a semantic decision. All other placements are
+  // deterministic title-word suggestions and may be corrected by the owner.
+  // Group topic nodes around their zone centers; never infer user traits.
+  const byZone=new Map();
+  sessions.forEach(node=>{
+    const id=node.zone || 'other';
+    const values=byZone.get(id)||[];
+    values.push(node);byZone.set(id,values);
   });
-  if(n===2){
-    sessions.forEach((node,i)=>pos.set(node.id,{
-      x:cx+(i===0?-260:260),y:cy+((i%2)?50:-50)
-    }));
+  for(const sector of MINDSPACE_ZONES){
+    const bucket=byZone.get(sector.id)||[];
+    bucket.forEach((node,index)=>{
+      const angle=(index / Math.max(bucket.length,1))*Math.PI*2-Math.PI/2;
+      const rings=Math.floor(index / 6);
+      const radius=bucket.length===1?0:Math.min(96,46+index*3)+rings*38;
+      pos.set(node.id,{
+        x:sector.x*width+Math.cos(angle)*radius,
+        y:sector.y*height+Math.sin(angle)*radius
+      });
+    });
   }
   const goalsBySession=new Map();
   goals.forEach(node=>{

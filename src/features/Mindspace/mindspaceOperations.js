@@ -1,6 +1,7 @@
 import { doc, runTransaction, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db, appId } from '../../firebase/config';
 import { RELATIONS } from './mindspaceModel';
+import { isZone } from './mindspaceZones';
 
 const idOk = v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v);
 const validNote = v=>typeof v==='string' && v.length<=400 &&
@@ -104,5 +105,31 @@ export async function renameMindTopic({ userId, sourceSessionId, title }) {
       mindspaceChangedAt:serverTimestamp()
     });
     return next;
+  });
+}
+
+/**
+ * Owner confirms ONE topic's spatial area. No transcript, analysis request,
+ * cross-account access or relationship creation occurs. This only changes
+ * the visual arrangement of the saved topic card.
+ */
+export async function saveMindZone({ userId, sourceSessionId, zoneId }) {
+  if (!db || !idOk(userId) || !idOk(sourceSessionId) ||
+      !isZone(zoneId)) {
+    throw new Error('Зона карты недоступна.');
+  }
+  const ref=doc(db,root(userId),'sessions',sourceSessionId);
+  return runTransaction(db, async tx => {
+    const snapshot=await tx.get(ref);
+    if(!snapshot.exists()) throw new Error('Тема больше не существует.');
+    const before=snapshot.data()?.mindZone;
+    if(before?.id===zoneId && before?.author==='user' &&
+        before?.status==='confirmed') return before;
+    const value={
+      id:zoneId,author:'user',status:'confirmed',
+      updatedAt:serverTimestamp()
+    };
+    tx.update(ref,{mindZone:value,mindspaceChangedAt:serverTimestamp()});
+    return value;
   });
 }

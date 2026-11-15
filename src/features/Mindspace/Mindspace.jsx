@@ -1,16 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowUpRight, BrainCircuit, Check, CircleHelp, Compass,
-  GitBranch, Link2, Network, Pencil, RotateCcw, Sparkles,
+  GitBranch, Link2, Network, Pencil, RotateCcw, Sparkles, Lightbulb,
   Target, Trash2, X, ZoomIn, ZoomOut, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Eye, EyeOff
 } from 'lucide-react';
 import { buildMindspace, layoutMindspace, RELATIONS,
   filterMindspace, mindspaceEvidence } from './mindspaceModel';
 import ReflectSelect from '../../components/ReflectSelect';
-import { removeMindLink, saveMindLink, renameMindTopic } from './mindspaceOperations';
+import { removeMindLink, saveMindLink, renameMindTopic, saveMindZone } from './mindspaceOperations';
+import { MINDSPACE_ZONES, mindZoneLabel } from './mindspaceZones';
+import SmoothDisclosure from '../../components/common/SmoothDisclosure';
+import ReflectContentIcon from '../../components/common/ReflectContentIcon';
 import './mindspace.css';
 
-const ICONS={session:BrainCircuit,goal:Target,proposal:Sparkles};
+const ICONS={session:BrainCircuit,goal:Target,proposal:Lightbulb};
 const LABELS={
   session:'Тема',goal:'Цель',proposal:'Идея AI',
   active:'В работе',completed:'Выполнено',paused:'На паузе',
@@ -60,7 +63,10 @@ export default function Mindspace({
   const [viewMode,setViewMode]=useState('constellation');
   const [editingTitle,setEditingTitle]=useState(false);
   const [titleDraft,setTitleDraft]=useState('');
+  const [zoneDraft,setZoneDraft]=useState('other');
   const canvasRef=useRef(null);
+  const selectedScopeRef=useRef({userId,selectedId});
+  selectedScopeRef.current={userId,selectedId};
   const graph=useMemo(()=>buildMindspace(sessions,goals,{
     includeProposals:showIdeas
   }),[sessions,goals,showIdeas]);
@@ -75,6 +81,9 @@ export default function Mindspace({
   const layout=useMemo(()=>layoutMindspace(displayedGraph),[displayedGraph]);
   const allNodes=displayedGraph.nodes;
   const selected=allNodes.find(node=>node.id===selectedId)||null;
+  useEffect(()=>{
+    setZoneDraft(selected?.zone||'other');
+  },[selected?.id,selected?.zone]);
   const source=allNodes.find(node=>node.id===sourceNodeId)||null;
   const target=allNodes.find(node=>node.id===targetNodeId)||null;
   const semantic=displayedGraph.edges.filter(edge=>edge.kind==='semantic');
@@ -193,13 +202,28 @@ export default function Mindspace({
   };
   const zoomMap=delta=>setMapScale(prev=>
     Math.max(.55,Math.min(1.6,Math.round((prev+delta)*100)/100)));
+  const onSaveZone=async()=>{
+    if(busy||!userId||selected?.kind!=='session'||!zoneDraft)return;
+    setBusy(true);setError('');setNotice('');
+    try{
+      await saveMindZone({userId,sourceSessionId:selected.refId,zoneId:zoneDraft});
+      if(selectedScopeRef.current.userId===userId &&
+          selectedScopeRef.current.selectedId===selected.id) {
+        setNotice('Расположение темы подтверждено. Карта обновится из вашего сеанса.');
+      }
+    }catch{
+      if(selectedScopeRef.current.userId===userId &&
+          selectedScopeRef.current.selectedId===selected.id)
+        setError('Не удалось подтвердить зону. Выбранный вариант сохранён в форме.');
+    }finally{setBusy(false);}
+  };
   return (
     <section className="reflect-mindspace" aria-label="Mindspace — карта смыслов">
       <header className="reflect-mindspace-top">
         <div>
           <p className="reflect-mindspace-overline"><Sparkles size={15} aria-hidden="true"/> Личное пространство</p>
           <h2 aria-label="Mindspace">Mindspace<span className="reflect-mindspace-title-dot" aria-hidden="true">.</span></h2>
-          <p>Не хронология, а связи ваших тем, решений и целей. Вы решаете, что действительно связано.</p>
+          <p>Темы, решения и цели в одном пространстве.</p>
         </div>
         <div className="reflect-mindspace-stat" aria-label="Подтверждённые смысловые связи">
           <Network size={20} aria-hidden="true"/>
@@ -268,12 +292,17 @@ export default function Mindspace({
         <p><strong>{evidence.aiIdeas}</strong> предложений AI</p>
         <p><strong>{evidence.confirmedLinks}</strong> подтверждённых смысловых связей</p>
       </div>
-      {evidence.confirmedLinks===0&&graph.nodes.length>0&&(
-        <p className="reflect-mindspace-hint">
-          На карте пока нет подтверждённых смысловых отношений.
-          Выберите тему, нажмите «Связать с темой или целью», выберите второй узел
-          и подтвердите смысл связи. Близость карточек — не доказательство.
-        </p>
+      {graph.nodes.length>0&&(
+        <SmoothDisclosure label="Как устроена карта смыслов"
+          iconKind="information" className="reflect-mindspace-guidance-disclosure">
+          <p>Расположение тем предлагается автоматически по словам названия.
+            Это не анализ личности и не доказательство смысловой связи.
+            Зону можно закрепить вручную в карточке темы.</p>
+          <p>Подтверждённые линии — ваши решения. Другие линии могут показывать
+            только принадлежность идеи или цели исходному сеансу.
+            Предлагаемые AI смысловые связи потребуют отдельного согласия
+            на обработку данных, проверки и подтверждения вами.</p>
+        </SmoothDisclosure>
       )}
       {source&& !target&&(
         <div className="reflect-mindspace-guidance" role="status">
@@ -330,6 +359,18 @@ export default function Mindspace({
                         reflect-mind-edge--${edge.relation}`}/>
                   ))}
                 </svg>
+                {MINDSPACE_ZONES.map(zone=>(
+                  <span className={`reflect-mindspace-zone reflect-mindspace-zone--${zone.id}`}
+                    key={zone.id} aria-hidden="true"
+                    style={{
+                      left:zone.x*layout.width,
+                      top:zone.y*layout.height +
+                        (zone.id==='other'?98:zone.y<.38?-90:zone.y>.67?95:0)
+                    }}>
+                    <ReflectContentIcon kind={zone.icon} size={17}/>
+                    <span>{zone.label}</span>
+                  </span>
+                ))}
                 <span className="reflect-mindspace-centerlabel" aria-hidden="true">
                   <Sparkles size={20} strokeWidth={1.5}/>
                   моё пространство
@@ -367,11 +408,12 @@ export default function Mindspace({
               <span className="reflect-mindspace-dot reflect-mindspace-dot--proposal"/> Идея AI
               <span className="reflect-mindspace-legend-line"/> Подтверждённая связь
             </p>
-            <p className="reflect-mindspace-hint">
-              {graph.confirmedLinks>0 ?
-                'Толстые линии — ваши подтверждённые смысловые связи. Тонкие линии — только принадлежность теме.' :
-                'Пока нет подтверждённых смысловых связей. Выберите тему и укажите, как она связана с другой.'}
-            </p>
+            <SmoothDisclosure label="Как читать линии"
+              iconKind="information" className="reflect-mindspace-bottom-explain">
+              <p>Связи, отмеченные вами, имеют статус подтверждённых.
+                Тонкие линии показывают происхождение цели или рекомендации;
+                близость двух узлов не доказывает связь между ними.</p>
+            </SmoothDisclosure>
           </div>
           {graph.truncated&&<p role="status" className="reflect-mindspace-warning">
             Карта ограничена первыми {graph.nodes.length} узлами. Часть данных не видна, но ничего не удалено.
@@ -379,7 +421,8 @@ export default function Mindspace({
         </>
       )}
       {selected&&!target&&(
-        <aside className="reflect-mindspace-inspector" aria-label="Выбранный смысловой узел">
+        <aside key={selected.id} className="reflect-mindspace-inspector reflect-mindspace-inspector--animated"
+          aria-label="Выбранный смысловой узел">
           <div className="reflect-mindspace-inspector-heading">
             <div>
               <small>{LABELS[selected.kind]} · {LABELS[selected.status]||'Сохранено'}</small>
@@ -412,6 +455,26 @@ export default function Mindspace({
                 </form>
               )}
               <small>Изменяется только название на карте, не текст сеанса.</small>
+            </div>
+          )}
+          {selected.kind==='session'&&(
+            <div className="reflect-mindspace-zone-editor">
+              <p><ReflectContentIcon kind="context" size={16}/>
+                Зона карты: <strong>{mindZoneLabel(selected.zone)}</strong>
+                <small>{selected.zoneConfirmedByOwner
+                  ? 'Закреплена вами'
+                  : 'Предложена по названию темы'}</small>
+              </p>
+              <ReflectSelect label="Где показывать тему?"
+                ariaLabel="Зона темы на карте"
+                value={zoneDraft}
+                disabled={busy}
+                onChange={setZoneDraft}
+                options={MINDSPACE_ZONES.map(zone=>[zone.id,zone.label])}/>
+              <button type="button" disabled={busy}
+                onClick={onSaveZone}>
+                <Check size={15} aria-hidden="true"/> Закрепить зону
+              </button>
             </div>
           )}
           {selected.kind==='proposal'&&(

@@ -2,10 +2,11 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Mindspace from './Mindspace';
-import { saveMindLink, removeMindLink, renameMindTopic } from './mindspaceOperations';
+import { saveMindLink, removeMindLink, renameMindTopic, saveMindZone } from './mindspaceOperations';
 
 vi.mock('./mindspaceOperations',()=>({
-  saveMindLink:vi.fn(),removeMindLink:vi.fn(),renameMindTopic:vi.fn()
+  saveMindLink:vi.fn(),removeMindLink:vi.fn(),renameMindTopic:vi.fn(),
+  saveMindZone:vi.fn()
 }));
 const sessions=[
   {id:'s-1',title:'Работа и развитие',chatHistory:[]},
@@ -17,6 +18,7 @@ beforeEach(()=>{
   saveMindLink.mockResolvedValue({id:'ml-session-s-2'});
   removeMindLink.mockResolvedValue(true);
   renameMindTopic.mockResolvedValue('Тема в карте');
+  saveMindZone.mockResolvedValue({id:'professional',author:'user',status:'confirmed'});
 });
 
 describe('PRODUCT-05B Mindspace UI',()=>{
@@ -191,5 +193,36 @@ test('P1: Mindspace zoom and semantic-only focus preserve source data',()=>{
   fireEvent.click(screen.getByRole('button',{name:'Показать все узлы'}));
   expect(screen.getByRole('button',{name:/Цель: Готовить MVP/}))
     .toBeInTheDocument();
+  expect(saveMindLink).not.toHaveBeenCalled();
+});
+
+test('UX R4 shows semantic map zones but no fabricated confirmed AI links', async()=>{
+  render(<Mindspace sessions={sessions} goals={goals}
+    userId="synthetic-owner"/>);
+  expect(screen.getByText('Профессиональный рост')).toBeInTheDocument();
+  expect(screen.getByText('Личное развитие')).toBeInTheDocument();
+  expect(screen.getByLabelText('Подтверждённые смысловые связи'))
+    .toHaveTextContent('0');
+  expect(saveMindLink).not.toHaveBeenCalled();
+  expect(saveMindZone).not.toHaveBeenCalled();
+  const help=screen.getByRole('button',{name:'Как устроена карта смыслов'});
+  expect(help).toHaveAttribute('aria-expanded','false');
+  fireEvent.click(help);
+  expect(screen.getByText(/не анализ личности/)).toBeInTheDocument();
+});
+
+test('UX R4 owner can override proposed topic position without modifying source text or links', async()=>{
+  render(<Mindspace sessions={sessions} goals={goals}
+    userId="synthetic-owner"/>);
+  fireEvent.click(screen.getByRole('button',{name:/Тема: Работа и развитие/}));
+  expect(screen.getByText(/Предложена по названию темы/)).toBeInTheDocument();
+  const zone=screen.getByRole('combobox',{name:'Зона темы на карте'});
+  fireEvent.click(zone);
+  fireEvent.click(screen.getByRole('option',{name:'Анализ и решения'}));
+  expect(saveMindZone).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button',{name:'Закрепить зону'}));
+  await waitFor(()=>expect(saveMindZone).toHaveBeenCalledExactlyOnceWith({
+    userId:'synthetic-owner',sourceSessionId:'s-1',zoneId:'analysis'
+  }));
   expect(saveMindLink).not.toHaveBeenCalled();
 });

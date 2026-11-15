@@ -435,3 +435,137 @@
   .reflect-mindspace-map-controls {width:100%;}
   .reflect-mindspace-map-controls button {min-width:42px;}
 }
+
+
+/* UX R4 — meaning has a visible direction. Zones are topic-title hints,
+ * unless an area was expressly confirmed by the owner. Never clinical. */
+.reflect-mindspace-zone {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: max-content;
+  max-width: 205px;
+  padding: 7px 12px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--reflect-card) 84%, transparent);
+  color: var(--reflect-muted);
+  font-size: 11px;
+  font-weight: 620;
+  line-height: 1.3;
+  letter-spacing: .015em;
+  white-space: nowrap;
+  opacity: .82;
+  z-index: 1;
+  box-shadow: none;
+}
+.reflect-mindspace-zone svg {
+  flex: none;
+  color: var(--reflect-accent);
+  opacity: .84;
+}
+.reflect-mindspace-zone--other {
+  font-size: 10px;
+  opacity: .61;
+}
+.reflect-mind-node {
+  z-index: 2;
+  transition: transform .26s cubic-bezier(.2,.8,.2,1),
+    background .26s ease, box-shadow .24s ease, border-color .24s ease;
+}
+.reflect-mind-node:hover {transform: translateY(-3px);}
+.reflect-mind-node--proposal .reflect-mind-node-orb svg {
+  color: var(--reflect-accent);
+}
+.reflect-mindspace-guidance-disclosure {
+  margin: 7px 0 11px;
+}
+.reflect-mindspace-guidance-disclosure .reflect-disclosure-inner {
+  max-width: 68ch;
+}
+.reflect-mindspace-bottom-explain {
+  max-width: 440px;
+  margin-inline-start: auto;
+}
+.reflect-mindspace-zone-editor {
+  display: grid;
+  gap: 11px;
+  margin: 12px 0;
+  padding: 13px 0;
+  border-top: 1px solid color-mix(in srgb,
+    var(--reflect-border) 32%, transparent);
+}
+.reflect-mindspace-zone-editor > p {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 0;
+  color: var(--reflect-muted);
+  font-size: .8rem;
+}
+.reflect-mindspace-zone-editor > p svg {
+  flex: none;
+  color: var(--reflect-accent);
+}
+.reflect-mindspace-zone-editor strong {
+  color: var(--reflect-ink);
+  font-weight: 680;
+}
+.reflect-mindspace-zone-editor small {
+  margin-inline-start: auto;
+  color: var(--reflect-muted);
+  font-size: .72rem;
+}
+.reflect-mindspace-zone-editor > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: start;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid color-mix(in srgb, var(--reflect-border) 37%, transparent);
+  border-radius: 11px;
+  color: var(--reflect-ink);
+  font-size: .78rem;
+  font-weight: 610;
+  background: color-mix(in srgb, var(--reflect-accent) 8%, transparent);
+}
+.reflect-mindspace-inspector--animated {
+  animation: reflect-soft-appear .28s cubic-bezier(.2,.8,.2,1) both;
+}
+.reflect-mindspace-viewport {
+  border-color: color-mix(in srgb, var(--reflect-border) 35%, transparent);
+}
+.reflect-mindspace-top > div > p:not(.reflect-mindspace-overline) {
+  font-size: .82rem;
+  color: var(--reflect-muted);
+}
+.reflect-mindspace-evidence {
+  gap: 4px;
+}
+.reflect-mindspace-evidence p {
+  background: transparent;
+  border-color: transparent;
+}
+@media (max-width: 670px) {
+  .reflect-mindspace-zone {
+    font-size: 10px;
+    padding: 5px 8px;
+  }
+  .reflect-mindspace-zone-editor small {
+    width: 100%;
+    margin: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reflect-mind-node,
+  .reflect-mindspace-inspector--animated {
+    transition: none !important;
+    animation: none !important;
+  }
+}
