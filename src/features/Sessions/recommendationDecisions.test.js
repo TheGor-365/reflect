@@ -110,6 +110,26 @@ describe('PRODUCT-02 owner-scoped recommendation decision transaction', () => {
     await expect(applyRecommendationDecision({ ...params, action: 'dismissed' }))
       .rejects.toThrow(/уже стала целью/);
   });
+  it('M6c: a deleted accepted goal remains accepted history and cannot be silently recreated', async () => {
+    await applyRecommendationDecision({
+      ...params, action: 'goal', goalId: 'removed-goal',
+      goalTitle: 'Шаг по моему выбору'
+    });
+    const key = Object.keys(session.recommendationDecisions)[0];
+    const decision = session.recommendationDecisions[key];
+    decision.goalRemovedAt = { seconds: 123 };
+    const previousWrites = writes.length;
+    const repeated = await applyRecommendationDecision({
+      ...params, action: 'goal', goalId: 'new-goal-id',
+      goalTitle: 'Не создавать дубликат'
+    });
+    expect(repeated.status).toBe('accepted');
+    expect(repeated.goalId).toBe('removed-goal');
+    expect(repeated.goalRemovedAt).toEqual({ seconds: 123 });
+    expect(writes).toHaveLength(previousWrites);
+    expect(goal.text).toBe('Шаг по моему выбору');
+  });
+
   it('does not write for unsaved, altered, or ungrounded AI proposals', async () => {
     session = null;
     await expect(applyRecommendationDecision({ ...params, action: 'goal',
