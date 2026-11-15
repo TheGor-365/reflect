@@ -281,9 +281,10 @@ test("M4.2: old owner turn without mode is still compatible with account prefere
 
 test("M5b V2: trusted source summary travels in ephemeral owner attempt, NOT private receipt",async()=>{
   const { store, db } = setup();
+  const sourceQuote = TEXT.slice(0,20).trim();
   db.docs.get(sessionPath(UID)).readinessEvidence = {
     situation: {
-      sourceTurnId: USER_ID, quote: TEXT.slice(0,20),
+      sourceTurnId: USER_ID, quote: sourceQuote,
       confirmedByOwner:true,status:"confirmed"
     },
     desiredResult: {
@@ -303,7 +304,7 @@ test("M5b V2: trusted source summary travels in ephemeral owner attempt, NOT pri
     interaction:{
       version:"reflect.interaction.v2",stage:"synthesize",
       clarifyingQuestion:"", evidenceClaims:[{
-        quote:TEXT.slice(0,20),sourceRef:"current-message",
+        quote:sourceQuote,sourceRef:"current-message",
         sourceTurnId: USER_ID,
         provenance:"owner-stated-not-independently-verified"
       }],evidenceSummary:{
