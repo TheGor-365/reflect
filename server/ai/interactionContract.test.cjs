@@ -279,7 +279,7 @@ test("M4: five owner-selected interaction modes generate distinct server-only po
   assert.equal(new Set(prompts).size, 5);
   assert.match(prompts[1], /непрошенных советов/);
   assert.match(prompts[2], /следующий шаг/);
-  assert.match(prompts[3], /не утверждай, что ты человек/);
+  assert.match(prompts[3], /Не утверждай, что ты человек/);
   assert.match(prompts[4], /проверенные слова владельца/);
 });
 
