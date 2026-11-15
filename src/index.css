@@ -4668,3 +4668,117 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
     transition: none !important;
   }
 }
+
+
+/* UX R3 — Session Schema: metrics collapse by default; small semantic icons
+ * keep the factual model readable without an oversized table dominating. */
+.reflect-app .reflect-journey-fact-strips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 6px 17px;
+  margin: 10px 0 13px;
+}
+.reflect-app .reflect-journey-fact-strip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 108px;
+  padding: 9px 5px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.reflect-journey-fact-strip > svg {flex: none; color: var(--reflect-accent);}
+.reflect-journey-fact-strip > span {display: grid; gap: 3px;}
+.reflect-journey-fact-strip strong {
+  color: var(--reflect-ink);
+  font-variant-numeric: tabular-nums;
+  font-size: 1rem;
+  line-height: 1.12;
+}
+.reflect-journey-fact-strip small {
+  font-size: .73rem;
+  line-height: 1.3;
+  font-weight: 530;
+  color: var(--reflect-muted);
+}
+.reflect-app .reflect-journey-metrics-disclosure {margin: 0 0 14px;}
+.reflect-app .reflect-journey-metrics-disclosure .reflect-journey-facts-table-wrap {
+  border-color: var(--reflect-hairline);
+  margin: 9px 0 4px;
+}
+.reflect-app .reflect-journey-node {
+  border-color: color-mix(in srgb, var(--reflect-border) 35%, transparent);
+  box-shadow: none;
+  transition: background .22s ease, border-color .22s ease,
+    box-shadow .24s ease, transform .24s ease;
+}
+.reflect-app .reflect-journey-node:hover,
+.reflect-app .reflect-journey-node.is-selected {
+  border-color: color-mix(in srgb, var(--reflect-accent) 45%, transparent);
+  box-shadow: 0 7px 24px rgba(3, 7, 22, .11);
+  transform: translateY(-2px);
+}
+.reflect-app .reflect-journey-node small {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.reflect-app .reflect-journey-node small svg {color: var(--reflect-accent);}
+.reflect-app .reflect-journey-canvas {
+  border-color: var(--reflect-hairline);
+  background-image: radial-gradient(color-mix(in srgb,
+      var(--reflect-border) 32%, transparent) .75px, transparent .75px);
+}
+.reflect-app .reflect-journey-source--animated {
+  animation: reflect-soft-appear .28s cubic-bezier(.2,.8,.2,1) both;
+  border-color: var(--reflect-hairline);
+}
+.reflect-app .reflect-journey-methodology {
+  margin-top: 10px;
+}
+.reflect-app .reflect-journey-header > div > p,
+.reflect-app .reflect-journey-version {
+  font-size: .79rem;
+  line-height: 1.5;
+  color: var(--reflect-muted);
+}
+.reflect-app .reflect-ai-settings-intro-disclosure,
+.reflect-app .reflect-ai-setting-help {
+  margin: 7px 0 18px;
+}
+.reflect-app .reflect-ai-settings-intro-disclosure .reflect-disclosure-inner,
+.reflect-app .reflect-ai-setting-help .reflect-disclosure-inner {
+  max-width: 69ch;
+}
+.reflect-app .reflect-ai-settings-heading {
+  margin-bottom: 12px;
+}
+.reflect-app .reflect-ai-settings-card {
+  border-color: var(--reflect-hairline);
+  box-shadow: none;
+}
+.reflect-app .reflect-ai-settings-row {
+  border-bottom-color: var(--reflect-hairline);
+}
+.reflect-app .reflect-preference-select-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.reflect-app .reflect-preference-select-trigger > svg:first-child,
+.reflect-app .reflect-preference-option > svg:first-child {
+  flex: none;
+  color: var(--reflect-accent);
+}
+.reflect-app .reflect-preference-option {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+}
+.reflect-app .reflect-preference-option > span {flex: 1;}
+@media (prefers-reduced-motion: reduce) {
+  .reflect-app .reflect-journey-source--animated {animation: none;}
+  .reflect-app .reflect-journey-node {transition: none;}
+}
