@@ -8,6 +8,7 @@
  * session, atomically with the metadata receipt BEFORE HTTP success.
  */
 const { PolicyError } = require("./policy.cjs");
+const { modePolicy } = require("./interactionModes.cjs");
 const PROJECT = "reflect-ai-staging";
 const NAMESPACE = "reflect-8fdc8";
 const REQUEST = /^[A-Za-z0-9_-]{12,80}$/;
@@ -174,7 +175,13 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now }) {
     const { session, receipt } = refs(target);
     return db.runTransaction(async tx => {
       const [stored, prior] = await Promise.all([tx.get(session), tx.get(receipt)]);
-      const { hasReply } = checkSession(stored, target, message);
+      const { hasReply, history, index } = checkSession(stored, target, message);
+      // Server reads the exact committed user turn in an owner-scoped
+      // Firestore transaction. Client cannot add a mode to the HTTP payload.
+      const turnMode = history[index]?.interactionMode;
+      if (turnMode !== undefined && !modePolicy(turnMode)) {
+        fail("invalid-session-history");
+      }
       if (hasReply) fail("already-exists");
       const previous = prior.exists ? prior.data() : null;
       if (!previous && !first && !retryConfirmed) fail("permission-denied");
@@ -192,7 +199,10 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now }) {
         leaseUntilMs: nowMs + LEASE_MS, updatedAt: new Date(nowMs),
         createdAt: previous?.createdAt ?? new Date(nowMs), assistantTurnId: null
       });
-      return Object.freeze({ ...target, requestId });
+      return Object.freeze({
+        ...target, requestId,
+        ...(turnMode === undefined ? {} : { interactionMode: turnMode })
+      });
     });
   }
 
@@ -242,6 +252,8 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now }) {
       const assistantTurn = {
         id: answerId, role: "assistant", sourceTurnId: target.sourceTurnId,
         content: reply.text.trim(), timestamp: new Date(nowMs),
+        ...(attempt.interactionMode
+          ? { interactionMode: attempt.interactionMode } : {}),
         ...(reply.interaction?.version === "reflect.interaction.v1"
           ? { interaction: reply.interaction } : {})
       };

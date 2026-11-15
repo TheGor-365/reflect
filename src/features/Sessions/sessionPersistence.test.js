@@ -79,3 +79,14 @@ describe('P0 durable chat boundary', () => {
       .rejects.toThrow('offline');
   });
 });
+
+
+it('M4.2 persists an owner-selected mode with the first turn and nothing from another session', async () => {
+  const selected = { ...userTurn, interactionMode: 'support' };
+  await createDurableSession('synthetic-eric', selected);
+  const data = mocks.setDoc.mock.calls[0][1];
+  expect(data.interactionMode).toBe('support');
+  expect(data.chatHistory).toEqual([selected]);
+  expect(data).not.toHaveProperty('includeHistory');
+  expect(data).not.toHaveProperty('otherSessions');
+});

@@ -17,13 +17,15 @@ const SessionComposer = ({
   isRecording = false,
   error = '',
   aiAvailable = false,
+  sendDisabled = false,
   privacyNoticeId,
   draftControls = null
 }) => {
   const textareaRef = useRef(null);
   const sendButtonRef = useRef(null);
   const supportsSpeech = typeof window !== 'undefined' && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
-  const canSend = aiAvailable && !isLoading && diarySaveStatus !== 'saving' && Boolean(value.trim());
+  const canSend = aiAvailable && !isLoading && !sendDisabled &&
+    diarySaveStatus !== 'saving' && Boolean(value.trim());
   const canSave = Boolean(onSaveToDiary) && Boolean(value.trim()) && diarySaveStatus !== 'saving' && !isLoading;
 
   useLayoutEffect(() => {

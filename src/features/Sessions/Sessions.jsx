@@ -5,6 +5,9 @@ import { AI_SESSION_ENABLED, getAnalysisFromAI } from '../../api/reflectAssistan
 import { railwayAiRecoveryEnabled } from '../../api/reflectRailwayService';
 import ReplyRecoveryPanel from './ReplyRecoveryPanel';
 import { createDurableSession, appendDurableTurn } from './sessionPersistence';
+import SessionModePicker from './SessionModePicker';
+import { ACCOUNT_MODE, normalizedSessionMode, turnModeFields }
+  from './sessionModeModel';
 import ChatMessage from './ChatMessage';
 import SessionEvidenceLedger from './SessionEvidenceLedger';
 import SessionMemoryReview from './SessionMemoryReview';
@@ -27,6 +30,9 @@ import { BookOpen, BarChart2, MessageSquareText, ShieldCheck } from 'lucide-reac
 const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, onOpenGoals, onOpenRecommendations, focusTurnId, libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
   const [userInput, setUserInput] = useState('');
   const [ownerContextLevel, setOwnerContextLevel] = useState(null);
+  const [newSessionMode, setNewSessionMode] = useState(ACCOUNT_MODE);
+  const [sessionModeEcho, setSessionModeEcho] = useState(null);
+  const [modeDraftScope, setModeDraftScope] = useState(null);
   const [showLibrary, setShowLibrary] = useState(false);
   const [navigationWarning, setNavigationWarning] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -55,6 +61,8 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   activeScopeRef.current = { userId, currentSessionId };
 
   useEffect(() => {
+    setNewSessionMode(ACCOUNT_MODE);
+    setSessionModeEcho(null);
     pendingRecommendationGoalIds.current = {};
     setDecisionEcho({});
     setHypothesisReviewEcho({});
@@ -75,6 +83,13 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
     return () => { active = false; };
   }, [userId, currentSessionId]);
 
+  // A newly entered session starts with account defaults, and an optimistic
+  // server-confirmed override must never leak into a different session.
+  useEffect(() => {
+    setSessionModeEcho(null);
+    setNewSessionMode(ACCOUNT_MODE);
+  }, [userId, currentSessionId]);
+
   const recognitionRef = useRef(null);
   const utteranceRef = useRef(null);
   const chatEndRef = useRef(null);
@@ -87,6 +102,18 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
     openingSession?.userId === userId && openingSession?.id === currentSessionId
       ? openingSession.session : null
   );
+  // A server-confirmed mode for this session overrides the account default.
+  // The echo exists only after a readback, so it never presents unsaved
+  // preferences as active. Account fallback never grants history access.
+  const modeChangePending = modeDraftScope?.userId === userId &&
+    modeDraftScope?.sessionId === currentSessionId &&
+    modeDraftScope?.dirty === true;
+  const storedMode = normalizedSessionMode(activeSession?.interactionMode);
+  const effectiveSessionMode = isNewSessionView ? newSessionMode :
+    (sessionModeEcho?.userId === userId &&
+     sessionModeEcho?.sessionId === currentSessionId
+      ? sessionModeEcho.mode : storedMode);
+
   const scopedLocalMessages = localMessageScope?.userId === userId &&
     localMessageScope?.sessionId === currentSessionId ? localMessages : [];
 
@@ -118,6 +145,15 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   const handleSendMessage = async (e) => {
     e.preventDefault();
     const message = userInput.trim();
+    if (modeChangePending) {
+      setSendError('Сначала сохраните выбранный режим сеанса. Grok не вызывался.');
+      return;
+    }
+    if (effectiveSessionMode === null) {
+      setSendError('Недопустимый режим сеанса. Проверьте настройки и повторите.');
+      return;
+    }
+    const turnMode = effectiveSessionMode;
     if (!AI_SESSION_ENABLED || !message || isLoading || sendLock.current ||
         !db || !userId || (!isNewSessionView && !activeSession)) return;
     if (localMessages.length && sessionSaveError) {
@@ -138,7 +174,8 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
     const requestId = crypto.randomUUID();
     const userTurn = {
       role: 'user', content: message,
-      id: 'user-' + requestId, timestamp: Timestamp.now()
+      id: 'user-' + requestId, timestamp: Timestamp.now(),
+      ...turnModeFields(turnMode)
     };
     let durableSessionId = isNewSessionView ? null : activeSession.id;
     try {
@@ -153,6 +190,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
               userId: owner, id: durableSessionId,
               session: {
                 id: durableSessionId, title: created.title,
+                ...turnModeFields(turnMode),
                 chatHistory: [userTurn], recommendations: [], exercises: []
               }
             });
@@ -243,11 +281,13 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   const handleHistorySend = async approval => {
     const message = userInput.trim();
     const owner = userId, sessionId = activeSession?.id;
+    const turnMode = effectiveSessionMode;
     const requestId = approval?.requestId;
     if (!sessionMemoryReplyUiEnabled || !railwayAiRecoveryEnabled ||
         !AI_SESSION_ENABLED || !db || !owner || !sessionId ||
         isNewSessionView || !savedSession || isLoading || sendLock.current ||
         sessionSaveError || scopedLocalMessages.length ||
+        modeChangePending || turnMode === null ||
         approval?.confirmed !== true ||
         !ownerContextLevel || approval?.contextLevel !== ownerContextLevel ||
         approval?.sourceId !== sessionId ||
@@ -272,7 +312,8 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
       // Adds EXACTLY one owner-authored turn before any provider contact.
       const userTurn = {
         id: 'user-' + requestId, role: 'user', content: message,
-        contextMode: 'consented-session', timestamp: Timestamp.now()
+        contextMode: 'consented-session', timestamp: Timestamp.now(),
+        ...turnModeFields(turnMode)
       };
       await appendDurableTurn(owner, sessionId, userTurn);
       committed = true;
@@ -654,10 +695,31 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
         </div>
 
         <div className="reflect-session-compose-dock">
+          {AI_SESSION_ENABLED && (
+            <SessionModePicker key={userId + ':' + currentSessionId}
+              userId={userId}
+              sessionId={isNewSessionView ? null : activeSession?.id}
+              value={effectiveSessionMode}
+              disabled={isLoading || savingSession || sendLock.current}
+              onNewSessionMode={setNewSessionMode}
+              onDirtyChange={dirty => {
+                setModeDraftScope({userId, sessionId: currentSessionId, dirty});
+              }}
+              onSaved={mode => {
+                if (activeScopeRef.current.userId === userId &&
+                    activeScopeRef.current.currentSessionId === currentSessionId) {
+                  setSessionModeEcho({userId, sessionId: currentSessionId, mode});
+                }
+              }}/>
+          )}
+          {modeChangePending && (
+            <p role="status">Сохраните режим сеанса, чтобы использовать его
+              для следующего ответа. Пока отправка в Grok заблокирована.</p>
+          )}
           {AI_SESSION_ENABLED && activeSession && ownerContextLevel && (
             <SessionMemoryReview key={userId + ':' + activeSession.id}
               userId={userId} sessionId={activeSession.id}
-              draftMessage={userInput} disabled={isLoading}
+              draftMessage={userInput} disabled={isLoading || modeChangePending}
               contextLevel={ownerContextLevel}
               onConfirmHistory={handleHistorySend}/>
           )}
@@ -682,6 +744,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
             value={userInput}
             onChange={(value) => { noteSave.clearFeedback(); setSendError(''); setUserInput(value); }}
             onSubmit={handleSendMessage}
+            sendDisabled={modeChangePending || effectiveSessionMode === null}
             onToggleRecording={handleToggleUserRecording}
             onSaveToDiary={handleSaveToDiary}
             diarySaveStatus={noteSave.status}

@@ -9,7 +9,8 @@
 const { PolicyError, validateRequest, CONSENT_VERSION } = require("./policy.cjs");
 const { createXaiProviderAdapter } = require("./xaiProviderAdapter.cjs");
 const { createHostedBudget, MAX_MESSAGE_BYTES } = require("./hostedBudget.cjs");
-const { VERSION } = require("./interactionContract.cjs");
+const { VERSION, normalizeSettings } = require("./interactionContract.cjs");
+const { modePolicy } = require("./interactionModes.cjs");
 const { createAiTurnRecovery, validateAttemptPayload } =
   require("./aiTurnRecovery.cjs");
 
@@ -33,6 +34,24 @@ async function readOwnerSettings(db, uid) {
 }
 
 const fail = code => { throw new PolicyError(code); };
+
+/**
+ * An explicitly selected mode is bound to the already committed user turn
+ * by the server's private receipt transaction. The owner profile remains
+ * the default for legacy turns. A corrupted preferences document fails
+ * closed to conservative V1 settings without overriding the chosen mode.
+ */
+function settingsForCommittedTurn(raw, attempt) {
+  const selected = attempt?.interactionMode;
+  if (selected === undefined) return raw;
+  if (!modePolicy(selected)) fail("invalid-session-history");
+  const normalized = normalizeSettings(raw);
+  return {
+    schemaVersion: 1, ...normalized,
+    autoSaveRecommendations: false,
+    interactionMode: selected
+  };
+}
 function createHostedHandler({
   db, projectId, appId, readSecret, transport, clock = Date.now,
   interactionEnabled = false, attemptRecoveryEnabled = false
@@ -82,7 +101,8 @@ function createHostedHandler({
     }
     try {
       const settings = interactionEnabled
-        ? await readOwnerSettings(db, input.uid) : null;
+        ? settingsForCommittedTurn(await readOwnerSettings(db, input.uid), attempt)
+        : null;
       // If the private receipt cannot be marked "potentially billable",
       // fail BEFORE contacting xAI. No silent automatic provider retry.
       if (recovery) await recovery.providerStarted(attempt);
@@ -131,4 +151,6 @@ function createHostedHandler({
     }
   };
 }
-module.exports = { createHostedHandler, readOwnerSettings, CONSENT_VERSION };
+module.exports = {
+  createHostedHandler, readOwnerSettings, settingsForCommittedTurn, CONSENT_VERSION
+};

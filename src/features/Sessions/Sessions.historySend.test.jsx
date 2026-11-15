@@ -5,7 +5,7 @@ import Sessions from './Sessions';
 const mocks = vi.hoisted(() => ({
   append: vi.fn(), create: vi.fn(), history: vi.fn(),
   regular: vi.fn(), save: vi.fn(), clearFeedback: vi.fn(),
-  context: vi.fn()
+  context: vi.fn(), saveMode: vi.fn()
 }));
 vi.mock('../../firebase/config', () => ({ db: {}, appId: 'reflect-8fdc8' }));
 vi.mock('../../api/reflectAssistantService', () => ({
@@ -20,6 +20,9 @@ vi.mock('../../api/sessionMemoryReplyService', () => ({
 }));
 vi.mock('../../api/ownerContextLevel', () => ({
   readOwnerContextLevel: mocks.context
+}));
+vi.mock('./sessionModePersistence', () => ({
+  saveSessionMode: mocks.saveMode
 }));
 vi.mock('./sessionPersistence', () => ({
   appendDurableTurn: mocks.append, createDurableSession: mocks.create
@@ -74,6 +77,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.append.mockResolvedValue('synthetic-session');
   mocks.context.mockResolvedValue('optimal');
+  mocks.saveMode.mockResolvedValue('coach');
   mocks.history.mockResolvedValue({
     response: 'Ответ с историей', historyUsed: true,
     sourceTurnId: 'user-synthetic-request-123456',
@@ -156,4 +160,54 @@ test('M3d3 stale consent question is rejected before Firestore and provider', as
   fireEvent.click(button);
   expect(mocks.append).not.toHaveBeenCalled();
   expect(mocks.history).not.toHaveBeenCalled();
+});
+
+
+test('M4.2 explicitly persisted session mode is included in consented user turn, not HTTP payload', async () => {
+  mocks.append.mockResolvedValue('synthetic-session');
+  const props = {
+    ...base,
+    sessions: [{ ...base.sessions[0], interactionMode: 'analytic' }]
+  };
+  render(<Sessions {...props}/>);
+  fireEvent.change(screen.getByRole('textbox', {
+    name: 'Сообщение для сеанса'
+  }), { target: { value: 'Это новый вопрос' } });
+  const button = await screen.findByRole('button', {
+    name: 'Отправить просмотренную историю (тест)'
+  });
+  fireEvent.click(button);
+  await waitFor(() => expect(mocks.history).toHaveBeenCalledOnce());
+  expect(mocks.append.mock.calls[0][2].interactionMode).toBe('analytic');
+  expect(mocks.history.mock.calls[0][0]).not.toHaveProperty('interactionMode');
+  expect(mocks.history).toHaveBeenCalledOnce();
+});
+
+test('M4.2: an unsaved mode change blocks history send until readback', async () => {
+  render(<Sessions {...base}/>);
+  const select = screen.getByRole('combobox', {
+    name: 'Режим AI этого сеанса'
+  });
+  fireEvent.change(select, { target: { value: 'coach' } });
+  fireEvent.change(screen.getByRole('textbox', {
+    name: 'Сообщение для сеанса'
+  }), { target: { value: 'Это новый вопрос' } });
+  const paid = await screen.findByRole('button', {
+    name:'Отправить просмотренную историю (тест)'
+  });
+  expect(screen.getByRole('button', {
+    name: 'Отправить сообщение'
+  })).toBeDisabled();
+  fireEvent.click(paid);
+  expect(mocks.history).not.toHaveBeenCalled();
+  expect(mocks.append).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить режим' }));
+  await waitFor(() => expect(mocks.saveMode).toHaveBeenCalledOnce());
+  await waitFor(() => expect(screen.getByRole('button', {
+    name: 'Отправить сообщение'
+  })).toBeEnabled());
+  fireEvent.click(paid);
+  await waitFor(() => expect(mocks.history).toHaveBeenCalledOnce());
+  expect(mocks.append.mock.calls[0][2].interactionMode).toBe('coach');
+  expect(mocks.history.mock.calls[0][0]).not.toHaveProperty('interactionMode');
 });
