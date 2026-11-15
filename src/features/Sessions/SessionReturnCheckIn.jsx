@@ -13,7 +13,7 @@ const formatDay = value => {
 };
 
 /** Explicit return, never AI-synthesized or sent to the provider. */
-export default function SessionReturnCheckIn({ session, userId }) {
+export default function SessionReturnCheckIn({ session, userId, expanded = false }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -61,7 +61,7 @@ export default function SessionReturnCheckIn({ session, userId }) {
   };
   return (
     <section className="reflect-session-return" aria-label="Возвращение к теме">
-      <details>
+      <details open={expanded}>
         <summary>Вернуться к теме и записать, что изменилось</summary>
         <p className="reflect-session-return-disclosure">
           Это ваша отдельная запись о результате или наблюдении. Она остаётся
