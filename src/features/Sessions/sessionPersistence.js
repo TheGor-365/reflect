@@ -3,6 +3,7 @@ import {
 } from 'firebase/firestore';
 import { db, appId } from '../../firebase/config';
 import { deriveSessionTitle } from './sessionTitle';
+import { turnModeFields } from './sessionModeModel';
 
 // The dialogue is saved before making a potentially billable AI request.
 // This is an authenticated, owner-scoped user-data write; it does NOT grant
@@ -19,12 +20,13 @@ const pathFor = userId => {
 };
 
 /** Returns only after Firestore confirms the initial user turn. */
-export async function createDurableSession(userId, turn) {
+export async function createDurableSession(userId, turn, mode = undefined) {
   if (!turnOk(turn) || turn.role !== 'user') throw new Error('invalid-session-turn');
   const ref = doc(pathFor(userId));
   const title = deriveSessionTitle(turn.content);
   await setDoc(ref, {
     title, titleSource: 'auto', chatHistory: [turn], recommendations: [], exercises: [],
+    ...turnModeFields(mode),
     createdAt: serverTimestamp(), updatedAt: serverTimestamp()
   });
   return { id: ref.id, title };
