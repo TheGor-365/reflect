@@ -22,7 +22,8 @@ const { createHostedBudget, MAX_MESSAGE_BYTES } = require("./hostedBudget.cjs");
 const { createAiTurnRecovery } = require("./aiTurnRecovery.cjs");
 const { createSessionMemoryAdapter } = require("./sessionMemory.cjs");
 const { createXaiProviderAdapter } = require("./xaiProviderAdapter.cjs");
-const { readOwnerSettings } = require("./hostedHandler.cjs");
+const { readOwnerSettings, settingsForCommittedTurn } =
+  require("./hostedHandler.cjs");
 const { VERSION } = require("./interactionContract.cjs");
 const { PROJECT_ID } = require("../privacy/contextConsent.cjs");
 const { contextWindow } = require("./contextLevels.cjs");
@@ -128,7 +129,7 @@ function createMemoryReplyExecutor({
         trustedContextBytes: checked.totalBytes
       });
       reserved = true;
-      const settings = await readSettings(uid);
+      const settings = settingsForCommittedTurn(await readSettings(uid), attempt);
 
       // Reserve and receipt are owned by the server. Mark potentially billable
       // BEFORE egress, so a crash/timeout cannot authorize a silent retry.
