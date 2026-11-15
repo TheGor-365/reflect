@@ -157,3 +157,24 @@ test('M3d3 stale consent question is rejected before Firestore and provider', as
   expect(mocks.append).not.toHaveBeenCalled();
   expect(mocks.history).not.toHaveBeenCalled();
 });
+
+
+test('M4.2 explicitly persisted session mode is included in consented user turn, not HTTP payload', async () => {
+  mocks.append.mockResolvedValue('synthetic-session');
+  const props = {
+    ...base,
+    sessions: [{ ...base.sessions[0], interactionMode: 'analytic' }]
+  };
+  render(<Sessions {...props}/>);
+  fireEvent.change(screen.getByRole('textbox', {
+    name: 'Сообщение для сеанса'
+  }), { target: { value: 'Это новый вопрос' } });
+  const button = await screen.findByRole('button', {
+    name: 'Отправить просмотренную историю (тест)'
+  });
+  fireEvent.click(button);
+  await waitFor(() => expect(mocks.history).toHaveBeenCalledOnce());
+  expect(mocks.append.mock.calls[0][2].interactionMode).toBe('analytic');
+  expect(mocks.history.mock.calls[0][0]).not.toHaveProperty('interactionMode');
+  expect(mocks.history).toHaveBeenCalledOnce();
+});
