@@ -1,6 +1,7 @@
 import { doc, runTransaction, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { isDateOnly, localNoonForDueDay } from '../Goals/goalDomain';
 import { db, appId } from '../../firebase/config';
+import { isSupportedInteraction } from './interactionVersions';
 
 const idOk = value => typeof value === 'string' &&
   /^[A-Za-z0-9_-]{1,128}$/.test(value);
@@ -53,7 +54,7 @@ export async function applyRecommendationDecision({
     const assistantIndex = history.findIndex(message =>
       message?.id === assistantMessageId && message?.role === 'assistant');
     const assistant = history[assistantIndex];
-    const candidate = assistant?.interaction?.version === 'reflect.interaction.v1'
+    const candidate = isSupportedInteraction(assistant?.interaction)
       ? assistant.interaction.recommendationCandidates?.[candidateIndex] : null;
     if (assistantIndex < 1 || !candidate ||
         !textOk(candidate.title, 120) || !textOk(candidate.rationale, 350)) {
