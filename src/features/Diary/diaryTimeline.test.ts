@@ -63,6 +63,58 @@ describe('schema-preserving diary event timeline', () => {
     expect(acceptedGoal.text).toBe('Проверить прототип');
   });
 
+  it('M8a projects real owner-authored returns with stable IDs and individual device dates', () => {
+    const session = Object.freeze({
+      id: 's1', title: 'Старый сеанс',
+      createdAt: ts('2026-09-10T09:00:00Z'),
+      chatHistory: [{role:'assistant',content:'Не считать ответ фактом'}],
+      returnCheckIns: Object.freeze([
+        Object.freeze({
+          id: 'r1', author: 'user', type: 'return-check-in',
+          text: 'Фактически завершён только первый этап',
+          nextStep: 'Проверить второй этап', goalId: 'g1',
+          recordedAtClient: ts('2026-11-16T10:00:00Z')
+        })
+      ])
+    });
+    const events=buildDiaryTimeline({sessions:[session]});
+    expect(events.map(event=>event.eventKey)).toEqual([
+      'session:s1:return:r1','session:s1'
+    ]);
+    const visit=events[0]!;
+    expect(visit.parentSessionId).toBe('s1');
+    expect(visit.isAppend).toBe(true);
+    expect(visit.data.returnCheckIn).toMatchObject({
+      author:'user',goalId:'g1',nextStep:'Проверить второй этап'
+    });
+    expect(visit.data).not.toHaveProperty('chatHistory');
+    expect(filterDiaryTimeline(events,{kind:'session',query:'второй этап'}))
+      .toHaveLength(1);
+    expect(groupDiaryTimeline(events,'Asia/Yerevan').map(group=>group.key))
+      .toEqual(['2026-11-16','2026-09-10']);
+    expect(session.returnCheckIns).toHaveLength(1);
+    expect(buildDiaryTimeline({sessions:[{...session,returnCheckIns:[]}]}))
+      .toHaveLength(1);
+  });
+
+  it('M8a refuses assistant-forged, malformed and duplicated return events',()=>{
+    const events=buildDiaryTimeline({sessions:[{
+      id:'s1', returnCheckIns:[
+        {id:'one',type:'return-check-in',author:'user',text:'Первый'},
+        {id:'one',type:'return-check-in',author:'user',text:'Повтор'},
+        {id:'foreign',type:'return-check-in',author:'assistant',text:'Ложный результат'},
+        {id:'../bad',type:'return-check-in',author:'user',text:'Вредный ID'},
+        {id:'empty',type:'return-check-in',author:'user',text:'  '}
+      ]
+    }]});
+    expect(events.map(event=>event.eventKey)).toEqual([
+      'session:s1','session:s1:return:one'
+    ]);
+    expect(events.find(event=>event.eventKey==='session:s1:return:one')
+      ?.isPending).toBe(true);
+    expect(filterDiaryTimeline(events,{query:'Ложный результат'})).toHaveLength(0);
+  });
+
   it('projects appended journal entries individually, without parent duplication', () => {
     const entries = [
       { text: 'Первоначальная мысль', createdAt: ts('2026-11-01T10:00:00Z') },

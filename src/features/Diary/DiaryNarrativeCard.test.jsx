@@ -114,6 +114,31 @@ test('session card reads as a reflection with optional source details', () => {
   expect(container.querySelector('.reflect-journal-kind-icon svg')).toBeInTheDocument();
 });
 
+test('M8a: author return is its own diary card and opens the exact source session', () => {
+  const onOpenSession = vi.fn();
+  render(<DiaryNarrativeCard entry={entry({
+    type: 'session', sourceKind: 'session', sourceId: 'saved-session',
+    eventKey: 'session:saved-session:return:visit-1',
+    isAppend: true,
+    data: {
+      title: 'Вернуться к MVP',
+      sourceSessionId: 'saved-session',
+      returnCheckIn: {
+        id: 'visit-1', text: 'Сделал один шаг из трёх',
+        author: 'user', goalId: 'g1', nextStep: 'Проверить форму'
+      }
+    }
+  })} onOpenSession={onOpenSession}/>);
+  expect(screen.getByRole('heading', { name: 'Ваше возвращение к теме' }))
+    .toBeInTheDocument();
+  expect(screen.getByText('Сделал один шаг из трёх')).toBeInTheDocument();
+  expect(screen.getByText('Проверить форму')).toBeInTheDocument();
+  expect(screen.getByText(/не подтверждение выполнения цели/)).toBeInTheDocument();
+  expect(screen.queryByText(/Сеанс пока не содержит размышления/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Открыть исходный сеанс'}));
+  expect(onOpenSession).toHaveBeenCalledExactlyOnceWith('saved-session');
+});
+
 test('manual title edit commits only title request and preserves draft on error', async () => {
   const session = entry({ type: 'session', sourceKind: 'session', sourceId: 's1',
     data: { title: 'Сеанс от 10.11.2026, 14:26:14', chatHistory: [

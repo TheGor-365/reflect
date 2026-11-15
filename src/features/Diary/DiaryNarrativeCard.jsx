@@ -173,6 +173,39 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote, onRenameSe
   const renderContent = () => {
     switch (entry.type) {
       case 'session': {
+        const checkIn = entry.data.returnCheckIn;
+        if (checkIn && checkIn.author === 'user' &&
+            typeof checkIn.text === 'string') {
+          return (
+            <section className="reflect-journal-session-return"
+              aria-label="Ваше возвращение к теме">
+              <h3 className="reflect-journal-content-title">Ваше возвращение к теме</h3>
+              <p className="reflect-journal-speaker-text">{checkIn.text}</p>
+              {typeof checkIn.nextStep === 'string' && !!checkIn.nextStep.trim() && (
+                <p className="reflect-journal-goal-purpose">
+                  <strong>Ваш следующий шаг</strong>
+                  <span>{checkIn.nextStep}</span>
+                </p>
+              )}
+              <p className="reflect-journal-content-meta">
+                Запись ваших слов, не подтверждение выполнения цели.
+                Время записи указано по устройству.
+              </p>
+              {typeof checkIn.goalId === 'string' && !!checkIn.goalId && (
+                <p className="reflect-journal-content-meta">
+                  Связана с целью. Её статус не менялся автоматически.
+                </p>
+              )}
+              {onOpenSession && (
+                <button type="button" className="reflect-journal-inline-action"
+                  onClick={() => onOpenSession(entry.sourceId)}>
+                  <MessageSquareText size={15} aria-hidden="true"/>
+                  Открыть исходный сеанс
+                </button>
+              )}
+            </section>
+          );
+        }
         const { reflection, question, count, history } = sessionExcerpt(entry.data);
         const headline = sessionDisplayTitle(entry.data);
         return (
