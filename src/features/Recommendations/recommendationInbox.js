@@ -1,7 +1,7 @@
 import { sessionDisplayTitle } from '../Diary/diaryPresentation';
 import { readableSessionDate } from '../Sessions/sessionLibrary';
+import { isSupportedInteraction } from '../Sessions/interactionVersions';
 
-const V1 = 'reflect.interaction.v1';
 const VALID_STATUS = new Set(['accepted', 'saved', 'postponed', 'dismissed']);
 const STATUS_RANK = Object.freeze({
   pending: 0, saved: 1, postponed: 2, accepted: 3, dismissed: 4
@@ -28,7 +28,7 @@ export function buildRecommendationInbox(sessions = []) {
       const turn = history[i];
       const interaction = turn?.interaction;
       if (turn?.role !== 'assistant' || !refOk(turn.id) ||
-          interaction?.version !== V1) continue;
+          !isSupportedInteraction(interaction)) continue;
 
       const preceding = history.slice(0, i).reverse().find(item =>
         item?.role === 'user' && refOk(item.id));
@@ -49,6 +49,7 @@ export function buildRecommendationInbox(sessions = []) {
       const base = {
         sessionId: session.id, sessionTitle: title,
         assistantMessageId: turn.id, sourceMessageId: preceding.id,
+        sourceExcerpt: safeText(preceding.content).slice(0, 260),
         hypothesisCount: hypotheses.length, reviewedCount: reviewed,
         challengedCount: challenged,
         contextScope: 'current-message',
