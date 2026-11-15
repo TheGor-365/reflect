@@ -219,3 +219,26 @@ test('unsaved changes warn on reload and are not misrepresented as persisted', a
   expect(await screen.findByRole('combobox', { name: /Глубина ответа/ }))
     .toHaveTextContent('Сбалансированно');
 });
+
+
+test('M4: chosen interaction mode persists after explicit save and reload', async () => {
+  const stored = new Map();
+  getDocFromServer.mockImplementation(async reference => ({
+    exists: () => stored.has(reference.path),
+    data: () => stored.get(reference.path)
+  }));
+  setDoc.mockImplementation(async (reference, data) => stored.set(reference.path, data));
+  const page = render(<AISettings userId="m4-synthetic-owner"/>);
+  const mode = await screen.findByRole('combobox', { name: /Режим Reflect AI/ });
+  expect(mode).toHaveTextContent('Рефлексия');
+  await choosePreference('Режим Reflect AI', 'Аналитика — факты, варианты, риски');
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить настройки' }));
+  await waitFor(() => expect(setDoc).toHaveBeenCalledTimes(1));
+  expect(setDoc.mock.lastCall[1].interactionMode).toBe('analytic');
+  expect(setDoc.mock.lastCall[1].recommendationsEnabled).toBe(false);
+  page.unmount();
+  render(<AISettings userId="m4-synthetic-owner"/>);
+  expect(await screen.findByRole('combobox', { name: /Режим Reflect AI/ }))
+    .toHaveTextContent('Аналитика');
+  expect(setDoc).toHaveBeenCalledTimes(1);
+});

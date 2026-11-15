@@ -175,6 +175,22 @@ export default function AISettings({ userId, sessions = [] }) {
             <div className="reflect-ai-settings-card-title">
               <BrainCircuit size={19}/><h3>Формат диалога</h3>
             </div>
+            <ReflectSelectRow label="Режим Reflect AI"
+              description="Определяет назначение диалога, но не предоставляет доступ к личным данным."
+              name="interactionMode" value={draft.interactionMode} disabled={disabled}
+              onChange={change} options={[
+                ['reflection', 'Рефлексия — понять себя и ситуацию'],
+                ['support', 'Поддержка — быть услышанным'],
+                ['coach', 'Коучинг — продумать следующий шаг'],
+                ['companion', 'Собеседник — свободный диалог'],
+                ['analytic', 'Аналитика — факты, варианты, риски']
+              ]}/>
+            <p role="note" className="reflect-context-consent-intro">
+              Режим задаёт поведение следующего ответа. Советы и карточки действий
+              не создаются автоматически; даже в коучинге сохраняются отдельные
+              предпочтения, подтверждение оснований и решение пользователя.
+              Это не медицинская и не психологическая помощь специалиста.
+            </p>
             <ReflectSelectRow label="Глубина ответа" description="Предпочитаемая длина и детализация."
               name="responseDepth" value={draft.responseDepth} disabled={disabled}
               onChange={change} options={[

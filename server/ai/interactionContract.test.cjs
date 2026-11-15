@@ -261,3 +261,55 @@ test("M3 packaged provider boundary matches bounded levels; legacy v2 still 4 tu
   assert.equal(contextWindow("deep").maxTurns, 6);
   assert(contextWindow("deep").maxBytes <= CONTEXT_LIMITS.MAX_TOTAL_BYTES);
 });
+
+
+test("M4: five owner-selected interaction modes generate distinct server-only policies", () => {
+  const ids = ["reflection", "support", "coach", "companion", "analytic"];
+  const prompts = [];
+  for (const mode of ids) {
+    const req = buildRequest(t2, { ...enabled, interactionMode: mode });
+    assert.equal(req.settings.interactionMode, mode);
+    assert.deepEqual(req.body.input.map(x => x.role), ["system", "user"]);
+    assert.equal(req.body.input[1].content, t2);
+    assert.match(req.body.input[0].content, /Режим продукта:/);
+    assert.match(req.body.input[0].content, /не терапевт и не врач/);
+    assert.equal(req.body.store, false);
+    prompts.push(req.body.input[0].content);
+  }
+  assert.equal(new Set(prompts).size, 5);
+  assert.match(prompts[1], /непрошенных советов/);
+  assert.match(prompts[2], /следующий шаг/);
+  assert.match(prompts[3], /Не утверждай, что ты человек/);
+  assert.match(prompts[4], /проверенные слова владельца/);
+});
+
+test("M4: no recommendation cards in support, companion or analytic even when xAI proposes one", () => {
+  const raw = {
+    intent: "plan", stage: "synthesize", clarifyingQuestion: "",
+    recommendationCandidates: [{
+      title: "Непрошенная карточка", rationale: "Модель предложила",
+      sourceRefs: ["current-message"]
+    }]
+  };
+  for (const mode of ["support", "companion", "analytic"]) {
+    const req = buildRequest(t2, { ...enabled, interactionMode: mode });
+    assert.equal(req.classification.recommendationEligible, true);
+    const parsed = parseInteraction(fixture(raw), req.settings, req.classification);
+    assert.deepEqual(parsed.recommendationCandidates, []);
+    assert.deepEqual(parsed.goalCandidates, []);
+  }
+  const coach = buildRequest(t2, { ...enabled, interactionMode: "coach" });
+  const grounded = parseInteraction(fixture(raw), coach.settings, coach.classification);
+  assert.equal(grounded.recommendationCandidates.length, 1);
+});
+
+test("M4: invalid role/mode never gains provider authority or recommendations", () => {
+  for (const mode of ["system", "doctor", "supervisor", null, 1, {}, "unrestricted"]) {
+    const settings = normalizeSettings({ ...enabled, interactionMode: mode });
+    assert.equal(settings.interactionMode, "reflection");
+    assert.equal(settings.recommendationsEnabled, false);
+  }
+  const legacy = normalizeSettings(enabled);
+  assert.equal(legacy.interactionMode, "reflection");
+  assert.equal(legacy.recommendationsEnabled, true);
+});
