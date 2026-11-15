@@ -35,6 +35,34 @@ describe('schema-preserving diary event timeline', () => {
       .toEqual(['2026-11-04', '2026-11-01']);
   });
 
+  it('M6c: one accepted goal is one confirmed Diary projection; edits do not duplicate and deletion removes it', () => {
+    const createdAt = ts('2026-11-15T10:00:00Z');
+    const acceptedGoal = Object.freeze({
+      id: 'confirmed-goal', text: 'Проверить прототип',
+      sessionId: 'saved-session',
+      sourceType: 'user-accepted-ai-recommendation',
+      sourceAssistantMessageId: 'assistant-turn',
+      sourceRecommendationKey: 'r-assistant-turn-0',
+      createdAt, successCriteria: 'Результат проверен владельцем'
+    });
+    const first = buildDiaryTimeline({ goals: [acceptedGoal] });
+    expect(first).toHaveLength(1);
+    expect(first[0]!.eventKey).toBe('goal:confirmed-goal');
+    expect(first[0]!.parentSessionId).toBe('saved-session');
+    expect(first[0]!.isPending).toBe(false);
+    expect(first[0]!.data.sourceAssistantMessageId).toBe('assistant-turn');
+
+    const edited = buildDiaryTimeline({
+      goals: [{ ...acceptedGoal, text: 'Новая формулировка',
+        status: 'paused' }]
+    });
+    expect(edited).toHaveLength(1);
+    expect(edited[0]!.eventKey).toBe('goal:confirmed-goal');
+    expect(edited[0]!.data.text).toBe('Новая формулировка');
+    expect(buildDiaryTimeline({ goals: [] })).toHaveLength(0);
+    expect(acceptedGoal.text).toBe('Проверить прототип');
+  });
+
   it('projects appended journal entries individually, without parent duplication', () => {
     const entries = [
       { text: 'Первоначальная мысль', createdAt: ts('2026-11-01T10:00:00Z') },
