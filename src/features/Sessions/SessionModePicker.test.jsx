@@ -10,59 +10,62 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.save.mockResolvedValue('coach');
 });
+function choose(label) {
+  fireEvent.click(screen.getByRole('button', { name: 'Режим AI этого сеанса' }));
+  fireEvent.click(screen.getByRole('option', { name: label }));
+}
 
-test('M4.2 saved session requires click and readback; no provider on mount', async () => {
+test('UX R1 saved session saves IMMEDIATELY on choosing the icon; no paid call on mount', async () => {
   const onSaved = vi.fn();
+  const onDirtyChange = vi.fn();
   render(<SessionModePicker userId="eric-synthetic"
-    sessionId="session-1" value="account" onSaved={onSaved}/>);
-  const picker = screen.getByRole('combobox', {
-    name: 'Режим AI этого сеанса'
-  });
-  expect(picker).toHaveValue('account');
+    sessionId="session-1" value="account" onSaved={onSaved}
+    onDirtyChange={onDirtyChange}/>);
+  expect(screen.getByRole('button', { name: 'Режим AI этого сеанса' }))
+    .toHaveAttribute('aria-expanded', 'false');
   expect(mocks.save).not.toHaveBeenCalled();
-  expect(screen.getByRole('button', { name: 'Сохранить режим' })).toBeDisabled();
-  fireEvent.change(picker, { target: { value: 'coach' } });
-  expect(onSaved).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Сохранить режим' }));
+  choose('Коучинг');
+  expect(onDirtyChange).toHaveBeenCalledWith(true);
   await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
   expect(mocks.save).toHaveBeenCalledWith({
     userId: 'eric-synthetic', sessionId: 'session-1', mode: 'coach'
   });
   await waitFor(() => expect(onSaved).toHaveBeenCalledExactlyOnceWith('coach'));
-  expect(screen.getByText(/Новые ответы используют этот выбор/)).toBeInTheDocument();
-});
-
-test('M4.2 first-turn mode choice is staged locally, no Firestore write or AI call', () => {
-  const onChange = vi.fn();
-  render(<SessionModePicker userId="eric-synthetic" value="account"
-    onNewSessionMode={onChange}/>);
-  const picker = screen.getByRole('combobox', {
-    name: 'Режим AI этого сеанса'
-  });
-  fireEvent.change(picker, { target: { value: 'analytic' } });
-  expect(onChange).toHaveBeenCalledOnce();
-  expect(onChange).toHaveBeenCalledWith('analytic');
-  expect(mocks.save).not.toHaveBeenCalled();
-  expect(screen.getByText(/сохранится вместе с первым сообщением/))
+  expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+  expect(screen.queryByRole('button', { name: 'Сохранить режим' }))
+    .not.toBeInTheDocument();
+  expect(screen.getByText(/Следующий ответ использует этот выбор/))
     .toBeInTheDocument();
 });
 
-test('M4.2 failed server confirmation never claims mode has been saved', async () => {
+test('UX R1 first-turn icon choice is local until first saved message, no provider call', () => {
+  const onChange = vi.fn();
+  render(<SessionModePicker userId="eric-synthetic" value="account"
+    onNewSessionMode={onChange}/>);
+  choose('Аналитика');
+  expect(onChange).toHaveBeenCalledExactlyOnceWith('analytic');
+  expect(mocks.save).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Режим AI этого сеанса' }))
+    .toHaveAttribute('title', 'Режим AI: Аналитика');
+});
+
+test('UX R1 failed readback restores old mode and never claims saved', async () => {
   mocks.save.mockRejectedValueOnce(new Error('PRIVATE_DB_ERROR'));
-  const onSaved = vi.fn();
+  const onSaved = vi.fn(), onDirtyChange = vi.fn();
   render(<SessionModePicker userId="eric-synthetic"
-    sessionId="session-1" value="account" onSaved={onSaved}/>);
-  fireEvent.change(screen.getByRole('combobox', {
-    name: 'Режим AI этого сеанса'
-  }), { target: { value: 'coach' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Сохранить режим' }));
+    sessionId="session-1" value="account" onSaved={onSaved}
+    onDirtyChange={onDirtyChange}/>);
+  choose('Коучинг');
   await waitFor(() => expect(screen.getByRole('alert'))
     .toHaveTextContent('не подтверждён сервером'));
   expect(onSaved).not.toHaveBeenCalled();
   expect(screen.getByRole('alert').textContent).not.toContain('PRIVATE_DB_ERROR');
+  expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+  expect(screen.getByRole('button', { name: 'Режим AI этого сеанса' }))
+    .toHaveAttribute('title', 'Режим AI: Как в настройках AI');
 });
 
-test('M4.2 changed owner/session discards an outstanding save response', async () => {
+test('UX R1 changing owner/session discards stale server confirmation', async () => {
   let release;
   mocks.save.mockImplementationOnce(() => new Promise(resolve => {
     release = resolve;
@@ -70,16 +73,13 @@ test('M4.2 changed owner/session discards an outstanding save response', async (
   const onSaved = vi.fn();
   const view = render(<SessionModePicker userId="eric-synthetic"
     sessionId="session-1" value="account" onSaved={onSaved}/>);
-  fireEvent.change(screen.getByRole('combobox', {
-    name: 'Режим AI этого сеанса'
-  }), { target: { value: 'coach' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Сохранить режим' }));
+  choose('Коучинг');
   await waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
   view.rerender(<SessionModePicker userId="jack-synthetic"
     sessionId="session-2" value="account" onSaved={onSaved}/>);
   release('coach');
-  await waitFor(() => expect(screen.getByRole('combobox', {
+  await waitFor(() => expect(screen.getByRole('button', {
     name: 'Режим AI этого сеанса'
-  })).toHaveValue('account'));
+  })).toHaveAttribute('title', 'Режим AI: Как в настройках AI'));
   expect(onSaved).not.toHaveBeenCalled();
 });
