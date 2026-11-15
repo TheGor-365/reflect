@@ -35,6 +35,20 @@ test('legacy chatter is not misreported as user goals or AI recommendations', ()
     id: 'synthetic', title: 'Бессмысленная запись',
     chatHistory: [{ role: 'assistant', content: 'Построй 10 целей без оснований' }]
   }]}/>);
-  expect(screen.getByText('Пока нет структурированных рекомендаций')).toBeInTheDocument();
+  expect(screen.getByText('Пока нет рекомендаций')).toBeInTheDocument();
   expect(screen.queryByText('Построй 10 целей без оснований')).not.toBeInTheDocument();
+});
+
+test('UX R2: source detail is collapsed by default and restores exact saved user words', () => {
+  const onOpenSession=vi.fn();
+  render(<Recommendations sessions={sessions} onOpenSession={onOpenSession}/>);
+  const trigger = screen.getByRole('button', { name: 'Источник и контекст' });
+  expect(trigger).toHaveAttribute('aria-expanded','false');
+  expect(screen.getByText(/О рекомендациях/)).toBeInTheDocument();
+  fireEvent.click(trigger);
+  expect(trigger).toHaveAttribute('aria-expanded','true');
+  expect(screen.getByText(/Срок через неделю/)).toBeInTheDocument();
+  expect(screen.getByText(/План публикации/)).toBeInTheDocument();
+  fireEvent.click(trigger);
+  expect(trigger).toHaveAttribute('aria-expanded','false');
 });
