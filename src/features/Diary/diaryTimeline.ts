@@ -112,6 +112,31 @@ export function buildDiaryTimeline({
     const id = sourceId(record, index, 'session');
     events.push(makeEvent('session', record, id, `session:${id}`,
       record.createdAt, id));
+    // M8a: an owner-authored return is a DISTINCT read-only Diary event.
+    // Never replay the whole conversation, infer completion, or invent a date.
+    const seen = new Set<string>();
+    asRecords(record.returnCheckIns).forEach((visit, visitIndex) => {
+      const visitId = visit.id;
+      if (visit.type !== 'return-check-in' || visit.author !== 'user' ||
+          typeof visitId !== 'string' ||
+          !/^[A-Za-z0-9_-]{1,128}$/.test(visitId) || seen.has(visitId) ||
+          typeof visit.text !== 'string' || !visit.text.trim()) return;
+      seen.add(visitId);
+      const payload = {
+        returnCheckIn: {
+          id: visitId, text: visit.text, author: 'user',
+          ...(typeof visit.goalId === 'string' ? { goalId: visit.goalId } : {}),
+          ...(typeof visit.nextStep === 'string' ? { nextStep: visit.nextStep } : {})
+        },
+        // Display only; never treat the device-provided timestamp as
+        // independently server-attested evidence of when events happened.
+        title: typeof record.title === 'string' ? record.title : '',
+        sourceSessionId: id
+      };
+      events.push(makeEvent('session', payload, id,
+        `session:${id}:return:${visitId}`, visit.recordedAtClient,
+        id, true, visitIndex));
+    });
   });
   goals.forEach((raw, index) => {
     const record = asRecord(raw);
@@ -204,6 +229,10 @@ function searchableText(event: DiaryTimelineEvent): string {
   }
   if (event.type === 'session') {
     fragments.push(...asRecords(data.chatHistory).map(e => e.content));
+    if (asRecord(data.returnCheckIn).author === 'user') {
+      const returnNote = asRecord(data.returnCheckIn);
+      fragments.push(returnNote.text, returnNote.nextStep);
+    }
   }
   return fragments.filter((part): part is string => typeof part === 'string')
     .join(' ').toLocaleLowerCase('ru-RU');
