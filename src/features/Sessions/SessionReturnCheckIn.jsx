@@ -14,7 +14,10 @@ const formatDay = value => {
 };
 
 /** Explicit return, never AI-synthesized or sent to the provider. */
-export default function SessionReturnCheckIn({ session, userId, goals = [], expanded = false }) {
+export default function SessionReturnCheckIn({
+  session, userId, goals = [], requestedGoalId = null,
+  requestId = null, expanded = false
+}) {
   const [note, setNote] = useState('');
   const [nextStep, setNextStep] = useState('');
   const [goalId, setGoalId] = useState('');
@@ -24,6 +27,7 @@ export default function SessionReturnCheckIn({ session, userId, goals = [], expa
   const busyRef = useRef(false);
   const pendingVisitId = useRef(null);
   const protectedDraft = useRef(null);
+  const consumedRequestRef = useRef(null);
   const ownerContext = `${userId}:${session?.id || ''}`;
   const contextRef = useRef(ownerContext);
   contextRef.current = ownerContext;
@@ -32,12 +36,11 @@ export default function SessionReturnCheckIn({ session, userId, goals = [], expa
     setNote(''); setNextStep(''); setGoalId('');
     setError(''); setNotice('');
   }, [ownerContext]);
-  if (!session?.id || !userId) return null;
   // UI options are only owner-loaded, saved, explicitly accepted goals.
   // The Firestore transaction independently revalidates their provenance.
-  const decisions = session.recommendationDecisions || {};
+  const decisions = session?.recommendationDecisions || {};
   const acceptedGoals = goals.filter(goal =>
-    goal?.sessionId === session.id &&
+    goal?.sessionId === session?.id &&
     goal.sourceType === 'user-accepted-ai-recommendation' &&
     typeof goal.sourceRecommendationKey === 'string' &&
     decisions[goal.sourceRecommendationKey]?.status === 'accepted' &&
@@ -45,6 +48,17 @@ export default function SessionReturnCheckIn({ session, userId, goals = [], expa
     decisions[goal.sourceRecommendationKey]?.goalId === goal.id &&
     decisions[goal.sourceRecommendationKey]?.assistantMessageId === goal.sourceAssistantMessageId
   );
+  // The owner may return to a precise goal from the Goals board.
+  // Prefill is UI-only; it never saves nor opens a provider request.
+  useEffect(() => {
+    const key = `${ownerContext}:${requestId}`;
+    if (!requestedGoalId || !requestId || consumedRequestRef.current === key) return;
+    if (!acceptedGoals.some(goal => goal.id === requestedGoalId)) return;
+    consumedRequestRef.current = key;
+    setGoalId(requestedGoalId);
+    setError('');
+  }, [ownerContext, requestId, requestedGoalId, goals, session]);
+  if (!session?.id || !userId) return null;
   const chosenGoalId = acceptedGoals.some(goal => goal.id === goalId) ? goalId : '';
   const entries = Array.isArray(session.returnCheckIns)
     ? session.returnCheckIns.filter(entry => entry?.type === 'return-check-in' &&
