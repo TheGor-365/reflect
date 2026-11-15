@@ -10,6 +10,7 @@ import { ACCOUNT_MODE, normalizedSessionMode, turnModeFields }
   from './sessionModeModel';
 import ChatMessage from './ChatMessage';
 import SessionEvidenceLedger from './SessionEvidenceLedger';
+import SessionReadinessPanel from './SessionReadinessPanel';
 import SessionMemoryReview from './SessionMemoryReview';
 import { sessionMemoryReplyUiEnabled, sendSessionMemoryReply }
   from '../../api/sessionMemoryReplyService';
@@ -646,6 +647,16 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
                 ? previous + '\n\n' + text : text);
               setSendError('');
             }}
+            onFocusTurn={turnId => {
+              const match = [...document.querySelectorAll('[data-reflect-turn-id]')]
+                .find(node => node.getAttribute('data-reflect-turn-id') === turnId);
+              match?.scrollIntoView?.({behavior:'smooth',block:'center'});
+            }}/>
+        )}
+        {activeSession && (
+          <SessionReadinessPanel key={userId + ':' + activeSession.id}
+            userId={userId} session={activeSession}
+            mode={effectiveSessionMode} currentDraft={userInput}
             onFocusTurn={turnId => {
               const match = [...document.querySelectorAll('[data-reflect-turn-id]')]
                 .find(node => node.getAttribute('data-reflect-turn-id') === turnId);
