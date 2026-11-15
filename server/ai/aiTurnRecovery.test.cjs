@@ -277,3 +277,58 @@ test("M4.2: old owner turn without mode is still compatible with account prefere
   const attempt = await store.claim(params());
   assert.equal(attempt.interactionMode, undefined);
 });
+
+
+test("M5b V2: trusted source summary travels in ephemeral owner attempt, NOT private receipt",async()=>{
+  const { store, db } = setup();
+  db.docs.get(sessionPath(UID)).readinessEvidence = {
+    situation: {
+      sourceTurnId: USER_ID, quote: TEXT.slice(0,20),
+      confirmedByOwner:true,status:"confirmed"
+    },
+    desiredResult: {
+      sourceTurnId: USER_ID, quote:"The quote is not actually present",
+      confirmedByOwner:true,status:"confirmed"
+    }
+  };
+  const attempt = await store.claim({ ...params(), collectEvidence:true });
+  assert.deepEqual(attempt.evidenceSnapshot.confirmedSlots,["situation"]);
+  assert.deepEqual(attempt.evidenceSnapshot.missingSlots,[
+    "desiredResult","circumstances","constraints"
+  ]);
+  assert.equal(JSON.stringify(db.docs.get(receiptPath(UID))).includes(TEXT),false);
+  assert.equal(db.docs.get(receiptPath(UID)).evidenceSnapshot,undefined);
+  await store.providerStarted(attempt);
+  await store.persistReply(attempt, {text:"Это допустимый синтетический ответ.",
+    interaction:{
+      version:"reflect.interaction.v2",stage:"synthesize",
+      clarifyingQuestion:"", evidenceClaims:[{
+        quote:TEXT.slice(0,20),sourceRef:"current-message",
+        sourceTurnId: USER_ID,
+        provenance:"owner-stated-not-independently-verified"
+      }],evidenceSummary:{
+        confirmedSlots:["situation"],missingSlots:[
+          "desiredResult","circumstances","constraints"],
+        disputedSlots:[],completeCount:1
+      }
+    }});
+  const turns=db.docs.get(sessionPath(UID)).chatHistory;
+  assert.equal(turns[1].interaction.version,"reflect.interaction.v2");
+  assert.equal(turns[1].interaction.evidenceSummary.completeCount,1);
+  assert.equal(db.docs.get(receiptPath(UID)).interaction,undefined);
+});
+
+test("M5b V2: foreign principal cannot sample or claim another owner's evidence",async()=>{
+  const { store } = setup();
+  await assert.rejects(
+    store.claim({ ...params(ID1,false,"synthetic-jack"), collectEvidence:true }),
+    error=>error?.code==="not-found"||error?.code==="permission-denied"
+  );
+});
+
+test("M5b V2: legacy owner claim has zero new private reads and no evidence payload",async()=>{
+  const { store }=setup();
+  const attempt=await store.claim(params());
+  assert.equal(attempt.evidenceSnapshot,undefined);
+  assert.equal(attempt.requestId,ID1);
+});
