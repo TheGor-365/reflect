@@ -88,6 +88,23 @@ test('goal delete requires explicit confirmation', async () => {
   }
 });
 
+test('M6c: deleting a source-linked goal warns that the owner decision remains in session history', () => {
+  const oldConfirm = window.confirm;
+  window.confirm = vi.fn(() => false);
+  try {
+    render(<Goals goals={[{
+      ...goal, sourceType: 'user-accepted-ai-recommendation',
+      sourceRecommendationKey: 'r-assistant-0', sessionId: 'saved-session'
+    }]} userId="synthetic-uid"/>);
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить цель' }));
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining(
+      'Исходное решение по рекомендации останется в истории сеанса'));
+    expect(removeGoal).not.toHaveBeenCalled();
+  } finally {
+    window.confirm = oldConfirm;
+  }
+});
+
 test('malformed legacy subtask is visible as a warning without UI crash', () => {
   render(<Goals userId="synthetic-uid" goals={[{
     ...goal, id: 'malformed', subItems: [null, { text: 'Сохранившийся шаг', completed: false }]

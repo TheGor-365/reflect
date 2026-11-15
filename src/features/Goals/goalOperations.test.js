@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  deleteDoc, doc, runTransaction, serverTimestamp, Timestamp
+  doc, runTransaction, serverTimestamp, Timestamp
 } from 'firebase/firestore';
 import { createGoal, removeGoal, updateGoal } from './goalOperations';
 
@@ -11,7 +11,6 @@ vi.mock('firebase/firestore', () => ({
     id: parts[2] || 'generated-document-id',
     path: parts.slice(1).filter(x => typeof x === 'string').join('/')
   })),
-  deleteDoc: vi.fn(),
   deleteField: vi.fn(() => ({ __delete: true })),
   runTransaction: vi.fn(),
   serverTimestamp: vi.fn(() => ({ __serverTimestamp: true })),
@@ -21,25 +20,40 @@ vi.mock('firebase/firestore', () => ({
 let record;
 let wasCreated;
 let patches;
+let sessionRecord;
+let sessionExists;
 beforeEach(() => {
   vi.clearAllMocks();
   record = {};
   wasCreated = false;
   patches = [];
+  sessionRecord = {};
+  sessionExists = false;
   runTransaction.mockImplementation(async (_db, callback) => {
     const transaction = {
-      get: vi.fn(async () => ({
-        exists: () => wasCreated,
-        data: () => structuredClone(record)
-      })),
+      get: vi.fn(async ref => {
+        const isSession = ref.path.includes('/sessions/');
+        return {
+          exists: () => isSession ? sessionExists : wasCreated,
+          data: () => structuredClone(isSession ? sessionRecord : record)
+        };
+      }),
       set: vi.fn((_ref, payload) => {
         record = { ...payload };
         wasCreated = true;
         patches.push(payload);
       }),
-      update: vi.fn((_ref, payload) => {
+      update: vi.fn((ref, payload) => {
         patches.push(payload);
-        record = { ...record, ...payload };
+        if (ref.path.includes('/sessions/')) {
+          sessionRecord = { ...sessionRecord, ...payload };
+        } else {
+          record = { ...record, ...payload };
+        }
+      }),
+      delete: vi.fn(ref => {
+        wasCreated = false;
+        patches.push({ deleted: ref.path });
       })
     };
     return callback(transaction);
@@ -151,10 +165,73 @@ describe('transactional goal persistence', () => {
     expect(patches).toHaveLength(0);
   });
 
-  it('deletes only the explicitly specified owned goal document', async () => {
+  it('deletes an existing ordinary goal only in the signed-in owner namespace', async () => {
+    wasCreated = true;
+    record = { text: 'Обычная цель' };
     await removeGoal('synthetic-uid', 'owned-goal');
-    expect(deleteDoc).toHaveBeenCalledTimes(1);
     expect(doc).toHaveBeenCalledWith(expect.anything(),
       'artifacts/reflect-8fdc8/users/synthetic-uid/goals', 'owned-goal');
+    expect(patches).toEqual([{
+      deleted: 'artifacts/reflect-8fdc8/users/synthetic-uid/goals/owned-goal'
+    }]);
+    expect(wasCreated).toBe(false);
+  });
+
+  it('atomically marks a matched accepted decision removed without changing the decision', async () => {
+    wasCreated = true;
+    sessionExists = true;
+    record = {
+      sourceType: 'user-accepted-ai-recommendation',
+      sessionId: 'saved-session',
+      sourceRecommendationKey: 'r-assistant-1-0',
+      sourceAssistantMessageId: 'assistant-1'
+    };
+    sessionRecord = { recommendationDecisions: {
+      'r-assistant-1-0': {
+        status: 'accepted', goalId: 'owned-goal', assistantMessageId: 'assistant-1'
+      },
+      'r-other-0': { status: 'saved' }
+    } };
+    await removeGoal('synthetic-uid', 'owned-goal');
+    expect(patches).toHaveLength(2);
+    expect(sessionRecord.recommendationDecisions['r-assistant-1-0']).toEqual({
+      status: 'accepted', goalId: 'owned-goal', assistantMessageId: 'assistant-1',
+      goalRemovedAt: { __serverTimestamp: true }
+    });
+    expect(sessionRecord.recommendationDecisions['r-other-0']).toEqual({ status: 'saved' });
+    expect(wasCreated).toBe(false);
+    await removeGoal('synthetic-uid', 'owned-goal');
+    expect(patches).toHaveLength(2); // Idempotent ambiguous delete retry.
+  });
+
+  it('does not modify a mismatched decision or missing session while deleting the goal', async () => {
+    wasCreated = true;
+    sessionExists = true;
+    record = {
+      sourceType: 'user-accepted-ai-recommendation',
+      sessionId: 'saved-session',
+      sourceRecommendationKey: 'r-assistant-1-0',
+      sourceAssistantMessageId: 'assistant-1'
+    };
+    sessionRecord = { recommendationDecisions: {
+      'r-assistant-1-0': { status: 'accepted', goalId: 'some-other-goal',
+        assistantMessageId: 'assistant-1' }
+    } };
+    await removeGoal('synthetic-uid', 'owned-goal');
+    expect(patches).toHaveLength(1);
+    expect(sessionRecord.recommendationDecisions['r-assistant-1-0'])
+      .not.toHaveProperty('goalRemovedAt');
+    wasCreated = true;
+    sessionExists = false;
+    patches = [];
+    await removeGoal('synthetic-uid', 'owned-goal');
+    expect(patches).toHaveLength(1);
+    expect(wasCreated).toBe(false);
+  });
+
+  it('rejects missing ID and never writes for a goal already removed', async () => {
+    await expect(removeGoal('synthetic-uid', '')).rejects.toThrow('Идентификатор');
+    await removeGoal('synthetic-uid', 'already-gone');
+    expect(patches).toHaveLength(0);
   });
 });

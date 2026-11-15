@@ -85,7 +85,10 @@ function GoalCard({ goal, userId, onAppend, onFeedback, onOpenSession, focused =
   };
 
   const deleteGoal = async () => {
-    if (busyRef.current || !window.confirm('Удалить эту цель и все её подзадачи? Действие необратимо.')) return;
+    const warning = goal.sourceType === 'user-accepted-ai-recommendation'
+      ? 'Удалить эту цель и все её подзадачи? Действие необратимо. Исходное решение по рекомендации останется в истории сеанса.'
+      : 'Удалить эту цель и все её подзадачи? Действие необратимо.';
+    if (busyRef.current || !window.confirm(warning)) return;
     busyRef.current = true;
     setBusy(true);
     setError('');

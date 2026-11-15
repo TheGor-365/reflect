@@ -56,6 +56,20 @@ describe('PRODUCT-02 decisions UI', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Открыть цели' }));
     expect(props.onOpenGoals).toHaveBeenCalledExactlyOnceWith('g1');
   });
+  it('shows a deleted confirmed goal as a historical decision, with no broken goal link', () => {
+    const key = 'r-assistant-request1234567890-0';
+    const onOpenGoals = vi.fn();
+    render(<InteractionResult {...props} onOpenGoals={onOpenGoals}
+      decisions={{ [key]: {
+        status: 'accepted', goalId: 'deleted-goal',
+        goalRemovedAt: { seconds: 1 }
+      } }}/>);
+    expect(screen.getByText('Цель удалена · решение сохранено')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Открыть цели' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Превратить в цель' })).not.toBeInTheDocument();
+    expect(onOpenGoals).not.toHaveBeenCalled();
+  });
+
   it('preserves the goal draft after a failed transaction and does not retry automatically', async () => {
     const onDecision = vi.fn().mockRejectedValue(new Error('Сеть недоступна'));
     render(<InteractionResult {...props} onDecision={onDecision}/>);

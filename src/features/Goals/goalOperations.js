@@ -1,5 +1,5 @@
 import {
-  collection, deleteDoc, deleteField, doc, runTransaction, serverTimestamp,
+  collection, deleteField, doc, runTransaction, serverTimestamp,
   Timestamp
 } from 'firebase/firestore';
 import { db, appId } from '../../firebase/config';
@@ -142,6 +142,49 @@ export async function updateGoal(userId, goalId, action) {
 
 export async function removeGoal(userId, goalId) {
   if (!goalId) throw new Error('Идентификатор цели отсутствует.');
-  // Deletion is only invoked after explicit per-goal confirmation in the UI.
-  await deleteDoc(doc(db, root(userId), goalId));
+  const goalRef = doc(db, root(userId), goalId);
+  // The Diary's goal event is a read-only projection of this document.
+  // Deleting the document must not leave an accepted recommendation looking
+  // like a live goal. Never create a second, orphanable diaryNotes record.
+  return runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(goalRef);
+    if (!snapshot.exists()) return; // Retry after an already committed delete.
+    const goal = snapshot.data();
+    const idOk = value => typeof value === 'string' &&
+      /^[A-Za-z0-9_-]{1,128}$/.test(value);
+    // The recommendation key has the format r-<assistant ID>-<index>
+    // and may be four characters longer than the 128-character message ID.
+    const recommendationKeyOk = value => typeof value === 'string' &&
+      /^[A-Za-z0-9_-]{1,132}$/.test(value);
+    const linked = goal?.sourceType === 'user-accepted-ai-recommendation' &&
+      idOk(goal.sessionId) && recommendationKeyOk(goal.sourceRecommendationKey) &&
+      idOk(goal.sourceAssistantMessageId);
+    if (linked) {
+      const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`,
+        goal.sessionId);
+      const sessionSnapshot = await transaction.get(sessionRef);
+      if (sessionSnapshot.exists()) {
+        const session = sessionSnapshot.data();
+        const decisions = session.recommendationDecisions;
+        const previous = decisions &&
+          typeof decisions === 'object' && !Array.isArray(decisions)
+          ? decisions[goal.sourceRecommendationKey] : null;
+        // Touch only a matching owner-scoped decision. An altered source
+        // reference must never overwrite another recommendation's status.
+        if (previous?.status === 'accepted' &&
+            previous.goalId === goalId &&
+            previous.assistantMessageId === goal.sourceAssistantMessageId) {
+          transaction.update(sessionRef, {
+            recommendationDecisions: {
+              ...decisions,
+              [goal.sourceRecommendationKey]: {
+                ...previous, goalRemovedAt: serverTimestamp()
+              }
+            }
+          });
+        }
+      }
+    }
+    transaction.delete(goalRef);
+  });
 }

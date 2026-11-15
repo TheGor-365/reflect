@@ -264,7 +264,8 @@ export default function InteractionResult({
               {onDecision && isSaved && (
                 <>
                   {status && <span role="status" className="reflect-interaction-decision">
-                    {status === 'accepted' ? 'Принято как цель'
+                    {status === 'accepted' ? (decision?.goalRemovedAt
+                       ? 'Цель удалена · решение сохранено' : 'Принято как цель')
                       : status === 'saved' ? 'Идея сохранена'
                         : status === 'postponed' ? 'Отложено'
                           : status === 'dismissed' ? 'Не подходит' : 'Решение сохранено'}
@@ -287,7 +288,7 @@ export default function InteractionResult({
                         }}><Target size={15} aria-hidden="true"/> Превратить в цель</button>
                     </>
                   )}
-                  {status === 'accepted' && onOpenGoals && (
+                  {status === 'accepted' && !decision?.goalRemovedAt && onOpenGoals && (
                     <button type="button" onClick={() => onOpenGoals(decision?.goalId || null)}><Goal size={15} aria-hidden="true"/> Открыть цели</button>
                   )}
                 </>

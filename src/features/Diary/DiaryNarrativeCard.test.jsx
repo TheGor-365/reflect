@@ -150,6 +150,35 @@ test('mood and goal cards reuse Midnight Aurora semantic title and muted date', 
   expect(view.container.querySelector('.text-stone-500, .text-stone-800')).not.toBeInTheDocument();
 });
 
+test('M6c: the goal diary event shows the owner-authored criterion and exact saved AI source', () => {
+  const onOpenSession = vi.fn();
+  const goal = entry({
+    type: 'goal', sourceKind: 'goal', sourceId: 'accepted-goal',
+    data: {
+      id: 'accepted-goal', text: 'Проверить прототип', type: 'checklist',
+      sourceType: 'user-accepted-ai-recommendation',
+      sessionId: 'saved-session',
+      sourceAssistantMessageId: 'assistant-saved-turn',
+      sourceRecommendationKey: 'r-assistant-saved-turn-0',
+      successCriteria: 'Доступен тестовый URL, который я проверил',
+      subItems: [{ id: 'step-1', text: 'Подготовить прототип', completed: false }]
+    }
+  });
+  const view = render(<DiaryNarrativeCard entry={goal}
+    onOpenSession={onOpenSession}/>);
+  expect(screen.getByText('Критерий выполнения')).toBeInTheDocument();
+  expect(screen.getByText('Доступен тестовый URL, который я проверил')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Открыть исходный ответ Reflect' }));
+  expect(onOpenSession).toHaveBeenCalledExactlyOnceWith(
+    'saved-session', 'assistant-saved-turn');
+  view.rerender(<DiaryNarrativeCard entry={entry({
+    type: 'goal', sourceKind: 'goal', sourceId: 'legacy',
+    data: { id: 'legacy', text: 'Цель без источника' }
+  })} onOpenSession={onOpenSession}/>);
+  expect(screen.queryByRole('button', { name: 'Открыть исходный ответ Reflect' }))
+    .not.toBeInTheDocument();
+});
+
 test('D1: stored goal with three steps renders its details instead of empty description panel', () => {
   const goal = entry({
     type: 'goal', sourceKind: 'goal', sourceId: 'qa-d1',
