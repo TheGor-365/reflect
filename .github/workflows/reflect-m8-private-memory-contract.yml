@@ -1,0 +1,37 @@
+name: Reflect M8 private owner event catalog (offline only)
+on:
+  pull_request:
+    paths:
+      - 'server/memory/**'
+      - '.github/workflows/reflect-m8-private-memory-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  owner-events-offline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test owner event catalog provenance, temporal sources and isolation
+        run: node --test server/memory/ownerEventCatalog.test.cjs
+      - name: Ensure no deployed route, provider, Firestore or network integrations
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const text = fs.readFileSync('server/memory/ownerEventCatalog.cjs','utf8');
+          if (/\brequire\s*\(|\bfetch\s*\(|\bhttps?\s*:\s*\/\//.test(text)) {
+            throw new Error('M8b normalization must remain pure, without external dependencies');
+          }
+          if (/\bwriteBatch\b|\bsetDoc\b|\bupdateDoc\b|\baxios\b|\bOpenAI\b|\bGrok\b/.test(text)) {
+            throw new Error('M8b must not authorize provider egress or data writes');
+          }
+          console.log('PASS: M8 owner catalog is disconnected from external services');
+          NODE
