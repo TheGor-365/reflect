@@ -4,7 +4,7 @@ import InteractionResult from './InteractionResult';
 import { isSupportedInteraction } from './interactionVersions';
 
 const ChatMessage = React.memo(({ message, onPlayAudio, isSpeaking, currentlySpeakingId, onCompose, onDecision, onOpenGoals, onOpenRecommendations, isSaved, decisions,
-  reviews = {}, onHypothesisReview, focused = false }) => {
+  reviews = {}, onHypothesisReview, onFocusTurn, focused = false }) => {
   const isUser = message.role === 'user';
   const isThisMessageSpeaking = isSpeaking && currentlySpeakingId === message.id;
 
@@ -29,7 +29,7 @@ const ChatMessage = React.memo(({ message, onPlayAudio, isSpeaking, currentlySpe
           isSaved={isSaved} decisions={decisions} onDecision={onDecision}
           reviews={reviews} onHypothesisReview={onHypothesisReview}
           onOpenGoals={onOpenGoals} onOpenRecommendations={onOpenRecommendations}
-          onCompose={onCompose} />}
+          onCompose={onCompose} onFocusTurn={onFocusTurn} />}
       </div>
       {!isUser && onPlayAudio && (
         <button type="button" className="reflect-chat-audio"
