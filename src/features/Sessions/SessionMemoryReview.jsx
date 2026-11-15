@@ -139,7 +139,9 @@ export default function SessionMemoryReview({
             onClick={refreshGrant}>Проверить разрешение</button>
           <button type="button" onClick={inspect}
             disabled={!canInteract || !draftReady || !safeGrant}>
-            Посмотреть до {policy.maxTurns} реплик
+            {contextLevel === undefined
+              ? 'Посмотреть до четырёх реплик'
+              : 'Посмотреть до ' + policy.maxTurns + ' реплик'}
           </button>
         </div>
         {!draftReady && <p>Чтобы проверить контекст, сначала напишите
