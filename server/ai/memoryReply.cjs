@@ -72,7 +72,7 @@ function validateMemoryReplyPayload(data) {
 /** Shared core is dependency-injected for isolated, non-billable fixtures. */
 function createMemoryReplyExecutor({
   budget, recovery, memory, adapter, readSettings, clock = Date.now,
-  appId = APP_ID
+  appId = APP_ID, evidenceV2Enabled = false
 }) {
   if (!budget || typeof budget.reserve !== "function" ||
       typeof budget.finish !== "function" ||
@@ -83,7 +83,8 @@ function createMemoryReplyExecutor({
       !memory || typeof memory.authorize !== "function" ||
       !adapter || typeof adapter.invoke !== "function" ||
       typeof readSettings !== "function" ||
-      typeof clock !== "function" || appId !== APP_ID) {
+      typeof clock !== "function" || appId !== APP_ID ||
+      typeof evidenceV2Enabled !== "boolean") {
     fail("unsafe-environment");
   }
 
@@ -115,7 +116,7 @@ function createMemoryReplyExecutor({
         uid, sessionId: envelope.sessionId,
         sourceTurnId: envelope.sourceTurnId,
         requestId: input.requestId, message: input.message,
-        retryConfirmed: false
+        retryConfirmed: false, collectEvidence: evidenceV2Enabled
       });
     } catch (error) {
       throw error;
@@ -141,7 +142,9 @@ function createMemoryReplyExecutor({
       const reply = await adapter.invoke(input.message, settings, {
         sourceId: envelope.sessionId, requestId: input.requestId,
         authorizedContext: checked
-      });
+      }, evidenceV2Enabled ? {
+        sourceTurnId: attempt.sourceTurnId, evidence: attempt.evidenceSnapshot
+      } : null);
       // Reply and attempt receipt commit together BEFORE a public HTTP 200.
       await recovery.persistReply(attempt, reply);
       // The previously reserved budget remains held if closeout fails.
@@ -154,7 +157,8 @@ function createMemoryReplyExecutor({
       return Object.freeze({
         text: reply.text,
         ...(reply.interaction ? {
-          interaction: reply.interaction, promptVersion: VERSION
+          interaction: reply.interaction,
+          promptVersion: reply.interaction.version
         } : {}),
         model: reply.model, actualUsdTicks: reply.actualUsdTicks,
         estimatedUsd: reply.estimatedUsdFromPublishedRates,
@@ -185,9 +189,10 @@ function createMemoryReplyExecutor({
 
 function createMemoryReplyHandler({
   db, projectId, appId, readSecret, transport, consentStore,
-  clock = Date.now
+  clock = Date.now, evidenceV2Enabled = false
 }) {
   if (projectId !== PROJECT_ID || appId !== APP_ID ||
+      typeof evidenceV2Enabled !== "boolean" ||
       !db || !consentStore || typeof consentStore.check !== "function" ||
       typeof readSecret !== "function" ||
       typeof transport !== "function") fail("unsafe-environment");
@@ -196,10 +201,10 @@ function createMemoryReplyHandler({
     recovery: createAiTurnRecovery({ db, projectId, clock }),
     memory: createSessionMemoryAdapter({ db, consentStore, projectId }),
     adapter: createXaiProviderAdapter({
-      readSecret, transport, timeoutMs: 20000
+      readSecret, transport, timeoutMs: 20000, evidenceV2Enabled
     }),
     readSettings: uid => readOwnerSettings(db, uid),
-    clock, appId
+    clock, appId, evidenceV2Enabled
   });
 }
 
