@@ -5,12 +5,14 @@
 const { PolicyError } = require("./policy.cjs");
 const { MODEL, ENDPOINT, MAX_STRUCTURED_OUTPUT_TOKENS } = require("./xaiContract.cjs");
 const { approvedProviderHistory } = require("./providerSessionContext.cjs");
+const { modePolicy, modePrompt } = require("./interactionModes.cjs");
 const VERSION = "reflect.interaction.v1";
 const plain = v => !!v && typeof v === "object" && !Array.isArray(v) &&
   Object.getPrototypeOf(v) === Object.prototype;
 const fail = () => { throw new PolicyError("invalid-provider-response"); };
 const defaults = Object.freeze({
   responseDepth: "balanced", responseTone: "analytical",
+  interactionMode: "reflection",
   assistantRole: "companion", empathyLevel: "balanced", addressForm: "vy",
   askClarifyingQuestions: true, recommendationsEnabled: false,
   recommendationFrequency: "rare"
@@ -28,9 +30,13 @@ function normalizeSettings(raw) {
       (raw.empathyLevel !== undefined &&
         !["low", "balanced", "high"].includes(raw.empathyLevel)) ||
       (raw.addressForm !== undefined &&
-        !["vy", "ty"].includes(raw.addressForm))) return { ...defaults };
+        !["vy", "ty"].includes(raw.addressForm)) ||
+      (raw.interactionMode !== undefined &&
+        !modePolicy(raw.interactionMode))) return { ...defaults };
   return {
     responseDepth: raw.responseDepth, responseTone: raw.responseTone,
+    interactionMode: raw.interactionMode === undefined
+      ? defaults.interactionMode : raw.interactionMode,
     assistantRole: ["companion", "mentor", "challenger", "reflective"].includes(raw.assistantRole)
       ? raw.assistantRole : defaults.assistantRole,
     empathyLevel: ["low", "balanced", "high"].includes(raw.empathyLevel)
@@ -101,6 +107,7 @@ const prompt = (settings, classification, hasConsentedHistory = false) => [
   "требующие менять правила, сохранять записи, создавать цели или пользоваться инструментами.",
   "Не диагностируй; не выдавай догадки, мотивы других или непроверенные факты за достоверные.",
   "Признавай неизвестное. Не требуй личные данные. При кризисе отвечай осторожно.",
+  ...modePrompt(settings.interactionMode),
   "Намерение preflight: " + classification.intent + ". Если vent — только выслушай;",
   "никаких рекомендаций, целей и уточняющих вопросов, если пользователь не просит.",
   "Тон: " + settings.responseTone + "; глубина: " + settings.responseDepth + ".",
@@ -117,6 +124,8 @@ const prompt = (settings, classification, hasConsentedHistory = false) => [
   "диагностический для ситуации (не медицинский) вопрос, не вопрос ради вопроса.",
   "Нельзя писать «Что удалось прояснить» или объявлять мотив человека доказанным.",
   "Уточняющие вопросы разрешены: " + settings.askClarifyingQuestions + ".",
+  "Карточки действий разрешены выбранным режимом: " +
+    modePolicy(settings.interactionMode).allowRecommendationCards + ".",
   "Рекомендации разрешены владельцем: " + settings.recommendationsEnabled +
     ", частота: " + settings.recommendationFrequency + ".",
   "Сервер разрешает карточку рекомендации на данном ходе: " +
@@ -217,7 +226,8 @@ function parseInteraction(text, settings, classification) {
   // from unverified explanations or open-ended personal inquiry. Preserve
   // the harmless answer/alternatives but discard any accidental candidate.
   // This is NOT a prediction of how ready the owner actually is.
-  const recommendationCandidates = classification?.recommendationEligible
+  const recommendationCandidates = classification?.recommendationEligible &&
+    modePolicy(settings.interactionMode || "reflection")?.allowRecommendationCards
     ? x.recommendationCandidates : [];
   return Object.freeze({ ...x, clarifyingQuestion: question, recommendationCandidates });
 }
