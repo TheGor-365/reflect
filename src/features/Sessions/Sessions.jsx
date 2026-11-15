@@ -6,6 +6,8 @@ import { railwayAiRecoveryEnabled } from '../../api/reflectRailwayService';
 import ReplyRecoveryPanel from './ReplyRecoveryPanel';
 import { createDurableSession, appendDurableTurn } from './sessionPersistence';
 import SessionModePicker from './SessionModePicker';
+import SessionToolsMenu, { SessionToolPanel } from './SessionToolsMenu';
+import ReflectContentIcon from '../../components/common/ReflectContentIcon';
 import { ACCOUNT_MODE, normalizedSessionMode, turnModeFields }
   from './sessionModeModel';
 import ChatMessage from './ChatMessage';
@@ -34,6 +36,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   const [newSessionMode, setNewSessionMode] = useState(ACCOUNT_MODE);
   const [sessionModeEcho, setSessionModeEcho] = useState(null);
   const [modeDraftScope, setModeDraftScope] = useState(null);
+  const [activeToolPanel, setActiveToolPanel] = useState(null);
   const [showLibrary, setShowLibrary] = useState(false);
   const [navigationWarning, setNavigationWarning] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -89,6 +92,7 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
   useEffect(() => {
     setSessionModeEcho(null);
     setNewSessionMode(ACCOUNT_MODE);
+    setActiveToolPanel(null);
   }, [userId, currentSessionId]);
 
   const recognitionRef = useRef(null);
@@ -621,47 +625,82 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
         <div className="reflect-session-conversation-bar">
           <h2>{isNewSessionView ? 'Новый сеанс' : sessionDisplayTitle(activeSession)}</h2>
           <div className="reflect-session-conversation-actions">
+            {AI_SESSION_ENABLED && (
+              <SessionModePicker key={userId + ':' + currentSessionId}
+                userId={userId}
+                sessionId={isNewSessionView ? null : activeSession?.id}
+                value={effectiveSessionMode}
+                disabled={isLoading || savingSession || sendLock.current}
+                onNewSessionMode={setNewSessionMode}
+                onDirtyChange={dirty => {
+                  setModeDraftScope({userId, sessionId: currentSessionId, dirty});
+                }}
+                onSaved={mode => {
+                  if (activeScopeRef.current.userId === userId &&
+                      activeScopeRef.current.currentSessionId === currentSessionId) {
+                    setSessionModeEcho({userId, sessionId: currentSessionId, mode});
+                  }
+                }}/>
+            )}
             {sessions.length > 0 && (
               <button type="button" className="reflect-session-library-toggle"
                 onClick={() => { setShowLibrary(true); setNavigationWarning(''); onOpenLibrary?.(); }}
-                aria-label="Показать все сеансы">
-                <BookOpen size={17} aria-hidden="true"/> Все сеансы
+                aria-label="Показать все сеансы" title="Все сеансы">
+                <BookOpen size={17} aria-hidden="true"/>
               </button>
             )}
-            <span className="reflect-session-privacy">
-              <ShieldCheck size={16} aria-hidden="true" /> Личные записи
-            </span>
+            <SessionToolsMenu activePanel={activeToolPanel}
+              onChange={setActiveToolPanel}
+              hasSavedSession={Boolean(activeSession?.id)}
+              contextAvailable={Boolean(AI_SESSION_ENABLED &&
+                ownerContextLevel && sessionMemoryReplyUiEnabled)}/>
           </div>
         </div>
 
-        {activeSession && (
-          <SessionReturnCheckIn key={activeSession.id}
-            session={activeSession} userId={userId} />
-        )}
-        {activeSession && (
-          <SessionEvidenceLedger key={activeSession.id}
-            session={{...activeSession, hypothesisReviews: reviews}}
-            onCompose={text => {
-              // Inserting preview must never discard an unfinished owner draft.
-              setUserInput(previous => previous.trim()
-                ? previous + '\n\n' + text : text);
-              setSendError('');
-            }}
-            onFocusTurn={turnId => {
-              const match = [...document.querySelectorAll('[data-reflect-turn-id]')]
-                .find(node => node.getAttribute('data-reflect-turn-id') === turnId);
-              match?.scrollIntoView?.({behavior:'smooth',block:'center'});
-            }}/>
-        )}
-        {activeSession && (
-          <SessionReadinessPanel key={userId + ':' + activeSession.id}
-            userId={userId} session={activeSession}
-            mode={effectiveSessionMode} currentDraft={userInput}
-            onFocusTurn={turnId => {
-              const match = [...document.querySelectorAll('[data-reflect-turn-id]')]
-                .find(node => node.getAttribute('data-reflect-turn-id') === turnId);
-              match?.scrollIntoView?.({behavior:'smooth',block:'center'});
-            }}/>
+        {activeToolPanel && activeSession && (
+          <SessionToolPanel id={activeToolPanel}
+            onClose={() => setActiveToolPanel(null)}>
+            {activeToolPanel === 'return' && (
+              <SessionReturnCheckIn key={activeSession.id}
+                session={activeSession} userId={userId} expanded/>
+            )}
+            {activeToolPanel === 'evidence' && (
+              <SessionEvidenceLedger key={activeSession.id}
+                session={{...activeSession, hypothesisReviews: reviews}}
+                expanded
+                onCompose={text => {
+                  setUserInput(previous => previous.trim()
+                    ? previous + '\n\n' + text : text);
+                  setSendError('');
+                  setActiveToolPanel(null);
+                }}
+                onFocusTurn={turnId => {
+                  const match = [...document.querySelectorAll('[data-reflect-turn-id]')]
+                    .find(node => node.getAttribute('data-reflect-turn-id') === turnId);
+                  setActiveToolPanel(null);
+                  match?.scrollIntoView?.({behavior:'smooth',block:'center'});
+                }}/>
+            )}
+            {activeToolPanel === 'facts' && (
+              <SessionReadinessPanel key={userId + ':' + activeSession.id}
+                userId={userId} session={activeSession} expanded
+                mode={effectiveSessionMode} currentDraft={userInput}
+                onFocusTurn={turnId => {
+                  const match = [...document.querySelectorAll('[data-reflect-turn-id]')]
+                    .find(node => node.getAttribute('data-reflect-turn-id') === turnId);
+                  setActiveToolPanel(null);
+                  match?.scrollIntoView?.({behavior:'smooth',block:'center'});
+                }}/>
+            )}
+            {activeToolPanel === 'context' && AI_SESSION_ENABLED &&
+              ownerContextLevel && (
+                <SessionMemoryReview key={userId + ':' + activeSession.id}
+                  userId={userId} sessionId={activeSession.id}
+                  draftMessage={userInput} disabled={isLoading || modeChangePending}
+                  contextLevel={ownerContextLevel}
+                  onConfirmHistory={handleHistorySend} expanded/>
+              )}
+          </SessionToolPanel>
         )}
         <div className="reflect-session-messages" role="log" aria-label="История сообщений" aria-live="polite">
           <div className="reflect-session-messages-inner">
@@ -711,40 +750,34 @@ const Sessions = ({ sessions = [], profile, userId, currentSessionId, setCurrent
         </div>
 
         <div className="reflect-session-compose-dock">
-          {AI_SESSION_ENABLED && (
-            <SessionModePicker key={userId + ':' + currentSessionId}
-              userId={userId}
-              sessionId={isNewSessionView ? null : activeSession?.id}
-              value={effectiveSessionMode}
-              disabled={isLoading || savingSession || sendLock.current}
-              onNewSessionMode={setNewSessionMode}
-              onDirtyChange={dirty => {
-                setModeDraftScope({userId, sessionId: currentSessionId, dirty});
-              }}
-              onSaved={mode => {
-                if (activeScopeRef.current.userId === userId &&
-                    activeScopeRef.current.currentSessionId === currentSessionId) {
-                  setSessionModeEcho({userId, sessionId: currentSessionId, mode});
-                }
-              }}/>
-          )}
           {modeChangePending && (
-            <p role="status">Сохраните режим сеанса, чтобы использовать его
-              для следующего ответа. Пока отправка в Grok заблокирована.</p>
-          )}
-          {AI_SESSION_ENABLED && activeSession && ownerContextLevel && (
-            <SessionMemoryReview key={userId + ':' + activeSession.id}
-              userId={userId} sessionId={activeSession.id}
-              draftMessage={userInput} disabled={isLoading || modeChangePending}
-              contextLevel={ownerContextLevel}
-              onConfirmHistory={handleHistorySend}/>
+            <p className="reflect-mode-save-notice" role="status">
+              <ReflectContentIcon kind="privacy" size={15}/>
+              Применяю выбранный режим. Отправка возобновится после сохранения.
+            </p>
           )}
           {AI_SESSION_ENABLED && (
             <div className="reflect-ai-send-consent">
-              <p className="reflect-ai-send-disclosure" id="reflect-session-send-privacy">Отправляя сообщение в Grok, вы разрешаете передать весь текст поля ввода. История, профиль и дневник не добавляются автоматически; если вы вручную вставили выдержки предыдущих сообщений, они будут отправлены как часть этого текста. xAI может хранить API-запрос и ответ до 30 дней.</p>
-              <p className="reflect-session-autosave-status" role="status">
-                Диалог сохраняется автоматически. Повторный вызов Grok не выполняется при ошибке записи.
-              </p>
+              <details className="reflect-privacy-disclosure">
+                <summary id="reflect-session-send-privacy">
+                  <ReflectContentIcon kind="privacy" size={15}/>
+                  Приватность и сохранение
+                </summary>
+                <div className="reflect-privacy-disclosure-body">
+                  <p><strong>Передача в Grok</strong></p>
+                  <ul>
+                    <li>Отправляется текст поля ввода после вашего нажатия.</li>
+                    <li>История, профиль и дневник не добавляются автоматически.</li>
+                    <li>Вручную вставленные выдержки истории становятся частью сообщения.</li>
+                    <li>xAI может хранить API-запрос и ответ до 30 дней.</li>
+                  </ul>
+                  <p><strong>Сохранение</strong></p>
+                  <ul>
+                    <li>Диалог сохраняется автоматически.</li>
+                    <li>При ошибке записи повторный вызов Grok не выполняется.</li>
+                  </ul>
+                </div>
+              </details>
               {scopedLocalMessages.length > 0 && sessionSaveError && (
                 <div className="reflect-ai-session-unsaved">
                   <span role="alert">{sessionSaveError}</span>
