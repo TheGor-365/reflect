@@ -54,18 +54,23 @@ function settingsForCommittedTurn(raw, attempt) {
 }
 function createHostedHandler({
   db, projectId, appId, readSecret, transport, clock = Date.now,
-  interactionEnabled = false, attemptRecoveryEnabled = false
+  interactionEnabled = false, attemptRecoveryEnabled = false,
+  evidenceV2Enabled = false
 }) {
   if (!appId || typeof appId !== "string" ||
       !/^1:[0-9]+:web:[A-Za-z0-9]+$/.test(appId) ||
       typeof readSecret !== "function" ||
       typeof transport !== "function" ||
-      typeof clock !== "function") fail("unsafe-environment");
+      typeof clock !== "function" ||
+      typeof evidenceV2Enabled !== "boolean" ||
+      (evidenceV2Enabled && (!interactionEnabled || !attemptRecoveryEnabled))) {
+    fail("unsafe-environment");
+  }
   const budget = createHostedBudget(db, projectId);
   const recovery = attemptRecoveryEnabled
     ? createAiTurnRecovery({ db, projectId, clock }) : null;
   const adapter = createXaiProviderAdapter({
-    readSecret, transport, timeoutMs: 20000
+    readSecret, transport, timeoutMs: 20000, evidenceV2Enabled
   });
   return async function handle(request) {
     if (!request?.auth?.uid ||
@@ -85,7 +90,8 @@ function createHostedHandler({
       uid: input.uid, sessionId: envelope.sessionId,
       sourceTurnId: envelope.sourceTurnId,
       requestId: input.requestId, message: input.message,
-      retryConfirmed: envelope.retryConfirmed
+      retryConfirmed: envelope.retryConfirmed,
+      collectEvidence: evidenceV2Enabled
     }) : null;
     try {
       await budget.reserve({
@@ -106,7 +112,10 @@ function createHostedHandler({
       // If the private receipt cannot be marked "potentially billable",
       // fail BEFORE contacting xAI. No silent automatic provider retry.
       if (recovery) await recovery.providerStarted(attempt);
-      const value = await adapter.invoke(input.message, settings);
+      const value = await adapter.invoke(input.message, settings, null,
+        evidenceV2Enabled ? {
+          sourceTurnId: attempt.sourceTurnId, evidence: attempt.evidenceSnapshot
+        } : null);
       if (recovery) {
         // Atomic server-owned answer + receipt BEFORE HTTP 200.
         await recovery.persistReply(attempt, value);
@@ -125,7 +134,8 @@ function createHostedHandler({
       return Object.freeze({
         text: value.text,
         ...(interactionEnabled && value.interaction
-          ? { interaction: value.interaction, promptVersion: VERSION } : {}),
+          ? { interaction: value.interaction,
+            promptVersion: value.interaction.version } : {}),
         model: value.model,
         actualUsdTicks: value.actualUsdTicks,
         estimatedUsd: value.estimatedUsdFromPublishedRates,
