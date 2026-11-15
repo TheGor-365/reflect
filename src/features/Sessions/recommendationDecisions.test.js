@@ -14,6 +14,8 @@ const assistantMessage = {
   id: 'assistant-request1234567890', role: 'assistant',
   interaction: {
     version: 'reflect.interaction.v1',
+    stage: 'synthesize', clarifyingQuestion: '',
+    unknowns: [], insights: [],
     recommendationCandidates: [{
       title: 'Начать с короткого шага',
       rationale: 'Пользователь описал трудность с началом действия.',
@@ -153,4 +155,72 @@ it('M5c v2 still requires an owner decision and never auto-creates a goal',async
   expect(writes).toHaveLength(1);
   await applyRecommendationDecision({...params,action:'saved'});
   expect(writes).toHaveLength(1);
+});
+
+describe('M6a owner choice remains available but ungrounded goals are rejected inside transaction', () => {
+  const goalInput = {
+    ...params, action: 'goal', goalId: 'synthetic-goal',
+    goalTitle: 'Подтверждённая проверяемая цель',
+    goalStep: 'Запустить минимальный тест',
+    goalCriteria: 'Воспроизводимый результат теста'
+  };
+  it('rejects goal on unknowns; user can save idea without creating goal', async () => {
+    session.chatHistory[1].interaction.unknowns = ['Неизвестный риск'];
+    await expect(applyRecommendationDecision(goalInput))
+      .rejects.toThrow(/неизвестные обстоятельства/);
+    expect(writes).toHaveLength(0);
+    const saved = await applyRecommendationDecision({
+      ...params, action: 'saved'
+    });
+    expect(saved.status).toBe('saved');
+    expect(goal).toBeNull();
+  });
+  it('denies a goal while questions or hypotheses are still open', async () => {
+    const interaction = session.chatHistory[1].interaction;
+    interaction.stage = 'clarify';
+    interaction.clarifyingQuestion = 'Чего не хватает?';
+    await expect(applyRecommendationDecision(goalInput))
+      .rejects.toThrow(/открытый уточняющий/);
+    interaction.stage = 'synthesize';
+    interaction.clarifyingQuestion = '';
+    interaction.insights = ['Возможно, это ключевой мотив'];
+    await expect(applyRecommendationDecision(goalInput))
+      .rejects.toThrow(/оцените все гипотезы/);
+    expect(writes).toHaveLength(0);
+  });
+  it('verifies actual stored review coordinates and owner grade before creating goal', async () => {
+    const interaction = session.chatHistory[1].interaction;
+    interaction.insights = ['Это возможная причина'];
+    const key = `h-${assistantMessage.id}-0`;
+    session.hypothesisReviews = {
+      [key]: { assistantMessageId: assistantMessage.id,
+        hypothesisIndex: 0, grade: 0, comment: 'Это не соответствует фактам' }
+    };
+    await expect(applyRecommendationDecision(goalInput))
+      .rejects.toThrow(/не подтвердили/);
+    expect(writes).toHaveLength(0);
+    session.hypothesisReviews[key].grade = 3;
+    const accepted = await applyRecommendationDecision(goalInput);
+    expect(accepted.status).toBe('accepted');
+    expect(accepted.goalId).toBe('synthetic-goal');
+    expect(writes.map(w => w.kind)).toEqual(['set','update']);
+    await applyRecommendationDecision({ ...goalInput, goalId: 'other-goal' });
+    expect(writes).toHaveLength(2);
+  });
+  it('blocks v2 goal if owner disputed a category, but not v2 idea-saving', async () => {
+    const interaction = session.chatHistory[1].interaction;
+    interaction.version = 'reflect.interaction.v2';
+    interaction.evidenceSummary = {
+      completeCount: 2, confirmedSlots: ['situation','desiredResult'],
+      missingSlots: ['constraints'], disputedSlots: ['circumstances']
+    };
+    await expect(applyRecommendationDecision(goalInput))
+      .rejects.toThrow(/не подтвердили/);
+    expect(writes).toHaveLength(0);
+    const saved = await applyRecommendationDecision({
+      ...params, action: 'postponed'
+    });
+    expect(saved.status).toBe('postponed');
+    expect(goal).toBeNull();
+  });
 });
