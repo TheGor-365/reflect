@@ -7,6 +7,7 @@ import { getLimitedUseToken } from 'firebase/app-check';
 import { auth, appCheckClient, hostedAiEnabled, stagingAppCheckEnabled } from '../firebase/config';
 import { contextConsentUiEnabled, CONTEXT_SCOPE } from './contextConsentService';
 import { railwayAiRecoveryEnabled } from './reflectRailwayService';
+import { contextLevelPolicy } from './contextLevels';
 
 const requested = import.meta.env.VITE_ENABLE_REFLECT_SESSION_MEMORY_PREVIEW === 'true';
 const origin = (import.meta.env.VITE_REFLECT_RAILWAY_AI_ORIGIN || '').trim();
@@ -31,17 +32,21 @@ const ALLOWED_ERRORS = Object.freeze([
 ]);
 const fail = () => { throw new Error('preview-unavailable'); };
 
-export function validateSessionMemoryPreview(data, sourceId, requestId) {
+export function validateSessionMemoryPreview(data, sourceId, requestId, contextLevel) {
+  const limits = contextLevel === undefined
+    ? { maxTurns: 4, maxBytes: 1200 } : contextLevelPolicy(contextLevel);
   if (!data || typeof data !== 'object' || Array.isArray(data) ||
       data.sourceId !== sourceId || data.requestId !== requestId ||
+      (contextLevel === undefined ? data.contextLevel !== undefined :
+        data.contextLevel !== contextLevel) ||
       data.scope !== CONTEXT_SCOPE || data.providerDispatchAllowed !== false ||
       data.disclosureRequired !== true ||
       !HASH.test(data.approvalDigest || '') ||
       typeof data.truncated !== 'boolean' ||
       !Array.isArray(data.turns) ||
-      data.turns.length < 1 || data.turns.length > 4 ||
+      data.turns.length < 1 || data.turns.length > limits.maxTurns ||
       !Number.isSafeInteger(data.totalBytes) ||
-      data.totalBytes < 1 || data.totalBytes > 1200) fail();
+      data.totalBytes < 1 || data.totalBytes > limits.maxBytes) fail();
   const seen = new Set();
   let bytes = 0;
   const turns = data.turns.map(t => {
@@ -62,14 +67,16 @@ export function validateSessionMemoryPreview(data, sourceId, requestId) {
   });
   if (bytes !== data.totalBytes) fail();
   return Object.freeze({
-    sourceId, requestId, turns: Object.freeze(turns),
+    sourceId, requestId,
+    ...(contextLevel === undefined ? {} : { contextLevel }),
+    turns: Object.freeze(turns),
     approvalDigest: data.approvalDigest,
     totalBytes: data.totalBytes, truncated: data.truncated,
     providerDispatchAllowed: false
   });
 }
 
-export async function requestSessionMemoryPreview({ grantId, sourceId, requestId, message }) {
+export async function requestSessionMemoryPreview({ grantId, sourceId, requestId, message, contextLevel }) {
   if (!sessionMemoryPreviewUiEnabled || !appCheckClient || !auth.currentUser) {
     throw new Error('preview-disabled');
   }
@@ -79,6 +86,7 @@ export async function requestSessionMemoryPreview({ grantId, sourceId, requestId
       new TextEncoder().encode(message).length > 2000) {
     throw new Error('invalid-argument');
   }
+  if (contextLevel !== undefined) contextLevelPolicy(contextLevel);
   const owner = auth.currentUser;
   let token, appCheck;
   try {
@@ -100,7 +108,8 @@ export async function requestSessionMemoryPreview({ grantId, sourceId, requestId
         'X-Firebase-AppCheck': appCheck.token
       },
       body: JSON.stringify({
-        grantId, sourceId, requestId, message, scope: CONTEXT_SCOPE
+        grantId, sourceId, requestId, message, scope: CONTEXT_SCOPE,
+        ...(contextLevel === undefined ? {} : { contextLevel })
       }), signal: abort.signal
     });
     const body = await response.json().catch(() => null);
@@ -109,7 +118,7 @@ export async function requestSessionMemoryPreview({ grantId, sourceId, requestId
       throw new Error(ALLOWED_ERRORS.includes(body?.error) ?
         body.error : 'preview-unavailable');
     }
-    return validateSessionMemoryPreview(body, sourceId, requestId);
+    return validateSessionMemoryPreview(body, sourceId, requestId, contextLevel);
   } catch (error) {
     if (ALLOWED_ERRORS.includes(error?.message) ||
         ['unauthenticated', 'preview-unavailable'].includes(error?.message)) throw error;
