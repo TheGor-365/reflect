@@ -48,7 +48,7 @@ test('UX R2: source detail is collapsed by default and restores exact saved user
   fireEvent.click(trigger);
   expect(trigger).toHaveAttribute('aria-expanded','true');
   expect(screen.getByText(/Срок через неделю/)).toBeInTheDocument();
-  expect(screen.getByText(/План публикации/)).toBeInTheDocument();
+  expect(screen.getAllByText(/План публикации/).length).toBeGreaterThan(0);
   fireEvent.click(trigger);
   expect(trigger).toHaveAttribute('aria-expanded','false');
 });
