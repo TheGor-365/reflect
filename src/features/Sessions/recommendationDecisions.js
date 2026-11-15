@@ -2,6 +2,7 @@ import { doc, runTransaction, serverTimestamp, Timestamp } from 'firebase/firest
 import { isDateOnly, localNoonForDueDay } from '../Goals/goalDomain';
 import { db, appId } from '../../firebase/config';
 import { isSupportedInteraction } from './interactionVersions';
+import { recommendationGoalGate } from './recommendationGoalGate';
 
 const idOk = value => typeof value === 'string' &&
   /^[A-Za-z0-9_-]{1,128}$/.test(value);
@@ -77,6 +78,16 @@ export async function applyRecommendationDecision({
       throw new Error('Рекомендация уже стала целью. Измените цель в разделе «Цели».');
     }
     if (action !== 'goal' && previous?.status === action) return previous;
+    // The visible button alone is not a security boundary: enforce the
+    // same owner-evidence prerequisites against current Firestore data.
+    // Leave save/postpone/dismiss available regardless of gate result.
+    if (action === 'goal') {
+      const gate = recommendationGoalGate({
+        interaction: assistant.interaction,
+        assistantMessageId, reviews: session.hypothesisReviews
+      });
+      if (!gate.allowed) throw new Error(gate.reason);
+    }
     let result = {
       status: action === 'goal' ? 'accepted' : action,
       title: candidate.title,
