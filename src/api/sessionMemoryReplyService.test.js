@@ -119,3 +119,16 @@ test('M3d3 fake server result cannot claim success or duplicate a turn', async (
     .rejects.toThrow('history-result-unknown');
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
+
+
+test('M3 tiers: exact one-shot payload carries level but no client transcript', async () => {
+  const { buildSessionMemoryReplyPayload } =
+    await import('./sessionMemoryReplyService');
+  const tier = buildSessionMemoryReplyPayload({ ...input, contextLevel: 'deep' });
+  expect(tier.contextLevel).toBe('deep');
+  expect(tier).not.toHaveProperty('chatHistory');
+  expect(tier).not.toHaveProperty('uid');
+  expect(() => buildSessionMemoryReplyPayload({
+    ...input, contextLevel: 'all-history'
+  })).toThrow();
+});
