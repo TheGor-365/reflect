@@ -19,7 +19,8 @@ vi.mock('../../api/sessionMemoryReplyService', () => ({
   sendSessionMemoryReply: mocks.history
 }));
 vi.mock('../../api/ownerContextLevel', () => ({
-  readOwnerContextLevel: mocks.context
+  readOwnerContextLevel: mocks.context,
+  readOwnerInteractionMode: vi.fn().mockResolvedValue('reflection')
 }));
 vi.mock('./sessionModePersistence', () => ({
   saveSessionMode: mocks.saveMode
