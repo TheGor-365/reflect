@@ -11,6 +11,7 @@ import {
 import { sessionMemoryPreviewUiEnabled } from './sessionMemoryPreviewService';
 import { railwayAiRecoveryEnabled } from './reflectRailwayService';
 import { createRequestBody } from './reflectAssistantService';
+import { isSupportedInteraction } from '../features/Sessions/interactionVersions';
 import { contextLevelPolicy } from './contextLevels';
 
 const requested = import.meta.env.VITE_ENABLE_REFLECT_SESSION_MEMORY_REPLY === 'true';
@@ -114,7 +115,7 @@ export async function sendSessionMemoryReply({ sessionId, requestId,
       response: data.text.trim(), sourceTurnId: data.sourceTurnId,
       persistedByServer: true, historyUsed: true,
       excerptCount: data.excerptCount,
-      interaction: data.interaction?.version === 'reflect.interaction.v1'
+      interaction: isSupportedInteraction(data.interaction)
         ? data.interaction : null
     });
   } catch (error) {
