@@ -441,6 +441,7 @@ export default function App() {
           <GoalSuggestions sessions={sessions} onOpenSession={selectSession}/>
           <Goals
             goals={goals}
+            sessions={sessions}
             userId={userId}
             onAppend={handleAppendToEntry}
             onFeedback={setFeedbackGoal}
@@ -459,6 +460,7 @@ export default function App() {
       case 'sessions':
         return <Sessions 
           sessions={sessions} 
+          goals={goals}
           profile={profile}
           userId={userId}
           currentSessionId={currentSessionId}
