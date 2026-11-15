@@ -4,6 +4,7 @@ import { db, appId } from '../../firebase/config';
 // Feedback is owner-written evidence about an AI hypothesis, not a model
 // score, clinical assessment, goal, or consent to share private history.
 import { hypothesisReviewKey, validateHypothesisReview } from './hypothesisReviewModel';
+import { isSupportedInteraction } from './interactionVersions';
 
 const idOk = value => typeof value === 'string' &&
   /^[A-Za-z0-9_-]{1,128}$/.test(value);
@@ -30,7 +31,7 @@ export async function saveHypothesisReview({
     const assistantIndex = history.findIndex(turn =>
       turn?.id === assistantMessageId && turn?.role === 'assistant');
     const turn = history[assistantIndex];
-    const hypothesis = turn?.interaction?.version === 'reflect.interaction.v1'
+    const hypothesis = isSupportedInteraction(turn?.interaction)
       ? turn.interaction.insights?.[hypothesisIndex] : null;
     if (assistantIndex < 1 || typeof hypothesis !== 'string' ||
         !hypothesis.trim() || !history.slice(0, assistantIndex).some(t =>
