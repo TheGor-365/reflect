@@ -197,3 +197,19 @@ test("M3d invalid one-message consent never reaches memory or provider", async (
   })), e => e.code === "permission-denied");
   assert.deepEqual(h.events, []);
 });
+
+
+test("M3 tiers: typed contextLevel accepted and unknown elevated scopes rejected", () => {
+  const good = validateMemoryReplyPayload({
+    ...data, contextLevel: "deep"
+  });
+  assert.equal(good.contextLevel, "deep");
+  for (const level of ["all-history", "unlimited", "", 100, null]) {
+    assert.throws(() => validateMemoryReplyPayload({
+      ...data, contextLevel: level
+    }), error => error.code === "invalid-argument");
+  }
+  assert.throws(() => validateMemoryReplyPayload({
+    ...data, contextLevel: "deep", includeDiary: true
+  }), error => error.code === "invalid-argument");
+});
