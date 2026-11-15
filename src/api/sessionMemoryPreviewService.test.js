@@ -63,3 +63,27 @@ test('mismatched binding and forged approval are rejected', () => {
     value, sourceId, requestId
   )).toThrow('preview-unavailable');
 });
+
+
+test('context level reply is bound and cannot exceed server-published tier limits', () => {
+  const limited = validateSessionMemoryPreview({
+    ...base, contextLevel: 'optimal'
+  }, sourceId, requestId, 'optimal');
+  expect(limited.contextLevel).toBe('optimal');
+  expect(() => validateSessionMemoryPreview({
+    ...base, contextLevel: 'deep'
+  }, sourceId, requestId, 'optimal')).toThrow('preview-unavailable');
+  const six = Array.from({ length: 6 }, (_, i) => ({
+    ...base.turns[0], sourceTurnId: 'user-t' + i,
+    content: 'A'.repeat(100)
+  }));
+  const deep = validateSessionMemoryPreview({
+    ...base, contextLevel: 'deep',
+    turns: six, totalBytes: 600
+  }, sourceId, requestId, 'deep');
+  expect(deep.turns.length).toBe(6);
+  expect(() => validateSessionMemoryPreview({
+    ...base, contextLevel: 'optimal',
+    turns: six, totalBytes: 600
+  }, sourceId, requestId, 'optimal')).toThrow('preview-unavailable');
+});
