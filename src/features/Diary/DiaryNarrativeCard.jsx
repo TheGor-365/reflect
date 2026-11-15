@@ -173,6 +173,40 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote, onRenameSe
   const renderContent = () => {
     switch (entry.type) {
       case 'session': {
+        const ownerReturn = entry.isAppend &&
+          Array.isArray(entry.data.returnCheckIns)
+          ? entry.data.returnCheckIns[0] : null;
+        if (ownerReturn?.type === 'return-check-in' &&
+            ownerReturn.author === 'user' &&
+            typeof ownerReturn.text === 'string') {
+          return (
+            <section className="reflect-journal-session-return"
+              aria-label="Возвращение к теме">
+              <h3 className="reflect-journal-content-title">Моё наблюдение после возвращения</h3>
+              <p className="reflect-journal-speaker-text">{ownerReturn.text}</p>
+              {typeof ownerReturn.nextStep === 'string' &&
+                !!ownerReturn.nextStep.trim() && (
+                  <p className="reflect-journal-goal-purpose">
+                    <strong>Мой следующий шаг:</strong> {ownerReturn.nextStep}
+                  </p>
+                )}
+              {typeof ownerReturn.goalId === 'string' && !!ownerReturn.goalId && (
+                <p className="reflect-journal-content-meta">
+                  Связано с целью по сохранённой отметке пользователя
+                </p>
+              )}
+              <p className="reflect-journal-content-meta">
+                Время записи — с устройства, не независимое подтверждение результата.
+              </p>
+              {onOpenSession && (
+                <button type="button" className="reflect-journal-inline-action"
+                  onClick={() => onOpenSession(entry.parentSessionId || entry.sourceId)}>
+                  Открыть исходный сеанс
+                </button>
+              )}
+            </section>
+          );
+        }
         const { reflection, question, count, history } = sessionExcerpt(entry.data);
         const headline = sessionDisplayTitle(entry.data);
         return (
@@ -372,12 +406,15 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote, onRenameSe
   };
 
   const kind = entry.sourceKind || entry.type;
-  const category = {
+  const isOwnerReturn = kind === 'session' && entry.isAppend &&
+    entry.data.returnCheckIns?.[0]?.author === 'user' &&
+    entry.data.returnCheckIns?.[0]?.type === 'return-check-in';
+  const category = isOwnerReturn ? 'Моё возвращение' : ({
     note: 'Моя запись', mood: 'Настроение', goal: 'Цель', session: 'Мысль Reflect'
-  }[kind] || 'Моя запись';
-  const CategoryIcon = {
+  }[kind] || 'Моя запись');
+  const CategoryIcon = isOwnerReturn ? NotebookPen : ({
     note: NotebookPen, mood: Smile, goal: Target, session: Sparkles
-  }[kind] || NotebookPen;
+  }[kind] || NotebookPen);
 
   return (
     <article className="reflect-journal-card" data-kind={kind}>
