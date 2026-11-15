@@ -199,9 +199,7 @@ test('UX R1: automatic mode save blocks history send until server readback', asy
   fireEvent.change(screen.getByRole('textbox', {
     name: 'Сообщение для сеанса'
   }), { target: { value: 'Это новый вопрос' } });
-  const paid = await screen.findByRole('button', {
-    name:'Отправить просмотренную историю (тест)'
-  });
+  const paid = await openHistoryTools();
   expect(screen.getByRole('button', {
     name: 'Отправить сообщение'
   })).toBeDisabled();
