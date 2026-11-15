@@ -100,11 +100,15 @@ export default function App() {
   // in a shareable URL or a cross-account localStorage key.
   const [focusTurnId, setFocusTurnId] = useState(null);
   const [focusGoalId, setFocusGoalId] = useState(null);
+  // Ephemeral, owner-scoped navigation intent only. Never add private IDs
+  // to URL/localStorage, and never treat this state as authorization.
+  const [returnGoalIntent, setReturnGoalIntent] = useState(null);
   const [focusDiaryNoteSource, setFocusDiaryNoteSource] = useState(null);
   useEffect(() => {
     setFocusTurnId(null);
     setFocusGoalId(null);
     setFocusDiaryNoteSource(null);
+    setReturnGoalIntent(null);
   }, [userId]);
   const [sessionLibraryRequested, setSessionLibraryRequested] = useState(true);
 
@@ -256,20 +260,41 @@ export default function App() {
     setIsSidebarOpen(false);
   };
   const changeTab = (tab) => {
+    setReturnGoalIntent(null);
     if (tab === 'sessions') setSessionLibraryRequested(!currentSessionId);
     if (tab === 'diary') setFocusDiaryNoteSource(null);
     navigateToTab(tab);
   };
   const selectSession = (id, turnId = null) => {
+    setReturnGoalIntent(null);
     setFocusTurnId(turnId);
     setSessionLibraryRequested(false);
     setCurrentSessionId(id);
     navigateToTab('sessions');
   };
   const handleNewSession = () => {
+    setReturnGoalIntent(null);
     setFocusTurnId(null);
     setSessionLibraryRequested(false);
     setCurrentSessionId('new');
+    navigateToTab('sessions');
+  };
+  const openGoalReturn = goalId => {
+    const goal = goals.find(record => record.id === goalId);
+    const session = goal && sessions.find(record => record.id === goal.sessionId);
+    const decision = session?.recommendationDecisions?.[goal?.sourceRecommendationKey];
+    if (!userId || !goal || !session ||
+        goal.sourceType !== 'user-accepted-ai-recommendation' ||
+        decision?.status !== 'accepted' || decision.goalRemovedAt ||
+        decision.goalId !== goal.id ||
+        decision.assistantMessageId !== goal.sourceAssistantMessageId) return;
+    setFocusTurnId(null);
+    setSessionLibraryRequested(false);
+    setCurrentSessionId(session.id);
+    setReturnGoalIntent(previous => ({
+      userId, sessionId: session.id, goalId: goal.id,
+      requestId: (previous?.requestId || 0) + 1
+    }));
     navigateToTab('sessions');
   };
 
@@ -446,6 +471,7 @@ export default function App() {
             onAppend={handleAppendToEntry}
             onFeedback={setFeedbackGoal}
             onOpenSession={selectSession}
+            onOpenGoalReturn={openGoalReturn}
             focusGoalId={focusGoalId}
           />
         </>;
@@ -466,6 +492,7 @@ export default function App() {
           currentSessionId={currentSessionId}
           setCurrentSessionId={setCurrentSessionId}
           focusTurnId={focusTurnId}
+          returnGoalIntent={returnGoalIntent}
           onStartNewSession={handleNewSession}
           onOpenGoals={goalId => {
             setFocusGoalId(goalId && goals.some(goal => goal.id === goalId) ? goalId : null);
