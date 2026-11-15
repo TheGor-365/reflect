@@ -24,7 +24,7 @@ test('first reply shows provisional evidence instead of verified psychological e
   expect(screen.getByRole('region',{name:'Непроверенные гипотезы Reflect'}))
     .toHaveTextContent('Возможные объяснения');
   expect(screen.queryByText('Что удалось прояснить')).not.toBeInTheDocument();
-  expect(screen.getByText(/Контекст модели: 1 сообщение/)).toBeInTheDocument();
+  expect(screen.getByText(/История — только по отдельному разрешению/)).toBeInTheDocument();
   expect(screen.getByText(/Ваши оценки: 0 из 2 гипотез/)).toBeInTheDocument();
   expect(screen.queryByRole('button',{name:'Превратить в цель'})).toBeNull();
 });
