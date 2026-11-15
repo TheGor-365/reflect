@@ -10,7 +10,7 @@ import StagingPreviewGate5AuditPanel from './StagingPreviewGate5AuditPanel';
 /**
  * Owner-visible consent management ONLY. Session titles come from the
  * already owner-scoped app state; no session transcript goes to the server.
- * These grants are NOT consumed by Grok yet.
+ * Grants are scoped to a saved session, not blanket permission to call Grok.
  */
 export default function ContextConsentPanel({ userId, sessions = [] }) {
   const [selected, setSelected] = useState('');
@@ -79,7 +79,7 @@ export default function ContextConsentPanel({ userId, sessions = [] }) {
         setLoaded(true);
         setConfirmed(false);
         setMessage(action === 'grant'
-          ? 'Разрешение подтверждено сервером на 15 минут. Передача истории в Grok ещё выключена.'
+          ? 'Разрешение подтверждено сервером на 15 минут. Передача в Grok требует отдельного просмотра и подтверждения в сеансе.'
           : 'Отзыв доступа подтверждён сервером. История в Grok не передавалась.');
       }
     } catch (error) {
@@ -121,7 +121,8 @@ export default function ContextConsentPanel({ userId, sessions = [] }) {
         <ShieldCheck size={16} aria-hidden="true"/>
         По умолчанию доступ закрыт. Можно разрешить только один конкретный
         сохранённый сеанс на 15 минут и отозвать доступ в любое время.
-        Даже после выдачи разрешения Grok пока не читает историю.
+        Выдача разрешения не передаёт историю в Grok. В выбранном сеансе
+        отдельно проверьте выдержки и подтвердите отправку.
       </p>
       {!contextConsentUiEnabled ? (
         <p role="status" className="reflect-context-consent-off">
