@@ -25,7 +25,9 @@ const assistantMessage = {
 };
 const params = {
   userId: 'synthetic-user', sessionId: 'saved-session',
-  assistantMessageId: assistantMessage.id, candidateIndex: 0
+  assistantMessageId: assistantMessage.id, candidateIndex: 0,
+  goalStep: 'Сделать первый проверяемый шаг',
+  goalCriteria: 'Шаг завершён и проверен мной'
 };
 let session, goal, writes;
 beforeEach(() => {
@@ -95,7 +97,9 @@ describe('PRODUCT-02 owner-scoped recommendation decision transaction', () => {
     expect(goal.sourceMessageId).toBe(userMessage.id);
     expect(goal.sourceAssistantMessageId).toBe(assistantMessage.id);
     expect(goal.completed).toBe(false);
-    expect(goal.subItems).toEqual([]);
+    expect(goal.subItems).toEqual([{
+      id: 'stable-goal-step-0', text: params.goalStep, completed: false
+    }]);
     expect(doc).toHaveBeenCalledWith(expect.anything(),
       'artifacts/reflect-8fdc8/users/synthetic-user', 'goals', 'stable-goal');
     await applyRecommendationDecision({
@@ -148,6 +152,19 @@ it('persists authored first step, optional local-date deadline and success crite
   expect(goal.successCriteria).toBe('Проверяется открытием URL');
   expect(goal.completed).toBe(false);
 });
+it('M6b rejects empty first step or missing success criteria before any write', async () => {
+  await expect(applyRecommendationDecision({
+    ...params, action: 'goal', goalId: 'empty-step',
+    goalTitle: 'Проверяемая цель', goalStep: ' '
+  })).rejects.toThrow(/Проверьте/);
+  await expect(applyRecommendationDecision({
+    ...params, action: 'goal', goalId: 'empty-criterion',
+    goalTitle: 'Проверяемая цель', goalCriteria: ''
+  })).rejects.toThrow(/Проверьте/);
+  expect(runTransaction).not.toHaveBeenCalled();
+  expect(writes).toHaveLength(0);
+});
+
 it('refuses impossible deadlines without writing either session or goal', async () => {
   await expect(applyRecommendationDecision({
     ...params, action: 'goal', goalId: 'invalid-date',
