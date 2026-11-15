@@ -1,6 +1,7 @@
 import React from 'react';
 import { Bot, Volume2, PauseCircle } from 'lucide-react';
 import InteractionResult from './InteractionResult';
+import { isSupportedInteraction } from './interactionVersions';
 
 const ChatMessage = React.memo(({ message, onPlayAudio, isSpeaking, currentlySpeakingId, onCompose, onDecision, onOpenGoals, onOpenRecommendations, isSaved, decisions,
   reviews = {}, onHypothesisReview, focused = false }) => {
@@ -17,7 +18,7 @@ const ChatMessage = React.memo(({ message, onPlayAudio, isSpeaking, currentlySpe
       <div className="reflect-chat-message-body">
         <p className="reflect-chat-message-author">{isUser ? 'Вы' : 'Reflect'}</p>
         <div className="reflect-chat-bubble">
-          {!isUser && message.interaction?.version === 'reflect.interaction.v1' &&
+          {!isUser && isSupportedInteraction(message.interaction) &&
             <small className="reflect-ai-provisional-label">
               Предварительный взгляд Reflect · возможна ошибка в объяснении
             </small>}
