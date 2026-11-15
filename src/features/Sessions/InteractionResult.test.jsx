@@ -90,3 +90,43 @@ it('M5c v2 cannot silently display cross-owner or unknown-version structured cla
     .not.toBeInTheDocument();
   expect(onFocusTurn).not.toHaveBeenCalled();
 });
+
+it('M6a UI never exposes a goal while unresolved facts remain; preserves owner save option', () => {
+  const onDecision = vi.fn();
+  const interaction = {
+    ...base, stage: 'synthesize', clarifyingQuestion: '',
+    unknowns: ['Неизвестна стоимость'],
+    insights: []
+  };
+  render(<InteractionResult interaction={interaction}
+    messageId="assistant-m6a-1" isSaved onDecision={onDecision}/>);
+  const goalButton = screen.getByRole('button', { name: 'Превратить в цель' });
+  expect(goalButton).toBeDisabled();
+  expect(screen.getByText(/Цель пока недоступна/))
+    .toHaveTextContent('неизвестные обстоятельства');
+  fireEvent.click(goalButton);
+  expect(onDecision).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить идею' }));
+  expect(onDecision).toHaveBeenCalledExactlyOnceWith(0, 'saved', {});
+});
+
+it('M6a UI allows one deliberate goal only after all owner feedback is source-matched', () => {
+  const onDecision = vi.fn().mockResolvedValue({ status: 'accepted' });
+  const interaction = {
+    ...base, stage: 'synthesize', clarifyingQuestion: '',
+    unknowns: [], insights: ['Возможно, вам нужен более короткий план']
+  };
+  const source = 'assistant-m6a-2';
+  const review = {
+    assistantMessageId: source, hypothesisIndex: 0, grade: 3, comment: ''
+  };
+  const props = {
+    interaction, messageId: source, isSaved: true,
+    onDecision, reviews: { [`h-${source}-0`]: review }
+  };
+  render(<InteractionResult {...props}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Превратить в цель' }));
+  expect(screen.getByRole('button', { name: 'Подтвердить создание цели' }))
+    .toBeEnabled();
+  expect(onDecision).not.toHaveBeenCalled();
+});
