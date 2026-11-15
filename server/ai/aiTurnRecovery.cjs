@@ -9,6 +9,7 @@
  */
 const { PolicyError } = require("./policy.cjs");
 const { modePolicy } = require("./interactionModes.cjs");
+const { evidenceSnapshot } = require("./ownerEvidenceV2.cjs");
 const PROJECT = "reflect-ai-staging";
 const NAMESPACE = "reflect-8fdc8";
 const REQUEST = /^[A-Za-z0-9_-]{12,80}$/;
@@ -164,10 +165,12 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now }) {
   const refs = target => ({ session: db.doc(sessionPath(target)),
     receipt: db.doc(receiptPath(target)) });
 
-  async function claim({ uid, sessionId, sourceTurnId, requestId, message, retryConfirmed }) {
+  async function claim({ uid, sessionId, sourceTurnId, requestId, message, retryConfirmed,
+    collectEvidence = false }) {
     const target = validateTurnTarget({ uid, sessionId, sourceTurnId });
     if (!valid(REQUEST, requestId) || typeof message !== "string" ||
-        !message.trim() || typeof retryConfirmed !== "boolean") fail("invalid-argument");
+        !message.trim() || typeof retryConfirmed !== "boolean" ||
+        typeof collectEvidence !== "boolean") fail("invalid-argument");
     const first = sourceTurnId === "user-" + requestId;
     if (!first && !retryConfirmed) fail("permission-denied");
     const nowMs = clock();
@@ -175,7 +178,7 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now }) {
     const { session, receipt } = refs(target);
     return db.runTransaction(async tx => {
       const [stored, prior] = await Promise.all([tx.get(session), tx.get(receipt)]);
-      const { hasReply, history, index } = checkSession(stored, target, message);
+      const { hasReply, history, index, data } = checkSession(stored, target, message);
       // Server reads the exact committed user turn in an owner-scoped
       // Firestore transaction. Client cannot add a mode to the HTTP payload.
       const turnMode = history[index]?.interactionMode;
@@ -201,7 +204,8 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now }) {
       });
       return Object.freeze({
         ...target, requestId,
-        ...(turnMode === undefined ? {} : { interactionMode: turnMode })
+        ...(turnMode === undefined ? {} : { interactionMode: turnMode }),
+        ...(collectEvidence ? { evidenceSnapshot: evidenceSnapshot(data) } : {})
       });
     });
   }
@@ -254,7 +258,8 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now }) {
         content: reply.text.trim(), timestamp: new Date(nowMs),
         ...(attempt.interactionMode
           ? { interactionMode: attempt.interactionMode } : {}),
-        ...(reply.interaction?.version === "reflect.interaction.v1"
+        ...(reply.interaction?.version === "reflect.interaction.v1" ||
+             reply.interaction?.version === "reflect.interaction.v2"
           ? { interaction: reply.interaction } : {})
       };
       // Both writes commit together. Concurrent arrayUnion writes to session
