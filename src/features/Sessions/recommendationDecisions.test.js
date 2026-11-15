@@ -30,7 +30,17 @@ const params = {
 let session, goal, writes;
 beforeEach(() => {
   vi.clearAllMocks();
-  session = { chatHistory: [userMessage, assistantMessage] };
+  session = { chatHistory: [
+    { ...userMessage },
+    { ...assistantMessage,
+      interaction: {
+        ...assistantMessage.interaction,
+        unknowns: [], insights: [],
+        recommendationCandidates:
+          assistantMessage.interaction.recommendationCandidates.map(v => ({ ...v }))
+      }
+    }
+  ] };
   goal = null;
   writes = [];
   runTransaction.mockImplementation(async (_db, callback) => {
