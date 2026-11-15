@@ -20,7 +20,7 @@ const firstExcerpt = text => (typeof text === 'string'
  * Follow-up M5b will separately validate server-side AI clarification.
  */
 export default function SessionReadinessPanel({
-  userId, session, mode = 'account', currentDraft = '', onFocusTurn
+  userId, session, mode = 'account', currentDraft = '', onFocusTurn, expanded = false
 }) {
   const [accountMode, setAccountMode] = useState(null);
   const [slot, setSlot] = useState('situation');
@@ -109,7 +109,7 @@ export default function SessionReadinessPanel({
   };
   if (!session?.id || !applicable) return null;
   return (
-    <details className="reflect-evidence-ledger reflect-readiness"
+    <details open={expanded} className="reflect-evidence-ledger reflect-readiness"
       aria-label="Подтверждённые сведения для совета">
       <summary>Сведения для обоснованного совета
         <span>{reviewed.confirmedSlots} из 4 категорий подтверждены</span>

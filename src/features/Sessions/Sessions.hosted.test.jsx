@@ -69,7 +69,10 @@ test('explicit send persists owner message before Grok and automatically saves t
   render(<Harness />);
   const textbox = screen.getByRole('textbox', { name: 'Сообщение для сеанса' });
   fireEvent.change(textbox, { target: { value: 'Только этот текст' } });
-  expect(screen.getByText(/Отправляя сообщение в Grok, вы разрешаете передать/)).toBeInTheDocument();
+  const privacy = screen.getByText('Приватность и сохранение');
+  expect(privacy.closest('details')).not.toHaveAttribute('open');
+  fireEvent.click(privacy);
+  expect(screen.getByText(/xAI может хранить API-запрос/)).toBeInTheDocument();
   expect(screen.queryByRole('checkbox')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Отправить сообщение' }));
   await waitFor(() => expect(mocks.append).toHaveBeenCalledOnce());
@@ -100,11 +103,13 @@ test('failed provider call leaves a durable user turn; never silently retries or
 
 test('M4.2 new session stores selected AI mode before first paid provider call', async () => {
   render(<Harness />);
-  const select = screen.getByRole('combobox', {
+  fireEvent.click(screen.getByRole('button', {
     name: 'Режим AI этого сеанса'
-  });
-  fireEvent.change(select, { target: { value: 'coach' } });
-  expect(select).toHaveValue('coach');
+  }));
+  fireEvent.click(screen.getByRole('option', { name: 'Коучинг' }));
+  expect(screen.getByRole('button', {
+    name: 'Режим AI этого сеанса'
+  })).toHaveAttribute('title', 'Режим AI: Коучинг');
   expect(mocks.create).not.toHaveBeenCalled();
   expect(mocks.ai).not.toHaveBeenCalled();
   fireEvent.change(screen.getByRole('textbox', {

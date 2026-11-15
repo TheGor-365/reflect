@@ -85,14 +85,20 @@ beforeEach(() => {
     persistedByServer: true
   });
 });
+async function openHistoryTools() {
+  fireEvent.click(screen.getByRole('button', { name: 'Инструменты сеанса' }));
+  const item = await screen.findByRole('menuitem', { name: 'Контекст и история' });
+  fireEvent.click(item);
+  return screen.findByRole('button', {
+    name: 'Отправить просмотренную историю (тест)'
+  });
+}
 async function prepare() {
   render(<Sessions {...base}/>);
   fireEvent.change(screen.getByRole('textbox', {
     name: 'Сообщение для сеанса'
   }), { target: { value: 'Это новый вопрос' } });
-  return screen.findByRole('button', {
-    name:'Отправить просмотренную историю (тест)'
-  });
+  return openHistoryTools();
 }
 
 test('M3d3 stores exact owner turn before invoking one context-assisted provider call', async () => {
@@ -155,9 +161,7 @@ test('M3d3 stale consent question is rejected before Firestore and provider', as
   fireEvent.change(screen.getByRole('textbox', {
     name: 'Сообщение для сеанса'
   }), { target: { value: 'Уже другой вопрос' } });
-  const button = await screen.findByRole('button', {
-    name:'Отправить просмотренную историю (тест)'
-  });
+  const button = await openHistoryTools();
   fireEvent.click(button);
   expect(mocks.append).not.toHaveBeenCalled();
   expect(mocks.history).not.toHaveBeenCalled();
@@ -174,9 +178,7 @@ test('M4.2 explicitly persisted session mode is included in consented user turn,
   fireEvent.change(screen.getByRole('textbox', {
     name: 'Сообщение для сеанса'
   }), { target: { value: 'Это новый вопрос' } });
-  const button = await screen.findByRole('button', {
-    name: 'Отправить просмотренную историю (тест)'
-  });
+  const button = await openHistoryTools();
   fireEvent.click(button);
   await waitFor(() => expect(mocks.history).toHaveBeenCalledOnce());
   expect(mocks.append.mock.calls[0][2].interactionMode).toBe('analytic');
@@ -184,26 +186,28 @@ test('M4.2 explicitly persisted session mode is included in consented user turn,
   expect(mocks.history).toHaveBeenCalledOnce();
 });
 
-test('M4.2: an unsaved mode change blocks history send until readback', async () => {
+test('UX R1: automatic mode save blocks history send until server readback', async () => {
+  let finishSave;
+  mocks.saveMode.mockImplementationOnce(() => new Promise(resolve => {
+    finishSave = resolve;
+  }));
   render(<Sessions {...base}/>);
-  const select = screen.getByRole('combobox', {
+  fireEvent.click(screen.getByRole('button', {
     name: 'Режим AI этого сеанса'
-  });
-  fireEvent.change(select, { target: { value: 'coach' } });
+  }));
+  fireEvent.click(screen.getByRole('option', { name: 'Коучинг' }));
   fireEvent.change(screen.getByRole('textbox', {
     name: 'Сообщение для сеанса'
   }), { target: { value: 'Это новый вопрос' } });
-  const paid = await screen.findByRole('button', {
-    name:'Отправить просмотренную историю (тест)'
-  });
+  const paid = await openHistoryTools();
   expect(screen.getByRole('button', {
     name: 'Отправить сообщение'
   })).toBeDisabled();
   fireEvent.click(paid);
   expect(mocks.history).not.toHaveBeenCalled();
   expect(mocks.append).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Сохранить режим' }));
   await waitFor(() => expect(mocks.saveMode).toHaveBeenCalledOnce());
+  finishSave('coach');
   await waitFor(() => expect(screen.getByRole('button', {
     name: 'Отправить сообщение'
   })).toBeEnabled());

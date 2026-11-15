@@ -14,7 +14,7 @@ import { contextLevelPolicy } from '../../api/contextLevels';
  */
 export default function SessionMemoryReview({
   sessionId, userId, draftMessage = '', disabled = false,
-  onConfirmHistory = null, contextLevel
+  onConfirmHistory = null, contextLevel, expanded = false
 }) {
   const [grant, setGrant] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -117,7 +117,7 @@ export default function SessionMemoryReview({
   };
 
   return (
-    <details className="reflect-evidence-ledger reflect-memory-review"
+    <details open={expanded} className="reflect-evidence-ledger reflect-memory-review"
       aria-label="Просмотр истории перед отправкой">
       <summary><ShieldCheck size={17} aria-hidden="true"/>
         Контекст текущей беседы — отдельное разрешение</summary>
