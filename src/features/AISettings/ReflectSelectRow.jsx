@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
+import ReflectContentIcon from '../../components/common/ReflectContentIcon';
 
 /**
  * Fully styled, controlled preference selector. Native <select> popup colors
@@ -87,6 +88,7 @@ export default function ReflectSelectRow({
           disabled={disabled}
           onClick={() => open ? setOpen(false) : expand()}
           onKeyDown={handleKey}>
+          {name === 'interactionMode' && <ReflectContentIcon kind={value} size={18}/>}
           <span>{selected}</span>
           <ChevronDown size={17} aria-hidden="true" className={open ? 'reflect-preference-chevron--open' : ''}/>
         </button>
@@ -101,6 +103,9 @@ export default function ReflectSelectRow({
                 onMouseEnter={() => setActive(i)}
                 onPointerDown={event => event.preventDefault()}
                 onClick={() => select(i)}>
+                {name === 'interactionMode' && (
+                  <ReflectContentIcon kind={id} size={17}/>
+                )}
                 <span>{caption}</span>
                 {id === value && <Check size={16} aria-hidden="true"/>}
               </div>

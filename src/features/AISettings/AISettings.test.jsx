@@ -41,7 +41,12 @@ test('defaults closed: never creates a doc or recommendation without an explicit
     .not.toBeChecked();
   expect(screen.getByRole('checkbox', { name: /Автосохранение рекомендаций/ }))
     .toBeDisabled();
-  expect(screen.getByText(/Сохранение ≠ разрешение/)).toBeInTheDocument();
+  const privacy=screen.getByRole('button',{
+    name:'Как работают настройки и разрешения'
+  });
+  expect(privacy).toHaveAttribute('aria-expanded','false');
+  fireEvent.click(privacy);
+  expect(screen.getByText(/не дают автоматического доступа/)).toBeInTheDocument();
   expect(doc).toHaveBeenCalledWith(
     expect.anything(), 'artifacts/reflect-8fdc8/users/synthetic-owner/aiSettings/preferences'
   );

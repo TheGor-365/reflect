@@ -150,6 +150,12 @@ afterEach(()=>vi.unstubAllGlobals());
 
 it('M1.5: journey evidence is an explanatory table, not seven large score cards',()=>{
   render(<JourneyMap sessions={sessions} goals={goals}/>);
+  const detail=screen.getByRole('button',{name:'Подробные показатели и методика'});
+  expect(detail).toHaveAttribute('aria-expanded','false');
+  expect(screen.getByLabelText('Краткие показатели выбранной темы'))
+    .toHaveTextContent('Ваши решения');
+  fireEvent.click(detail);
+  expect(detail).toHaveAttribute('aria-expanded','true');
   const table=screen.getByRole('table',{name:'Фактические метрики выбранной темы'});
   expect(table).toBeInTheDocument();
   expect(table.querySelectorAll('tbody tr')).toHaveLength(7);

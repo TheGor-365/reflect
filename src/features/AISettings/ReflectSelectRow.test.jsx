@@ -64,3 +64,20 @@ test('outside pointer action closes the options without altering value', () => {
   expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   expect(onChange).not.toHaveBeenCalled();
 });
+
+test('UX R3 mode choices use the same semantic icon in defaults and session', () => {
+  render(<ReflectSelectRow label="Режим Reflect AI"
+    description="Режим по умолчанию"
+    name="interactionMode" value="support"
+    options={[['reflection','Рефлексия'],['support','Поддержка'],['coach','Коучинг']]}
+    onChange={vi.fn()}/>);
+  const trigger=screen.getByRole('combobox',{name:'Режим Reflect AI'});
+  // Shared ReflectContentIcon renders a persistent icon, not a native select.
+  expect(trigger.querySelectorAll('svg')).toHaveLength(2);
+  expect(trigger).toHaveTextContent('Поддержка');
+  fireEvent.click(trigger);
+  const choices=screen.getByRole('listbox',{name:'Режим Reflect AI'});
+  expect(within(choices).getByRole('option',{name:'Коучинг'})
+    .querySelector('svg')).not.toBeNull();
+  expect(document.querySelector('select')).toBeNull();
+});
