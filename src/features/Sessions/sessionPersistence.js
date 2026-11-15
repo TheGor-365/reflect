@@ -20,13 +20,13 @@ const pathFor = userId => {
 };
 
 /** Returns only after Firestore confirms the initial user turn. */
-export async function createDurableSession(userId, turn, mode = undefined) {
+export async function createDurableSession(userId, turn) {
   if (!turnOk(turn) || turn.role !== 'user') throw new Error('invalid-session-turn');
   const ref = doc(pathFor(userId));
   const title = deriveSessionTitle(turn.content);
   await setDoc(ref, {
     title, titleSource: 'auto', chatHistory: [turn], recommendations: [], exercises: [],
-    ...turnModeFields(mode),
+    ...turnModeFields(turn.interactionMode),
     createdAt: serverTimestamp(), updatedAt: serverTimestamp()
   });
   return { id: ref.id, title };
