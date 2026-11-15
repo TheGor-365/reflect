@@ -96,3 +96,25 @@ test('failed provider call leaves a durable user turn; never silently retries or
   expect(screen.getByRole('alert').textContent).not.toContain('SENSITIVE_PROVIDER_BODY');
   expect(mocks.ai).toHaveBeenCalledOnce();
 });
+
+
+test('M4.2 new session stores selected AI mode before first paid provider call', async () => {
+  render(<Harness />);
+  const select = screen.getByRole('combobox', {
+    name: 'Режим AI этого сеанса'
+  });
+  fireEvent.change(select, { target: { value: 'coach' } });
+  expect(select).toHaveValue('coach');
+  expect(mocks.create).not.toHaveBeenCalled();
+  expect(mocks.ai).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByRole('textbox', {
+    name: 'Сообщение для сеанса'
+  }), { target: { value: 'Помоги оценить следующие шаги' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Отправить сообщение' }));
+  await waitFor(() => expect(mocks.ai).toHaveBeenCalledOnce());
+  expect(mocks.create.mock.calls[0][1]).toMatchObject({
+    role: 'user', content: 'Помоги оценить следующие шаги',
+    interactionMode: 'coach'
+  });
+  expect(mocks.create).toHaveBeenCalledOnce();
+});
