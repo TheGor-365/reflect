@@ -69,7 +69,10 @@ test('explicit send persists owner message before Grok and automatically saves t
   render(<Harness />);
   const textbox = screen.getByRole('textbox', { name: 'Сообщение для сеанса' });
   fireEvent.change(textbox, { target: { value: 'Только этот текст' } });
-  expect(screen.getByText(/Отправляя сообщение в Grok, вы разрешаете передать/)).toBeInTheDocument();
+  const privacy = screen.getByText('Приватность и сохранение');
+  expect(privacy.closest('details')).not.toHaveAttribute('open');
+  fireEvent.click(privacy);
+  expect(screen.getByText(/xAI может хранить API-запрос/)).toBeInTheDocument();
   expect(screen.queryByRole('checkbox')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Отправить сообщение' }));
   await waitFor(() => expect(mocks.append).toHaveBeenCalledOnce());
