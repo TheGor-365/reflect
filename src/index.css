@@ -4449,3 +4449,222 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
     transition: none !important;
   }
 }
+
+
+/* UX R2 — content-first recommendations, goal provenance and reversible motion. */
+.reflect-disclosure {
+  min-width: 0;
+  color: var(--reflect-muted);
+}
+.reflect-disclosure-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: 100%;
+  min-height: 34px;
+  border: 0;
+  padding: 5px 0;
+  text-align: left;
+  background: transparent;
+  color: var(--reflect-muted);
+  font-size: .78rem;
+  font-weight: 620;
+  transition: color .22s ease;
+}
+.reflect-disclosure-trigger:hover,
+.reflect-disclosure-trigger[aria-expanded="true"] {
+  color: var(--reflect-ink);
+}
+.reflect-disclosure-trigger > svg:first-child {color: var(--reflect-accent);}
+.reflect-disclosure-trigger > span {min-width: 0; overflow-wrap: anywhere;}
+.reflect-disclosure-trigger > svg:last-child {
+  flex: none;
+  transition: transform .26s cubic-bezier(.2,.8,.2,1);
+}
+.reflect-disclosure-trigger > svg.is-expanded {transform: rotate(-180deg);}
+.reflect-disclosure-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    grid-template-rows .3s cubic-bezier(.2,.8,.2,1),
+    opacity .25s ease,
+    visibility 0s linear .3s;
+}
+.reflect-disclosure-content[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    grid-template-rows .3s cubic-bezier(.2,.8,.2,1),
+    opacity .25s ease,
+    visibility 0s;
+}
+.reflect-disclosure-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+.reflect-disclosure-inner > :first-child {margin-top: 8px;}
+.reflect-disclosure-inner :is(p, blockquote) {
+  color: var(--reflect-muted);
+  font-size: .81rem;
+  line-height: 1.63;
+}
+.reflect-disclosure-inner blockquote {
+  margin: 10px 0;
+  padding: 10px 14px;
+  border-left: 2px solid color-mix(in srgb, var(--reflect-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--reflect-ink) 4%, transparent);
+  border-radius: 0 10px 10px 0;
+}
+.reflect-disclosure-inner p > svg {
+  vertical-align: middle;
+  margin-right: 5px;
+  color: var(--reflect-accent);
+}
+.reflect-app .reflect-inbox-header {
+  align-items: center;
+  gap: 18px;
+  padding: 9px 0 4px;
+}
+.reflect-app .reflect-inbox-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: clamp(1.35rem, 2.5vw, 1.82rem);
+  letter-spacing: -.03em;
+}
+.reflect-app .reflect-inbox-header h2 svg {color: var(--reflect-accent);}
+.reflect-app .reflect-inbox-counters span {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--reflect-ink) 4%, transparent);
+}
+.reflect-app .reflect-inbox-group {gap: 14px;}
+.reflect-app .reflect-inbox-group h3 {
+  margin-top: 11px;
+  font-size: .97rem;
+  letter-spacing: -.01em;
+}
+.reflect-app .reflect-inbox-card {
+  padding: 19px clamp(16px, 2vw, 27px);
+  border: 1px solid var(--reflect-hairline);
+  border-radius: 15px;
+  background: var(--reflect-card);
+  gap: 11px;
+  box-shadow: none;
+}
+.reflect-app .reflect-inbox-card--clarify {border-inline-start: 1px solid var(--reflect-hairline);}
+.reflect-app .reflect-inbox-card h4 {
+  font-size: 1.05rem;
+  font-weight: 720;
+  letter-spacing: -.015em;
+}
+.reflect-app .reflect-inbox-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--reflect-accent);
+  font-size: .76rem;
+  font-weight: 640;
+}
+.reflect-app .reflect-inbox-card p {
+  font-size: .88rem;
+  line-height: 1.65;
+}
+.reflect-app .reflect-inbox-footer {
+  margin-top: 5px;
+  padding-top: 9px;
+  border-top: 1px solid var(--reflect-hairline);
+  gap: 11px;
+}
+.reflect-app .reflect-inbox-guidance {
+  margin-top: -2px;
+  margin-bottom: 4px;
+}
+.reflect-app .reflect-inbox-context {
+  margin-top: -1px;
+}
+.reflect-app .reflect-inbox-context .reflect-disclosure-inner p,
+.reflect-app .reflect-inbox-context .reflect-disclosure-inner blockquote {
+  font-size: .78rem;
+}
+.reflect-app .reflect-goal-suggestions {
+  padding: 17px clamp(13px, 2vw, 20px);
+  border: 1px solid var(--reflect-hairline);
+  border-radius: 17px;
+  box-shadow: none;
+}
+.reflect-app .reflect-goal-suggestions header > svg {
+  color: var(--reflect-accent);
+}
+.reflect-app .reflect-goal-suggestions ol {gap: 12px; margin: 13px 0 0;}
+.reflect-app .reflect-goal-suggestions li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px 17px;
+  border: 0;
+  border-top: 1px solid var(--reflect-hairline);
+  border-radius: 0;
+  background: transparent;
+  padding: 14px 2px 3px;
+}
+.reflect-app .reflect-goal-suggestion-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  min-width: 0;
+}
+.reflect-goal-suggestion-main > svg {flex: none; color: var(--reflect-accent); margin-top: 1px;}
+.reflect-goal-suggestion-main > div {display: grid; gap: 5px;}
+.reflect-app .reflect-goal-suggestions li strong {
+  font-size: .91rem;
+  line-height: 1.5;
+  letter-spacing: -.01em;
+}
+.reflect-app .reflect-goal-suggestion-context {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.reflect-app .reflect-goal-suggestion-context .reflect-disclosure-inner {
+  max-width: 68ch;
+}
+.reflect-app .reflect-goal-suggestions li > button {
+  align-self: start;
+  grid-row: 1;
+  grid-column: 2;
+  border: 1px solid var(--reflect-hairline);
+  color: var(--reflect-ink);
+  white-space: nowrap;
+}
+.reflect-app .reflect-goals-advanced-motion {
+  margin-top: 2px;
+}
+.reflect-app .reflect-goals-advanced {
+  margin-top: 0;
+  border-top: 1px solid var(--reflect-hairline);
+  padding-top: 19px;
+}
+.reflect-app .reflect-goals-creator,
+.reflect-app .reflect-goals-focused .reflect-goal-card {
+  border-color: var(--reflect-hairline);
+}
+@media (max-width: 720px) {
+  .reflect-app .reflect-inbox-header {align-items: flex-start;}
+  .reflect-app .reflect-goal-suggestions li {grid-template-columns: minmax(0,1fr);}
+  .reflect-app .reflect-goal-suggestions li > button {
+    grid-row: auto; grid-column: 1;
+    justify-self: start;
+  }
+  .reflect-app .reflect-goal-suggestion-context {grid-row: auto;}
+}
+@media (prefers-reduced-motion: reduce) {
+  .reflect-disclosure-content,
+  .reflect-disclosure-trigger > svg:last-child {
+    transition: none !important;
+  }
+}
