@@ -120,8 +120,9 @@ function GoalCard({ goal, userId, onAppend, onFeedback, onOpenSession, focused =
           )}
           {goal.sessionId && onOpenSession && (
             <button type="button" className="reflect-goal-source-link"
-              onClick={() => onOpenSession(goal.sessionId)}>
-              Источник: открыть сеанс
+              onClick={() => onOpenSession(goal.sessionId, goal.sourceAssistantMessageId || null)}>
+              {goal.sourceAssistantMessageId
+                ? 'Источник: открыть ответ Reflect' : 'Источник: открыть сеанс'}
             </button>
           )}
         </div>
