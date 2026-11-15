@@ -47,7 +47,10 @@ beforeEach(() => {
 
 test('paid Sessions have an explicit send disclosure but no debug widgets or checkbox', () => {
   const { container } = render(<Harness />);
-  expect(screen.getByText(/Отправляя сообщение в Grok, вы разрешаете передать/))
+  const privacy = screen.getByText('Приватность и сохранение');
+  expect(privacy.closest('details')).not.toHaveAttribute('open');
+  fireEvent.click(privacy);
+  expect(screen.getByText(/История, профиль и дневник не добавляются автоматически/))
     .toBeInTheDocument();
   expect(screen.getByRole('textbox', { name: 'Сообщение для сеанса' }))
     .toHaveAttribute('aria-describedby',
