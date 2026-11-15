@@ -5,6 +5,7 @@ import {
   sessionMemoryPreviewUiEnabled, requestSessionMemoryPreview
 } from '../../api/sessionMemoryPreviewService';
 import { sessionMemoryReplyUiEnabled } from '../../api/sessionMemoryReplyService';
+import { contextLevelPolicy } from '../../api/contextLevels';
 
 /**
  * M3d.2a: owner-driven, preview-only inspector. Never sends any transcript
@@ -13,7 +14,7 @@ import { sessionMemoryReplyUiEnabled } from '../../api/sessionMemoryReplyService
  */
 export default function SessionMemoryReview({
   sessionId, userId, draftMessage = '', disabled = false,
-  onConfirmHistory = null
+  onConfirmHistory = null, contextLevel
 }) {
   const [grant, setGrant] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -29,10 +30,13 @@ export default function SessionMemoryReview({
     setGrant(null); setPreview(null); setAcknowledged(false);
     setExternalApproved(false); setSubmitted(false);
     setBusy(false); setNotice('');
-  }, [userId, sessionId, draftMessage]);
+  }, [userId, sessionId, draftMessage, contextLevel]);
 
   if (!sessionMemoryPreviewUiEnabled || !userId || !sessionId) return null;
 
+  const policy = contextLevel === undefined
+    ? { label: 'Подробный', maxTurns: 4, maxBytes: 1200 }
+    : contextLevelPolicy(contextLevel);
   const bytes = new TextEncoder().encode(draftMessage.trim()).length;
   const draftReady = bytes > 0 && bytes <= 2000;
   const safeGrant = grant && grant.sourceId === sessionId &&
@@ -75,9 +79,13 @@ export default function SessionMemoryReview({
     try {
       const result = await requestSessionMemoryPreview({
         grantId: grant.grantId, sourceId: sessionId, requestId,
-        message: draftMessage.trim()
+        message: draftMessage.trim(),
+        ...(contextLevel === undefined ? {} : { contextLevel })
       });
       if (marker !== generation.current) return;
+      if (contextLevel !== undefined && result.contextLevel !== contextLevel) {
+        throw new Error('preview-tier-mismatch');
+      }
       setPreview(result);
       setNotice('Выдержки получены только с сервера Reflect. В Grok они не отправлялись.');
     } catch { if (marker === generation.current) setNotice(failMessage); }
@@ -87,11 +95,13 @@ export default function SessionMemoryReview({
   const sendWithHistory = async () => {
     if (!sessionMemoryReplyUiEnabled || typeof onConfirmHistory !== 'function' ||
         !canInteract || !safeGrant || !preview || !acknowledged ||
-        !externalApproved || !draftReady || submitted) return;
+        !externalApproved || !draftReady || submitted ||
+        (contextLevel !== undefined && preview.contextLevel !== contextLevel)) return;
     const snapshot = Object.freeze({
       sourceId: sessionId, message: draftMessage.trim(),
       requestId: preview.requestId, approvedDigest: preview.approvalDigest,
-      grantId: grant.grantId, confirmed: true
+      grantId: grant.grantId, confirmed: true,
+      ...(contextLevel === undefined ? {} : { contextLevel })
     });
     // One deliberate click consumes this UI authorization irreversibly.
     // A failed or ambiguous response cannot be sent again with this preview.
@@ -120,12 +130,16 @@ export default function SessionMemoryReview({
           Обычная кнопка «Отправить» передаёт Grok только текст поля.
           Для контекста потребуется отдельное подтверждение ниже;
           никаких автоматических отправок или повторов.</p>
+        <p><strong>Выбранный уровень: {policy.label}.</strong>
+          Максимум {policy.maxTurns} реплик, {policy.maxBytes} байт
+          только из текущего сеанса. Изменить уровень можно в «Настройках AI»,
+          затем сделать новый предпросмотр.</p>
         <div className="reflect-memory-review-actions">
           <button type="button" disabled={!canInteract}
             onClick={refreshGrant}>Проверить разрешение</button>
           <button type="button" onClick={inspect}
             disabled={!canInteract || !draftReady || !safeGrant}>
-            Посмотреть до четырёх реплик
+            Посмотреть до {policy.maxTurns} реплик
           </button>
         </div>
         {!draftReady && <p>Чтобы проверить контекст, сначала напишите
@@ -160,7 +174,7 @@ export default function SessionMemoryReview({
                   aria-label="Отдельное разрешение отправить историю в Grok">
                   <p><strong>Передача внешнему провайдеру xAI / Grok.</strong>
                     Будет передан ваш новый вопрос и только показанные
-                    выдержки текущего сеанса (максимум 4).
+                    выдержки текущего сеанса (максимум {policy.maxTurns}).
                     xAI может хранить API-запрос и ответ до 30 дней.
                     Это один потенциально платный запрос; повтор не производится
                     автоматически. Разрешение можно отозвать до отправки,
