@@ -22,6 +22,8 @@
 const { PolicyError } = require("./policy.cjs");
 const { readProviderCharge } = require("./xaiCost.cjs");
 const { buildRequest, parseInteraction } = require("./interactionContract.cjs");
+const evidenceV2 = require("./interactionEvidenceV2.cjs");
+const { isEvidenceSnapshot } = require("./ownerEvidenceV2.cjs");
 const {
   MODEL, ENDPOINT, createSyntheticXaiRequest, extractXaiText,
   estimatePublishedUsd
@@ -113,29 +115,46 @@ async function readLimitedJson(response) {
 }
 
 function createXaiProviderAdapter({
-  transport, readSecret, timeoutMs = DEFAULT_TIMEOUT_MS
+  transport, readSecret, timeoutMs = DEFAULT_TIMEOUT_MS,
+  evidenceV2Enabled = false
 } = {}) {
   // Fail closed. No global fetch, no env fallback, no test fixture in prod.
   if (typeof transport !== "function" ||
       typeof readSecret !== "function" ||
       !Number.isSafeInteger(timeoutMs) ||
-      timeoutMs < 1 || timeoutMs > MAX_TIMEOUT_MS) {
+      timeoutMs < 1 || timeoutMs > MAX_TIMEOUT_MS ||
+      typeof evidenceV2Enabled !== "boolean") {
     fail("unsafe-environment");
   }
 
-  async function invoke(message, interactionConfig = null, consentedContext = null) {
+  async function invoke(message, interactionConfig = null, consentedContext = null,
+    turnEvidence = null) {
     // M3: only a server-authorized excerpt bundle may become provider input.
     // The legacy one-message path MUST NOT silently drop a supplied context:
     // that would conceal a consent/transport mismatch from the owner.
     if (consentedContext !== null && !interactionConfig) {
       fail("permission-denied");
     }
-    // Keep legacy preflight strict; only the server chooses V1 interaction mode.
+    // V2 needs a receipt-bound, verified owner source from the trusted
+    // server. A browser may not supply source metadata, and the adapter
+    // cannot infer owner authorization from a bare message.
+    if (evidenceV2Enabled && (!interactionConfig || !turnEvidence ||
+        typeof turnEvidence.sourceTurnId !== "string" ||
+        !/^[-A-Za-z0-9_]{1,128}$/.test(turnEvidence.sourceTurnId) ||
+        !isEvidenceSnapshot(turnEvidence.evidence))) {
+      fail("unsafe-environment");
+    }
+    if (!evidenceV2Enabled && turnEvidence !== null) fail("unsafe-environment");
+    // Keep legacy preflight strict; only the server chooses interaction mode.
     const checked = createSyntheticXaiRequest(message);
     // buildRequest validates source/turn/request binding BEFORE reading a key,
     // reserving a provider request, or performing network I/O.
     const request = interactionConfig
-      ? buildRequest(checked.body.input[1].content, interactionConfig, consentedContext)
+      ? (evidenceV2Enabled
+        ? evidenceV2.buildRequest(
+          checked.body.input[1].content, interactionConfig, consentedContext
+        )
+        : buildRequest(checked.body.input[1].content, interactionConfig, consentedContext))
       : checked;
     let secret;
     try {
@@ -209,9 +228,14 @@ function createXaiProviderAdapter({
     let interaction = null;
     if (interactionConfig) {
       try {
-        interaction = parseInteraction(
-          parsed.text, request.settings, request.classification
-        );
+        interaction = evidenceV2Enabled
+          ? evidenceV2.parseInteraction(parsed.text, request.settings,
+            request.classification, {
+              message: checked.body.input[1].content,
+              sourceTurnId: turnEvidence.sourceTurnId,
+              evidence: turnEvidence.evidence
+            })
+          : parseInteraction(parsed.text, request.settings, request.classification);
       } catch (error) {
         classifyInvalidProvider(error, "interaction-contract");
       }

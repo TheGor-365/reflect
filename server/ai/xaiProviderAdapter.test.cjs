@@ -336,3 +336,90 @@ test("malformed cost receipt is denied and never leaks user text", async () => {
     denied("invalid-provider-response")(error) &&
     !error.message.includes("PRIVATE_SYNTHETIC_INVALID_COST"));
 });
+
+
+test("M5b V2: server-owned receipt and evidence required before any key read", async () => {
+  const { evidenceSnapshot } = require("./ownerEvidenceV2.cjs");
+  const settings = {
+    schemaVersion: 1, responseDepth: "balanced", responseTone: "analytical",
+    interactionMode: "coach", askClarifyingQuestions: true,
+    recommendationsEnabled: false, recommendationFrequency: "rare",
+    autoSaveRecommendations: false
+  };
+  let keyReads = 0, calls = 0;
+  const adapter = createXaiProviderAdapter({
+    evidenceV2Enabled: true,
+    readSecret: () => { keyReads++; return FAKE_KEY; },
+    transport: async () => { calls++; return success(); }
+  });
+  for (const evidence of [null, {}, { sourceTurnId: "../jack" }, {
+    sourceTurnId: "user-123", evidence: { confirmedSlots: ["all"] }
+  }]) {
+    await assert.rejects(adapter.invoke("Мой тест", settings, null, evidence),
+      denied("unsafe-environment"));
+  }
+  assert.equal(keyReads, 0);
+  assert.equal(calls, 0);
+  const legacy = createXaiProviderAdapter({
+    readSecret: () => { keyReads++; return FAKE_KEY; },
+    transport: async () => { calls++; return success(); }
+  });
+  await assert.rejects(legacy.invoke("Мой тест", settings, null, {
+    sourceTurnId:"user-123", evidence: evidenceSnapshot({ chatHistory:[] })
+  }), denied("unsafe-environment"));
+  assert.equal(keyReads,0);
+  assert.equal(calls,0);
+});
+
+test("M5b V2: one signed owner-stated quotation, strict schema and no automatic retry", async () => {
+  const { evidenceSnapshot } = require("./ownerEvidenceV2.cjs");
+  const { VERSION } = require("./interactionEvidenceV2.cjs");
+  const message = "Хочу закончить MVP, но не понимаю, сколько времени нужно на QA.";
+  const settings = {
+    schemaVersion: 1, responseDepth: "balanced", responseTone: "analytical",
+    interactionMode: "coach", askClarifyingQuestions: true,
+    recommendationsEnabled: false, recommendationFrequency: "rare",
+    autoSaveRecommendations: false
+  };
+  let calls = 0;
+  const adapter = createXaiProviderAdapter({
+    evidenceV2Enabled: true,
+    readSecret: () => FAKE_KEY,
+    transport: async (_url, request) => {
+      calls++;
+      const body = JSON.parse(request.body);
+      assert.equal(body.text.format.name,"reflect_interaction_v2");
+      assert.equal(body.store,false);
+      assert.deepEqual(body.input.map(x=>x.role),["system","user"]);
+      assert.equal(body.input[1].content,message);
+      assert.equal(JSON.stringify(body).includes("private-earlier-quote"),false);
+      const answer = {
+        version: VERSION, answer:"Уточним допустимые рамки запуска.",
+        intent:"plan",stage:"clarify",
+        clarifyingQuestion:"Какие требования нельзя исключить из MVP?",
+        insights:[],recommendationCandidates:[],goalCandidates:[],
+        sourceRefs:["current-message"],unknowns:["Минимальный QA"],
+        safetyFlags:["uncertain"],
+        evidenceClaims:[{
+          quote:"Хочу закончить MVP",sourceRef:"current-message"
+        }],
+        clarificationSlot:"constraints"
+      };
+      return success(reply({ output: [{
+        type:"message",role:"assistant",
+        content:[{type:"output_text",text:JSON.stringify(answer)}]
+      }] }));
+    }
+  });
+  const result = await adapter.invoke(message, settings, null, {
+    sourceTurnId:"user-request-m5b-123456",
+    evidence:evidenceSnapshot({chatHistory:[],readinessEvidence:{}})
+  });
+  assert.equal(calls,1);
+  assert.equal(result.interaction.version,VERSION);
+  assert.equal(result.interaction.evidenceClaims[0].sourceTurnId,
+    "user-request-m5b-123456");
+  assert.equal(result.interaction.evidenceSummary.completeCount,0);
+  assert.equal(result.model,MODEL);
+  assert.equal(JSON.stringify(result).includes(FAKE_KEY),false);
+});
