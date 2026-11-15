@@ -152,8 +152,12 @@ export async function removeGoal(userId, goalId) {
     const goal = snapshot.data();
     const idOk = value => typeof value === 'string' &&
       /^[A-Za-z0-9_-]{1,128}$/.test(value);
+    // The recommendation key has the format r-<assistant ID>-<index>
+    // and may be four characters longer than the 128-character message ID.
+    const recommendationKeyOk = value => typeof value === 'string' &&
+      /^[A-Za-z0-9_-]{1,132}$/.test(value);
     const linked = goal?.sourceType === 'user-accepted-ai-recommendation' &&
-      idOk(goal.sessionId) && idOk(goal.sourceRecommendationKey) &&
+      idOk(goal.sessionId) && recommendationKeyOk(goal.sourceRecommendationKey) &&
       idOk(goal.sourceAssistantMessageId);
     if (linked) {
       const sessionRef = doc(db, `artifacts/${appId}/users/${userId}/sessions`,
