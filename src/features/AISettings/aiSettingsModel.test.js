@@ -85,3 +85,24 @@ it('account context level is persisted as a preference, not blanket history acce
   expect(parseAiSettings(oldOwnerSettings).contextLevel).toBe('optimal');
   expect(settingsEqual(oldOwnerSettings, original)).toBe(true);
 });
+
+
+it('M4: five functional modes persist without granting history or auto-recommendations', () => {
+  const ids = ['reflection', 'support', 'coach', 'companion', 'analytic'];
+  expect(AI_SETTINGS_DEFAULTS.interactionMode).toBe('reflection');
+  for (const mode of ids) {
+    const next = updateAiPreference(AI_SETTINGS_DEFAULTS, 'interactionMode', mode);
+    expect(next.interactionMode).toBe(mode);
+    expect(next.recommendationsEnabled).toBe(false);
+    expect(next).not.toHaveProperty('historyAccess');
+    expect(parseAiSettings(next).interactionMode).toBe(mode);
+  }
+  for (const invalid of ['therapist', 'full-control', '', true, null]) {
+    expect(parseAiSettings({
+      ...AI_SETTINGS_DEFAULTS, interactionMode: invalid
+    })).toBeNull();
+  }
+  const { interactionMode, ...legacy } = AI_SETTINGS_DEFAULTS;
+  expect(parseAiSettings(legacy).interactionMode).toBe('reflection');
+  expect(settingsEqual(legacy, AI_SETTINGS_DEFAULTS)).toBe(true);
+});
