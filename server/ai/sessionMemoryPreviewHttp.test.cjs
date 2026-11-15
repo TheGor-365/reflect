@@ -42,7 +42,8 @@ function harness({ body = command, tokenUsed = false, entitled = true,
       assert.equal(args.principal.uid, owner);
       assert.equal(args.principal.appCheckVerified, true);
       assert.deepEqual(Object.keys(args).sort(),
-        ["grantId", "sourceId", "requestId", "message", "scope", "principal"].sort());
+        ["grantId", "sourceId", "requestId", "message", "scope", "principal",
+          ...(body.contextLevel === undefined ? [] : ["contextLevel"])].sort());
       if (deniedPreview) throw new PolicyError("permission-denied");
       return source;
     }
@@ -119,4 +120,40 @@ test("M3d rejects altered, wrong-owner or oversized server preview", () => {
   ]) {
     assert.throws(() => validatePreview(changed, command), e => e.code === "unavailable");
   }
+});
+
+test("M3 tiers: signed preview accepts only explicit bounded owner level", async () => {
+  const h = harness({
+    body: { ...command, contextLevel: "deep" },
+    source: { ...preview, contextLevel: "deep" }
+  });
+  const res = await h.run();
+  assert.equal(res.status, 200);
+  assert.equal(res.payload.contextLevel, "deep");
+  assert.equal(res.payload.providerDispatchAllowed, false);
+  assert.equal(h.calls.preview, 1);
+  const bad = harness({ body: { ...command, contextLevel: "unrestricted" } });
+  const rejected = await bad.run();
+  assert.equal(rejected.status, 400);
+  assert.equal(bad.calls.preview, 0);
+  assert.equal(bad.calls.auth, 0);
+});
+
+test("M3 tiers: signed response cannot upgrade level or exceed cap", () => {
+  const commandOptimal = { ...command, contextLevel: "optimal" };
+  const previewOptimal = { ...preview, contextLevel: "optimal" };
+  assert.equal(validatePreview(previewOptimal, commandOptimal).contextLevel, "optimal");
+  assert.throws(() => validatePreview({
+    ...previewOptimal, contextLevel: "deep"
+  }, commandOptimal), error => error.code === "unavailable");
+  const huge = Array.from({ length: 6 }, (_, i) => ({
+    ...preview.turns[0], sourceTurnId: "user-deep-" + i,
+    content: "X".repeat(150)
+  }));
+  const commandDeep = { ...command, contextLevel: "deep" };
+  const deep = { ...preview, contextLevel: "deep",
+    turns: huge, totalBytes: 900 };
+  assert.equal(validatePreview(deep, commandDeep).turns.length, 6);
+  assert.throws(() => validatePreview(deep, commandOptimal),
+    error => error.code === "unavailable");
 });
