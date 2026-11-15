@@ -5,6 +5,7 @@ import { BrainCircuit, Check, Lightbulb,
 import { db, appId } from '../../firebase/config';
 import ContextConsentPanel from './ContextConsentPanel';
 import ReflectSelectRow from './ReflectSelectRow';
+import SmoothDisclosure from '../../components/common/SmoothDisclosure';
 import StagingSecurityAuditPanel from './StagingSecurityAuditPanel';
 import StagingConsentEndpointAuditPanel from './StagingConsentEndpointAuditPanel';
 import {
@@ -147,16 +148,17 @@ export default function AISettings({ userId, sessions = [] }) {
       <div className="reflect-ai-settings-heading">
         <span className="reflect-ai-settings-kicker"><Sparkles size={16}/> Личный ассистент</span>
         <h2>Настройки Reflect AI</h2>
-        <p>Здесь сохраняются предпочтения. Разрешения на доступ к истории
-          управляются отдельно. Уровень контекста определяет предел выдержек
-          выбранного сеанса, но не даёт модели доступа автоматически.
-          Другие настройки применяются к новым ответам Grok.</p>
       </div>
-      <div className="reflect-ai-settings-notice" role="note">
-        <ShieldCheck size={18} aria-hidden="true"/>
-        <span><strong>Сохранение ≠ разрешение на чтение данных.</strong> История, дневник,
-          цели и карта тела не становятся доступными ИИ при включении этих параметров.</span>
-      </div>
+      <SmoothDisclosure label="Как работают настройки и разрешения"
+        iconKind="privacy" className="reflect-ai-settings-intro-disclosure">
+        <p>Здесь вы задаёте режим по умолчанию и формат следующих ответов.
+          В конкретном сеансе режим можно изменить отдельно — без изменения
+          настройки аккаунта.</p>
+        <p>Настройки не дают автоматического доступа к истории, дневнику,
+          целям или личным данным. Уровень контекста ограничивает объём
+          добровольно выбранных выдержек одного сеанса. Передача истории
+          в Grok требует отдельного разрешения.</p>
+      </SmoothDisclosure>
 
       {status === 'loading' && <p role="status">Загружаем настройки аккаунта…</p>}
       {status === 'load-error' && <p role="alert" className="reflect-ai-settings-error">
@@ -185,12 +187,12 @@ export default function AISettings({ userId, sessions = [] }) {
                 ['companion', 'Собеседник — свободный диалог'],
                 ['analytic', 'Аналитика — факты, варианты, риски']
               ]}/>
-            <p role="note" className="reflect-context-consent-intro">
-              Режим задаёт поведение следующего ответа. Советы и карточки действий
-              не создаются автоматически; даже в коучинге сохраняются отдельные
-              предпочтения, подтверждение оснований и решение пользователя.
-              Это не медицинская и не психологическая помощь специалиста.
-            </p>
+            <SmoothDisclosure label="О режиме и решениях AI"
+              iconKind="information" className="reflect-ai-setting-help">
+              <p>Режим определяет стиль ответов, но не передаёт личные данные
+                автоматически и не создаёт цели без вашего решения.
+                Reflect не заменяет профильного специалиста.</p>
+            </SmoothDisclosure>
             <ReflectSelectRow label="Глубина ответа" description="Предпочитаемая длина и детализация."
               name="responseDepth" value={draft.responseDepth} disabled={disabled}
               onChange={change} options={[
