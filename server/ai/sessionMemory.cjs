@@ -18,6 +18,7 @@ const { createHash, timingSafeEqual } = require("node:crypto");
 const { PolicyError } = require("./policy.cjs");
 const { PROJECT_ID, NAMESPACE, SCOPE } = require("../privacy/contextConsent.cjs");
 const { clipUtf8 } = require("../privacy/sessionContextPreview.cjs");
+const { contextWindow } = require("./contextLevels.cjs");
 
 const MAX_PRIOR_TURNS = 4;
 const MAX_TURN_BYTES = 300;
@@ -51,7 +52,8 @@ function safeSourcePrincipal(principal, grantId, sourceId, requestId, message) {
  * If the new user turn already exists it MUST be the final source turn and
  * match the explicit message. For pre-send preview it may be absent.
  */
-function boundedPreviousTurns(history, { requestId, message, requireCommitted = false }) {
+function boundedPreviousTurns(history, { requestId, message, requireCommitted = false, contextLevel }) {
+  const window = contextWindow(contextLevel);
   if (!Array.isArray(history) || history.length > MAX_SOURCE_TURNS) {
     fail("invalid-session-history");
   }
@@ -68,10 +70,10 @@ function boundedPreviousTurns(history, { requestId, message, requireCommitted = 
         current?.content !== message) fail("permission-denied");
   }
   const previous = committed ? history.slice(0, -1) : history;
-  const selected = previous.slice(-MAX_PRIOR_TURNS);
+  const selected = previous.slice(-window.maxTurns);
   const output = [];
   const ids = new Set();
-  let remaining = MAX_TOTAL_BYTES;
+  let remaining = window.maxBytes;
   for (let i = selected.length - 1; i >= 0; i--) {
     const turn = selected[i];
     if (!plain(turn) || !VALID_ID.test(turn.id || "") ||
@@ -94,13 +96,14 @@ function boundedPreviousTurns(history, { requestId, message, requireCommitted = 
   output.reverse();
   return Object.freeze({
     turns: Object.freeze(output),
-    totalBytes: MAX_TOTAL_BYTES - remaining,
+    totalBytes: window.maxBytes - remaining,
     truncated: previous.length > selected.length ||
       output.some(x => x.truncated) || output.length < selected.length
   });
 }
 
-function digestFor({ uid, sourceId, requestId, message, turns }) {
+function digestFor({ uid, sourceId, requestId, message, turns, contextLevel }) {
+  const window = contextWindow(contextLevel);
   // Preview approval binds the EXACT new question as well as old excerpts.
   // An altered composer must not reuse an already inspected digest.
   if (typeof message !== "string" || !message.trim() ||
@@ -108,7 +111,9 @@ function digestFor({ uid, sourceId, requestId, message, turns }) {
   // Binds the approval to the exact owner, request, source and untrusted text.
   // A document change, newer turn or a different UID invalidates approval.
   const canonical = JSON.stringify({
-    v: 2, uid, sourceId, requestId, message,
+    v: window.contextLevel === null ? 2 : 3,
+    uid, sourceId, requestId, message,
+    ...(window.contextLevel === null ? {} : { contextLevel: window.contextLevel }),
     turns: turns.map(x => [x.sourceTurnId, x.role, x.content])
   });
   return createHash("sha256").update(canonical, "utf8").digest("hex");
@@ -142,11 +147,13 @@ function createSessionMemoryAdapter({ db, consentStore, projectId }) {
       fail("permission-denied");
     }
     const selected = boundedPreviousTurns(session.chatHistory, {
-      requestId: args.requestId, message: args.message, requireCommitted
+      requestId: args.requestId, message: args.message, requireCommitted,
+      contextLevel: args.contextLevel
     });
     const digest = digestFor({
       uid: target.uid, sourceId: target.sourceId,
-      requestId: args.requestId, message: args.message, turns: selected.turns
+      requestId: args.requestId, message: args.message, turns: selected.turns,
+      contextLevel: args.contextLevel
     });
     if (approvedDigest !== undefined && !sameDigest(approvedDigest, digest)) {
       fail("permission-denied");
@@ -162,6 +169,7 @@ function createSessionMemoryAdapter({ db, consentStore, projectId }) {
     const { selected, digest } = await load(args, { requireCommitted: false });
     return Object.freeze({
       sourceId: args.sourceId, scope: SCOPE, requestId: args.requestId,
+      ...(args.contextLevel === undefined ? {} : { contextLevel: args.contextLevel }),
       ...selected, approvalDigest: digest,
       providerDispatchAllowed: false
     });
@@ -179,6 +187,7 @@ function createSessionMemoryAdapter({ db, consentStore, projectId }) {
     }
     return Object.freeze({
       sourceId: target.sourceId, requestId: args.requestId, approvalDigest: digest,
+      ...(args.contextLevel === undefined ? {} : { contextLevel: args.contextLevel }),
       turns: selected.turns, totalBytes: selected.totalBytes,
       authorizedAt: "pre-egress", store: false
     });
