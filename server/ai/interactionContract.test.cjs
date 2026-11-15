@@ -313,3 +313,35 @@ test("M4: invalid role/mode never gains provider authority or recommendations", 
   assert.equal(legacy.interactionMode, "reflection");
   assert.equal(legacy.recommendationsEnabled, true);
 });
+
+
+test("M4.2: trusted stored-turn mode changes prompt without editing owner profile", () => {
+  const { settingsForCommittedTurn } = require("./hostedHandler.cjs");
+  const account = { ...enabled, interactionMode: "analytic" };
+  const selected = settingsForCommittedTurn(account, {
+    interactionMode: "support"
+  });
+  assert.equal(account.interactionMode, "analytic");
+  assert.equal(selected.interactionMode, "support");
+  assert.equal(selected.schemaVersion, 1);
+  assert.equal(selected.autoSaveRecommendations, false);
+  const request = buildRequest(t2, selected);
+  assert.match(request.body.input[0].content, /Режим продукта: Поддержка/);
+  assert.equal(request.body.input[1].content, t2);
+  assert.equal(request.body.input.length, 2);
+  assert.equal(settingsForCommittedTurn(account, {}).interactionMode, "analytic");
+  assert.throws(() => settingsForCommittedTurn(account, {
+    interactionMode: "licensed-therapist"
+  }), e => e.code === "invalid-session-history");
+});
+
+test("M4.2: corrupted owner preferences cannot turn on cards via per-turn support mode", () => {
+  const { settingsForCommittedTurn } = require("./hostedHandler.cjs");
+  const merged = settingsForCommittedTurn({
+    schemaVersion: 99, recommendationsEnabled: true
+  }, { interactionMode: "support" });
+  const normalized = normalizeSettings(merged);
+  assert.equal(normalized.recommendationsEnabled, false);
+  assert.equal(normalized.interactionMode, "support");
+  assert.equal(normalized.askClarifyingQuestions, true);
+});
