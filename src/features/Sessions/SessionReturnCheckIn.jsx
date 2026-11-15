@@ -13,8 +13,10 @@ const formatDay = value => {
 };
 
 /** Explicit return, never AI-synthesized or sent to the provider. */
-export default function SessionReturnCheckIn({ session, userId, expanded = false }) {
+export default function SessionReturnCheckIn({ session, userId, goals = [], expanded = false }) {
   const [note, setNote] = useState('');
+  const [nextStep, setNextStep] = useState('');
+  const [goalId, setGoalId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -26,15 +28,37 @@ export default function SessionReturnCheckIn({ session, userId, expanded = false
   contextRef.current = ownerContext;
   useEffect(() => {
     pendingVisitId.current = null;
-    setNote(''); setError(''); setNotice('');
+    setNote(''); setNextStep(''); setGoalId('');
+    setError(''); setNotice('');
   }, [ownerContext]);
   if (!session?.id || !userId) return null;
+  // UI options are only owner-loaded, saved, explicitly accepted goals.
+  // The Firestore transaction independently revalidates their provenance.
+  const decisions = session.recommendationDecisions || {};
+  const acceptedGoals = goals.filter(goal =>
+    goal?.sessionId === session.id &&
+    goal.sourceType === 'user-accepted-ai-recommendation' &&
+    typeof goal.sourceRecommendationKey === 'string' &&
+    decisions[goal.sourceRecommendationKey]?.status === 'accepted' &&
+    !decisions[goal.sourceRecommendationKey]?.goalRemovedAt &&
+    decisions[goal.sourceRecommendationKey]?.goalId === goal.id &&
+    decisions[goal.sourceRecommendationKey]?.assistantMessageId === goal.sourceAssistantMessageId
+  );
+  const chosenGoalId = acceptedGoals.some(goal => goal.id === goalId) ? goalId : '';
   const entries = Array.isArray(session.returnCheckIns)
     ? session.returnCheckIns.filter(entry => entry?.type === 'return-check-in' &&
       entry?.author === 'user' && typeof entry?.text === 'string') : [];
   const submit = async event => {
     event.preventDefault();
     if (!note.trim() || busyRef.current) return;
+    if (goalId && !chosenGoalId) {
+      setError('Связанная цель недоступна. Выберите актуальную цель.');
+      return;
+    }
+    if (chosenGoalId && !nextStep.trim()) {
+      setError('Для связанной цели укажите собственный следующий шаг.');
+      return;
+    }
     const before = ownerContext;
     pendingVisitId.current ||= crypto.randomUUID();
     const visitId = pendingVisitId.current;
@@ -42,10 +66,11 @@ export default function SessionReturnCheckIn({ session, userId, expanded = false
     setBusy(true); setError(''); setNotice('');
     try {
       await saveSessionReturn({
-        userId, sessionId: session.id, visitId, note
+        userId, sessionId: session.id, visitId, note,
+        goalId: chosenGoalId || null, nextStep
       });
       if (contextRef.current !== before) return;
-      setNote('');
+      setNote(''); setNextStep(''); setGoalId('');
       pendingVisitId.current = null;
       await protectedDraft.current?.clearAfterCommit();
       setNotice('Наблюдение записано. Оно не отправлялось Grok.');
@@ -68,6 +93,23 @@ export default function SessionReturnCheckIn({ session, userId, expanded = false
           в сеансе и не передаётся AI автоматически. Ничего не считается выполненным без вашей отметки.
         </p>
         <form onSubmit={submit}>
+          {acceptedGoals.length > 0 && (
+            <label>Связать наблюдение с принятой целью (необязательно)
+              <select value={chosenGoalId} disabled={busy}
+                onChange={event => {
+                  setGoalId(event.target.value);
+                  pendingVisitId.current = null;
+                  setError(''); setNotice('');
+                }}>
+                <option value="">Без привязки к цели</option>
+                {acceptedGoals.map(goal => (
+                  <option value={goal.id} key={goal.id}>
+                    {goal.text || 'Цель без названия'}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label>Что изменилось с прошлого раза?
             <textarea rows={3} maxLength={1200} value={note} disabled={busy}
               placeholder="Например: прочитал два вечера по 20 минут, один день пропустил…"
@@ -77,13 +119,32 @@ export default function SessionReturnCheckIn({ session, userId, expanded = false
                 setError(''); setNotice('');
               }}/>
           </label>
-          <button type="submit" disabled={busy || !note.trim()}>
+          <label>Мой следующий шаг {chosenGoalId ? '(обязательно для связанной цели)' : '(необязательно)'}
+            <input type="text" maxLength={240} value={nextStep}
+              placeholder="Один ближайший шаг, который выберу сам"
+              disabled={busy}
+              onChange={event => {
+                setNextStep(event.target.value);
+                pendingVisitId.current = null;
+                setError(''); setNotice('');
+              }}/>
+          </label>
+          <p className="reflect-session-return-disclosure">
+            Результат записывается по вашим словам. Это не доказательство
+            выполнения цели: её статус и подзадачи остаются без изменений.
+          </p>
+          <button type="submit" disabled={busy || !note.trim() ||
+            (chosenGoalId && !nextStep.trim()) || (goalId && !chosenGoalId)}>
             {busy ? 'Записываем…' : 'Сохранить наблюдение'}
           </button>
           <ProtectedDraftControls compact ref={protectedDraft} userId={userId}
             surface={`session-return-${session.id}`}
-            value={{ text: note }}
-            onRestore={draft => setNote(typeof draft?.text === 'string' ? draft.text : '')}/>
+            value={{ text: note, nextStep, goalId }}
+            onRestore={draft => {
+              setNote(typeof draft?.text === 'string' ? draft.text : '');
+              setNextStep(typeof draft?.nextStep === 'string' ? draft.nextStep : '');
+              setGoalId(typeof draft?.goalId === 'string' ? draft.goalId : '');
+            }}/>
         </form>
         {error && <p role="alert">{error}</p>}
         {notice && <p role="status">{notice}</p>}
@@ -94,6 +155,15 @@ export default function SessionReturnCheckIn({ session, userId, expanded = false
               <article key={entry.id} className="reflect-session-return-entry">
                 <small>Ваше наблюдение · время устройства: {formatDay(entry.recordedAtClient)}</small>
                 <p>{entry.text}</p>
+                {entry.goalId && (
+                  <small>Связана с целью: {
+                    goals.find(goal => goal.id === entry.goalId && goal.sessionId === session.id)?.text
+                    || 'Цель удалена или недоступна'
+                  }</small>
+                )}
+                {typeof entry.nextStep === 'string' && entry.nextStep.trim() && (
+                  <p><strong>Ваш следующий шаг:</strong> {entry.nextStep}</p>
+                )}
               </article>
             ))}
           </div>
