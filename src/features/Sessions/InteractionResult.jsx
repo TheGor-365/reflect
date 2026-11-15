@@ -288,7 +288,7 @@ export default function InteractionResult({
                     </>
                   )}
                   {status === 'accepted' && onOpenGoals && (
-                    <button type="button" onClick={onOpenGoals}><Goal size={15} aria-hidden="true"/> Открыть цели</button>
+                    <button type="button" onClick={() => onOpenGoals(decision?.goalId || null)}><Goal size={15} aria-hidden="true"/> Открыть цели</button>
                   )}
                 </>
               )}
@@ -299,7 +299,7 @@ export default function InteractionResult({
                   event.preventDefault();
                   decide(index, 'goal', goalDraft);
                 }}>
-                <p>Цель создаётся только после вашего подтверждения. Название можно изменить.</p>
+                <p>Цель создаётся только после вашего подтверждения. Укажите один конкретный первый шаг и критерий, по которому вы сами проверите результат.</p>
                 <label>Название цели
                   <input required maxLength={240} value={goalDraft.title}
                     disabled={busyIndex !== null}
@@ -310,8 +310,8 @@ export default function InteractionResult({
                     disabled={busyIndex !== null}
                     onChange={event => setGoalDraft(value => ({ ...value, purpose: event.target.value }))}/>
                 </label>
-                <label>Первый проверяемый шаг (необязательно)
-                  <input maxLength={240} value={goalDraft.step}
+                <label>Первый проверяемый шаг
+                  <input required maxLength={240} value={goalDraft.step}
                     disabled={busyIndex !== null}
                     onChange={event => setGoalDraft(value => ({ ...value, step: event.target.value }))}/>
                 </label>
@@ -320,13 +320,14 @@ export default function InteractionResult({
                     disabled={busyIndex !== null}
                     onChange={event => setGoalDraft(value => ({ ...value, dueDay: event.target.value }))}/>
                 </label>
-                <label>Как я пойму, что цель достигнута? (необязательно)
-                  <textarea maxLength={500} rows={2} value={goalDraft.criteria}
+                <label>Как я пойму, что цель достигнута?
+                  <textarea required maxLength={500} rows={2} value={goalDraft.criteria}
                     disabled={busyIndex !== null}
                     onChange={event => setGoalDraft(value => ({ ...value, criteria: event.target.value }))}/>
                 </label>
                 <button type="submit" disabled={busyIndex !== null ||
-                  !goalGate.allowed || !goalDraft.title.trim()}>
+                  !goalGate.allowed || !goalDraft.title.trim() ||
+                  !goalDraft.step.trim() || !goalDraft.criteria.trim()}>
                   <CheckCircle2 size={15} aria-hidden="true"/> {busyIndex !== null ? 'Сохранение…' : 'Подтвердить создание цели'}
                 </button>
                 <button type="button" disabled={busyIndex !== null}
