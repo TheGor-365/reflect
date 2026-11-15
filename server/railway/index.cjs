@@ -251,6 +251,10 @@ function createRuntime() {
   // Isolated recovery receipts. OFF independent of Grok, consent and preview.
   const attemptRecoveryEnabled =
     process.env.REFLECT_AI_ATTEMPT_RECEIPTS_ENABLED === "yes";
+  // M5b: versioned structured response is strictly server-owned and
+  // OFF independently of the already working M4 production path.
+  const evidenceV2Enabled =
+    process.env.REFLECT_AI_EVIDENCE_V2_ENABLED === "yes";
   const valid = process.env.REFLECT_AI_APPROVED_PROJECT === STAGE_PROJECT &&
     process.env.REFLECT_AI_APP_CHECK_APP_ID === STAGE_APP_ID &&
     process.env.REFLECT_AI_ALLOWED_ORIGIN === STAGE_ORIGIN;
@@ -269,6 +273,11 @@ function createRuntime() {
       (!enabled || !valid || !consentEnabled || !attemptRecoveryEnabled ||
        process.env.REFLECT_AI_INTERACTION_V1_ENABLED !== "yes")) {
     throw Error("M3d preview needs approved staging consent, receipts and structured AI");
+  }
+  if (evidenceV2Enabled &&
+      (!enabled || !valid || !attemptRecoveryEnabled ||
+       process.env.REFLECT_AI_INTERACTION_V1_ENABLED !== "yes")) {
+    throw Error("M5b evidence v2 requires trusted staging, receipts and structured AI");
   }
   if (contextReplyEnabled &&
       (!enabled || !valid || !memoryPreviewEnabled ||
@@ -310,7 +319,7 @@ function createRuntime() {
       readSecret: () => providerKey, transport: fetch,
       // Separate default-OFF staging flag; existing Grok stays operational.
       interactionEnabled: process.env.REFLECT_AI_INTERACTION_V1_ENABLED === "yes",
-      attemptRecoveryEnabled
+      attemptRecoveryEnabled, evidenceV2Enabled
     });
     authorizeAccount = createStagingEntitlementVerifier({
       db, projectId: STAGE_PROJECT, getUser: uid => getAuth(app).getUser(uid)
@@ -361,7 +370,8 @@ function createRuntime() {
         const { createMemoryReplyHandler } = require("../ai/memoryReply.cjs");
         handleContextReply = createMemoryReplyHandler({
           db, projectId: STAGE_PROJECT, appId: STAGE_APP_ID,
-          readSecret: () => providerKey, transport: fetch, consentStore
+          readSecret: () => providerKey, transport: fetch, consentStore,
+          evidenceV2Enabled
         });
       }
       if (memoryPreviewEnabled) {
