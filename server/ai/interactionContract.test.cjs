@@ -160,6 +160,40 @@ test("M1 persona: original preference documents still work, malformed role fails
 });
 
 
+test("M7c: direct human ty/vy address is a mandatory server-owned rule in every mode", () => {
+  for (const interactionMode of ["reflection", "support", "coach", "companion", "analytic"]) {
+    for (const addressForm of ["ty", "vy"]) {
+      const request = buildRequest(t2, {
+        ...enabled, interactionMode, addressForm
+      });
+      const system = request.body.input[0].content;
+      assert.equal(request.settings.addressForm, addressForm);
+      assert.match(system, /ОБЯЗАТЕЛЬНО: обращайся к человеку во втором лице/);
+      assert.match(system, /Запрещено отвечать о собеседнике безлично/);
+      assert.match(system, /пользователю рекомендуется/);
+      assert.match(system, /один конкретный проверяемый вариант/);
+      assert.match(system, /Не используй один и тот же шаблон сочувствия/);
+      assert.match(system, addressForm === "ty"
+        ? /Форма обращения — «ты»/ : /Форма обращения — «вы»/);
+      assert.doesNotMatch(system, /Я бы предложил вам\.\.\./);
+      assert.deepEqual(request.body.input.map(x => x.role), ["system", "user"]);
+      assert.equal(request.body.store, false);
+      assert.equal(request.body.input[1].content, t2);
+    }
+  }
+});
+
+test("M7c: invalid address preference fails to safe vy and does not add history grants", () => {
+  const settings = normalizeSettings({ ...enabled, addressForm: "unlimited" });
+  assert.equal(settings.addressForm, "vy");
+  assert.equal(settings.recommendationsEnabled, false);
+  const request = buildRequest(t4, { ...enabled, addressForm: "unlimited" });
+  assert.match(request.body.input[0].content, /Форма обращения — «вы»/);
+  assert.deepEqual(request.body.input.map(x => x.role), ["system", "user"]);
+  assert.match(request.body.input[0].content,
+    /Не утверждай, что помнишь предыдущие сообщения/);
+});
+
 test("M3b authorized same-session excerpts are data, never provider system roles", () => {
   const requestId = "req-1234567890123456";
   const sourceId = "session-eric-test";
