@@ -79,9 +79,10 @@ test('M7a: owner explicitly chooses confirmed goal and writes an observed result
   render(<SessionReturnCheckIn {...props}
     session={linkedSession} goals={acceptedGoals}/>);
   fireEvent.click(screen.getByText('Вернуться к теме и записать, что изменилось'));
-  fireEvent.change(screen.getByRole('combobox', {
+  fireEvent.click(screen.getByRole('combobox', {
     name: /Связать наблюдение с принятой целью/
-  }), { target: { value: 'confirmed-goal' } });
+  }));
+  fireEvent.click(screen.getByRole('option', { name: 'Проверить прототип' }));
   fireEvent.change(screen.getByRole('textbox', { name: 'Что изменилось с прошлого раза?' }), {
     target: { value: 'Прототип открыт на двух устройствах' }
   });
@@ -149,12 +150,13 @@ test('M7a: a failed linked return preserves step, selected goal and stable retry
   const select = screen.getByRole('combobox', { name: /Связать наблюдение/ });
   const note = screen.getByRole('textbox', { name: 'Что изменилось с прошлого раза?' });
   const step = screen.getByRole('textbox', { name: /Мой следующий шаг/ });
-  fireEvent.change(select, { target: { value: 'confirmed-goal' } });
+  fireEvent.click(select);
+  fireEvent.click(screen.getByRole('option', { name: 'Проверить прототип' }));
   fireEvent.change(note, { target: { value: 'Результат теста' } });
   fireEvent.change(step, { target: { value: 'Следующая проверка' } });
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить наблюдение' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Сеть недоступна');
-  expect(select).toHaveValue('confirmed-goal');
+  expect(select).toHaveTextContent('Проверить прототип');
   expect(note).toHaveValue('Результат теста');
   expect(step).toHaveValue('Следующая проверка');
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить наблюдение' }));
