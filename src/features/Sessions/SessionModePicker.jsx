@@ -8,7 +8,7 @@ import { saveSessionMode } from './sessionModePersistence';
  */
 export default function SessionModePicker({
   userId, sessionId = null, value = ACCOUNT_MODE,
-  onSaved, onNewSessionMode, disabled = false
+  onSaved, onNewSessionMode, onDirtyChange, disabled = false
 }) {
   const safe = normalizedSessionMode(value);
   const [draft, setDraft] = useState(safe || ACCOUNT_MODE);
@@ -27,6 +27,7 @@ export default function SessionModePicker({
     setDraft(next);
     setFeedback('');
     if (!sessionId) onNewSessionMode?.(next);
+    else onDirtyChange?.(next !== safe);
   };
   const save = async () => {
     if (!sessionId || !userId || !onSaved || disabled || pending ||
@@ -38,6 +39,7 @@ export default function SessionModePicker({
       if (owner.current.userId !== scope.userId ||
           owner.current.sessionId !== scope.sessionId) return;
       onSaved(saved);
+      onDirtyChange?.(false);
       setFeedback('Режим сеанса сохранён в Firebase. Новые ответы используют этот выбор.');
     } catch {
       if (owner.current.userId === scope.userId &&
