@@ -12,7 +12,7 @@ const LABELS = {
 };
 const idOk = id => typeof id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(id);
 
-export default function SessionEvidenceLedger({ session, onCompose, onFocusTurn }) {
+export default function SessionEvidenceLedger({ session, onCompose, onFocusTurn, expanded = false }) {
   const ledger = useMemo(() => buildSessionEvidenceLedger(session), [session]);
   const [selected, setSelected] = useState([]);
   const [showPreview, setShowPreview] = useState(false);
@@ -38,7 +38,7 @@ export default function SessionEvidenceLedger({ session, onCompose, onFocusTurn 
   if (!session?.id) return null;
   const { metrics } = ledger;
   return (
-    <details className="reflect-evidence-ledger"
+    <details open={expanded} className="reflect-evidence-ledger"
       aria-label="Проверка гипотез и источников">
       <summary><BookOpenCheck size={17} aria-hidden="true"/>
         Что Reflect знает и что ещё не проверено
