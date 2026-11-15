@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
+import ReflectSelect from '../../components/ReflectSelect';
 import { saveSessionReturn } from './sessionReturn';
 
 const formatDay = value => {
@@ -94,21 +95,22 @@ export default function SessionReturnCheckIn({ session, userId, goals = [], expa
         </p>
         <form onSubmit={submit}>
           {acceptedGoals.length > 0 && (
-            <label>Связать наблюдение с принятой целью (необязательно)
-              <select value={chosenGoalId} disabled={busy}
-                onChange={event => {
-                  setGoalId(event.target.value);
-                  pendingVisitId.current = null;
-                  setError(''); setNotice('');
-                }}>
-                <option value="">Без привязки к цели</option>
-                {acceptedGoals.map(goal => (
-                  <option value={goal.id} key={goal.id}>
-                    {goal.text || 'Цель без названия'}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <ReflectSelect
+              label="Связать наблюдение с принятой целью (необязательно)"
+              ariaLabel="Связать наблюдение с принятой целью"
+              value={chosenGoalId}
+              options={[
+                ['', 'Без привязки к цели'],
+                ...acceptedGoals.map(goal => [
+                  goal.id, goal.text || 'Цель без названия'
+                ])
+              ]}
+              disabled={busy}
+              onChange={value => {
+                setGoalId(value);
+                pendingVisitId.current = null;
+                setError(''); setNotice('');
+              }}/>
           )}
           <label>Что изменилось с прошлого раза?
             <textarea rows={3} maxLength={1200} value={note} disabled={busy}
