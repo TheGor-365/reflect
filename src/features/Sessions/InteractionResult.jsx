@@ -3,6 +3,7 @@ import { BookmarkPlus, CalendarClock, CheckCircle2, CircleX,
   Goal, Lightbulb, MessageCircle, MessageSquareReply, Target, Undo2,
   SlidersHorizontal, ShieldQuestion, Check, ArrowRight } from 'lucide-react';
 import { HYPOTHESIS_GRADES } from './hypothesisReviewModel';
+import { recommendationGoalGate } from './recommendationGoalGate';
 import { isSupportedInteraction, INTERACTION_V2, EVIDENCE_SLOT_LABELS }
   from './interactionVersions';
 
@@ -46,10 +47,11 @@ export default function InteractionResult({
   const needsClarification = interaction.stage === 'clarify';
   const reviewedCount = insights.filter((_, index) =>
     Number.isInteger(reviews[`h-${messageId}-${index}`]?.grade)).length;
+  const goalGate = recommendationGoalGate({
+    interaction, assistantMessageId: messageId, reviews
+  });
   const oldRecommendationWithOpenHypotheses =
-    candidates.length > 0 && (needsClarification ||
-    (insights.length > 0 && reviewedCount < insights.length) ||
-    (Array.isArray(interaction.unknowns) && interaction.unknowns.length > 0));
+    candidates.length > 0 && !goalGate.allowed;
   const openReview = index => {
     const existing = reviews[`h-${messageId}-${index}`];
     setReviewGrade(Number.isInteger(existing?.grade) ? existing.grade : null);
@@ -71,7 +73,8 @@ export default function InteractionResult({
     } finally { setReviewSaving(false); }
   };
   const decide = async (index, action, draft = {}) => {
-    if (!isSaved || typeof onDecision !== 'function' || busyIndex !== null) return;
+    if (!isSaved || typeof onDecision !== 'function' || busyIndex !== null ||
+        (action === 'goal' && !goalGate.allowed)) return;
     setBusyIndex(index);
     setFeedback('');
     setError('');
@@ -247,9 +250,10 @@ export default function InteractionResult({
             <p>{item.rationale}</p>
             <small>Источник: только текущее сообщение. Идея AI — не доказательство
               причины поведения и не ваша цель.</small>
-            {oldRecommendationWithOpenHypotheses && <p className="reflect-hypothesis-uncertainty">
-              Остались непроверенные объяснения. Не превращайте это старое предложение
-              в цель, пока не проверите предпосылки.
+            {oldRecommendationWithOpenHypotheses && <p
+              className="reflect-hypothesis-uncertainty" role="status">
+              Цель пока недоступна: {goalGate.reason}
+              Сохранить идею или отложить её можно независимо.
             </p>}
             <div className="reflect-interaction-actions">
               {onCompose && <button type="button"
@@ -321,7 +325,8 @@ export default function InteractionResult({
                     disabled={busyIndex !== null}
                     onChange={event => setGoalDraft(value => ({ ...value, criteria: event.target.value }))}/>
                 </label>
-                <button type="submit" disabled={busyIndex !== null || !goalDraft.title.trim()}>
+                <button type="submit" disabled={busyIndex !== null ||
+                  !goalGate.allowed || !goalDraft.title.trim()}>
                   <CheckCircle2 size={15} aria-hidden="true"/> {busyIndex !== null ? 'Сохранение…' : 'Подтвердить создание цели'}
                 </button>
                 <button type="button" disabled={busyIndex !== null}

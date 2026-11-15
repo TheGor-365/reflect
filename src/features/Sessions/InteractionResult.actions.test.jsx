@@ -6,6 +6,7 @@ import InteractionResult from './InteractionResult';
 const interaction = {
   version: 'reflect.interaction.v1',
   clarifyingQuestion: '',
+  stage: 'synthesize', insights: [],
   recommendationCandidates: [{
     title: 'Разделить большую задачу',
     rationale: 'Есть пользовательская неопределённость.',
