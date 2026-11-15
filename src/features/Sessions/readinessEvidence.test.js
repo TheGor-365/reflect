@@ -88,5 +88,8 @@ describe('M5a: four owner-confirmed source-backed evidence categories', () => {
     vent.chatHistory.push({ id: 'user-vent-001', role: 'user',
       content: 'Просто хочу выговориться, не надо давать решений и планов' });
     expect(isReadinessApplicable(vent, 'analytic')).toBe(false);
+    vent.chatHistory.push({ id: 'user-new-plan-001', role: 'user',
+      content: 'Теперь хочу составить план работы над MVP' });
+    expect(isReadinessApplicable(vent, 'analytic')).toBe(true);
   });
 });
