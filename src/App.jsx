@@ -465,7 +465,10 @@ export default function App() {
           setCurrentSessionId={setCurrentSessionId}
           focusTurnId={focusTurnId}
           onStartNewSession={handleNewSession}
-          onOpenGoals={() => navigateToTab('goals')}
+          onOpenGoals={goalId => {
+            setFocusGoalId(goalId && goals.some(goal => goal.id === goalId) ? goalId : null);
+            navigateToTab('goals');
+          }}
           onOpenRecommendations={() => navigateToTab('recommendations')}
           libraryRequested={sessionLibraryRequested}
           onCloseLibrary={() => setSessionLibraryRequested(false)}
