@@ -27,12 +27,15 @@ const GOAL_STATUS_LABELS = {
 };
 
 /** Display only: all facts come from the saved goal, never from AI inference. */
-function GoalDiaryDetails({ goal }) {
+function GoalDiaryDetails({ goal, onOpenSession }) {
   const status = statusOf(goal);
   const due = dueDayOf(goal);
   const purpose = typeof goal.purpose === 'string' ? goal.purpose.trim() : '';
   const items = Array.isArray(goal.subItems) ? goal.subItems : [];
   const progress = progressOf(goal);
+  const hasSavedSource = goal.sourceType === 'user-accepted-ai-recommendation' &&
+    typeof goal.sessionId === 'string' && !!goal.sessionId &&
+    typeof goal.sourceAssistantMessageId === 'string' && !!goal.sourceAssistantMessageId;
 
   return (
     <section className="reflect-journal-goal-details" aria-label="Подробности цели">
@@ -75,6 +78,26 @@ function GoalDiaryDetails({ goal }) {
       ) : goal.type !== 'reflection' ? (
         <p className="reflect-journal-goal-empty">Шаги пока не добавлены.</p>
       ) : null}
+      {typeof goal.successCriteria === 'string' && !!goal.successCriteria.trim() && (
+        <p className="reflect-journal-goal-purpose">
+          <strong>Критерий выполнения</strong>
+          <span>{goal.successCriteria}</span>
+        </p>
+      )}
+      {hasSavedSource && (
+        <div className="reflect-journal-provenance">
+          <p>Цель создана по вашему решению на основе рекомендации Reflect.</p>
+          {onOpenSession && (
+            <div className="reflect-journal-source-actions">
+              <button type="button"
+                onClick={() => onOpenSession(goal.sessionId, goal.sourceAssistantMessageId)}>
+                <MessageSquareText size={15} aria-hidden="true"/>
+                Открыть исходный ответ Reflect
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -225,7 +248,7 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote, onRenameSe
           <div>
             {entry.isAppend && <p className="reflect-journal-append-caption">Дополнение к цели</p>}
             <h4 className="reflect-journal-content-title">Цель: {entry.data.text}</h4>
-            <GoalDiaryDetails goal={entry.data}/>
+            <GoalDiaryDetails goal={entry.data} onOpenSession={onOpenSession}/>
             {entry.data.type === 'reflection' && (
               <div className="mt-3 space-y-2">
                 <h5 className="font-semibold">Проработка:</h5>
