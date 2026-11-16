@@ -3,6 +3,7 @@ import { ArrowUpRight } from 'lucide-react';
 import ReflectContentIcon from '../../components/common/ReflectContentIcon';
 import SmoothDisclosure from '../../components/common/SmoothDisclosure';
 import { buildRecommendationInbox } from '../Recommendations/recommendationInbox';
+import { buildDeepGoalDrafts } from './automaticGoalDrafts';
 
 /**
  * Ideas are not user goals. Restore exact source context on request, then
@@ -11,6 +12,9 @@ import { buildRecommendationInbox } from '../Recommendations/recommendationInbox
 export default function GoalSuggestions({ sessions = [], onOpenSession }) {
   const inbox = useMemo(() => buildRecommendationInbox(sessions), [sessions]);
   const candidates = inbox.recommendations.filter(item => item.status === 'pending');
+  const automaticDrafts = useMemo(() =>
+    buildDeepGoalDrafts(sessions, inbox.recommendations), [sessions, inbox]);
+  const preparedIds = new Set(automaticDrafts.map(item => item.id));
   if (!candidates.length) return null;
   return (
     <section className="reflect-goal-suggestions"
@@ -28,6 +32,11 @@ export default function GoalSuggestions({ sessions = [], onOpenSession }) {
               <div>
                 <strong>{item.title}</strong>
                 <small>{item.sessionTitle}</small>
+                {preparedIds.has(item.id) && (
+                  <small className="reflect-auto-goal-draft">
+                    Черновик подготовлен автоматически · нужен ваш выбор
+                  </small>
+                )}
               </div>
             </div>
             <SmoothDisclosure label="Вспомнить контекст предложения"
