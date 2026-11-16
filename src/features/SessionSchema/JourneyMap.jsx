@@ -7,6 +7,7 @@ import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, GitBranch, Maximize2, Minus,
 import {
   projectJourney, filterJourney, journeyFacts, journeyCoverage, layoutJourney, journeyDate
 } from './journeyModel';
+import { summarizeOwnerHypothesisRatings } from './hypothesisStatistics';
 
 const KINDS = [
   ['all','Все события'],['dialogue','Диалог'],
@@ -71,6 +72,9 @@ export default function JourneyMap({
   const layout=useMemo(()=>layoutJourney(projected),[projected]);
   const facts=useMemo(()=>journeyFacts(projected,period),[projected,period]);
   const coverage=useMemo(()=>journeyCoverage(projected),[projected]);
+  const hypothesisStats=useMemo(()=>summarizeOwnerHypothesisRatings(sessions,{
+    sessionId:sessionFilter,period
+  }),[sessions,sessionFilter,period]);
   const selected=projected.nodes.find(node=>node.id===selectedId) || null;
   const visibleSessions=graph.nodes.filter(n=>n.type==='session');
   useEffect(() => {
@@ -242,6 +246,27 @@ export default function JourneyMap({
               </div>
             ))}
           </div>
+          {hypothesisStats.reviewed>0 && (
+            <details className="reflect-journey-hypothesis-stats">
+              <summary>
+                Оценки гипотез · {hypothesisStats.reviewed} из {hypothesisStats.reviewable}
+                <span>Похоже: {hypothesisStats.match} · частично: {hypothesisStats.partial}
+                  {' '}· не похоже: {hypothesisStats.miss}</span>
+              </summary>
+              <div className="reflect-journey-hypothesis-meter"
+                role="img" aria-label={`Оценки: ${hypothesisStats.counts.join(', ')} от совсем мимо до очень точно`}>
+                {hypothesisStats.counts.map((count,index)=>(
+                  count>0&&<span key={index} data-grade={index}
+                    style={{width:`${count/hypothesisStats.reviewed*100}%`}}
+                    title={['Совсем мимо','Скорее мимо','Частично похоже',
+                      'Близко','Очень точно'][index]+': '+count}/>
+                ))}
+              </div>
+              <p>Это ваши субъективные оценки соответствия гипотез ситуации.
+                Не вероятность их истинности и не показатель профессионализма
+                модели. Для изменения оценки откройте исходный ответ Reflect.</p>
+            </details>
+          )}
           <SmoothDisclosure label="Подробные показатели и методика"
             iconKind="information" className="reflect-journey-metrics-disclosure">
             <div className="reflect-journey-facts-table-wrap">
@@ -345,13 +370,20 @@ export default function JourneyMap({
                   onClick={()=>setSelectedId(node.id)}
                   aria-pressed={selectedId===node.id}
                   aria-label={describe(node)}>
-                  <small><ReflectContentIcon
-                    kind={node.type==='proposal'?'recommendation':
-                      node.type==='goal'||node.type==='step'?'goal':
-                      node.type==='return'?'return':
-                      node.type==='session'?'session':'reflection'}
-                    size={15}/>
-                    {TYPE[node.type]} · {STATUS[node.status]}</small>
+                  <small>
+                    {node.type==='turn'
+                      ? node.author==='ai'
+                        ? <Bot size={14} aria-hidden="true"/>
+                        : <MessageSquareText size={14} aria-hidden="true"/>
+                      : <ReflectContentIcon
+                        kind={node.type==='proposal'?'recommendation':
+                          node.type==='goal'||node.type==='step'?'goal':
+                          node.type==='return'?'return':
+                          node.type==='session'?'session':'reflection'}
+                        size={14}/>}
+                    {node.type==='turn'
+                      ? (node.author==='ai'?'Reflect · ответ':'Вы · сообщение')
+                      : TYPE[node.type]} · {STATUS[node.status]}</small>
                   <span>{node.label}</span>
                 </button>
               ))}

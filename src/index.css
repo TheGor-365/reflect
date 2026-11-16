@@ -4998,3 +4998,37 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
   .reflect-app .reflect-interaction-section button,
   .reflect-app .reflect-hypothesis-card button {transition: none;}
 }
+
+
+/* R5 Journey: user-rated hypothesis agreement, not clinical/model accuracy. */
+.reflect-app .reflect-journey-hypothesis-stats {
+  margin:.65rem 0 .9rem;
+  border:1px solid var(--reflect-border);
+  border-radius:.75rem;
+  background:color-mix(in srgb,var(--reflect-card) 68%,transparent);
+}
+.reflect-app .reflect-journey-hypothesis-stats summary {
+  display:flex;flex-wrap:wrap;align-items:center;gap:.5rem 1.1rem;
+  cursor:pointer;padding:.65rem .82rem;
+  font-size:.81rem;font-weight:620;color:var(--reflect-ink);
+}
+.reflect-app .reflect-journey-hypothesis-stats summary span {
+  color:var(--reflect-muted);font-size:.75rem;font-weight:520;
+}
+.reflect-app .reflect-journey-hypothesis-stats p {
+  color:var(--reflect-muted);font-size:.76rem;
+  line-height:1.55;margin:.35rem .82rem .85rem;
+}
+.reflect-app .reflect-journey-hypothesis-meter {
+  display:flex;height:7px;overflow:hidden;
+  border-radius:999px;background:var(--reflect-border);
+  margin:.12rem .82rem .75rem;
+}
+.reflect-app .reflect-journey-hypothesis-meter [data-grade="0"] {background:#bd7777;}
+.reflect-app .reflect-journey-hypothesis-meter [data-grade="1"] {background:#d4a07b;}
+.reflect-app .reflect-journey-hypothesis-meter [data-grade="2"] {background:#c2b798;}
+.reflect-app .reflect-journey-hypothesis-meter [data-grade="3"] {background:#90c4a9;}
+.reflect-app .reflect-journey-hypothesis-meter [data-grade="4"] {background:#64baa3;}
+.reflect-app .reflect-journey-node small svg {
+  opacity:.70;width:13px;height:13px;color:var(--reflect-muted);
+}
