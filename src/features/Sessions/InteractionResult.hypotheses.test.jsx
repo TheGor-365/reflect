@@ -70,8 +70,10 @@ test('UX R5: saved grade is compact, comment collapsed and editor remains closed
       grade:4, comment:'Суть тревоги в результате, а не в рекламе'
     }}} onHypothesisReview={vi.fn()}/>);
   expect(screen.getByText('Очень точно')).toBeInTheDocument();
-  const comment=screen.getByText('Ваш комментарий');
-  expect(comment.closest('details')).not.toHaveAttribute('open');
+  const comment=screen.getByRole('button',{name:/Ваш комментарий/});
+  expect(comment).toHaveAttribute('aria-expanded','false');
+  fireEvent.click(comment);
+  expect(comment).toHaveAttribute('aria-expanded','true');
   expect(screen.getByText('Суть тревоги в результате, а не в рекламе')).toBeInTheDocument();
   expect(screen.queryByRole('button',{name:'Сохранить оценку'})).toBeNull();
   fireEvent.click(screen.getByRole('button',{name:'Изменить оценку'}));
