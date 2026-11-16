@@ -9,7 +9,7 @@ test('R6: single graphical session indicator is accessible and table starts coll
   const meter=screen.getByRole('progressbar',
     {name:'Зафиксированная работа над темой'});
   expect(meter).toHaveAttribute('aria-valuenow','10');
-  const button=screen.getByRole('button',{name:/10%.*Проработка темы/});
+  const button=screen.getByRole('button',{name:/Проработка темы: 10%/});
   expect(button).toHaveAttribute('aria-expanded','false');
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
   fireEvent.click(button);
