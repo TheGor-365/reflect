@@ -28,7 +28,6 @@ export default function GoalSuggestions({ sessions = [], onOpenSession }) {
         {candidates.map(item => (
           <li key={item.id}>
             <div className="reflect-goal-suggestion-main">
-              <ReflectContentIcon kind="recommendation" size={18}/>
               <div>
                 <strong>{item.title}</strong>
                 <small>{item.sessionTitle}</small>

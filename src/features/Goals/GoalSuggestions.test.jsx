@@ -41,3 +41,13 @@ test('UX R2 legacy content never becomes a draft goal', () => {
   }]}/>);
   expect(container).toBeEmptyDOMElement();
 });
+
+test('UX R7: goal suggestion has a single main bulb, details retain their provenance icons',()=>{
+  const {container}=render(<GoalSuggestions sessions={sessions}/>);
+  const section=container.querySelector('.reflect-goal-suggestions');
+  expect(section.querySelector('header > svg')).toBeInTheDocument();
+  expect(section.querySelector('.reflect-goal-suggestion-main > svg')).toBeNull();
+  expect(screen.getByText('Зафиксировать три функции MVP')).toBeInTheDocument();
+  expect(screen.getByRole('button',{name:'Вспомнить контекст предложения'}))
+    .toHaveAttribute('aria-expanded','false');
+});

@@ -142,3 +142,35 @@ test('P1: a decided recommendation disappears from the pending-decision panel',(
   expect(screen.queryByRole('heading',{name:'Следующее решение'}))
     .not.toBeInTheDocument();
 });
+
+test('UX R7: activity methodology and undated-step explanation stay collapsed and smoothly expand',()=>{
+  render(<Dashboard nowMs={nowMs}
+    sessions={[{id:'saved-undated',title:'Без времени',chatHistory:[
+      {id:'u-undated',role:'user',content:'Продолжаю'}
+    ]}]} goals={[{id:'g-activity',text:'Задача',status:'active',
+      subItems:[
+        {id:'st-1',text:'Первый шаг',completed:true},
+        {id:'st-2',text:'Второй шаг',completed:true},
+        {id:'st-3',text:'Третий шаг',completed:false}
+      ]}]} diaryNotes={[]}/>);
+  expect(screen.getByText('Нет событий с датой за 7 дней')).toBeInTheDocument();
+  const toggle=screen.getByRole('button',{name:'Как считается активность'});
+  expect(toggle).toHaveAttribute('aria-expanded','false');
+  const panel=document.querySelector('.reflect-dashboard-activity-method .reflect-disclosure-content');
+  expect(panel).toHaveAttribute('data-open','false');
+  expect(panel).toHaveAttribute('aria-hidden','true');
+  expect(panel).toHaveTextContent('Календарные дни UTC');
+  expect(panel).toHaveTextContent('Отсутствие записей не является оценкой результата');
+  expect(panel).toHaveTextContent('2 из 3 шагов');
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute('aria-expanded','true');
+  expect(panel).toHaveAttribute('data-open','true');
+  expect(panel).toHaveAttribute('aria-hidden','false');
+  const labels=Array.from(panel.querySelectorAll('dt')).map(el=>el.textContent);
+  expect(labels).toEqual(['Период и источники','Пустой период','Шаги за всё время']);
+  fireEvent.click(screen.getByRole('button',{name:'30 дней'}));
+  expect(screen.getByText('Нет событий с датой за 30 дней')).toBeInTheDocument();
+  expect(panel).toHaveTextContent('последним 30 дням');
+  fireEvent.click(toggle);
+  expect(panel).toHaveAttribute('aria-hidden','true');
+});

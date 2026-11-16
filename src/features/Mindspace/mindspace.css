@@ -477,7 +477,9 @@
   transition: transform .26s cubic-bezier(.2,.8,.2,1),
     background .26s ease, box-shadow .24s ease, border-color .24s ease;
 }
-.reflect-mind-node:hover {transform: translateY(-3px);}
+/* Base hover retains translate(-50%,-50%) from line 150.
+   Never replace centering with translateY(): doing so jumps the node
+   to the right/down because its left/top anchor marks the centre. */
 .reflect-mind-node--proposal .reflect-mind-node-orb svg {
   color: var(--reflect-accent);
 }

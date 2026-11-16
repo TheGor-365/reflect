@@ -62,3 +62,22 @@ test('long content opens full text by action and preserves original text', () =>
   fireEvent.click(screen.getByRole('button', { name: 'Читать далее' }));
   expect(onViewContent).toHaveBeenCalledExactlyOnceWith(longText);
 });
+
+test('UX R7: Journey retains navigation while redundant micro-copy is absent',()=>{
+  render(<SessionSchema sessions={[{id:'r7',title:'Работа с услугами',
+    chatHistory:[
+      {id:'u1',role:'user',content:'Хочу первую заявку'},
+      {id:'a1',role:'assistant',content:'Начнём с условий'}
+    ]}]} goals={[]}/>);
+  expect(screen.getByRole('heading',{name:'Схема сеансов'})).toBeInTheDocument();
+  expect(screen.getByRole('heading',{name:'Карта пути'})).toBeInTheDocument();
+  expect(screen.queryByText('Карта связанных событий и детальная хронология ваших сохранённых сеансов.'))
+    .not.toBeInTheDocument();
+  expect(screen.queryByText('Факты, не AI-оценка личности')).not.toBeInTheDocument();
+  expect(screen.queryByText('От вопроса к решению и собственным действиям. Связи показываются только при наличии источника.'))
+    .not.toBeInTheDocument();
+  expect(screen.getByRole('combobox',{name:'Тема карты'})).toBeInTheDocument();
+  expect(screen.getByRole('region',{name:'Интерактивная диаграмма связей'})).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Хронология'}));
+  expect(screen.getByRole('table')).toBeInTheDocument();
+});
