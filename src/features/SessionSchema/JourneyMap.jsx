@@ -198,9 +198,7 @@ export default function JourneyMap({
       <header className="reflect-journey-header">
         <div>
           <h2><GitBranch size={24} aria-hidden="true"/> Карта пути</h2>
-          <p>От вопроса к решению и собственным действиям. Связи показываются только при наличии источника.</p>
         </div>
-        <span className="reflect-journey-version">Факты, не AI-оценка личности</span>
       </header>
       <div className="reflect-journey-filters" role="group" aria-label="Фильтры карты">
         <ReflectSelect label="Тема" ariaLabel="Тема карты"
