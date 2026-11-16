@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowUp, BookOpenCheck, LockKeyhole, Mic, MicOff } from 'lucide-react';
 import SaveFeedback from '../../components/common/SaveFeedback';
 
@@ -24,16 +24,27 @@ const SessionComposer = ({
 }) => {
   const textareaRef = useRef(null);
   const sendButtonRef = useRef(null);
+  const [replyAttention, setReplyAttention] = useState(false);
   const supportsSpeech = typeof window !== 'undefined' && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
   const canSend = aiAvailable && !isLoading && !sendDisabled &&
     diarySaveStatus !== 'saving' && Boolean(value.trim());
   const canSave = Boolean(onSaveToDiary) && Boolean(value.trim()) && diarySaveStatus !== 'saving' && !isLoading;
 
-  // A deliberate reply action focuses typing without sending or modifying text.
+  // Reply is visibly actionable: focus and a brief non-blocking highlight.
+  // No prompt copying, automatic send, or draft replacement.
   useEffect(() => {
-    if (focusRequest > 0 && !isLoading && diarySaveStatus !== 'saving') {
-      textareaRef.current?.focus();
-    }
+    if (focusRequest <= 0 || isLoading || diarySaveStatus === 'saving') return;
+    const field = textareaRef.current;
+    field?.focus();
+    field?.scrollIntoView?.({
+      behavior: typeof window !== 'undefined' &&
+        window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+          ? 'auto' : 'smooth',
+      block: 'nearest'
+    });
+    setReplyAttention(true);
+    const timer = window.setTimeout(() => setReplyAttention(false), 850);
+    return () => window.clearTimeout(timer);
   }, [focusRequest, isLoading, diarySaveStatus]);
 
   useLayoutEffect(() => {
@@ -53,7 +64,8 @@ const SessionComposer = ({
   };
 
   return (
-    <section className="reflect-session-composer" aria-label="Поле ввода для сеанса">
+    <section className={`reflect-session-composer${replyAttention ? ' reflect-session-composer--reply-focus' : ''}`}
+      aria-label="Поле ввода для сеанса">
       {error && <p className="reflect-session-error" role="alert">{error}</p>}
       <SaveFeedback status={diarySaveStatus} />
       <form className="reflect-session-composer-form" onSubmit={onSubmit}>
