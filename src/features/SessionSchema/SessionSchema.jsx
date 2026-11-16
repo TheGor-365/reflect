@@ -19,7 +19,6 @@ export default function SessionSchema({
     <section className="reflect-session-schema" aria-label="Схема сеансов">
       <header className="reflect-session-schema-header">
         <h2><GitBranch size={24} aria-hidden="true"/> Схема сеансов</h2>
-        <p>Карта связанных событий и детальная хронология ваших сохранённых сеансов.</p>
         {sessions.length>0&&(
           <div className="reflect-journey-view-switch" role="group"
             aria-label="Представление схемы сеансов">
