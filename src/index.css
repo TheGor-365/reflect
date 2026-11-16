@@ -4782,3 +4782,219 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
   .reflect-app .reflect-journey-source--animated {animation: none;}
   .reflect-app .reflect-journey-node {transition: none;}
 }
+
+
+/* UX R5 — quiet hierarchy: borders no longer compete with authored content.
+   Keep keyboard focus outlines distinct, never hide accessibility focus. */
+.reflect-app {
+  --reflect-border: rgba(142,157,194,.19);
+}
+.reflect-app[data-theme="light"] {
+  --reflect-border: rgba(52,75,113,.15);
+}
+.reflect-app .reflect-interaction-section {
+  padding: 1rem 1.05rem;
+  gap: .75rem;
+  border-color: var(--reflect-border);
+  background: color-mix(in srgb, var(--reflect-card) 57%, transparent);
+}
+.reflect-app .reflect-interaction-section > strong {
+  color: var(--reflect-ink);
+  font-size: .91rem;
+  line-height: 1.5;
+}
+.reflect-app .reflect-interaction-section > p {
+  font-size: .91rem;
+  line-height: 1.72;
+  color: var(--reflect-ink);
+}
+.reflect-app .reflect-interaction-section button,
+.reflect-app .reflect-hypothesis-card button {
+  border: 1px solid var(--reflect-border);
+  color: var(--reflect-muted);
+  background: color-mix(in srgb, var(--reflect-card) 68%, transparent);
+  font-size: .76rem;
+  font-weight: 560;
+  line-height: 1.35;
+  border-radius: .62rem;
+  padding: .56rem .78rem;
+  min-height: 38px;
+  transition: background-color .16s ease, color .16s ease;
+}
+.reflect-app .reflect-interaction-section button:hover,
+.reflect-app .reflect-hypothesis-card button:hover {
+  color: var(--reflect-ink);
+  background: color-mix(in srgb, var(--reflect-card) 90%, transparent);
+}
+.reflect-app .reflect-interaction-section button svg,
+.reflect-app .reflect-hypothesis-card button svg {
+  width: 13px;
+  height: 13px;
+  opacity: .7;
+}
+.reflect-app .reflect-hypothesis-card {
+  padding: .9rem 1rem;
+  margin: .35rem 0;
+  background: color-mix(in srgb, var(--reflect-bg) 25%, transparent);
+  border-color: var(--reflect-border);
+}
+.reflect-app .reflect-hypothesis-card > p {
+  font-size: .91rem;
+  line-height: 1.72;
+}
+.reflect-app .reflect-hypothesis-card small {
+  color: var(--reflect-muted);
+  font-size: .69rem;
+  letter-spacing: .015em;
+}
+.reflect-app .reflect-hypothesis-controls {
+  margin-top: 1rem;
+  padding-top: .68rem;
+  border-top: 1px solid var(--reflect-border);
+}
+.reflect-app .reflect-hypothesis-saved {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .45rem .8rem;
+  margin-top: .72rem;
+}
+.reflect-app .reflect-hypothesis-saved-grade {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  border-radius: .55rem;
+  padding: .35rem .55rem;
+  color: var(--reflect-muted);
+  background: color-mix(in srgb, var(--reflect-card) 75%, transparent);
+  font-size: .76rem;
+  line-height: 1.4;
+}
+.reflect-app .reflect-hypothesis-saved-grade[data-grade="0"],
+.reflect-app .reflect-hypothesis-saved-grade[data-grade="1"] {
+  color: color-mix(in srgb, #e7a2a2 75%, var(--reflect-muted));
+}
+.reflect-app .reflect-hypothesis-saved-grade[data-grade="3"],
+.reflect-app .reflect-hypothesis-saved-grade[data-grade="4"] {
+  color: color-mix(in srgb, #7fd7b4 74%, var(--reflect-muted));
+}
+.reflect-app .reflect-hypothesis-saved-comment {
+  min-width: 0;
+  color: var(--reflect-muted);
+  font-size: .75rem;
+}
+.reflect-app .reflect-hypothesis-saved-comment summary {
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.reflect-app .reflect-hypothesis-saved-comment p {
+  margin: .45rem 0 0;
+  font-size: .81rem;
+  line-height: 1.6;
+  color: var(--reflect-ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.reflect-app .reflect-hypothesis-feedback {
+  margin-top: 1rem;
+  gap: .9rem;
+  border-top: 1px solid var(--reflect-border);
+  padding-top: 1rem;
+}
+.reflect-app .reflect-hypothesis-grade {
+  position: relative;
+  padding-top: .78rem;
+  gap: .4rem;
+  grid-template-columns: repeat(5,minmax(0,1fr));
+}
+.reflect-app .reflect-hypothesis-grade::before {
+  content: "";
+  position: absolute;
+  left: 2px; right: 2px; top: 0;
+  height: 2px;
+  border-radius: 3px;
+  background: linear-gradient(to right,
+    #ca7777 0%, #dbb27f 46%, #76cba9 100%);
+  opacity: .76;
+}
+.reflect-app .reflect-hypothesis-grade button {
+  min-height: 51px;
+  font-size: .72rem;
+  line-height: 1.35;
+  font-weight: 550;
+  border-color: var(--reflect-border);
+  background: transparent;
+}
+.reflect-app .reflect-hypothesis-grade button[aria-pressed="true"] {
+  color: var(--reflect-ink);
+  border-color: color-mix(in srgb,var(--reflect-muted) 55%,transparent);
+  background: color-mix(in srgb,var(--reflect-accent) 12%,transparent);
+  box-shadow: none;
+}
+.reflect-app .reflect-hypothesis-feedback-actions {
+  margin-top: .32rem;
+  gap: .65rem;
+}
+.reflect-app .reflect-hypothesis-feedback-actions button[type="submit"] {
+  color: var(--reflect-ink);
+  font-weight: 640;
+}
+.reflect-app .reflect-interaction-readiness {
+  padding: 0;
+  border: 1px solid var(--reflect-border);
+  border-radius: .72rem;
+  background: transparent;
+}
+.reflect-app .reflect-readiness-compact {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .65rem .78rem;
+  cursor: pointer;
+  font-size: .76rem;
+  font-weight: 590;
+  color: var(--reflect-muted);
+  list-style: none;
+}
+.reflect-app .reflect-readiness-compact::-webkit-details-marker { display: none; }
+.reflect-app .reflect-readiness-compact svg { width: 13px; height: 13px; opacity: .72; }
+.reflect-app .reflect-readiness-compact output {
+  margin-left: auto;
+  white-space: nowrap;
+  color: var(--reflect-muted);
+  font-variant-numeric: tabular-nums;
+}
+.reflect-app .reflect-readiness-compact::after {
+  content: "⌄";
+  font-size: .86rem;
+  opacity: .62;
+}
+.reflect-app .reflect-interaction-readiness[open] .reflect-readiness-compact::after {
+  transform: rotate(180deg);
+}
+.reflect-app .reflect-readiness-expanded {
+  padding: .1rem .82rem .85rem;
+  border-top: 1px solid var(--reflect-border);
+}
+.reflect-app .reflect-reply-action {
+  justify-self: start;
+  margin-top: .22rem;
+  color: var(--reflect-ink);
+}
+.reflect-app .reflect-journey-node small svg {opacity: .72;}
+.reflect-app :is(.reflect-journey-node.is-selected,.reflect-journey-node:hover) {
+  border-color: color-mix(in srgb,var(--reflect-accent) 24%,transparent);
+}
+@media(max-width:640px) {
+  .reflect-app .reflect-hypothesis-grade {
+    overflow-x: auto;
+    grid-template-columns: repeat(5,minmax(104px,1fr));
+    overscroll-behavior-inline: contain;
+  }
+  .reflect-app .reflect-hypothesis-card {padding: .78rem;}
+}
+@media(prefers-reduced-motion: reduce) {
+  .reflect-app .reflect-interaction-section button,
+  .reflect-app .reflect-hypothesis-card button {transition: none;}
+}
