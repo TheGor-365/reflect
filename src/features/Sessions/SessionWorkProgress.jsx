@@ -13,6 +13,7 @@ export default function SessionWorkProgress({ session, goals=[] }){
     <section className="reflect-session-work" aria-label="Проработка темы сеанса">
       <button type="button" className="reflect-session-work-toggle"
         onClick={()=>setOpen(value=>!value)} aria-expanded={open}
+        aria-label={`Проработка темы: ${result.percent}%. Показать вклад событий`}
         aria-controls="reflect-session-work-details">
         <span className="reflect-session-work-ring" role="progressbar"
           aria-label="Зафиксированная работа над темой"
