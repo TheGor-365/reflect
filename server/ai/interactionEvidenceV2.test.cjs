@@ -162,3 +162,23 @@ test("M5b v2 cannot parse v1 as v2; v1 continues serving the old provider protoc
   assert.equal(v1.parseInteraction(legacy,req.settings,req.classification).version,v1.VERSION);
   denied(()=>v2.parseInteraction(legacy,req.settings,req.classification,attempt()));
 });
+
+
+test("Railway R1: evidence v2 inherits exact ty/vy and sentence guidance without budget change", () => {
+  for (const addressForm of ["ty", "vy"]) {
+    const request = v2.buildRequest(message, { ...settings, addressForm });
+    const system = request.body.input[0].content;
+    assert.match(system, /ОБЯЗАТЕЛЬНО: обращайся к человеку во втором лице/);
+    assert.match(system, /Не обрывай слово/);
+    assert.match(system, /желательно не более 180 символов/);
+    assert.match(system, addressForm === "ty"
+      ? /Форма обращения — «ты»/ : /Форма обращения — «вы»/);
+    assert.match(system, /Не утверждай, что помнишь предыдущие сообщения/);
+    assert.equal(request.body.max_output_tokens, 1024);
+    assert.equal(request.body.text.format.schema.properties.insights.items.maxLength, 240);
+    assert.equal(request.body.text.format.schema.properties.answer.maxLength, 1150);
+    assert.deepEqual(request.body.input.map(x => x.role), ["system", "user"]);
+    assert.equal(request.body.store, false);
+    assert.equal(request.body.text.format.name, "reflect_interaction_v2");
+  }
+});
