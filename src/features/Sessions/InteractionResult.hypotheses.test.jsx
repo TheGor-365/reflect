@@ -69,7 +69,7 @@ test('UX R5: saved grade is compact, comment collapsed and editor remains closed
     reviews={{'h-assistant-a100-0':{
       grade:4, comment:'Суть тревоги в результате, а не в рекламе'
     }}} onHypothesisReview={vi.fn()}/>);
-  expect(screen.getByText('Очень точно')).toBeInTheDocument();
+  expect(document.querySelector('.reflect-hypothesis-saved-grade')).toHaveTextContent('Очень точно');
   const comment=screen.getByRole('button',{name:/Ваш комментарий/});
   expect(comment).toHaveAttribute('aria-expanded','false');
   fireEvent.click(comment);
