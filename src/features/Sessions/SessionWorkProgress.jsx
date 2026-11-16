@@ -10,10 +10,10 @@ export default function SessionWorkProgress({ session, goals=[] }){
   if(!session?.id)return null;
   const radius=21, circumference=2*Math.PI*radius;
   return (
-    <section className="reflect-session-work" aria-label="Проработка темы сеанса">
+    <section className={`reflect-session-work${open?' is-open':''}`} aria-label="Проработка темы сеанса">
       <button type="button" className="reflect-session-work-toggle"
         onClick={()=>setOpen(value=>!value)} aria-expanded={open}
-        aria-label={`Проработка темы: ${result.percent}%. Показать вклад событий`}
+        aria-label={`Проработка темы: ${result.percent}%. ${open?'Скрыть':'Показать'} вклад событий`}
         aria-controls="reflect-session-work-details">
         <span className="reflect-session-work-ring" role="progressbar"
           aria-label="Зафиксированная работа над темой"
@@ -27,11 +27,16 @@ export default function SessionWorkProgress({ session, goals=[] }){
           <output>{result.percent}%</output>
         </span>
         <span className="reflect-session-work-title">Проработка темы</span>
+        <span className="reflect-session-work-action" aria-hidden="true">
+          {open?'Свернуть':'Подробнее'}
+        </span>
         <ChevronDown size={14} aria-hidden="true"
           className={open?'reflect-session-work-chevron is-open':'reflect-session-work-chevron'}/>
       </button>
       <AnimatedCollapse open={open} id="reflect-session-work-details">
-        <div className="reflect-session-work-breakdown">
+        <div className="reflect-session-work-breakdown"
+          role="region" aria-label="Вклад событий в проработку темы"
+          tabIndex={open?0:-1}>
           <table>
             <caption>Вклад сохранённых событий в показатель проработки</caption>
             <thead><tr><th scope="col">Что учтено</th>
