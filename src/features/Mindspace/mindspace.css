@@ -569,3 +569,46 @@
     animation: none !important;
   }
 }
+
+
+/* Mindspace R5: subdued eight-direction compass. Geometry is thematic,
+   NOT a scored radius of personal progress or inferred well-being. */
+.reflect-mindspace-axis {
+  stroke: color-mix(in srgb, var(--reflect-border) 45%, transparent);
+  stroke-width: .9;
+  stroke-dasharray: 2 14;
+  opacity: .54;
+}
+.reflect-mindspace-orbit--inner {
+  opacity: .38;
+  stroke-dasharray: 2 14;
+}
+.reflect-mindspace-centerlabel {
+  width: 145px;
+  gap: 4px;
+  letter-spacing: .095em;
+  font-weight: 570;
+  opacity: .78;
+}
+.reflect-mindspace-centerlabel svg {
+  color: var(--reflect-accent);
+  opacity: .76;
+}
+.reflect-mindspace-zone {
+  max-width: 190px;
+  white-space: normal;
+  text-align: center;
+  font-size: 10px;
+  padding: 6px 9px;
+  opacity: .73;
+  background: color-mix(in srgb,var(--reflect-card) 72%,transparent);
+}
+.reflect-mindspace-zone svg {width: 14px;height: 14px;opacity: .65;}
+.reflect-mindspace-viewport,
+.reflect-mindspace-inspector,
+.reflect-mind-node {
+  border-color: color-mix(in srgb,var(--reflect-border) 64%,transparent);
+}
+.reflect-mind-node.is-selected {
+  border-color: color-mix(in srgb,var(--reflect-accent) 37%,transparent);
+}
