@@ -8,6 +8,7 @@ Source stacked on published R6 Hosting source SHA `3b7d5d632bd441ef128aae2e1a826
 The user verified on 2026-11-16 that R6 Hosting deployed through owner CLI to Firebase project and site **`reflect-ai-staging`**, 4 files in `dist`, and existing Eric's Dashboard, Goals, Journey and Mindspace screens loaded. **The Firebase release hash assigned to R6 has not been supplied**. Do not guess that `1333fe` is current: that was the R5 release and is a fallback version.
 
 R7 scope only:
+- Session progress R6 regression: `SessionWorkProgress` was a flex child with `overflow:hidden` but no `flex-shrink:0`. On shorter conversation viewports it collapsed to a thin unreadable sliver; expanding the internal table made most rows inaccessible. New R7 fix: non-shrinking conspicuous 56–60px toggle with ring + visible “Подробнее/Свернуть” label, bounded keyboard-scrollable details area (8 rows plus totals), native chat history keeps its own independent scroll. Calculations and persisted data unchanged. Captured from the owner's screenshots (16 Nov ~00:14 local display).
 - Dashboard activity: collapse historical date/step caveats into `SmoothDisclosure` with a structured definition list, default closed. Keep accurate numbers, date filters and nothing about mental-health scoring.
 - Goals: one recommendation bulb in the section heading, not duplicated next to every goal draft.
 - Session Schema/Journey: remove 3 repeated microcopy phrases; add subtle gaps between controls and content.
@@ -53,6 +54,7 @@ Record CLI output and new Firebase release hash from Console. No Railway/API, Au
 ## Browser QA after Hosting only — no paid AI
 
 - Eric: reload page with Ctrl+Shift+R, verify account state/sessions and no blank screen.
+- Sessions: compact session progress visible even collapsed; expand and verify ALL 8 factor rows + totals + disclaimer reachable by scrolling inside the details panel; no text clipped by history/composer; close again; keyboard focus and 320/390 px.
 - Dashboard: visible `Подтверждённая активность` and period controls; `Как считается активность` collapsed initially; open/close smoothly; table shows period/empty/undated-step methodology, correct 7/30-day text, no false 0% success.
 - Goals: one bulb icon in `Можно превратить в цель` card header; existing `QA-D1` and saved goal steps unchanged.
 - Journey: no 3 deleted microcopy phrases, visible separation between switcher/filters/stats/canvas, the map remains pannable/zoomable, source cards still open, hypothesis review count is source-correct.
