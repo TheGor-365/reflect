@@ -13,6 +13,7 @@ import { ACCOUNT_MODE, normalizedSessionMode, turnModeFields }
 import ChatMessage from './ChatMessage';
 import SessionEvidenceLedger from './SessionEvidenceLedger';
 import SessionReadinessPanel from './SessionReadinessPanel';
+import SessionWorkProgress from './SessionWorkProgress';
 import SessionMemoryReview from './SessionMemoryReview';
 import { sessionMemoryReplyUiEnabled, sendSessionMemoryReply }
   from '../../api/sessionMemoryReplyService';
@@ -667,6 +668,12 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
                 ownerContextLevel && sessionMemoryReplyUiEnabled)}/>
           </div>
         </div>
+
+        {activeSession?.id && (
+          <SessionWorkProgress key={activeSession.id}
+            session={{...activeSession, hypothesisReviews: reviews}}
+            goals={goals}/>
+        )}
 
         {activeToolPanel && activeSession && (
           <SessionToolPanel id={activeToolPanel}

@@ -5188,3 +5188,117 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
   transition:none;
  }
 }
+
+
+/* UX R6: one source-backed session work gauge, with compact table on demand. */
+.reflect-app .reflect-session-work {
+  width:min(100%,540px);
+  max-width:540px;
+  margin:.25rem 1rem .4rem auto;
+  border:1px solid color-mix(in srgb,var(--reflect-border) 56%,transparent);
+  border-radius:.84rem;
+  background:color-mix(in srgb,var(--reflect-card) 55%,transparent);
+  min-width:0;
+  overflow:hidden;
+}
+.reflect-app .reflect-session-work-toggle {
+  display:flex;align-items:center;
+  gap:.62rem;width:100%;min-height:60px;
+  padding:.38rem .7rem;
+  background:transparent;
+  border:0;outline-offset:-3px;
+  color:var(--reflect-muted);
+  font-size:.78rem;font-weight:600;
+  text-align:left;
+  transition:background-color .22s ease,color .22s ease;
+}
+.reflect-app .reflect-session-work-toggle:hover {
+  background:color-mix(in srgb,var(--reflect-card) 78%,transparent);
+  color:var(--reflect-ink);
+}
+.reflect-app .reflect-session-work-ring {
+  position:relative;flex:0 0 48px;
+  display:grid;place-items:center;width:48px;height:48px;
+  font-variant-numeric:tabular-nums;
+}
+.reflect-app .reflect-session-work-ring svg {
+  width:48px;height:48px;transform:rotate(-90deg);overflow:visible;
+}
+.reflect-app .reflect-session-work-ring circle {
+  fill:none;stroke-width:4.5;
+}
+.reflect-app .reflect-session-work-track {
+  stroke:color-mix(in srgb,var(--reflect-muted) 19%,transparent);
+}
+.reflect-app .reflect-session-work-value {
+  stroke:var(--reflect-accent);
+  stroke-linecap:round;
+  transition:stroke-dashoffset .65s cubic-bezier(.2,.7,.2,1);
+}
+.reflect-app .reflect-session-work-ring output {
+  position:absolute;
+  color:var(--reflect-ink);
+  font-size:.69rem;
+  font-weight:720;
+}
+.reflect-app .reflect-session-work-title {
+  font-size:.8rem;font-weight:590;
+  line-height:1.4;
+}
+.reflect-app .reflect-session-work-chevron {
+  margin-left:auto;flex:none;opacity:.62;
+  transition:transform .28s cubic-bezier(.2,.8,.2,1);
+}
+.reflect-app .reflect-session-work-chevron.is-open {transform:rotate(180deg);}
+.reflect-app .reflect-session-work-breakdown {
+  padding:0 .75rem .8rem;
+}
+.reflect-app .reflect-session-work-breakdown table {
+  width:100%;border-collapse:collapse;
+  font-size:.74rem;line-height:1.55;
+  font-variant-numeric:tabular-nums;
+  color:var(--reflect-ink);
+}
+.reflect-app .reflect-session-work-breakdown caption {
+  text-align:left;
+  font-size:.73rem;
+  color:var(--reflect-muted);
+  margin:.4rem 0 .45rem;
+}
+.reflect-app .reflect-session-work-breakdown th,
+.reflect-app .reflect-session-work-breakdown td {
+  padding:.43rem .35rem;
+  border-bottom:1px solid var(--reflect-border);
+}
+.reflect-app .reflect-session-work-breakdown th {
+  font-weight:540;text-align:left;
+}
+.reflect-app .reflect-session-work-breakdown td {
+  text-align:right;width:60px;color:var(--reflect-muted);
+}
+.reflect-app .reflect-session-work-breakdown th[scope="col"] {
+  color:var(--reflect-muted);font-weight:650;
+}
+.reflect-app .reflect-session-work-breakdown td[data-positive="true"] {
+  color:var(--reflect-ink);font-weight:670;
+}
+.reflect-app .reflect-session-work-breakdown tfoot th,
+.reflect-app .reflect-session-work-breakdown tfoot td {
+  border-bottom:0;font-weight:740;color:var(--reflect-ink);
+}
+.reflect-app .reflect-session-work-breakdown p {
+  margin:.45rem .25rem .1rem;
+  color:var(--reflect-muted);
+  font-size:.7rem;line-height:1.58;
+}
+@media(max-width:640px) {
+ .reflect-app .reflect-session-work {width:calc(100% - 1rem);margin:.22rem .5rem .3rem;}
+ .reflect-app .reflect-session-work-toggle {min-height:56px;}
+ .reflect-app .reflect-session-work-breakdown th,
+ .reflect-app .reflect-session-work-breakdown td {padding:.38rem .2rem;}
+}
+@media(prefers-reduced-motion:reduce){
+ .reflect-app .reflect-session-work-ring circle,
+ .reflect-app .reflect-session-work-toggle,
+ .reflect-app .reflect-session-work-chevron {transition:none;}
+}

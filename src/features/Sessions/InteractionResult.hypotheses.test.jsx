@@ -20,13 +20,12 @@ const interaction={
 const base={interaction,messageId:'assistant-a100',isSaved:true,reviews:{}};
 test('first reply shows provisional evidence instead of verified psychological explanation',()=>{
   render(<InteractionResult {...base}/>);
-  expect(screen.getByText(/Проработка · предварительная/)).toBeInTheDocument();
-  expect(screen.getByText(/Проработка · предварительная/)).toBeInTheDocument();
+  expect(screen.queryByText(/Проработка · предварительная/)).not.toBeInTheDocument();
   expect(screen.getByRole('region',{name:'Непроверенные гипотезы Reflect'}))
     .toHaveTextContent('Возможные объяснения');
   expect(screen.queryByText('Что удалось прояснить')).not.toBeInTheDocument();
   expect(screen.getByRole('region', { name: 'Непроверенные гипотезы Reflect' })).toBeInTheDocument();
-  expect(screen.getByText('0/2 оценено')).toBeInTheDocument();
+  expect(screen.queryByText('0/2 оценено')).not.toBeInTheDocument();
   expect(screen.queryByRole('button',{name:'Превратить в цель'})).toBeNull();
 });
 
@@ -61,7 +60,7 @@ test('no write or pseudo-probability for an unsaved AI message',()=>{
     onHypothesisReview={onHypothesisReview}/>);
   expect(screen.queryByRole('button',{name:'Оценить гипотезу'})).toBeNull();
   expect(onHypothesisReview).not.toHaveBeenCalled();
-  expect(screen.getByText(/Проработка · предварительная/)).toBeInTheDocument();
+  expect(screen.queryByText(/Проработка · предварительная/)).not.toBeInTheDocument();
 });
 
 test('UX R5: saved grade is compact, comment collapsed and editor remains closed until change',()=>{

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BookmarkPlus, CalendarClock, CheckCircle2, CircleX,
   Goal, Lightbulb, MessageCircle, MessageSquareReply, Target, Undo2,
-  SlidersHorizontal, ShieldQuestion, Check, ArrowRight } from 'lucide-react';
+  SlidersHorizontal, Check, ArrowRight } from 'lucide-react';
 import { HYPOTHESIS_GRADES } from './hypothesisReviewModel';
 import SmoothDisclosure from '../../components/common/SmoothDisclosure';
 import AnimatedCollapse from '../../components/common/AnimatedCollapse';
@@ -46,8 +46,6 @@ export default function InteractionResult({
     ? interaction.recommendationCandidates : [];
   const insights = Array.isArray(interaction.insights) ? interaction.insights : [];
   const needsClarification = interaction.stage === 'clarify';
-  const reviewedCount = insights.filter((_, index) =>
-    Number.isInteger(reviews[`h-${messageId}-${index}`]?.grade)).length;
   const goalGate = recommendationGoalGate({
     interaction, assistantMessageId: messageId, reviews
   });
@@ -96,28 +94,7 @@ export default function InteractionResult({
   };
   return (
     <div className="reflect-interaction-result" aria-label="Структурированный ответ Reflect">
-      <details className="reflect-interaction-readiness">
-        <summary className="reflect-readiness-compact">
-          <ShieldQuestion size={14} aria-hidden="true"/>
-          <span>Проработка · предварительная</span>
-          <output>{reviewedCount}/{insights.length} оценено</output>
-        </summary>
-        <div className="reflect-readiness-expanded">
-          <p>Выводы основаны на текущем сообщении. Гипотезы не являются
-            доказанными причинами. История используется только по разрешению.</p>
-          <div className="reflect-hypothesis-evidence" aria-label="Проверяемые показатели">
-            <span>История по разрешению</span>
-            <span>Ваши оценки: {reviewedCount} из {insights.length} гипотез</span>
-            <span>Открытых вопросов: {needsClarification ? 1 : 0}</span>
-          </div>
-          <p>Оценки показывают только ваше согласие с гипотезами,
-            а не объективную вероятность их истинности.</p>
-          {onOpenRecommendations && (candidates.length > 0 || needsClarification) &&
-            <button type="button" onClick={onOpenRecommendations}>
-              <Lightbulb size={14} aria-hidden="true"/> Рекомендации и уточнения
-            </button>}
-        </div>
-      </details>
+
       {isV2 && <section className="reflect-interaction-section"
         aria-label="Источники и неизвестное — версия 2">
         <strong>Что подтверждено вами, а что ещё неизвестно</strong>
