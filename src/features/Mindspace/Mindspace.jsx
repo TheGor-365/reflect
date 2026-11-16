@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowUpRight, BrainCircuit, Check, CircleHelp, Compass,
-  GitBranch, Link2, Network, Pencil, RotateCcw, Sparkles, Lightbulb,
+  GitBranch, Link2, Network, Pencil, RotateCcw, Sparkles, Flower2, Lightbulb,
   Target, Trash2, X, ZoomIn, ZoomOut, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Eye, EyeOff
 } from 'lucide-react';
 import { buildMindspace, layoutMindspace, RELATIONS,
@@ -352,6 +352,13 @@ export default function Mindspace({
                     className="reflect-mindspace-orbit"/>
                   <circle cx={layout.width/2} cy={layout.height/2} r="194"
                     className="reflect-mindspace-orbit"/>
+                  <circle cx={layout.width/2} cy={layout.height/2} r="92"
+                    className="reflect-mindspace-orbit reflect-mindspace-orbit--inner"/>
+                  {MINDSPACE_ZONES.filter(zone=>zone.id!=='other').map(zone=>(
+                    <line key={zone.id} x1={layout.width/2} y1={layout.height/2}
+                      x2={zone.x*layout.width} y2={zone.y*layout.height}
+                      className="reflect-mindspace-axis"/>
+                  ))}
                   {layout.edges.map(edge=>(
                     <line key={edge.id} x1={edge.x1} y1={edge.y1}
                       x2={edge.x2} y2={edge.y2}
@@ -365,15 +372,15 @@ export default function Mindspace({
                     style={{
                       left:zone.x*layout.width,
                       top:zone.y*layout.height +
-                        (zone.id==='other'?98:zone.y<.38?-90:zone.y>.67?95:0)
+                        (zone.id==='other'?100:zone.y<.18?28:zone.y>.83?-28:0)
                     }}>
                     <ReflectContentIcon kind={zone.icon} size={17}/>
                     <span>{zone.label}</span>
                   </span>
                 ))}
                 <span className="reflect-mindspace-centerlabel" aria-hidden="true">
-                  <Sparkles size={20} strokeWidth={1.5}/>
-                  моё пространство
+                  <Flower2 size={25} strokeWidth={1.25}/>
+                  здесь и сейчас
                 </span>
                 {layout.nodes.map(node=>(
                   <MindNode key={node.id} node={node}
@@ -410,6 +417,9 @@ export default function Mindspace({
             </p>
             <SmoothDisclosure label="Как читать линии"
               iconKind="information" className="reflect-mindspace-bottom-explain">
+              <p>Восемь направлений показывают темы, а не качество или скорость
+                вашего развития. Близость к центру и расстояние между узлами —
+                способ размещения записей, не психологический показатель.</p>
               <p>Связи, отмеченные вами, имеют статус подтверждённых.
                 Тонкие линии показывают происхождение цели или рекомендации;
                 близость двух узлов не доказывает связь между ними.</p>
