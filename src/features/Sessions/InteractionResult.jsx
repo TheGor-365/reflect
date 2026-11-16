@@ -25,7 +25,6 @@ export default function InteractionResult({
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewError, setReviewError] = useState('');
-  const [reviewSaved, setReviewSaved] = useState(false);
   if (!isSupportedInteraction(interaction)) return null;
   const isV2 = interaction.version === INTERACTION_V2;
   const claims = isV2 && Array.isArray(interaction.evidenceClaims)
@@ -57,8 +56,7 @@ export default function InteractionResult({
     setReviewGrade(Number.isInteger(existing?.grade) ? existing.grade : null);
     setReviewComment(typeof existing?.comment === 'string' ? existing.comment : '');
     setReviewError('');
-    setReviewSaved(false);
-    setReviewIndex(index);
+    setReviewIndex(index === reviewIndex ? null : index);
   };
   const saveReview = async event => {
     event.preventDefault();
@@ -67,7 +65,9 @@ export default function InteractionResult({
     setReviewSaving(true); setReviewError('');
     try {
       await onHypothesisReview(reviewIndex, reviewGrade, reviewComment);
-      setReviewSaved(true);
+      // The owner-scoped session transaction has committed. Collapse the
+      // editor; source-of-truth snapshot / scoped echo paints the saved chip.
+      setReviewIndex(null);
     } catch {
       setReviewError('Отклик не подтверждён сервером. Текст остался на экране — повторите сохранение.');
     } finally { setReviewSaving(false); }
@@ -94,29 +94,28 @@ export default function InteractionResult({
   };
   return (
     <div className="reflect-interaction-result" aria-label="Структурированный ответ Reflect">
-      <div className="reflect-interaction-readiness" role="status">
-        <strong><ShieldQuestion size={17} aria-hidden="true"/>
-          Проработка: предварительная
-        </strong>
-        <p>Основой ответа является ваше сообщение. Выдержки истории
-          используются только после отдельного подтверждения.
-          Возможные объяснения остаются гипотезами, не установленными причинами.</p>
-        <div className="reflect-hypothesis-evidence" aria-label="Проверяемые показатели">
-          <span>История — только по отдельному разрешению</span>
-          <span>Ваши оценки: {reviewedCount} из {insights.length} гипотез</span>
-          <span>Открытых вопросов: {needsClarification ? 1 : 0}</span>
+      <details className="reflect-interaction-readiness">
+        <summary className="reflect-readiness-compact">
+          <ShieldQuestion size={14} aria-hidden="true"/>
+          <span>Проработка · предварительная</span>
+          <output>{reviewedCount}/{insights.length} оценено</output>
+        </summary>
+        <div className="reflect-readiness-expanded">
+          <p>Выводы основаны на текущем сообщении. Гипотезы не являются
+            доказанными причинами. История используется только по разрешению.</p>
+          <div className="reflect-hypothesis-evidence" aria-label="Проверяемые показатели">
+            <span>История по разрешению</span>
+            <span>Ваши оценки: {reviewedCount} из {insights.length} гипотез</span>
+            <span>Открытых вопросов: {needsClarification ? 1 : 0}</span>
+          </div>
+          <p>Оценки показывают только ваше согласие с гипотезами,
+            а не объективную вероятность их истинности.</p>
+          {onOpenRecommendations && (candidates.length > 0 || needsClarification) &&
+            <button type="button" onClick={onOpenRecommendations}>
+              <Lightbulb size={14} aria-hidden="true"/> Рекомендации и уточнения
+            </button>}
         </div>
-        <p className="reflect-hypothesis-uncertainty">
-          Вероятность точности не рассчитана: данных для надёжного процента нет.
-          {needsClarification
-            ? ' Сначала стоит ответить на уточняющий вопрос.'
-            : ' Вы можете оспорить мои гипотезы и продолжить проверку.'}
-        </p>
-        {onOpenRecommendations && (candidates.length > 0 || needsClarification) &&
-          <button type="button" onClick={onOpenRecommendations}>
-            <Lightbulb size={15} aria-hidden="true"/> Открыть рекомендации и уточнения
-          </button>}
-      </div>
+      </details>
       {isV2 && <section className="reflect-interaction-section"
         aria-label="Источники и неизвестное — версия 2">
         <strong>Что подтверждено вами, а что ещё неизвестно</strong>
@@ -168,16 +167,30 @@ export default function InteractionResult({
           const existing = reviews[`h-${messageId}-${index}`];
           return <div className="reflect-hypothesis-card" key={index}>
             <p><small>Гипотеза {index+1}</small> {insight}</p>
-            {Number.isInteger(existing?.grade) &&
-              <p className="reflect-hypothesis-existing" role="status">
-                Ваш отклик: {HYPOTHESIS_GRADES[existing.grade] || 'Не оценено'}
-                {existing.comment && ' · ' + existing.comment}
-              </p>}
-            {onHypothesisReview && isSaved && <button type="button"
-              onClick={() => openReview(index)}>
-              <SlidersHorizontal size={15} aria-hidden="true"/>
-              {existing ? 'Изменить мою оценку' : 'Оценить гипотезу'}
-            </button>}
+            {Number.isInteger(existing?.grade) && (
+              <div className="reflect-hypothesis-saved" role="status">
+                <span className="reflect-hypothesis-saved-grade"
+                  data-grade={existing.grade}>
+                  <Check size={13} aria-hidden="true"/>
+                  {HYPOTHESIS_GRADES[existing.grade]}
+                </span>
+                {existing.comment && (
+                  <details className="reflect-hypothesis-saved-comment">
+                    <summary>Ваш комментарий</summary>
+                    <p>{existing.comment}</p>
+                  </details>
+                )}
+              </div>
+            )}
+            {onHypothesisReview && isSaved && (
+              <div className="reflect-hypothesis-controls">
+                <button type="button" aria-expanded={reviewIndex === index}
+                  onClick={() => openReview(index)}>
+                  <SlidersHorizontal size={13} aria-hidden="true"/>
+                  {existing ? 'Изменить оценку' : 'Оценить гипотезу'}
+                </button>
+              </div>
+            )}
             {reviewIndex === index && onHypothesisReview && isSaved &&
               <form className="reflect-hypothesis-feedback" onSubmit={saveReview}>
                 <div role="group" aria-label={`Оценка гипотезы ${index+1}`}
@@ -186,34 +199,26 @@ export default function InteractionResult({
                     <button type="button" key={label}
                       aria-pressed={reviewGrade === grade}
                       disabled={reviewSaving}
-                      onClick={() => {setReviewGrade(grade); setReviewSaved(false);}}>
+                      onClick={() => setReviewGrade(grade)}>
                       {label}
                     </button>)}
                 </div>
-                <label>Что я понял неверно? (по желанию)
+                <label>Комментарий (необязательно)
                   <textarea value={reviewComment} rows={2} maxLength={500}
                     disabled={reviewSaving}
-                    onChange={event => {setReviewComment(event.target.value);setReviewSaved(false);}}
-                    placeholder="Например: я не боюсь оценки — причина в другом..."/>
+                    onChange={event => setReviewComment(event.target.value)}
+                    placeholder="Что важно уточнить или исправить?"/>
                 </label>
                 <div className="reflect-hypothesis-feedback-actions">
                   <button type="submit" disabled={reviewSaving || reviewGrade === null}>
                     <Check size={15} aria-hidden="true"/>
-                    {reviewSaving ? 'Сохраняется…' : 'Сохранить мой отклик'}
+                    {reviewSaving ? 'Сохраняется…' : 'Сохранить оценку'}
                   </button>
-                  {onCompose && (reviewSaved || existing) &&
-                    <button type="button" onClick={() => onCompose(
-                      `Ранее предложенная гипотеза «${insight}». Моя оценка: ${HYPOTHESIS_GRADES[reviewGrade ?? existing.grade]}.`+
-                      (reviewComment.trim() ? ` Мой комментарий: ${reviewComment.trim()}.` : '')+
-                      ' Не принимай её за факт. Задай один точный вопрос, чтобы проверить другие объяснения.'
-                    )}>
-                      <ArrowRight size={15} aria-hidden="true"/> Продолжить разбор
-                    </button>}
+                  <button type="button" disabled={reviewSaving}
+                    onClick={() => setReviewIndex(null)}>
+                    Отмена
+                  </button>
                 </div>
-                {reviewSaved && <p role="status">
-                  Отклик сохранён в вашем сеансе. В Grok он не отправлен.
-                  Для продолжения нажмите «Продолжить разбор» и отправьте подготовленный текст.
-                </p>}
                 {reviewError && <p role="alert">{reviewError}</p>}
               </form>}
           </div>;
@@ -224,8 +229,10 @@ export default function InteractionResult({
           <strong>Важное уточнение</strong>
           <p>{question}</p>
           {onCompose && <button type="button"
-            onClick={() => onCompose('Мой ответ на вопрос «' + question + '»: ')}>
-            <MessageSquareReply size={15} aria-hidden="true"/> Ответить
+            className="reflect-reply-action"
+            onClick={() => onCompose('')}>
+            <MessageSquareReply size={14} aria-hidden="true"/>
+            Ответить в диалоге
           </button>}
         </section>
       )}

@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { ArrowUp, BookOpenCheck, LockKeyhole, Mic, MicOff } from 'lucide-react';
 import SaveFeedback from '../../components/common/SaveFeedback';
 
@@ -8,6 +8,7 @@ import SaveFeedback from '../../components/common/SaveFeedback';
  */
 const SessionComposer = ({
   value,
+  focusRequest = 0,
   onChange,
   onSubmit,
   onToggleRecording,
@@ -27,6 +28,13 @@ const SessionComposer = ({
   const canSend = aiAvailable && !isLoading && !sendDisabled &&
     diarySaveStatus !== 'saving' && Boolean(value.trim());
   const canSave = Boolean(onSaveToDiary) && Boolean(value.trim()) && diarySaveStatus !== 'saving' && !isLoading;
+
+  // A deliberate reply action focuses typing without sending or modifying text.
+  useEffect(() => {
+    if (focusRequest > 0 && !isLoading && diarySaveStatus !== 'saving') {
+      textareaRef.current?.focus();
+    }
+  }, [focusRequest, isLoading, diarySaveStatus]);
 
   useLayoutEffect(() => {
     const field = textareaRef.current;
