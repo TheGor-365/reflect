@@ -5329,3 +5329,131 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
     animation:none;
   }
 }
+
+
+/* UX R7: calm, optional activity methodology; only concise numbers are
+   visible until an explicit owner disclosure. Keep smooth two-way motion. */
+.reflect-app .reflect-dashboard-activity-empty {
+  margin:.55rem 0 .75rem;
+  color:var(--reflect-muted);
+  font-size:.82rem;
+  line-height:1.6;
+}
+.reflect-app .reflect-dashboard-activity-method {
+  margin-top:.72rem;
+  padding-top:.36rem;
+  border-top:1px solid color-mix(in srgb,var(--reflect-border) 62%,transparent);
+}
+.reflect-app .reflect-dashboard-activity-method .reflect-disclosure-trigger {
+  display:inline-flex;
+  align-items:center;
+  gap:.44rem;
+  min-height:34px;
+  padding:.33rem .18rem;
+  color:var(--reflect-muted);
+  font-size:.77rem;
+  font-weight:560;
+  text-decoration:none;
+  transition:color .2s ease,background-color .2s ease;
+}
+.reflect-app .reflect-dashboard-activity-method .reflect-disclosure-trigger:hover {
+  color:var(--reflect-ink);
+}
+.reflect-app .reflect-dashboard-activity-method .reflect-disclosure-trigger svg {
+  width:13px;height:13px;opacity:.72;
+}
+.reflect-app .reflect-dashboard-activity-method-list {
+  display:grid;
+  gap:.7rem;
+  margin:.55rem 0 .6rem;
+  min-width:0;
+}
+.reflect-app .reflect-dashboard-activity-method-list > div {
+  display:grid;
+  grid-template-columns:minmax(120px,.34fr) minmax(0,1fr);
+  gap:.35rem 1rem;
+  align-items:start;
+  padding:.66rem .77rem;
+  border:1px solid color-mix(in srgb,var(--reflect-border) 56%,transparent);
+  border-radius:.65rem;
+  background:color-mix(in srgb,var(--reflect-bg) 28%,transparent);
+}
+.reflect-app .reflect-dashboard-activity-method-list dt {
+  color:var(--reflect-ink);
+  font-size:.76rem;
+  font-weight:650;
+  line-height:1.48;
+}
+.reflect-app .reflect-dashboard-activity-method-list dd {
+  display:flex;
+  align-items:flex-start;
+  gap:.3rem;
+  min-width:0;
+  margin:0;
+  color:var(--reflect-muted);
+  font-size:.76rem;
+  line-height:1.58;
+}
+.reflect-app .reflect-dashboard-activity-method-list dd svg {
+  flex:0 0 13px;
+  width:13px;
+  height:13px;
+  margin-top:3px;
+  opacity:.64;
+}
+/* Session Schema: eliminate micro-copy, not section orientation.
+   Separate switch -> map heading -> filters -> evidence -> canvas. */
+.reflect-app .reflect-session-schema-header {
+  margin-bottom:clamp(1.4rem,2.6vw,2.15rem);
+}
+.reflect-app .reflect-session-schema-header h2 {
+  margin-bottom:.24rem;
+}
+.reflect-app .reflect-session-schema-header .reflect-journey-view-switch {
+  margin:1.17rem 0 0;
+  gap:.65rem;
+}
+.reflect-app .reflect-journey-header {
+  margin:0 0 1.25rem;
+  align-items:center;
+}
+.reflect-app .reflect-journey-header h2 {
+  margin:0;
+  line-height:1.4;
+}
+.reflect-app .reflect-journey-filters {
+  margin:0 0 1.3rem;
+  column-gap:.86rem;
+  row-gap:.9rem;
+}
+.reflect-app .reflect-journey-fact-strips {
+  gap:.6rem 1.15rem;
+  margin:0 0 1.25rem;
+}
+.reflect-app .reflect-journey-hypothesis-stats {
+  margin:.35rem 0 1.12rem;
+}
+.reflect-app .reflect-journey-metrics-disclosure {
+  margin:.4rem 0 1.25rem;
+}
+.reflect-app .reflect-journey-view-controls {
+  margin:1.15rem 0 .8rem;
+}
+.reflect-app .reflect-journey-canvas {
+  margin-top:.25rem;
+}
+@media(max-width:680px) {
+  .reflect-app .reflect-dashboard-activity-method-list > div {
+    grid-template-columns:1fr;
+    gap:.25rem;
+  }
+  .reflect-app .reflect-session-schema-header {margin-bottom:1.35rem;}
+  .reflect-app .reflect-journey-header {margin-bottom:1.1rem;}
+  .reflect-app .reflect-journey-filters {margin-bottom:1rem;}
+  .reflect-app .reflect-journey-fact-strips {margin-bottom:1rem;}
+}
+@media(prefers-reduced-motion:reduce) {
+  .reflect-app .reflect-dashboard-activity-method .reflect-disclosure-trigger {
+    transition:none;
+  }
+}
