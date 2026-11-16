@@ -24,7 +24,7 @@ describe('PRODUCT-05 dashboard interaction',()=>{
     const onOpenGoal=vi.fn(),onOpenSession=vi.fn();
     render(<Dashboard sessions={sessions} goals={goals}
       nowMs={nowMs} onOpenGoal={onOpenGoal} onOpenSession={onOpenSession}/>);
-    expect(screen.getByRole('heading',{name:'Главная'})).toBeInTheDocument();
+    expect(screen.queryByRole('heading',{name:'Главная'})).not.toBeInTheDocument();
     expect(screen.getByText('Выпустить MVP')).toBeInTheDocument();
     expect(screen.getByText(/Проверить форму/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button',{name:/Открыть цель/}));
@@ -112,11 +112,11 @@ test('P1: pending AI recommendation changes dashboard without inventing a comple
     nowMs={nowMs} onOpenRecommendations={onOpenRecommendations}/>);
   expect(screen.getByRole('heading',{name:'Следующее решение'})).toBeInTheDocument();
   expect(screen.getByText(/Я предложил вам рассмотреть: Зафиксировать минимальный scope/)).toBeInTheDocument();
-  expect(screen.getByText(/Идея AI · ещё не цель/)).toBeInTheDocument();
+  expect(screen.queryByText(/Идея AI · ещё не цель/)).not.toBeInTheDocument();
   expect(screen.queryByText('Цель подтверждена')).not.toBeInTheDocument();
   expect(screen.getByText(/Тема:/)).toHaveTextContent('Запуск продукта');
   expect(screen.getByLabelText('Путь от гипотезы к цели')).toHaveTextContent('3. Проверка человеком');
-  expect(screen.getByText(/Модель получила только одно сообщение/)).toBeInTheDocument();
+  expect(screen.queryByText(/Модель получила только одно сообщение/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button',{
     name:'Проверить и обсудить предложение'
   }));

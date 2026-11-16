@@ -3,6 +3,8 @@ import { BookmarkPlus, CalendarClock, CheckCircle2, CircleX,
   Goal, Lightbulb, MessageCircle, MessageSquareReply, Target, Undo2,
   SlidersHorizontal, ShieldQuestion, Check, ArrowRight } from 'lucide-react';
 import { HYPOTHESIS_GRADES } from './hypothesisReviewModel';
+import SmoothDisclosure from '../../components/common/SmoothDisclosure';
+import AnimatedCollapse from '../../components/common/AnimatedCollapse';
 import { recommendationGoalGate } from './recommendationGoalGate';
 import { isSupportedInteraction, INTERACTION_V2, EVIDENCE_SLOT_LABELS }
   from './interactionVersions';
@@ -175,10 +177,10 @@ export default function InteractionResult({
                   {HYPOTHESIS_GRADES[existing.grade]}
                 </span>
                 {existing.comment && (
-                  <details className="reflect-hypothesis-saved-comment">
-                    <summary>Ваш комментарий</summary>
+                  <SmoothDisclosure label="Ваш комментарий"
+                    iconKind="information" className="reflect-hypothesis-saved-comment">
                     <p>{existing.comment}</p>
-                  </details>
+                  </SmoothDisclosure>
                 )}
               </div>
             )}
@@ -191,7 +193,9 @@ export default function InteractionResult({
                 </button>
               </div>
             )}
-            {reviewIndex === index && onHypothesisReview && isSaved &&
+            {onHypothesisReview && isSaved && (
+              <AnimatedCollapse open={reviewIndex === index}
+                className="reflect-hypothesis-editor">
               <form className="reflect-hypothesis-feedback" onSubmit={saveReview}>
                 <div role="group" aria-label={`Оценка гипотезы ${index+1}`}
                   className="reflect-hypothesis-grade">
@@ -219,8 +223,10 @@ export default function InteractionResult({
                     Отмена
                   </button>
                 </div>
-                {reviewError && <p role="alert">{reviewError}</p>}
-              </form>}
+                {reviewError && reviewIndex === index && <p role="alert">{reviewError}</p>}
+              </form>
+              </AnimatedCollapse>
+            )}
           </div>;
         })}
       </section>}
@@ -229,9 +235,9 @@ export default function InteractionResult({
           <strong>Важное уточнение</strong>
           <p>{question}</p>
           {onCompose && <button type="button"
-            className="reflect-reply-action"
+            className="reflect-reply-action reflect-session-quiet-action"
             onClick={() => onCompose('')}>
-            <MessageSquareReply size={14} aria-hidden="true"/>
+            <MessageSquareReply size={13} aria-hidden="true"/>
             Ответить в диалоге
           </button>}
         </section>
@@ -255,8 +261,7 @@ export default function InteractionResult({
             aria-label="Предложенная рекомендация">
             <strong>{item.title}</strong>
             <p>{item.rationale}</p>
-            <small>Источник: только текущее сообщение. Идея AI — не доказательство
-              причины поведения и не ваша цель.</small>
+            <small>Предложение Reflect</small>
             {oldRecommendationWithOpenHypotheses && <p
               className="reflect-hypothesis-uncertainty" role="status">
               Цель пока недоступна: {goalGate.reason}
@@ -347,20 +352,7 @@ export default function InteractionResult({
       })}
       {error && <p role="alert">{error}</p>}
       {feedback && <p role="status">{feedback}</p>}
-      <details className="reflect-interaction-evidence-details">
-        <summary>Что учтено и что ещё нужно проверить</summary>
-        <p>Основной источник: текущее сообщение. История выбранного сеанса
-          может использоваться только после отдельного разрешения.
-          Другие сеансы и дневник не добавляются автоматически.</p>
-        {insights.length>0 && <p>Модель выделила {insights.length}
-          {insights.length===1?' возможное объяснение':' возможных объяснения'}.
-          Это не подтверждённые факты.</p>}
-        {Array.isArray(interaction.unknowns) && interaction.unknowns.length>0
-          ? <ul>{interaction.unknowns.map((item,index)=>
-            <li key={index}>Открытый вопрос: {item}</li>)}</ul>
-          : <p>Модель не перечислила неизвестные факты. Это не означает,
-              что весь контекст уже изучен.</p>}
-      </details>
+
     </div>
   );
 }

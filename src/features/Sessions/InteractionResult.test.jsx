@@ -19,7 +19,7 @@ describe('InteractionResult', () => {
     const onCompose = vi.fn();
     render(<InteractionResult interaction={base} onCompose={onCompose} />);
     expect(screen.getByText('Какой риск для вас допустим?')).toBeTruthy();
-    expect(screen.getByText(/не ваша цель/)).toBeTruthy();
+    expect(screen.getByText('Предложение Reflect')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Ответить в диалоге' }));
     fireEvent.click(screen.getByRole('button', { name: 'Обсудить' }));
     expect(onCompose).toHaveBeenCalledTimes(2);

@@ -39,11 +39,7 @@ export default function Dashboard({
   return (
     <section className="reflect-dashboard" aria-label="Личный обзор Reflect">
       <header className="reflect-dashboard-header">
-        <div>
-          <h2>Главная</h2>
-          <p>Что сейчас важно, какие решения приняты и к каким темам вы возвращались. Только сохранённые факты.</p>
-        </div>
-        <div className="reflect-dashboard-header-links">
+         <div className="reflect-dashboard-header-links">
           {onOpenMindspace&&(
             <button type="button" onClick={onOpenMindspace}>
               <BrainCircuit size={17} aria-hidden="true"/> Mindspace
@@ -89,7 +85,6 @@ export default function Dashboard({
                       Открыть исходный сеанс <ArrowUpRight size={15} aria-hidden="true"/>
                     </button>}
                   </div>
-                  <small>Идея AI · ещё не цель · предпосылки требуют проверки</small>
                   <strong>Я предложил вам рассмотреть: {waitingRecommendation.title}</strong>
                   <p>Почему мне показался полезным этот вариант: {waitingRecommendation.rationale}
                     Но я мог неверно понять вашу ситуацию.</p>
@@ -104,13 +99,7 @@ export default function Dashboard({
                     <span className="is-pending">4. Решение</span>
                     <span className="is-pending">5. Цель</span>
                   </div>
-                  <p className="reflect-dashboard-evidence-hint">
-                    Вы оценили {waitingRecommendation.reviewedCount} из {waitingRecommendation.hypothesisCount}
-                    {waitingRecommendation.hypothesisCount === 1 ? ' гипотезы' : ' гипотез'}.
-                    {waitingRecommendation.challengedCount > 0 &&
-                      ` ${waitingRecommendation.challengedCount} оценены как неточные.`}
-                    {' '}Модель получила только одно сообщение; вероятность точности не вычислялась.
-                  </p>
+
                   {onOpenRecommendations&&(
                     <button type="button" onClick={onOpenRecommendations}>
                       <ArrowUpRight size={16} aria-hidden="true"/>

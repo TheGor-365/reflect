@@ -5032,3 +5032,159 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
 .reflect-app .reflect-journey-node small svg {
   opacity:.70;width:13px;height:13px;color:var(--reflect-muted);
 }
+
+
+/* UX R6 — motion is calm, reversible and reduced-motion aware. */
+.reflect-app .reflect-motion-collapse {
+  display:grid;
+  grid-template-rows:0fr;
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transition:grid-template-rows .32s cubic-bezier(.22,.8,.24,1),
+    opacity .26s ease,visibility 0s linear .32s;
+}
+.reflect-app .reflect-motion-collapse[data-open="true"] {
+  grid-template-rows:1fr;
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+  transition:grid-template-rows .32s cubic-bezier(.22,.8,.24,1),
+    opacity .26s ease,visibility 0s;
+}
+.reflect-app .reflect-motion-collapse-inner {min-height:0;overflow:hidden;}
+.reflect-app .reflect-hypothesis-editor {min-width:0;}
+.reflect-app .reflect-hypothesis-editor .reflect-hypothesis-feedback {
+  margin:1rem 0 0;
+}
+.reflect-app .reflect-hypothesis-saved-comment {
+  margin:0;
+  font-size:.75rem;
+}
+.reflect-app .reflect-hypothesis-saved-comment .reflect-disclosure-trigger {
+  display:inline-flex;
+  align-items:center;
+  gap:.32rem;
+  min-height:26px;
+  text-decoration:none;
+  padding:2px 0;
+  font-weight:500;
+  font-size:.74rem;
+  color:var(--reflect-muted);
+  transition:color .2s ease;
+}
+.reflect-app .reflect-hypothesis-saved-comment .reflect-disclosure-trigger:hover {
+  color:var(--reflect-ink);
+}
+.reflect-app .reflect-hypothesis-saved-comment .reflect-disclosure-trigger svg {
+  opacity:.55;
+  width:12px;height:12px;
+}
+.reflect-app .reflect-hypothesis-saved-comment .reflect-disclosure-inner p {
+  padding:.35rem 0 .25rem;
+  margin:0;
+  color:var(--reflect-ink);
+  font-size:.8rem;
+  line-height:1.58;
+}
+.reflect-app .reflect-hypothesis-grade {
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:.42rem;
+}
+.reflect-app .reflect-hypothesis-grade button,
+.reflect-app .reflect-interaction-section .reflect-hypothesis-grade button {
+  box-sizing:border-box;
+  justify-self:stretch;
+  width:100%;
+  min-width:0;
+  height:56px;
+  padding:.38rem .12rem;
+  font-size:.72rem;
+  border-radius:.58rem;
+  text-align:center;
+}
+.reflect-app .reflect-hypothesis-controls button,
+.reflect-app .reflect-interaction-section .reflect-reply-action {
+  box-sizing:border-box;
+  display:inline-flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:.48rem;
+  width:176px;
+  max-width:100%;
+  min-height:39px;
+  padding:.48rem .65rem;
+  font-size:.77rem;
+  line-height:1.35;
+  font-weight:560;
+  color:var(--reflect-muted);
+  border-radius:.6rem;
+  border:1px solid var(--reflect-border);
+  background:color-mix(in srgb,var(--reflect-card) 65%,transparent);
+  text-decoration:none;
+  text-align:left;
+  transition:color .2s ease,background-color .2s ease,
+    border-color .2s ease,transform .2s ease;
+}
+.reflect-app .reflect-hypothesis-controls button:hover,
+.reflect-app .reflect-interaction-section .reflect-reply-action:hover {
+  color:var(--reflect-ink);
+  background:color-mix(in srgb,var(--reflect-card) 95%,transparent);
+  transform:translateY(-1px);
+}
+.reflect-app .reflect-hypothesis-controls button svg,
+.reflect-app .reflect-interaction-section .reflect-reply-action svg {
+  flex:0 0 13px;
+  width:13px;height:13px;opacity:.66;
+  vertical-align:middle;
+}
+.reflect-app .reflect-quoted-question {
+  margin-top:.4rem;
+}
+.reflect-app .reflect-quoted-question .reflect-disclosure-trigger {
+  padding:.12rem .25rem;
+  min-height:25px;
+  font-size:.69rem;
+  font-weight:520;
+  color:var(--reflect-muted);
+}
+.reflect-app .reflect-quoted-question .reflect-disclosure-trigger svg {
+  width:12px;height:12px;opacity:.55;
+}
+.reflect-app .reflect-quoted-question blockquote {
+  margin:.25rem 0 .2rem;
+  border-color:color-mix(in srgb,var(--reflect-muted) 28%,transparent);
+  color:var(--reflect-muted);
+  font-size:.73rem;
+  font-style:italic;
+  line-height:1.6;
+}
+.reflect-app .reflect-dashboard-header {
+  justify-content:flex-end;
+}
+.reflect-app .reflect-interaction-section button,
+.reflect-app .reflect-hypothesis-card button,
+.reflect-app .reflect-dashboard button,
+.reflect-app .reflect-recommendation-inbox button {
+  transition:background-color .2s ease,color .2s ease,
+    border-color .2s ease,transform .2s ease,opacity .2s ease;
+}
+@media(max-width:640px){
+ .reflect-app .reflect-hypothesis-grade {
+  grid-template-columns:repeat(5,minmax(90px,1fr));
+  overflow-x:auto;
+  overscroll-behavior-inline:contain;
+ }
+ .reflect-app .reflect-hypothesis-grade button {height:56px;}
+}
+@media(prefers-reduced-motion:reduce){
+ .reflect-app .reflect-motion-collapse,
+ .reflect-app .reflect-interaction-section button,
+ .reflect-app .reflect-hypothesis-card button,
+ .reflect-app .reflect-dashboard button,
+ .reflect-app .reflect-recommendation-inbox button,
+ .reflect-app .reflect-hypothesis-saved-comment .reflect-disclosure-trigger {
+  transition:none;
+ }
+}
