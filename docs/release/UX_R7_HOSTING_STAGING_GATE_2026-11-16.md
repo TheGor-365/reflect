@@ -5,7 +5,7 @@ Date: 2026-11-16 · Status: H0 draft candidate, **not deployed**
 
 Source stacked on published R6 Hosting source SHA `3b7d5d632bd441ef128aae2e1a826c4ea5c34283`; UX changes in Draft PR #129, source SHA `53ac1e1d91bb87f4ce3e2837f6a807671fc427c6`. The **release SHA** is the final HEAD of the R7 release Draft PR, and must be re-read immediately before the worktree is created.
 
-The user verified on 2026-11-16 that R6 Hosting deployed through owner CLI to Firebase project and site **`reflect-ai-staging`**, 4 files in `dist`, and existing Eric's Dashboard, Goals, Journey and Mindspace screens loaded. **The Firebase release hash assigned to R6 has not been supplied**. Do not guess that `1333fe` is current: that was the R5 release and is a fallback version.
+The user verified on 2026-11-16 that R6 Hosting deployed through owner CLI to Firebase project and site **`reflect-ai-staging`**, 4 files in `dist`, and existing Eric's Dashboard, Goals, Journey and Mindspace screens loaded. The owner verified a Firebase Hosting Releases screenshot at local 2026-11-17 00:13 showing **R6 active release `c8eb15`** (starred), followed by prior R5 `1333fe`; reconfirm the top release has not changed immediately before any R7 deploy.
 
 R7 scope only:
 - Session progress R6 regression: `SessionWorkProgress` was a flex child with `overflow:hidden` but no `flex-shrink:0`. On shorter conversation viewports it collapsed to a thin unreadable sliver; expanding the internal table made most rows inaccessible. New R7 fix: non-shrinking conspicuous 56–60px toggle with ring + visible “Подробнее/Свернуть” label, bounded keyboard-scrollable details area (8 rows plus totals), native chat history keeps its own independent scroll. Calculations and persisted data unchanged. Captured from the owner's screenshots (16 Nov ~00:14 local display).
@@ -21,7 +21,7 @@ R7 scope only:
 2. PR #129's non-deploy Vite/Auth/hosted/mock-AI CI must PASS on its exact head. No code released based only on source PR CI.
 3. User's installed Node.js through asdf `22.23.4` (Node 25 is unsupported). Owner's existing `~/reflect-r6-staging/.env.staging.local` is Git-ignored/private; carry it into a fresh R7 worktree with `install -m 600`, NEVER print values.
 4. No Git reset/clean or edits to the original R6 worktree. Git's `?? .firebase/` after deploy is a known untracked CLI directory; do not delete it.
-5. Before any deploy, open Firebase Console → `reflect-ai-staging` → Hosting → Releases. **Capture the currently active R6 release hash** and verify that rollback of the current live version would be possible after R7 publish. If missing, STOP.
+5. Before any deploy, open Firebase Console → `reflect-ai-staging` → Hosting → Releases. **Reconfirm the currently active R6 release hash `c8eb15`** and verify that rollback of the current live version would be possible after R7 publish. If active hash is different, STOP and reconcile before deployment.
 6. Verify `firebase hosting:sites:list --project reflect-ai-staging` shows exact `reflect-ai-staging`. A fallback to R5 `1333fe` is not the same as rollback to R6 and should not be silently substituted.
 
 ## H1 only with explicit owner release decision
