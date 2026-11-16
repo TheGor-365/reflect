@@ -5313,3 +5313,19 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
   font-weight:550;
   line-height:1.5;
 }
+
+
+/* R6 reply affordance: quick visual confirmation of composer focus. */
+@keyframes reflect-reply-composer-pulse {
+  0% {box-shadow:0 0 0 0 color-mix(in srgb,var(--reflect-accent) 0%,transparent);}
+  35% {box-shadow:0 0 0 3px color-mix(in srgb,var(--reflect-accent) 26%,transparent);}
+  100% {box-shadow:0 0 0 0 color-mix(in srgb,var(--reflect-accent) 0%,transparent);}
+}
+.reflect-app .reflect-session-composer--reply-focus .reflect-session-composer-form {
+  animation:reflect-reply-composer-pulse .82s ease-out both;
+}
+@media(prefers-reduced-motion:reduce) {
+  .reflect-app .reflect-session-composer--reply-focus .reflect-session-composer-form {
+    animation:none;
+  }
+}
