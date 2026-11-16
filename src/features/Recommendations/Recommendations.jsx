@@ -27,8 +27,6 @@ function SourceContext({ item }) {
         <blockquote>Ваше сообщение: «{item.sourceExcerpt}
           {item.sourceExcerpt.length >= 260 ? '…' : ''}»</blockquote>
       ) : <p>Исходное сообщение доступно в сохранённом сеансе.</p>}
-      <p>Предложение сформулировано Reflect. Оно не является подтверждённой
-        причиной и не создаёт цель без вашего решения.</p>
     </SmoothDisclosure>
   );
 }
@@ -97,7 +95,6 @@ export default function Recommendations({
                 {pending.map(item => (
                   <li key={item.id} className="reflect-inbox-card">
                     <span className="reflect-inbox-state">
-                      <ReflectContentIcon kind="recommendation" size={16}/>
                       {statusText[item.status]}
                     </span>
                     <h4>{item.title}</h4>
