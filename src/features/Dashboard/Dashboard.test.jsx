@@ -24,7 +24,7 @@ describe('PRODUCT-05 dashboard interaction',()=>{
     const onOpenGoal=vi.fn(),onOpenSession=vi.fn();
     render(<Dashboard sessions={sessions} goals={goals}
       nowMs={nowMs} onOpenGoal={onOpenGoal} onOpenSession={onOpenSession}/>);
-    expect(screen.getByRole('heading',{name:'Главная'})).toBeInTheDocument();
+    expect(screen.queryByRole('heading',{name:'Главная'})).not.toBeInTheDocument();
     expect(screen.getByText('Выпустить MVP')).toBeInTheDocument();
     expect(screen.getByText(/Проверить форму/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button',{name:/Открыть цель/}));
