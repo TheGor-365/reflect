@@ -177,3 +177,12 @@ test("M5b v2 cannot parse v1 as v2; v1 continues serving the old provider protoc
   assert.equal(v1.parseInteraction(legacy,req.settings,req.classification).version,v1.VERSION);
   denied(()=>v2.parseInteraction(legacy,req.settings,req.classification,attempt()));
 });
+
+test("UX R5: v2 inherits complete-sentence instruction without more provider tokens",()=>{
+  const req=v2.buildRequest(message,settings);
+  assert.match(req.body.input[0].content,/Не обрывай слово/);
+  assert.match(req.body.input[0].content,/выбранные «ты\/вы»/);
+  assert.equal(req.body.max_output_tokens,1024);
+  assert.equal(req.body.text.format.schema.properties.insights.items.maxLength,240);
+  assert.equal(req.body.text.format.schema.properties.answer.maxLength,1150);
+});
