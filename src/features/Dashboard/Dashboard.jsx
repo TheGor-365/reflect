@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { buildDashboardSnapshot } from './dashboardModel';
 import { buildRecommendationInbox } from '../Recommendations/recommendationInbox';
+import SmoothDisclosure from '../../components/common/SmoothDisclosure';
 
 const dateLabel=at=>at===null?'Дата не сохранена':
   new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',year:'numeric'})
@@ -158,7 +159,6 @@ export default function Dashboard({
                 ))}
               </div>
             </div>
-            <p className="reflect-dashboard-note">Календарные дни UTC. Считаются только сохранённые решения, наблюдения и записи дневника с датой. Не оценивается психическое здоровье.</p>
             {hasPeriodEvents?(
               <>
                 <div className="reflect-dashboard-metrics" aria-label="Подтверждённые события за период">
@@ -183,17 +183,36 @@ export default function Dashboard({
                 </div>
               </>
             ):(
-              <p className="reflect-dashboard-section-empty" role="status">
-                За выбранный период нет подтверждённых событий с датой. Отсутствие записей не является оценкой результата.
+              <p className="reflect-dashboard-activity-empty" role="status">
+                Нет событий с датой за {days} дней
               </p>
             )}
-            {snapshot.stepProgress&&(
-              <p className="reflect-dashboard-note">
-                <CheckSquare size={15} aria-hidden="true"/>
-                За всё время: {snapshot.stepProgress.done} из {snapshot.stepProgress.total} шагов
-                имеют отметку «выполнено». Без дат завершения мы не приписываем их последним {days} дням.
-              </p>
-            )}
+            <SmoothDisclosure label="Как считается активность"
+              iconKind="information" className="reflect-dashboard-activity-method">
+              <dl className="reflect-dashboard-activity-method-list">
+                <div>
+                  <dt>Период и источники</dt>
+                  <dd>Календарные дни UTC. Считаются только сохранённые решения,
+                    наблюдения и записи дневника с датой. Не оценивается психическое здоровье.</dd>
+                </div>
+                {!hasPeriodEvents&&(
+                  <div>
+                    <dt>Пустой период</dt>
+                    <dd>За выбранный период нет подтверждённых событий с датой.
+                      Отсутствие записей не является оценкой результата.</dd>
+                  </div>
+                )}
+                {snapshot.stepProgress&&(
+                  <div>
+                    <dt>Шаги за всё время</dt>
+                    <dd><CheckSquare size={13} aria-hidden="true"/>
+                      За всё время: {snapshot.stepProgress.done} из {snapshot.stepProgress.total} шагов
+                      имеют отметку «выполнено». Без дат завершения мы не приписываем
+                      их последним {days} дням.</dd>
+                  </div>
+                )}
+              </dl>
+            </SmoothDisclosure>
           </section>
           <div className="reflect-dashboard-bottom-grid">
             <section className="reflect-dashboard-section" aria-label="Последние возвращения к темам">
