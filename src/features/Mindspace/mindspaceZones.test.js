@@ -6,7 +6,9 @@ import { buildMindspace, layoutMindspace } from './mindspaceModel';
 test('UX R4 fixed named zones at meaningful perimeter positions',()=>{
   expect(MINDSPACE_ZONES.map(z=>z.label)).toEqual([
     'Рефлексия','Профессиональный рост','Анализ и решения',
-    'Общение и отношения','Личное развитие','Другие темы'
+    'Общение и отношения','Личное развитие',
+    'Финансы и устойчивость','Здоровье и энергия','Творчество и идеи',
+    'Другие темы'
   ]);
   expect(MINDSPACE_ZONES.every(z=>z.x>0&&z.x<1&&z.y>0&&z.y<1))
     .toBe(true);
@@ -43,4 +45,15 @@ test('UX R4 verified owner spatial correction wins title inference without chang
   expect(g.confirmedLinks).toBe(0);
   expect(raw[0].mindZone.id).toBe('reflection');
   expect(layoutMindspace(g)).toEqual(drawn);
+});
+
+test('Mindspace R5: 8 thematic axes and owner-led centre, never a progress score',()=>{
+  expect(MINDSPACE_ZONES.filter(z=>z.id!=='other')).toHaveLength(8);
+  expect(MINDSPACE_ZONES.find(z=>z.id==='other')).toMatchObject({x:.5});
+  expect(suggestMindZone('Хочу планировать бюджет и доход')).toBe('finance');
+  expect(suggestMindZone('Тренировка и физическая энергия')).toBe('wellbeing');
+  expect(suggestMindZone('Музыкальное творчество')).toBe('creativity');
+  expect(suggestMindZone('Работа и проекты MVP')).toBe('professional');
+  expect(resolveMindZone({mindZone:{id:'finance',author:'user',status:'confirmed'}},'Мой бюджет'))
+    .toEqual({id:'finance',confirmedByOwner:true});
 });
