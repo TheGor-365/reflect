@@ -33,6 +33,7 @@ import { BookOpen, BarChart2, MessageSquareText, ShieldCheck } from 'lucide-reac
 const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, onOpenGoals, onOpenRecommendations, focusTurnId, returnGoalIntent = null,
   libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
   const [userInput, setUserInput] = useState('');
+  const [composerFocusRequest, setComposerFocusRequest] = useState(0);
   const [ownerContextLevel, setOwnerContextLevel] = useState(null);
   const [newSessionMode, setNewSessionMode] = useState(ACCOUNT_MODE);
   const [sessionModeEcho, setSessionModeEcho] = useState(null);
@@ -731,7 +732,11 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
               <ChatMessage message={msg}
                 focused={Boolean(activeSession && msg.id && msg.id === focusTurnId)}
                 onPlayAudio={handlePlayAudio} isSpeaking={isSpeaking}
-                onCompose={text => { setUserInput(text); setSendError(''); }}
+                onCompose={text => {
+                  if (text) setUserInput(text);
+                  setSendError('');
+                  setComposerFocusRequest(n => n + 1);
+                }}
                 isSaved={Boolean(activeSession && index < savedMessageCount)}
                 decisions={decisions} reviews={reviews}
                 onHypothesisReview={(index, grade, comment) =>
@@ -805,6 +810,7 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
           )}
           <SessionComposer
             value={userInput}
+            focusRequest={composerFocusRequest}
             onChange={(value) => { noteSave.clearFeedback(); setSendError(''); setUserInput(value); }}
             onSubmit={handleSendMessage}
             sendDisabled={modeChangePending || effectiveSessionMode === null}
