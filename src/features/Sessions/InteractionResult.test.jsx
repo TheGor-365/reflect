@@ -20,10 +20,10 @@ describe('InteractionResult', () => {
     render(<InteractionResult interaction={base} onCompose={onCompose} />);
     expect(screen.getByText('Какой риск для вас допустим?')).toBeTruthy();
     expect(screen.getByText(/не ваша цель/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Ответить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ответить в диалоге' }));
     fireEvent.click(screen.getByRole('button', { name: 'Обсудить' }));
     expect(onCompose).toHaveBeenCalledTimes(2);
-    expect(onCompose.mock.calls[0][0]).toMatch(/Мой ответ/);
+    expect(onCompose.mock.calls[0][0]).toBe('');
     expect(onCompose.mock.calls[1][0]).toMatch(/Сравнить условия/);
   });
   it('does not fabricate a proposal for a vent-only response', () => {
@@ -70,7 +70,7 @@ it('M5c v2 renders literal current-owner quote, 2/4 categories and one targeted 
     name: 'Показать исходное сообщение'
   }));
   expect(onFocusTurn).toHaveBeenCalledExactlyOnceWith('user-synthetic-001');
-  fireEvent.click(screen.getByRole('button', { name: 'Ответить' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Ответить в диалоге' }));
   expect(onCompose).toHaveBeenCalledOnce();
 });
 
