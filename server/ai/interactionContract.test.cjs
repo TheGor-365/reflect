@@ -345,3 +345,35 @@ test("M4.2: corrupted owner preferences cannot turn on cards via per-turn suppor
   assert.equal(normalized.interactionMode, "support");
   assert.equal(normalized.askClarifyingQuestions, true);
 });
+
+
+test("Railway R1: every interaction mode honors owner ty/vy without granted history", () => {
+  for (const mode of ["reflection", "support", "coach", "companion", "analytic"]) {
+    for (const addressForm of ["ty", "vy"]) {
+      const request = buildRequest(t2, { ...enabled, interactionMode:mode, addressForm });
+      const system = request.body.input[0].content;
+      assert.match(system, /ОБЯЗАТЕЛЬНО: обращайся к человеку во втором лице/);
+      assert.match(system, /Запрещено отвечать о собеседнике безлично/);
+      assert.match(system, /Не обрывай слово/);
+      assert.match(system, /убирай второстепенную мысль ЦЕЛИКОМ/);
+      assert.match(system, /желательно не более 180 символов/);
+      assert.match(system, /желательно не более 850 символов/);
+      assert.match(system, addressForm === "ty"
+        ? /Форма обращения — «ты»/ : /Форма обращения — «вы»/);
+      assert.equal(request.settings.addressForm, addressForm);
+      assert.deepEqual(request.body.input.map(x => x.role), ["system", "user"]);
+      assert.equal(request.body.store, false);
+      assert.equal(request.body.max_output_tokens, 1024);
+      assert.equal(request.body.text.format.schema.properties.insights.items.maxLength, 240);
+      assert.equal(request.body.text.format.schema.properties.answer.maxLength, 1150);
+    }
+  }
+});
+
+test("Railway R1: invalid address preference fails closed to vy", () => {
+  const request = buildRequest(t2, { ...enabled, addressForm:"unapproved" });
+  assert.match(request.body.input[0].content, /Форма обращения — «вы»/);
+  assert.match(request.body.input[0].content,
+    /Не утверждай, что помнишь предыдущие сообщения/);
+  assert.deepEqual(request.body.input.map(x => x.role), ["system", "user"]);
+});
