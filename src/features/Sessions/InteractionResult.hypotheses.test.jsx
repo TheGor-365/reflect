@@ -61,7 +61,7 @@ test('no write or pseudo-probability for an unsaved AI message',()=>{
     onHypothesisReview={onHypothesisReview}/>);
   expect(screen.queryByRole('button',{name:'Оценить гипотезу'})).toBeNull();
   expect(onHypothesisReview).not.toHaveBeenCalled();
-  expect(screen.getByText(/Вероятность точности не рассчитана/)).toBeInTheDocument();
+  expect(screen.getByText(/Проработка · предварительная/)).toBeInTheDocument();
 });
 
 test('UX R5: saved grade is compact, comment collapsed and editor remains closed until change',()=>{
