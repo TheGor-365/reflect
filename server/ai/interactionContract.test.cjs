@@ -152,7 +152,7 @@ test("M1 persona: original preference documents still work, malformed role fails
     assistantRole:"challenger", empathyLevel:"high", addressForm:"ty"
   });
   assert.match(req.body.input[0].content, /Роль собеседника: challenger; эмпатия: high/);
-  assert.match(req.body.input[0].content, /на ты/);
+  assert.match(req.body.input[0].content, /Форма обращения — «ты»/);
   const invalid = normalizeSettings({...enabled, assistantRole:"therapist-authority"});
   assert.equal(invalid.recommendationsEnabled, false);
   assert.equal(invalid.assistantRole, "companion");
