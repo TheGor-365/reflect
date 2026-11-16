@@ -43,7 +43,7 @@ test('R5 a missing, malformed, impersonated or stale review is not counted',()=>
   expect(summarize(copy)).toMatchObject({reviewable:3,reviewed:1,
     miss:0,partial:1,match:0});
 });
-test('R5 updating an owner's existing grade changes distribution, not denominator',()=>{
+test("R5 updating an owner's existing grade changes distribution, not denominator",()=>{
   const copy=structuredClone(data);
   copy[0].hypothesisReviews['h-a1-0'].grade=0;
   expect(summarize(copy)).toMatchObject({reviewed:3,match:0,miss:2});
