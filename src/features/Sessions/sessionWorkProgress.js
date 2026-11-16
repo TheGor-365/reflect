@@ -27,7 +27,7 @@ export function sessionWorkProgress(session,goals=[]){
   for(let i=0;i<history.length-1;i++){
     const ai=history[i];
     if(ai?.role!=='assistant'||!isSupportedInteraction(ai.interaction)||
-      !validId(ai.id)||!ai.interaction.clarifyingQuestion?.trim())continue;
+      !validId(ai.id)||typeof ai.interaction.clarifyingQuestion!=='string'||!ai.interaction.clarifyingQuestion.trim())continue;
     const next=history[i+1];
     if(next?.role==='user'&&ownerIds.has(next.id))answered++;
   }
@@ -60,7 +60,7 @@ export function sessionWorkProgress(session,goals=[]){
   for(const item of Array.isArray(session.returnCheckIns)
     ?session.returnCheckIns:[]){
     if(item?.type!=='return-check-in'||item.author!=='user'||
-      !validId(item.id)||!item.text?.trim())continue;
+      !validId(item.id)||typeof item.text!=='string'||!item.text.trim())continue;
     uniqueReturnIds.add(item.id);
   }
 
