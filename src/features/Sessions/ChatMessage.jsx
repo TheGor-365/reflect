@@ -1,12 +1,18 @@
 import React from 'react';
 import { Bot, Volume2, PauseCircle } from 'lucide-react';
 import InteractionResult from './InteractionResult';
+import SmoothDisclosure from '../../components/common/SmoothDisclosure';
 import { isSupportedInteraction } from './interactionVersions';
 
 const ChatMessage = React.memo(({ message, onPlayAudio, isSpeaking, currentlySpeakingId, onCompose, onDecision, onOpenGoals, onOpenRecommendations, isSaved, decisions,
   reviews = {}, onHypothesisReview, onFocusTurn, focused = false }) => {
   const isUser = message.role === 'user';
   const isThisMessageSpeaking = isSpeaking && currentlySpeakingId === message.id;
+  // Old replies may contain a full copied question. Render it as a quiet,
+  // reversible citation without mutating any owner-authored stored text.
+  const legacy = isUser && typeof message.content === 'string'
+    ? message.content.match(/^Мой ответ на вопрос «([\s\S]+)»:\s*([\s\S]+)$/u)
+    : null;
 
   return (
     <article className={`reflect-chat-message ${isUser ? 'reflect-chat-message--user' : 'reflect-chat-message--assistant'}${focused ? ' reflect-chat-message--source-focus' : ''}`}
@@ -22,7 +28,15 @@ const ChatMessage = React.memo(({ message, onPlayAudio, isSpeaking, currentlySpe
             <small className="reflect-ai-provisional-label">
               Предварительный взгляд Reflect · возможна ошибка в объяснении
             </small>}
-          <p>{message.content}</p>
+          {legacy ? (
+            <>
+              <p>{legacy[2]}</p>
+              <SmoothDisclosure label="На какой вопрос отвечал"
+                className="reflect-quoted-question" iconKind="information">
+                <blockquote>{legacy[1]}</blockquote>
+              </SmoothDisclosure>
+            </>
+          ) : <p>{message.content}</p>}
         </div>
         {!isUser && message.interaction && <InteractionResult
           interaction={message.interaction} messageId={message.id}
