@@ -14,6 +14,12 @@ export const MINDSPACE_ZONES = Object.freeze([
     x:.70,y:.81,words:['разговор','общени','друз','семь','отношени','общест','коллег','партнер','команд']}),
   Object.freeze({id:'personal',label:'Личное развитие',icon:'support',
     x:.28,y:.79,words:['привыч','обуч','спорт','здоров','отдых','ресурс','развит','сон','баланс']}),
+  Object.freeze({id:'finance',label:'Финансы и устойчивость',icon:'goal',
+    x:.50,y:.11,words:['финанс','доход','деньг','зарплат','бюджет','долг','расход','прибыл']}),
+  Object.freeze({id:'wellbeing',label:'Здоровье и энергия',icon:'support',
+    x:.12,y:.52,words:['самочув','здоровье','тренир','питан','физич','энерг','восстанов']}),
+  Object.freeze({id:'creativity',label:'Творчество и идеи',icon:'reflection',
+    x:.51,y:.88,words:['творч','музык','рисован','дизайн','вдохнов','воображ','созидан']}),
   Object.freeze({id:'other',label:'Другие темы',icon:'information',
     x:.50,y:.49,words:[]})
 ]);
