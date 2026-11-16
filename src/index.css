@@ -5302,3 +5302,14 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
  .reflect-app .reflect-session-work-toggle,
  .reflect-app .reflect-session-work-chevron {transition:none;}
 }
+
+
+/* R6c deep goal drafts: optional product suggestion, never a saved goal. */
+.reflect-app .reflect-auto-goal-draft {
+  display:inline-flex;
+  margin-top:.36rem;
+  color:color-mix(in srgb,var(--reflect-accent) 65%,var(--reflect-muted));
+  font-size:.7rem;
+  font-weight:550;
+  line-height:1.5;
+}
