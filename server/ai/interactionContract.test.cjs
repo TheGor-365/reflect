@@ -379,3 +379,15 @@ test("M4.2: corrupted owner preferences cannot turn on cards via per-turn suppor
   assert.equal(normalized.interactionMode, "support");
   assert.equal(normalized.askClarifyingQuestions, true);
 });
+
+test("UX R5: v1 asks for complete human sentences without changing structured budget",()=>{
+  const request=buildRequest(t2,enabled);
+  const instructions=request.body.input[0].content;
+  assert.match(instructions,/Не обрывай слово/);
+  assert.match(instructions,/желательно не более 180 символов/);
+  assert.match(instructions,/желательно не более 850 символов/);
+  assert.match(instructions,/убирай второстепенную мысль ЦЕЛИКОМ/);
+  assert.equal(request.body.max_output_tokens,1024);
+  assert.equal(request.body.text.format.schema.properties.insights.items.maxLength,240);
+  assert.equal(request.body.text.format.schema.properties.answer.maxLength,1150);
+});
