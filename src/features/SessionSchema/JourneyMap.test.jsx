@@ -166,3 +166,25 @@ it('M1.5: journey evidence is an explanatory table, not seven large score cards'
   expect(table).toHaveTextContent('Принятые решения');
   expect(table).not.toHaveTextContent('% роста личности');
 });
+
+test('UX R5 Journey shows owner-rated agreement, never model truth probability',()=>{
+  const assessed=[{...sessions[0],hypothesisReviews:{
+    'h-a1-0':{assistantMessageId:'a1',hypothesisIndex:0,grade:4}
+  },chatHistory:sessions[0].chatHistory.map(turn=>
+    turn.id==='a1' ? {...turn,interaction:{
+      ...turn.interaction,
+      insights:['Может быть, нужен проверяемый первый шаг']
+    }}:turn
+  )}];
+  render(<JourneyMap sessions={assessed} goals={goals}/>);
+  const details=screen.getByText(/Оценки гипотез · 1 из 1/).closest('details');
+  expect(details).toBeInTheDocument();
+  fireEvent.click(details.querySelector('summary'));
+  expect(screen.getByRole('img',{name:/Оценки: 0, 0, 0, 0, 1/}))
+    .toBeInTheDocument();
+  expect(screen.getByText(/Не вероятность их истинности/)).toBeInTheDocument();
+  const user=screen.getByRole('button',{name:/Сообщение: Хочу прочитать книгу/});
+  expect(user).toHaveTextContent('Вы · сообщение');
+  const ai=screen.getByRole('button',{name:/Сообщение: Начните с небольших шагов/});
+  expect(ai).toHaveTextContent('Reflect · ответ');
+});
