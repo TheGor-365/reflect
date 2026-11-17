@@ -605,7 +605,11 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
   // A failing Firestore write leaves both the dialog and the saved thread intact.
   const requestSessionDeletion = id => {
     const target = sessions.find(item => item.id === id);
-    if (!target || isDeleting || !canLeaveConversation()) return;
+    if (!target || isDeleting) return;
+    if (!canLeaveConversation()) {
+      setSendError('Сначала отправьте или очистите черновик и завершите сохранение ответа. Сеанс не удалён.');
+      return;
+    }
     setDeleteTarget({ ...target, ownerId: userId });
     setDeleteError('');
   };
