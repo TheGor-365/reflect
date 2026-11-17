@@ -5585,3 +5585,285 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
 @media(prefers-reduced-motion:reduce){
   .reflect-app .reflect-session-work.is-open {scroll-behavior:auto;}
 }
+
+/* UX R8 — session actions, single-confirm deletion, and concise reply recovery.
+   Midnight Aurora styling: quiet hairlines, small icons, deliberate hierarchy. */
+.reflect-app .reflect-session-tool-danger-area {
+  border-top: 1px solid var(--reflect-hairline);
+  margin-top: 8px;
+  padding-top: 8px;
+}
+.reflect-app .reflect-session-tool-list .reflect-session-tool-delete {
+  color: color-mix(in srgb, #e99b9b 72%, var(--reflect-ink));
+  min-height: 42px;
+  font-size: .8rem;
+}
+.reflect-app .reflect-session-tool-list .reflect-session-tool-delete > svg {
+  color: #b58a96;
+}
+.reflect-app .reflect-session-tool-list .reflect-session-tool-delete:hover {
+  background: rgba(178, 89, 107, .11);
+}
+.reflect-app .reflect-session-library-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid var(--reflect-hairline);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--reflect-muted);
+  font-size: 12px;
+  font-weight: 560;
+  transition: background .2s ease, color .2s ease;
+}
+.reflect-app .reflect-session-library-delete svg { opacity: .75; }
+.reflect-app .reflect-session-library-delete:hover {
+  background: rgba(176, 95, 108, .09);
+  color: #e3b0b8;
+}
+.reflect-app .reflect-session-delete-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(6, 9, 22, .76);
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+  animation: reflect-soft-appear .22s ease both;
+}
+.reflect-app .reflect-session-delete-dialog {
+  width: min(100%, 475px);
+  max-height: min(88dvh, 650px);
+  overflow-y: auto;
+  display: grid;
+  gap: 16px;
+  padding: clamp(22px, 4vw, 32px);
+  color: var(--reflect-ink);
+  background: var(--reflect-card);
+  border: 1px solid var(--reflect-hairline);
+  border-radius: 22px;
+  box-shadow: 0 24px 90px rgba(0, 0, 0, .35);
+  animation: reflect-soft-appear .25s cubic-bezier(.2, .8, .2, 1) both;
+}
+.reflect-app .reflect-session-delete-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.reflect-app .reflect-session-delete-symbol {
+  display: inline-grid;
+  place-items: center;
+  width: 43px;
+  height: 43px;
+  border-radius: 14px;
+  background: rgba(177, 87, 105, .12);
+  color: #c597a3;
+}
+.reflect-app .reflect-session-delete-close {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--reflect-muted);
+}
+.reflect-app .reflect-session-delete-close:hover { background: rgba(137, 154, 181, .1); }
+.reflect-app .reflect-session-delete-dialog h2 {
+  margin: 1px 0 -8px;
+  font-weight: 730;
+  font-size: clamp(21px, 4vw, 25px);
+  letter-spacing: -.025em;
+}
+.reflect-app .reflect-session-delete-subject {
+  font-size: 13px;
+  font-weight: 630;
+  color: var(--reflect-ink);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.reflect-app .reflect-session-delete-dialog p {
+  margin: 0;
+  line-height: 1.65;
+}
+.reflect-app #reflect-delete-session-description {
+  color: var(--reflect-muted);
+  font-size: 13px;
+}
+.reflect-app .reflect-session-delete-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 13px;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--reflect-ink) 4%, transparent);
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--reflect-muted);
+}
+.reflect-app .reflect-session-delete-note > svg {
+  flex: none;
+  margin-top: 2px;
+  color: #ba98a3;
+}
+.reflect-app .reflect-session-delete-error {
+  font-size: 12px;
+  color: #e7a7b3;
+}
+.reflect-app .reflect-session-delete-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 6px;
+}
+.reflect-app .reflect-session-delete-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 45px;
+  border: 1px solid var(--reflect-hairline);
+  border-radius: 12px;
+  padding: 10px;
+  font-weight: 660;
+  font-size: 12px;
+  transition: background .2s ease, color .2s ease, transform .2s ease;
+}
+.reflect-app .reflect-session-delete-cancel {
+  background: rgba(128, 151, 189, .07);
+  color: var(--reflect-ink);
+}
+.reflect-app .reflect-session-delete-confirm {
+  background: rgba(183, 80, 103, .15);
+  color: #e8b1bb;
+}
+.reflect-app .reflect-session-delete-actions button:hover:not(:disabled) {
+  background: rgba(162, 106, 123, .2);
+  transform: translateY(-1px);
+}
+.reflect-app .reflect-session-delete-actions button:disabled {
+  opacity: .5;
+  cursor: wait;
+}
+.reflect-app .reflect-session-delete-dialog button:focus-visible,
+.reflect-app .reflect-session-library-delete:focus-visible,
+.reflect-app .reflect-session-tool-delete:focus-visible {
+  outline: 2px solid var(--reflect-accent);
+  outline-offset: 3px;
+}
+
+/* Compact recovery next to the exact saved user turn.  No duplicate message. */
+.reflect-app .reflect-ai-recovery {
+  width: min(660px, 94%);
+  margin: 5px 0 18px;
+  padding: 12px 14px;
+  gap: 0;
+  border: 1px solid var(--reflect-hairline);
+  border-inline-start: 1px solid var(--reflect-hairline);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--reflect-card) 80%, transparent);
+  box-shadow: none;
+}
+.reflect-app .reflect-ai-recovery-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 11px;
+}
+.reflect-app .reflect-ai-recovery-mark {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: #bba7b9;
+  background: rgba(135, 132, 171, .1);
+}
+.reflect-app .reflect-ai-recovery-summary {
+  flex: 1 1 160px;
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.reflect-app .reflect-ai-recovery-summary strong {
+  color: var(--reflect-ink);
+  font-size: 12px;
+  font-weight: 680;
+}
+.reflect-app .reflect-ai-recovery-summary span {
+  color: var(--reflect-muted);
+  font-size: 11px;
+}
+.reflect-app .reflect-ai-recovery-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 35px;
+  margin-left: auto;
+  padding: 7px 10px;
+  border: 1px solid var(--reflect-hairline);
+  border-radius: 10px;
+  background: rgba(113, 139, 178, .06);
+  color: var(--reflect-ink);
+  font-size: 11px;
+  font-weight: 620;
+  transition: background .2s ease;
+}
+.reflect-app .reflect-ai-recovery-check svg {
+  color: var(--reflect-muted);
+  flex: none;
+}
+.reflect-app .reflect-ai-recovery-check svg:last-child {
+  transition: transform .25s ease;
+}
+.reflect-app .reflect-ai-recovery-check svg.is-open { transform: rotate(180deg); }
+.reflect-app .reflect-ai-recovery-check:hover:not(:disabled) {
+  background: rgba(105, 153, 177, .14);
+}
+.reflect-app .reflect-ai-recovery-detail {
+  padding-top: 13px;
+  margin-top: 13px;
+  border-top: 1px solid var(--reflect-hairline);
+  display: grid;
+  gap: 10px;
+  animation: reflect-soft-appear .25s ease both;
+}
+.reflect-app .reflect-ai-recovery-actions {
+  gap: 10px;
+  margin-top: 3px;
+}
+.reflect-app .reflect-ai-recovery-actions button {
+  min-height: 37px;
+  border-color: var(--reflect-hairline);
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 640;
+}
+.reflect-app .reflect-ai-recovery-confirm {
+  border-color: var(--reflect-hairline);
+  padding: 14px;
+  border-radius: 12px;
+}
+@media (max-width: 500px) {
+  .reflect-app .reflect-session-delete-actions { grid-template-columns: 1fr; }
+  .reflect-app .reflect-ai-recovery-check {
+    width: 100%;
+    justify-content: center;
+  }
+  .reflect-app .reflect-session-library-delete { flex: 1 1 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reflect-app .reflect-session-delete-overlay,
+  .reflect-app .reflect-session-delete-dialog,
+  .reflect-app .reflect-ai-recovery-detail { animation: none; }
+  .reflect-app .reflect-session-delete-actions button,
+  .reflect-app .reflect-ai-recovery-check svg:last-child { transition: none; }
+  .reflect-app .reflect-session-delete-actions button:hover:not(:disabled) { transform: none; }
+}
