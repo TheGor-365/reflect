@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bot, Volume2, PauseCircle } from 'lucide-react';
+import { Bot, Volume2, PauseCircle, UserRound } from 'lucide-react';
 import InteractionResult from './InteractionResult';
 import SmoothDisclosure from '../../components/common/SmoothDisclosure';
 import { isSupportedInteraction } from './interactionVersions';
@@ -17,12 +17,14 @@ const ChatMessage = React.memo(({ message, onPlayAudio, isSpeaking, currentlySpe
   return (
     <article className={`reflect-chat-message ${isUser ? 'reflect-chat-message--user' : 'reflect-chat-message--assistant'}${focused ? ' reflect-chat-message--source-focus' : ''}`}
       data-reflect-turn-id={message.id || undefined}
-      aria-label={isUser ? 'Ваше сообщение' : 'Ответ Reflect'}>
+      aria-label={isUser ? 'Моё сообщение' : 'Ответ Reflect'}>
       {!isUser && (
         <span className="reflect-chat-avatar" aria-hidden="true"><Bot size={18} /></span>
       )}
       <div className="reflect-chat-message-body">
-        <p className="reflect-chat-message-author">{isUser ? 'Вы' : 'Reflect'}</p>
+        <p className="reflect-chat-message-author">{isUser ? (
+          <><UserRound size={14} aria-hidden="true"/><span className="sr-only">Моё сообщение</span></>
+        ) : 'Reflect'}</p>
         <div className="reflect-chat-bubble">
           {!isUser && isSupportedInteraction(message.interaction) &&
             <small className="reflect-ai-provisional-label">

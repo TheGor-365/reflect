@@ -337,7 +337,11 @@ export function layoutJourney(graph) {
     const x2=b.x,y2=b.y+b.height/2;
     return {...e,x1,y1,x2,y2};
   });
-  return {nodes:laidNodes,edges:laidEdges,width:2030,height:Math.max(top+30,235)};
+  // Size to actual nodes, rather than allocating an unconditional 2030px.
+  // The viewport adds its own independent padding after applying zoom.
+  const width=Math.max(310,...laidNodes.map(n=>n.x+n.width+34));
+  const height=Math.max(235,...laidNodes.map(n=>n.y+n.height+34));
+  return {nodes:laidNodes,edges:laidEdges,width,height};
 }
 
 export const journeyDate = ms => ms === null ? 'Дата не сохранена' :

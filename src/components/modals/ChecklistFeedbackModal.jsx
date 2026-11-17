@@ -1,34 +1,64 @@
 import React, { useState } from 'react';
 import { Star } from 'lucide-react';
+import ReflectDialog from './ReflectDialog';
 
-const ChecklistFeedbackModal = ({ goal, onSave, onCancel }) => {
+export default function ChecklistFeedbackModal({ goal, onSave, onCancel }) {
   const [feedback, setFeedback] = useState({ comment: '', rating: 0 });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const save = async event => {
+    event.preventDefault();
+    if (saving) return;
+    setError('');
+    setSaving(true);
+    try {
+      await onSave(feedback);
+    } catch {
+      setError('Не удалось сохранить оценку. Текст остался в форме — попробуй снова.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const footer = (
+    <>
+      <button type="button" className="reflect-dialog-button reflect-dialog-button--quiet"
+        onClick={onCancel} disabled={saving}>Пропустить</button>
+      <button form="reflect-goal-feedback-form" type="submit"
+        className="reflect-dialog-button reflect-dialog-button--primary"
+        disabled={saving}>{saving ? 'Сохраняется…' : 'Сохранить'}</button>
+    </>
+  );
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md animate-fade-in">
-        <h3 className="text-xl font-bold text-stone-800 mb-2">Отличная работа!</h3>
-        <p className="text-stone-600 mb-4">Вы выполнили цель: <span className="font-semibold">{goal.text}</span>. Пожалуйста, оцените выполнение.</p>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-stone-700 mb-2">Оцените качество выполнения:</label>
-          <div className="flex justify-center items-center gap-2">
-            {[1, 2, 3, 4, 5].map((rate) => (
-              <button key={rate} onClick={() => setFeedback({...feedback, rating: rate})} className="p-1 rounded-full transition-colors">
-                <Star className={`w-8 h-8 ${feedback.rating >= rate ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
+    <ReflectDialog title="Итог по цели" onClose={onCancel}
+      closeDisabled={saving} footer={footer}>
+      <form id="reflect-goal-feedback-form" onSubmit={save}
+        className="reflect-goal-feedback-form">
+        <p>Ты отметил цель <strong>{goal.text}</strong> завершённой. Хочешь оценить результат?</p>
+        <fieldset className="reflect-goal-feedback-fieldset" disabled={saving}>
+          <legend>Оценка выполнения (необязательно)</legend>
+          <div className="reflect-goal-feedback-stars" role="group" aria-label="Оценка выполнения">
+            {[1, 2, 3, 4, 5].map(value => (
+              <button type="button" key={value} aria-label={`Оценка ${value} из 5`}
+                aria-pressed={feedback.rating === value}
+                onClick={() => setFeedback(prev => ({ ...prev, rating: value }))}
+                className={feedback.rating >= value ? 'is-rated' : ''}>
+                <Star size={25} aria-hidden="true"
+                  fill={feedback.rating >= value ? 'currentColor' : 'none'} />
               </button>
             ))}
           </div>
-        </div>
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-stone-700 mb-1">Комментарий (необязательно):</label>
-          <textarea value={feedback.comment} onChange={e => setFeedback({...feedback, comment: e.target.value})} className="w-full p-2 border border-stone-300 rounded-lg" rows="3"></textarea>
-        </div>
-        <div className="flex justify-end gap-4">
-          <button onClick={onCancel} className="px-6 py-2 text-stone-600 bg-stone-200 rounded-lg hover:bg-stone-300 font-semibold">Пропустить</button>
-          <button onClick={() => onSave(feedback)} className="px-6 py-2 text-white bg-teal-600 rounded-lg hover:bg-teal-700 font-semibold">Сохранить</button>
-        </div>
-      </div>
-    </div>
+        </fieldset>
+        <label className="reflect-goal-feedback-comment">
+          Комментарий (необязательно)
+          <textarea rows={3} disabled={saving} value={feedback.comment}
+            onChange={event => setFeedback(prev => ({ ...prev, comment: event.target.value }))}
+            placeholder="Что получилось и что хочется изменить?"/>
+        </label>
+        {error && <p className="reflect-dialog-error" role="alert">{error}</p>}
+      </form>
+    </ReflectDialog>
   );
-};
-
-export default ChecklistFeedbackModal;
+}

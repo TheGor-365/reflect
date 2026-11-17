@@ -19,6 +19,7 @@
   --reflect-border: #303e5b;
   --reflect-accent: #7de5d5;
   --reflect-accent-ink: #052d33;
+  --reflect-focus: #91a5bf;
   color: var(--reflect-ink);
   background:
     radial-gradient(ellipse 64% 44% at 80% -6%, rgba(93, 92, 205, .18), transparent 68%),
@@ -35,13 +36,14 @@
   --reflect-border: #dde5f0;
   --reflect-accent: #087f80;
   --reflect-accent-ink: #fff;
+  --reflect-focus: #56677f;
   background:
     radial-gradient(ellipse 58% 40% at 85% 0%, rgba(156, 151, 246, .12), transparent 75%),
     var(--reflect-bg);
 }
 .reflect-app :is(button, input, textarea, select, summary, a):focus-visible {
-  outline: 3px solid #47d4cf;
-  outline-offset: 3px;
+  outline: 2px solid var(--reflect-focus);
+  outline-offset: 2px;
 }
 .reflect-skip-link {
   position: fixed; z-index: 110; left: 16px; top: -100px;
@@ -5866,4 +5868,284 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
   .reflect-app .reflect-session-delete-actions button,
   .reflect-app .reflect-ai-recovery-check svg:last-child { transition: none; }
   .reflect-app .reflect-session-delete-actions button:hover:not(:disabled) { transform: none; }
+}
+
+/* R9.1: shared, owner-facing dialog system; no legacy white Tailwind modals. */
+.reflect-app .reflect-dialog-overlay {
+  position: fixed;
+  z-index: 150;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: clamp(12px, 3vw, 28px);
+  background: rgba(4, 8, 22, .70);
+  backdrop-filter: blur(5px);
+}
+.reflect-app .reflect-dialog {
+  width: min(100%, 490px);
+  max-height: min(88dvh, 850px);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  color: var(--reflect-ink);
+  background: var(--reflect-card);
+  border: 1px solid color-mix(in srgb, var(--reflect-border) 70%, transparent);
+  border-radius: 18px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .30);
+  overflow: hidden;
+  animation: reflect-r9-dialog-enter .2s ease-out both;
+}
+.reflect-app .reflect-dialog:focus { outline: none; }
+.reflect-app .reflect-dialog--wide { width: min(100%, 740px); }
+.reflect-app .reflect-dialog-header {
+  padding: 20px 22px 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--reflect-border) 50%, transparent);
+}
+.reflect-app .reflect-dialog-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 690;
+  line-height: 1.45;
+}
+.reflect-app .reflect-dialog-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 6px;
+  margin: -5px -8px 0 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--reflect-muted);
+}
+.reflect-app .reflect-dialog-close:hover:not(:disabled) {
+  color: var(--reflect-ink);
+  background: color-mix(in srgb, var(--reflect-ink) 6%, transparent);
+}
+.reflect-app .reflect-dialog-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 22px 20px;
+  color: var(--reflect-ink);
+  font-size: .9rem;
+  line-height: 1.6;
+}
+.reflect-app .reflect-dialog-body p { margin: 0; }
+.reflect-app .reflect-dialog-fulltext {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.reflect-app .reflect-dialog-footer {
+  padding: 12px 22px 20px;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+.reflect-app .reflect-dialog-button {
+  min-height: 40px;
+  padding: 9px 15px;
+  border-radius: 10px;
+  border: 1px solid var(--reflect-border);
+  font-size: .84rem;
+  font-weight: 650;
+}
+.reflect-app .reflect-dialog-button--quiet {
+  color: var(--reflect-ink);
+  background: transparent;
+}
+.reflect-app .reflect-dialog-button--primary {
+  color: var(--reflect-accent-ink);
+  background: var(--reflect-accent);
+  border-color: transparent;
+}
+.reflect-app .reflect-dialog-button:disabled,
+.reflect-app .reflect-dialog-close:disabled { opacity: .6; cursor: wait; }
+.reflect-app .reflect-goal-feedback-form { display: grid; gap: 19px; }
+.reflect-app .reflect-goal-feedback-form > p { line-height: 1.6; }
+.reflect-app .reflect-goal-feedback-fieldset {
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.reflect-app .reflect-goal-feedback-fieldset legend,
+.reflect-app .reflect-goal-feedback-comment {
+  color: var(--reflect-ink);
+  font-size: .85rem;
+  font-weight: 620;
+}
+.reflect-app .reflect-goal-feedback-stars {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 11px;
+}
+.reflect-app .reflect-goal-feedback-stars button {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--reflect-muted);
+}
+.reflect-app .reflect-goal-feedback-stars button.is-rated { color: #d2bd83; }
+.reflect-app .reflect-goal-feedback-stars button:hover {
+  background: color-mix(in srgb, var(--reflect-ink) 6%, transparent);
+}
+.reflect-app .reflect-goal-feedback-comment { display: grid; gap: 9px; }
+.reflect-app .reflect-goal-feedback-comment textarea {
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  padding: 12px;
+  border: 1px solid var(--reflect-border);
+  border-radius: 11px;
+  background: var(--reflect-bg);
+  color: var(--reflect-ink);
+  font: inherit;
+  font-size: .88rem;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.reflect-app .reflect-goal-feedback-comment textarea:focus-visible {
+  border-color: var(--reflect-focus);
+  outline: 2px solid var(--reflect-focus);
+  outline-offset: 1px;
+}
+.reflect-app .reflect-dialog-error {
+  color: var(--reflect-ink);
+  padding: 10px 12px;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, #d18a94 50%, transparent);
+  background: color-mix(in srgb, #c3737d 11%, transparent);
+}
+@keyframes reflect-r9-dialog-enter {
+  from { opacity: 0; transform: translateY(7px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (max-width: 480px) {
+  .reflect-app .reflect-dialog-header { padding: 16px 16px 10px; }
+  .reflect-app .reflect-dialog-body { padding: 14px 16px 16px; }
+  .reflect-app .reflect-dialog-footer { padding: 8px 16px 16px; }
+  .reflect-app .reflect-dialog-button { flex: 1 1 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reflect-app .reflect-dialog { animation: none; }
+}
+
+/* R9.1 round 2: quieter navigation and source feedback. */
+.reflect-app .reflect-chat-message--user .reflect-chat-message-author {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+.reflect-app .reflect-interaction-decision {
+  border-color: var(--reflect-border);
+  color: var(--reflect-muted);
+  background: color-mix(in srgb, var(--reflect-ink) 3%, transparent);
+}
+.reflect-app .reflect-chat-message--source-focus {
+  outline: none;
+  animation: reflect-r9-source-glance 2.6s ease-out both;
+}
+@keyframes reflect-r9-source-glance {
+  0%, 15% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--reflect-focus) 55%, transparent); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reflect-app .reflect-chat-message--source-focus { animation: none; }
+}
+
+/* R9.1 round 3: quiet focus, map, and reversible disclosure. */
+/* Selected map nodes are not keyboard focus. Reserve a true outline for :focus-visible. */
+.reflect-app .reflect-journey-node.is-selected {
+  outline: none;
+  border-color: color-mix(in srgb, var(--reflect-focus) 50%, var(--reflect-border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--reflect-focus) 30%, transparent);
+}
+.reflect-app .reflect-journey-node:focus-visible {
+  outline: 2px solid var(--reflect-focus);
+  outline-offset: 2px;
+}
+.reflect-app .reflect-journey-source { border-color: var(--reflect-border); }
+.reflect-app .reflect-goal-card--source-focus,
+.reflect-app .reflect-diary-event--source-focus {
+  outline: none;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--reflect-focus) 35%, transparent);
+}
+/* Separate chronological sessions without dominant colored borders. */
+.reflect-app .reflect-session-schema-group {
+  padding-inline-start: clamp(10px, 1.5vw, 17px);
+  border-inline-start: 1px solid var(--reflect-border);
+}
+/* Keep the hypothesis histogram within the same reversible collapse primitive. */
+.reflect-app .reflect-journey-hypothesis-stats {
+  padding: 0;
+  border-color: var(--reflect-border);
+}
+.reflect-app .reflect-journey-hypothesis-stats .reflect-disclosure-trigger {
+  width: 100%;
+  padding: 11px 13px;
+  color: var(--reflect-ink);
+}
+.reflect-app .reflect-journey-hypothesis-stats .reflect-disclosure-inner {
+  padding-bottom: 8px;
+}
+.reflect-app .reflect-journey-hypothesis-stats .reflect-journey-hypothesis-summary {
+  margin-top: 4px;
+}
+/* A short entrance for changed goal filters; preserve the goal's source and owner state. */
+.reflect-app .reflect-goals-column--animate {
+  animation: reflect-r9-goal-filter-in .24s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes reflect-r9-goal-filter-in {
+  from { opacity: .4; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* Subtle feedback for text fields; accessible keyboard focus remains visible. */
+.reflect-app :is(input, textarea):focus-visible,
+.reflect-app .reflect-ai-settings-row :is(input, select):focus-visible,
+.reflect-app .reflect-hypothesis-feedback textarea:focus-visible {
+  outline: 2px solid var(--reflect-focus);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reflect-app .reflect-goals-column--animate { animation: none; }
+}
+
+
+/* R9.1 / map viewport and per-session canvas: real scroll extents. */
+.reflect-app .reflect-journey-canvas {
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--reflect-border) transparent;
+  scrollbar-gutter: stable;
+  height: clamp(400px, 58vh, 650px);
+}
+.reflect-app .reflect-journey-surface {
+  position: relative;
+  min-width: 100%;
+  min-height: 100%;
+}
+.reflect-app .reflect-journey-surface > .reflect-journey-world {
+  position: absolute;
+  transform-origin: 0 0;
+}
+@media (max-width: 600px) {
+  .reflect-app .reflect-journey-canvas {
+    height: min(56svh, 490px);
+    min-height: 340px;
+    scrollbar-gutter: auto;
+  }
 }

@@ -59,7 +59,7 @@ it('M5c v2 renders literal current-owner quote, 2/4 categories and one targeted 
   expect(screen.getByText('Хочу закончить MVP')).toBeInTheDocument();
   expect(screen.getByText(/подтверждено категорий/))
     .toHaveTextContent('2 из 4');
-  expect(screen.getByText(/Ещё требуют вашего подтверждения/))
+  expect(screen.getByText(/Требуют подтверждения/))
     .toHaveTextContent('Обстоятельства, Ограничения и условия');
   expect(screen.getByText(/Тема уточнения/))
     .toHaveTextContent('Ограничения и условия');

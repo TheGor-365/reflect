@@ -21,7 +21,7 @@ const props = {
 describe('PRODUCT-02 decisions UI', () => {
   it('never offers persistence actions for an unsaved answer', () => {
     render(<InteractionResult {...props} isSaved={false}/>);
-    expect(screen.getByText(/Сначала сохраните сеанс/)).toBeTruthy();
+    expect(screen.getByText(/Для решения сначала нужно сохранить сеанс/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Сохранить идею' })).toBeNull();
   });
   it('requires explicit editable confirmation before turning a recommendation into a goal', async () => {
