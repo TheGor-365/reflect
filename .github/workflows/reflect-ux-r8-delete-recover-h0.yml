@@ -25,7 +25,7 @@ jobs:
       VITE_ENABLE_REFLECT_RAILWAY_PRECHECK: 'false'
       VITE_ENABLE_REFLECT_RAILWAY_AI: 'true'
       VITE_REFLECT_RAILWAY_AI_ORIGIN: 'https://reflect-ai-api-staging.up.railway.app'
-      VITE_ENABLE_REFLECT_AI_RECOVERY: 'true'
+      VITE_ENABLE_REFLECT_AI_RECOVERY: 'false'
       VITE_ENABLE_REFLECT_CONTEXT_CONSENT: 'false'
       VITE_ENABLE_REFLECT_CONTEXT_PREVIEW: 'false'
       VITE_ENABLE_REFLECT_PREVIEW_GATE5_QA: 'false'
@@ -59,6 +59,8 @@ jobs:
       - name: TypeScript safety
         run: npm run typecheck
       - name: Synthetic recovery-enabled staging guard, build, postbuild
+        env:
+          VITE_ENABLE_REFLECT_AI_RECOVERY: 'true'
         run: |
           set -eu
           REFLECT_STAGING_EXPECTED_SHA="$(git rev-parse HEAD)" npm run qa:staging:preflight
