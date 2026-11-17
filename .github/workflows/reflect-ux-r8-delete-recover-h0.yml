@@ -1,0 +1,73 @@
+name: Reflect UX R8 delete and recover exact-head H0 (no deploy)
+on:
+  pull_request:
+    paths:
+      - 'src/features/Sessions/**'
+      - 'src/api/reflectRailwayService.js'
+      - 'src/api/reflectRailwayService.recoveryRoute.test.js'
+      - 'src/index.css'
+      - 'docs/release/REFLECT_UX_R8_SESSION_DELETE_RECOVERY_GATE_2026-11-17.md'
+      - '.github/workflows/reflect-ux-r8-delete-recover-h0.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  frontend-exact-head:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 23
+    env:
+      CI: 'true'
+      VITE_FIREBASE_CONFIG: '{"apiKey":"test-only","authDomain":"demo-reflect-auth.firebaseapp.com","projectId":"demo-reflect-auth","appId":"1:123:web:demo"}'
+      VITE_APP_ID: 'reflect-8fdc8'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Assert immutable head, R7 ancestry and narrowly scoped diff
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          BASE=d67fb7e2570315c3127a247e5ca5c1462ad98b69
+          git merge-base --is-ancestor "$BASE" "$EXPECTED_SHA"
+          git diff --name-only "$BASE" "$EXPECTED_SHA" > /tmp/changed
+          if grep -v -E '^src/features/Sessions/|^src/api/reflectRailwayService(\.recoveryRoute\.test)?\.js$|^src/index\.css$|^docs/release/REFLECT_UX_R8_SESSION_DELETE_RECOVERY_GATE_2026-11-17\.md$|^\.github/workflows/reflect-ux-r8-delete-recover-h0\.yml$' /tmp/changed; then
+            echo 'STOP: R8 touched an unrelated file'; exit 1
+          fi
+          echo 'R8 exact head and scope PASS'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependency graph
+        run: npm ci --no-audit --no-fund
+      - name: Complete offline regression suite
+        run: npm test
+      - name: TypeScript safety
+        run: npm run typecheck
+      - name: Synthetic recovery-enabled staging guard, build, postbuild
+        env:
+          VITE_FIREBASE_CONFIG: '{"apiKey":"ci-public-firebase-key-nondeployable-0000000","authDomain":"reflect-ai-staging.firebaseapp.com","projectId":"reflect-ai-staging","appId":"1:599679789981:web:d4d8743dbff0fe40af1d74","messagingSenderId":"599679789981"}'
+          VITE_APP_ID: 'reflect-8fdc8'
+          VITE_USE_FIREBASE_EMULATORS: 'false'
+          VITE_ENABLE_STAGING_APP_CHECK: 'true'
+          VITE_APP_CHECK_SITE_KEY: 'ci-public-nondeployable-app-check-key-000'
+          VITE_ENABLE_REFLECT_CLOUD_AI: 'false'
+          VITE_AI_STAGING_PROJECT_ID: 'reflect-ai-staging'
+          VITE_ENABLE_REFLECT_RAILWAY_PRECHECK: 'false'
+          VITE_ENABLE_REFLECT_RAILWAY_AI: 'true'
+          VITE_REFLECT_RAILWAY_AI_ORIGIN: 'https://reflect-ai-api-staging.up.railway.app'
+          VITE_ENABLE_REFLECT_AI_RECOVERY: 'true'
+          VITE_ENABLE_REFLECT_CONTEXT_CONSENT: 'false'
+          VITE_ENABLE_REFLECT_CONTEXT_PREVIEW: 'false'
+          VITE_ENABLE_REFLECT_PREVIEW_GATE5_QA: 'false'
+        run: |
+          set -eu
+          REFLECT_STAGING_EXPECTED_SHA="$(git rev-parse HEAD)" npm run qa:staging:preflight
+          npm run build -- --mode staging
+          REFLECT_STAGING_EXPECTED_SHA="$(git rev-parse HEAD)" npm run qa:staging:postbuild
+          test -f dist/index.html
+          echo 'R8 H0 PASS — no Firebase, Railway, or xAI request performed'

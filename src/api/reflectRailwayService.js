@@ -37,7 +37,10 @@ export async function getRailwayAnalysis(payload) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 44000);
   try {
-    const response = await fetch(origin + "/v1/ai/reply", {
+    // R8 uses a server-atomic route. Legacy R7 /reply remains unchanged.
+    const path = railwayAiRecoveryEnabled
+      ? "/v1/ai/reply-recovery" : "/v1/ai/reply";
+    const response = await fetch(origin + path, {
       method: "POST",
       mode: "cors",
       cache: "no-store",

@@ -30,7 +30,7 @@ test('free receipt check exposes only safe error class, never private provider d
   await waitFor(() => expect(screen.getByRole('note')).toHaveTextContent(
     'Ответ провайдера не прошёл проверку структуры Reflect.'
   ));
-  expect(screen.getByRole('note')).toHaveTextContent('invalid-provider-response');
+  expect(screen.getByRole('note')).not.toHaveTextContent('invalid-provider-response');
   expect(screen.getByRole('note')).not.toHaveTextContent('PRIVATE');
   expect(screen.getByRole('button', { name: 'Сгенерировать ответ повторно' }))
     .toBeInTheDocument();
@@ -61,7 +61,7 @@ test('status is free, NO implicit provider call; retry needs two explicit action
   expect(screen.getByText(/Запрос мог быть оплачен/)).toBeInTheDocument();
   expect(retry).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Сгенерировать ответ повторно' }));
-  expect(screen.getByText(/Это новый платный запрос к Grok/)).toBeInTheDocument();
+  expect(screen.getByText(/Новая генерация может быть платной/)).toBeInTheDocument();
   expect(retry).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
   expect(retry).not.toHaveBeenCalled();
@@ -101,7 +101,7 @@ test('failed status check never triggers provider and does not leak private SDK 
   renderPanel(retry);
   fireEvent.click(screen.getByRole('button', { name: 'Проверить статус бесплатно' }));
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(
-    'Ответ не запрашивался у Grok'
+    'Нового запроса к Grok не было'
   ));
   expect(screen.getByRole('alert').textContent).not.toContain('PRIVATE_FIRESTORE_REPLY');
   expect(retry).not.toHaveBeenCalled();
@@ -121,7 +121,7 @@ test.each([
   expect(screen.queryByRole('note')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Проверить статус бесплатно' }));
   await waitFor(() => expect(screen.getByRole('note')).toHaveTextContent(text));
-  expect(screen.getByRole('note')).toHaveTextContent(code);
+  expect(screen.getByRole('note')).not.toHaveTextContent(code);
 });
 
 test('history-assisted owner turn has free status but no legacy contextless retry', async () => {
@@ -131,11 +131,35 @@ test('history-assisted owner turn has free status but no legacy contextless retr
     onRetry={retry} allowRetry={false}/>);
   fireEvent.click(screen.getByRole('button', { name: 'Проверить статус бесплатно' }));
   await waitFor(() => expect(mocks.status).toHaveBeenCalledTimes(1));
-  expect(screen.getByText(/Повторная генерация через обычный маршрут/))
+  expect(screen.getByText(/Его нельзя повторить без/))
     .toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Сгенерировать ответ повторно' }))
     .not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Подтверждаю новую генерацию' }))
     .not.toBeInTheDocument();
   expect(retry).not.toHaveBeenCalled();
+});
+
+test('collapsed R8 recovery is discoverable without sending any provider request', () => {
+  renderPanel(vi.fn());
+  expect(screen.getByText('Ответ Reflect не получен')).toBeInTheDocument();
+  expect(screen.getByText('Ваше сообщение сохранено.')).toBeInTheDocument();
+  const check = screen.getByRole('button', { name: 'Проверить статус бесплатно' });
+  expect(check).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.queryByRole('button', { name: 'Сгенерировать ответ повторно' }))
+    .not.toBeInTheDocument();
+  expect(mocks.status).not.toHaveBeenCalled();
+});
+
+test('expired entitlement explains denial without offering a billable action', async () => {
+  mocks.status.mockRejectedValueOnce(new Error('permission-denied'));
+  const onRetry = vi.fn();
+  renderPanel(onRetry);
+  fireEvent.click(screen.getByRole('button', { name: 'Проверить статус бесплатно' }));
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(
+    'Доступ к Grok ограничен'
+  ));
+  expect(onRetry).not.toHaveBeenCalled();
+  expect(screen.queryByRole('button', { name: 'Сгенерировать ответ повторно' }))
+    .not.toBeInTheDocument();
 });

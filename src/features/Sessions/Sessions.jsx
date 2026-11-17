@@ -4,6 +4,8 @@ import { db, appId } from '../../firebase/config';
 import { AI_SESSION_ENABLED, getAnalysisFromAI } from '../../api/reflectAssistantService';
 import { railwayAiRecoveryEnabled } from '../../api/reflectRailwayService';
 import ReplyRecoveryPanel from './ReplyRecoveryPanel';
+import SessionDeleteDialog from './SessionDeleteDialog';
+import { deleteOwnerSession } from './sessionDeletion';
 import { createDurableSession, appendDurableTurn } from './sessionPersistence';
 import SessionModePicker from './SessionModePicker';
 import SessionToolsMenu, { SessionToolPanel } from './SessionToolsMenu';
@@ -41,6 +43,9 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
   const [modeDraftScope, setModeDraftScope] = useState(null);
   const [activeToolPanel, setActiveToolPanel] = useState(null);
   const [showLibrary, setShowLibrary] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [navigationWarning, setNavigationWarning] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sendError, setSendError] = useState('');
@@ -77,6 +82,9 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
     setLocalMessages([]);
     setLocalMessageScope(null);
     setSessionSaveError('');
+    setDeleteTarget(null);
+    setDeleteError('');
+    setIsDeleting(false);
   }, [userId]);
 
   useEffect(() => {
@@ -593,6 +601,53 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
     setNavigationWarning('');
     return true;
   };
+  // Delete never starts during a pending AI call, unsaved paid reply or draft.
+  // A failing Firestore write leaves both the dialog and the saved thread intact.
+  const requestSessionDeletion = id => {
+    const target = sessions.find(item => item.id === id);
+    if (!target || isDeleting) return;
+    if (!canLeaveConversation()) {
+      setSendError('Сначала отправьте или очистите черновик и завершите сохранение ответа. Сеанс не удалён.');
+      return;
+    }
+    setDeleteTarget({ ...target, ownerId: userId });
+    setDeleteError('');
+  };
+  const confirmSessionDeletion = async () => {
+    if (!deleteTarget || isDeleting || deleteTarget.ownerId !== userId ||
+        sendLock.current || isLoading || !canLeaveConversation()) return;
+    const targetId = deleteTarget.id;
+    const owner = userId;
+    setIsDeleting(true);
+    setDeleteError('');
+    try {
+      await deleteOwnerSession(owner, targetId);
+      if (ownerRef.current !== owner) return;
+      if (currentSessionId === targetId) {
+        setCurrentSessionId('new');
+        setOpeningSession(null);
+        setLocalMessages([]);
+        setLocalMessageScope(null);
+        setActiveToolPanel(null);
+      }
+      setDeleteTarget(null);
+      setNavigationWarning('');
+    } catch {
+      if (ownerRef.current === owner) {
+        setDeleteError('Не удалось удалить сеанс. Данные остались сохранёнными. Проверьте соединение и повторите.');
+      }
+    } finally {
+      if (ownerRef.current === owner) setIsDeleting(false);
+    }
+  };
+  const deletionDialog = deleteTarget?.ownerId === userId ? (
+    <SessionDeleteDialog
+      session={deleteTarget}
+      linkedGoalCount={goals.filter(goal => goal.sessionId === deleteTarget.id).length}
+      busy={isDeleting} error={deleteError}
+      onCancel={() => { if (!isDeleting) { setDeleteTarget(null); setDeleteError(''); } }}
+      onConfirm={confirmSessionDeletion}/>
+  ) : null;
   const selectFromLibrary = id => {
     if (id !== currentSessionId && !canLeaveConversation()) return;
     setCurrentSessionId(id);
@@ -621,13 +676,17 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
 
   if ((!activeSession && !isNewSessionView) || showLibrary || libraryRequested) {
     return (
+      <>
       <SessionLibrary sessions={sessions} activeSessionId={currentSessionId}
         warning={navigationWarning}
         onSelectSession={selectFromLibrary} onNewSession={startFromLibrary}
+        onDeleteSession={requestSessionDeletion}
         onViewJourney={onOpenJourney ? journeyFromLibrary : undefined}
         onBackToConversation={(activeSession || isNewSessionView) ? () => {
           setShowLibrary(false); setNavigationWarning(''); onCloseLibrary?.();
         } : undefined}/>
+      {deletionDialog}
+      </>
     );
   }
 
@@ -662,6 +721,7 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
               </button>
             )}
             <SessionToolsMenu activePanel={activeToolPanel}
+              onDeleteRequest={activeSession?.id ? () => requestSessionDeletion(activeSession.id) : undefined}
               onChange={setActiveToolPanel}
               hasSavedSession={Boolean(activeSession?.id)}
               contextAvailable={Boolean(AI_SESSION_ENABLED &&
@@ -850,6 +910,7 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
           ))}
         </aside>
       )}
+      {deletionDialog}
     </section>
   );
 };
