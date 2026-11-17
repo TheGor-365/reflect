@@ -34,3 +34,56 @@ Owner's desktop screenshot of Firebase Hosting UX R7 at exact Git source SHA `d6
 
 ## Reporting
 `Draft PR + exact SHA + CI | UI behavior verified only in offline tests? | recovery flags actually set? | Firebase/Railway live source | rollback | no deployment | blockers | 1–3 next actions`.
+
+
+## UX R8 ↔ Railway R2 compatibility addendum (2026-11-17)
+
+Coordinated staging-only release authorization was given 2026-11-17. The R2 release is implemented as independent Draft PR #134, not by switching the old /reply handler's payload contract:
+
+- Old R7 browser and existing public /v1/ai/reply: same one-message transport, unchanged.
+- New R8 when VITE_ENABLE_REFLECT_AI_RECOVERY=true: /v1/ai/reply-recovery on the **same** fixed Railway staging origin, signed Auth and limited-use App Check. R2 requires REFLECT_AI_ATTEMPT_RECEIPTS_ENABLED=yes; user turn must already exist in owner Firestore session; response and private receipt commit atomically before HTTP 200.
+- Free /v1/ai/attempt-status remains separate, signed and no Grok provider calls.
+- Disabling recovery in the client continues the old endpoint; no migration of R7 sessions.
+- The R2 server branch must be pinned to its immutable successfully tested SHA on the existing Railway STAGING service; the frontend R8 branch must be deployed to exact Firebase Hosting site reflect-ai-staging with the real private local .env.staging.local (public web identifiers only).
+- R2 can be activated first, with R7 preserved. R8 Hosting can be activated second after Railway SUCCESS; therefore no intentional legacy-window breakage.
+- All tested routes still require the private staging owner entitlement, 1-use App Check, bounded spend and the separate provider egress switch. These are **not** modified by this release.
+- Never derive the value of a Railway variable from its mere presence: connected Railway OAuth redacts values. The release explicitly stages \`REFLECT_AI_ATTEMPT_RECEIPTS_ENABLED=yes\`. No token/key/value readback is claimed.
+- Backend R2 release PR: https://github.com/TheGor-365/reflect/pull/134
+- Frontend R8 release PR: https://github.com/TheGor-365/reflect/pull/133
+
+### Owner-operated Firebase Hosting H1 (after verified Railway R2)
+
+Before H1, open Firebase Console → \`reflect-ai-staging\` → Hosting → Releases; record the **actual current active** release version and verify it is restorable. The previous R7 Hosting version cannot be assumed from an old Git SHA. The repo does not store the owner's actual \`.env.staging.local\` or Firebase CLI login session; do not use synthetic CI config for live deployment.
+
+Use a clean R7 worktree that already has the correct private staging environment file; do not reset, delete or overwrite an existing path. Example (adjust only the BASE R7 worktree path to the actual directory):
+
+\`\`\`bash
+BASE="$HOME/reflect-r7-staging"
+TARGET="$HOME/reflect-r8-staging"
+test -f "$BASE/.env.staging.local" || { echo "STOP: missing private staging env"; exit 1; }
+test ! -e "$TARGET" || { echo "STOP: target worktree already exists"; exit 1; }
+cd "$BASE"
+git status --short
+git fetch origin feat/reflect-ux-r8-delete-and-recover-2026-11-17
+git worktree add --detach "$TARGET" <EXACT_R8_PASS_SHA>
+cd "$TARGET"
+install -m 600 "$BASE/.env.staging.local" .env.staging.local
+export ASDF_NODEJS_VERSION=22.23.4
+export REFLECT_STAGING_EXPECTED_SHA="$(git rev-parse HEAD)"
+npm ci --no-audit --no-fund
+npm run qa:staging:preflight
+VITE_ENABLE_REFLECT_AI_RECOVERY=true npm run build -- --mode staging
+npm run qa:staging:postbuild
+git status --short
+firebase hosting:sites:list --project reflect-ai-staging
+firebase deploy --config firebase.staging.json --project reflect-ai-staging --only hosting
+\`\`\`
+
+**STOP** if active Hosting version cannot be recorded, the project/site do not exactly match, preflight/postbuild fails, App Check is not active, a second project or Rules/Functions deploy is requested, or wrong Git HEAD is in the worktree. No production. Never paste private environment content into chat, GitHub or logs.
+
+After H1: owner session readback, responsive desktop/mobile and owner-only delete confirmation *without actually deleting valuable content*; free status check on existing unanswered user turn; no Grok send until owner specifies count and total USD budget. Require a new screenshot with the status response, no personal IDs visible.
+
+### Rollback
+- Browser UX regression: roll Firebase Hosting back to exact recorded pre-R8 Hosting release. Railway R2 may remain (keeps legacy).
+- Railway regression before R8 deploy: reconnect R1 exact SHA and set REFLECT_AI_ATTEMPT_RECEIPTS_ENABLED=no in the *same staging patch* (R1 legacy contract); never rollback only source while receipts remains yes.
+- User data has not been migrated; no delete was executed by these release gates.
