@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertCircle, CheckCircle2, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronDown, RefreshCcw, ShieldCheck } from 'lucide-react';
 import { readRailwayTurnStatus } from '../../api/reflectRailwayService';
 
 /**
@@ -46,17 +46,23 @@ export default function ReplyRecoveryPanel({
   const [checking, setChecking] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [retried, setRetried] = useState(false);
   const [error, setError] = useState('');
 
   const check = async () => {
     if (checking || retrying || disabled) return;
+    setExpanded(true);
     setChecking(true); setError(''); setConfirming(false);
     try {
+      // Signed status endpoint, NO request body sent to Grok and NO charge.
       const result = await readRailwayTurnStatus(sessionId, turn.id);
       setState(result);
-    } catch {
+    } catch (failure) {
       setState(null);
-      setError('Не удалось проверить квитанцию. Ответ не запрашивался у Grok.');
+      setError(failure?.message === 'permission-denied'
+        ? 'Доступ к Grok ограничен. Проверьте приватное разрешение аккаунта и повторите бесплатную проверку.'
+        : 'Не удалось проверить статус. Нового запроса к Grok не было.');
     } finally {
       setChecking(false);
     }
@@ -66,72 +72,95 @@ export default function ReplyRecoveryPanel({
         !confirming || !state?.canRetry) return;
     setRetrying(true); setConfirming(false); setError('');
     try {
+      // One explicit paid request; the original Firestore turn is NOT copied.
       await onRetry(turn);
-      setState(null); // the new reply must appear from Firebase readback
-    } catch {
-      // Provider outcome may be billable. Never run an automatic second try.
       setState(null);
-      setError('Результат новой попытки не подтверждён. Сначала снова проверьте статус бесплатно.');
+      setRetried(true);
+    } catch {
+      // The provider may have been billed. No automatic second attempt.
+      setState(null);
+      setError('Результат новой попытки неизвестен. Сначала снова проверьте статус бесплатно.');
     } finally {
       setRetrying(false);
     }
   };
+
   return (
     <div className="reflect-ai-recovery" aria-label="Восстановление ответа Reflect">
-      <p className="reflect-ai-recovery-heading">
-        <AlertCircle size={16} aria-hidden="true"/> На это сообщение нет сохранённого ответа
-      </p>
-      {state ? (
-        <p role="status" className="reflect-ai-recovery-status">
-          {state.status === 'persisted_reply' || state.status === 'reply_exists'
-            ? <CheckCircle2 size={15} aria-hidden="true"/>
-            : <ShieldCheck size={15} aria-hidden="true"/>}
-          {STATES[state.status] || 'Состояние требует проверки.'}
-        </p>
-      ) : <p>Текст сообщения сохранён. Проверьте результат прежней попытки
-        перед созданием новой.</p>}
-      {state && Object.hasOwn(SAFE_ERROR_EXPLANATIONS, state.errorCode) && (
-        <p role="note" className="reflect-ai-recovery-diagnosis">
-          Диагностика: {SAFE_ERROR_EXPLANATIONS[state.errorCode]}
-          {' '}(код: {state.errorCode})
-        </p>
-      )}
-      <div className="reflect-ai-recovery-actions">
-        <button type="button" onClick={check}
-          disabled={disabled || checking || retrying}>
-          <RefreshCcw size={15} aria-hidden="true"/>
-          {checking ? 'Проверка…' : 'Проверить статус бесплатно'}
-        </button>
-        {allowRetry && onRetry && state?.canRetry && !confirming && (
-          <button type="button" disabled={disabled || retrying}
-            onClick={() => setConfirming(true)}>
-            Сгенерировать ответ повторно
-          </button>
-        )}
+      <div className="reflect-ai-recovery-top">
+        <span className="reflect-ai-recovery-mark" aria-hidden="true">
+          <AlertCircle size={16}/>
+        </span>
+        <div className="reflect-ai-recovery-summary">
+          <strong>Ответ Reflect не получен</strong>
+          <span>Ваше сообщение сохранено.</span>
+        </div>
+        {!retried && <button type="button" className="reflect-ai-recovery-check"
+          onClick={check} disabled={disabled || checking || retrying}
+          aria-expanded={expanded}
+          aria-label="Проверить статус бесплатно">
+          <RefreshCcw size={14} aria-hidden="true"/>
+          {checking ? 'Проверяем…' : 'Проверить и восстановить'}
+          <ChevronDown className={expanded ? 'is-open' : ''} size={13} aria-hidden="true"/>
+        </button>}
       </div>
-      {allowRetry && onRetry && confirming && state?.canRetry && (
-        <div className="reflect-ai-recovery-confirm" role="group"
-          aria-label="Подтвердить возможную новую оплату">
-          <strong>Это новый платный запрос к Grok.</strong>
-          <p>Предыдущий мог быть оплачен, даже если ответ не получен.
-            Мы используем сохранённый текст и не создаём вторую копию
-            вашего сообщения. Продолжить?</p>
-          <div className="reflect-ai-recovery-actions">
-            <button type="button" disabled={disabled || retrying}
-              onClick={retry}>Подтверждаю новую генерацию</button>
-            <button type="button" onClick={() => setConfirming(false)}>
-              Отмена
-            </button>
-          </div>
+      {(expanded || retried) && (
+        <div className="reflect-ai-recovery-detail">
+          {retried ? (
+            <p role="status" className="reflect-ai-recovery-status">
+              <CheckCircle2 size={15} aria-hidden="true"/>
+              Ответ получен. Он появится в сохранённой истории сеанса.
+            </p>
+          ) : (
+            <>
+              {state ? (
+                <p role="status" className="reflect-ai-recovery-status">
+                  {state.status === 'persisted_reply' || state.status === 'reply_exists'
+                    ? <CheckCircle2 size={15} aria-hidden="true"/>
+                    : <ShieldCheck size={15} aria-hidden="true"/>}
+                  {STATES[state.status] || 'Состояние требует проверки.'}
+                </p>
+              ) : !error && !checking && (
+                <p>Сначала проверяется серверная квитанция, без вызова Grok.</p>
+              )}
+              {state && Object.hasOwn(SAFE_ERROR_EXPLANATIONS, state.errorCode) && (
+                <p role="note" className="reflect-ai-recovery-diagnosis">
+                  {SAFE_ERROR_EXPLANATIONS[state.errorCode]}
+                </p>
+              )}
+              {state?.canRetry && allowRetry && onRetry && !confirming && (
+                <div className="reflect-ai-recovery-actions">
+                  <button type="button" disabled={disabled || retrying}
+                    onClick={() => setConfirming(true)}>
+                    Сгенерировать ответ повторно
+                  </button>
+                </div>
+              )}
+              {allowRetry && onRetry && confirming && state?.canRetry && (
+                <div className="reflect-ai-recovery-confirm" role="group"
+                  aria-label="Подтвердить новую генерацию">
+                  <strong>Новая генерация может быть платной.</strong>
+                  <p>Если прежняя попытка дошла до провайдера, она тоже могла быть
+                    оплачена. Исходное сообщение останется одним в истории.</p>
+                  <div className="reflect-ai-recovery-actions">
+                    <button type="button" disabled={disabled || retrying}
+                      onClick={retry}>Подтверждаю новую генерацию</button>
+                    <button type="button" onClick={() => setConfirming(false)}>
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              )}
+              {!allowRetry && <p role="note">Это сообщение было отправлено с
+                отдельным разрешением на контекст. Его нельзя повторить без
+                нового разрешения. Статус по-прежнему можно проверить бесплатно.</p>}
+              {retrying && <p role="status">Отправляем один запрос. Не нажимайте повторно:
+                результат фиксируется на сервере.</p>}
+              {error && <p role="alert">{error}</p>}
+            </>
+          )}
         </div>
       )}
-      {!allowRetry && <p role="note">Это сообщение отправлялось с отдельным
-        разрешением на историю. Повторная генерация через обычный маршрут
-        заблокирована. Статус можно проверить бесплатно; для нового запроса
-        создайте новый черновик и новое разрешение.</p>}
-      {retrying && <p role="status">Запрашиваем ответ один раз. Не закрывайте
-        страницу для повторного нажатия — результат сохранит сервер.</p>}
-      {error && <p role="alert">{error}</p>}
     </div>
   );
 }
