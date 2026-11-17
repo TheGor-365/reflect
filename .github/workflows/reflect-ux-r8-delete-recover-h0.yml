@@ -13,6 +13,7 @@ permissions:
   contents: read
 jobs:
   frontend-exact-head:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.pull_request.base.ref == 'release/reflect-ux-r7-hosting-staging-2026-11-16' && github.event.pull_request.head.ref == 'feat/reflect-ux-r8-delete-and-recover-2026-11-17') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 23
     env:
