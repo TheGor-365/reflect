@@ -101,7 +101,7 @@ test('failed status check never triggers provider and does not leak private SDK 
   renderPanel(retry);
   fireEvent.click(screen.getByRole('button', { name: 'Проверить статус бесплатно' }));
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(
-    'Ответ не запрашивался у Grok'
+    'Нового запроса к Grok не было'
   ));
   expect(screen.getByRole('alert').textContent).not.toContain('PRIVATE_FIRESTORE_REPLY');
   expect(retry).not.toHaveBeenCalled();
