@@ -53,3 +53,15 @@ test('UX R1: focused tool drawer is closeable and separate from transcript', () 
   fireEvent.click(screen.getByRole('button', {name:'Закрыть инструменты'}));
   expect(onClose).toHaveBeenCalledOnce();
 });
+
+
+test('UX R8: deleting a saved session is an explicit separate menu action', () => {
+  const requestDelete = vi.fn(), onChange = vi.fn();
+  render(<SessionToolsMenu activePanel={null} onChange={onChange}
+    hasSavedSession onDeleteRequest={requestDelete}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Инструменты сеанса' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Удалить сеанс' }));
+  expect(requestDelete).toHaveBeenCalledOnce();
+  expect(onChange).not.toHaveBeenCalled();
+  expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+});
