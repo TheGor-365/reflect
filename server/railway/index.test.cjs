@@ -24,6 +24,8 @@ const deps = (overrides = {}) => ({
   }),
   handleReply: async () => ({ text: "Ответ модели", model: "grok-4.3", actualUsdTicks: null }),
   handleRecoveryReply: async () => ({ text: "Синтетический ответ R8", model: "grok-4.3", persistedByServer: true }),
+  handleAttemptStatus: async () => ({ status: "not_tracked", billedPossible: true,
+    canRetry: true, sessionId: "owner-test-session", sourceTurnId: "user-original-1234567890" }),
   ...overrides
 });
 async function withServer(options, fn) {
