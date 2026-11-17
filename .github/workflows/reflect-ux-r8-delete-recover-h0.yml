@@ -48,21 +48,20 @@ jobs:
         run: npm run typecheck
       - name: Synthetic recovery-enabled staging guard, build, postbuild
         env:
-        VITE_FIREBASE_CONFIG: '{"apiKey":"ci-public-firebase-key-nondeployable-0000000","authDomain":"reflect-ai-staging.firebaseapp.com","projectId":"reflect-ai-staging","appId":"1:599679789981:web:d4d8743dbff0fe40af1d74","messagingSenderId":"599679789981"}'
-        VITE_APP_ID: 'reflect-8fdc8'
-        VITE_USE_FIREBASE_EMULATORS: 'false'
-        VITE_ENABLE_STAGING_APP_CHECK: 'true'
-        VITE_APP_CHECK_SITE_KEY: 'ci-public-nondeployable-app-check-key-000'
-        VITE_ENABLE_REFLECT_CLOUD_AI: 'false'
-        VITE_AI_STAGING_PROJECT_ID: 'reflect-ai-staging'
-        VITE_ENABLE_REFLECT_RAILWAY_PRECHECK: 'false'
-        VITE_ENABLE_REFLECT_RAILWAY_AI: 'true'
-        VITE_REFLECT_RAILWAY_AI_ORIGIN: 'https://reflect-ai-api-staging.up.railway.app'
-        VITE_ENABLE_REFLECT_AI_RECOVERY: 'false'
-        VITE_ENABLE_REFLECT_CONTEXT_CONSENT: 'false'
-        VITE_ENABLE_REFLECT_CONTEXT_PREVIEW: 'false'
-        VITE_ENABLE_REFLECT_PREVIEW_GATE5_QA: 'false'
+          VITE_FIREBASE_CONFIG: '{"apiKey":"ci-public-firebase-key-nondeployable-0000000","authDomain":"reflect-ai-staging.firebaseapp.com","projectId":"reflect-ai-staging","appId":"1:599679789981:web:d4d8743dbff0fe40af1d74","messagingSenderId":"599679789981"}'
+          VITE_APP_ID: 'reflect-8fdc8'
+          VITE_USE_FIREBASE_EMULATORS: 'false'
+          VITE_ENABLE_STAGING_APP_CHECK: 'true'
+          VITE_APP_CHECK_SITE_KEY: 'ci-public-nondeployable-app-check-key-000'
+          VITE_ENABLE_REFLECT_CLOUD_AI: 'false'
+          VITE_AI_STAGING_PROJECT_ID: 'reflect-ai-staging'
+          VITE_ENABLE_REFLECT_RAILWAY_PRECHECK: 'false'
+          VITE_ENABLE_REFLECT_RAILWAY_AI: 'true'
+          VITE_REFLECT_RAILWAY_AI_ORIGIN: 'https://reflect-ai-api-staging.up.railway.app'
           VITE_ENABLE_REFLECT_AI_RECOVERY: 'true'
+          VITE_ENABLE_REFLECT_CONTEXT_CONSENT: 'false'
+          VITE_ENABLE_REFLECT_CONTEXT_PREVIEW: 'false'
+          VITE_ENABLE_REFLECT_PREVIEW_GATE5_QA: 'false'
         run: |
           set -eu
           REFLECT_STAGING_EXPECTED_SHA="$(git rev-parse HEAD)" npm run qa:staging:preflight
