@@ -1,14 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import {
   ArrowRight, BookOpen, CalendarDays, GitBranch,
-  MessageCircle, PenLine, Search, Sparkles
+  MessageCircle, PenLine, Search, Sparkles, Trash2
 } from 'lucide-react';
 import { buildSessionLibrary, searchSessionLibrary } from './sessionLibrary';
 
 /** Saved owner-scoped threads only. No inferred session state or paid AI calls. */
 export default function SessionLibrary({
   sessions = [], activeSessionId, onSelectSession, onViewJourney, onNewSession,
-  onBackToConversation, warning
+  onBackToConversation, onDeleteSession, warning
 }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
@@ -101,6 +101,14 @@ export default function SessionLibrary({
                         onClick={() => onViewJourney(item.id)}
                         aria-label={`Хронология: ${item.title}`}>
                         <GitBranch size={17} aria-hidden="true"/> Хронология
+                      </button>
+                    )}
+                    {onDeleteSession && (
+                      <button type="button" className="reflect-session-library-delete"
+                        aria-label={'Удалить сеанс: ' + item.title}
+                        title="Удалить сеанс" onClick={() => onDeleteSession(item.id)}>
+                        <Trash2 size={15} aria-hidden="true"/>
+                        <span>Удалить</span>
                       </button>
                     )}
                   </div>
