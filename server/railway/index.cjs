@@ -85,6 +85,7 @@ function createRequestListener({
   ready, allowProvider, authorizeAccount, verifyAuth, verifyAppCheck,
   checkRuntime, checkProvider, handleReply,
   attemptRecoveryEnabled = false, handleAttemptStatus,
+  handleRecoveryReply = null,
   contextReplyEnabled = false, handleContextReply = null
 }) {
   if (typeof ready !== "function" || typeof allowProvider !== "function" ||
@@ -93,6 +94,11 @@ function createRequestListener({
       typeof verifyAuth !== "function" ||
       typeof verifyAppCheck !== "function" || typeof handleReply !== "function") {
     throw Error("Stage04H requires explicit injected server dependencies");
+  }
+  if (attemptRecoveryEnabled &&
+      (typeof handleRecoveryReply !== "function" ||
+       typeof handleAttemptStatus !== "function")) {
+    throw Error("Recovery requires separate owner-verified reply and receipt handlers");
   }
   if (contextReplyEnabled && typeof handleContextReply !== "function") {
     throw Error("M3d reply needs an explicit trusted server handler");
@@ -112,16 +118,19 @@ function createRequestListener({
     const providerDiagnostics = req.url === "/v1/ai/provider-diagnostics";
     const attemptStatus = attemptRecoveryEnabled &&
       req.url === "/v1/ai/attempt-status";
+    // R7 /reply stays compatible; only R8 opts into server receipts.
+    const recoveryReply = attemptRecoveryEnabled &&
+      req.url === "/v1/ai/reply-recovery";
     const contextReply = contextReplyEnabled &&
       req.url === "/v1/ai/session-memory-reply";
     if (req.method === "OPTIONS" &&
         (req.url === "/v1/ai/reply" || diagnostics || providerDiagnostics ||
-         attemptStatus || contextReply)) {
+         attemptStatus || recoveryReply || contextReply)) {
       return respond(res, 204, {}, origin);
     }
     if (req.method !== "POST" ||
         (req.url !== "/v1/ai/reply" && !diagnostics && !providerDiagnostics &&
-         !attemptStatus && !contextReply)) {
+         !attemptStatus && !recoveryReply && !contextReply)) {
       return respond(res, 404, { error: "not-found" }, origin);
     }
     if (!ready()) {
@@ -159,7 +168,7 @@ function createRequestListener({
       }
       // Current verified Firebase account + short-lived private entitlement;
       // no browser-supplied role or recurring Railway UID variable.
-      if ((allowProvider() || diagnostics || providerDiagnostics || attemptStatus) &&
+      if ((allowProvider() || diagnostics || providerDiagnostics || attemptStatus || recoveryReply) &&
           !(await authorizeAccount(auth))) {
         throw new PolicyError("permission-denied");
       }
@@ -196,7 +205,8 @@ function createRequestListener({
       if (!allowProvider()) {
         return respond(res, 503, { error: "provider-disabled" }, origin);
       }
-      const selectedHandler = contextReply ? handleContextReply : handleReply;
+      const selectedHandler = contextReply ? handleContextReply :
+        recoveryReply ? handleRecoveryReply : handleReply;
       const output = await selectedHandler({
         auth: { uid: auth.uid },
         app: { appId: app.appId, alreadyConsumed: app.alreadyConsumed },
@@ -291,6 +301,7 @@ function createRuntime() {
   let checkRuntime = async () => false;
   let checkProvider = async () => "provider-unavailable";
   let handleReply = async () => { throw new Error("AI disabled"); };
+  let handleRecoveryReply = null;
   let handleContextReply = null;
   let handleAttemptStatus = async () => { throw new Error("AI disabled"); };
   let consentRoute = null;
@@ -314,13 +325,20 @@ function createRuntime() {
       credential: cert(credentialJson), projectId: STAGE_PROJECT
     });
     const db = getFirestore(app);
-    const handler = createHostedHandler({
+    const handlerOptions = {
       db, projectId: STAGE_PROJECT, appId: STAGE_APP_ID,
       readSecret: () => providerKey, transport: fetch,
-      // Separate default-OFF staging flag; existing Grok stays operational.
-      interactionEnabled: process.env.REFLECT_AI_INTERACTION_V1_ENABLED === "yes",
-      attemptRecoveryEnabled, evidenceV2Enabled
+      interactionEnabled: process.env.REFLECT_AI_INTERACTION_V1_ENABLED === "yes"
+    };
+    // Both handlers share the same immutable Firestore spend/quota ledger.
+    // Only /reply-recovery owns server receipts; R7 /reply stays unchanged.
+    const handler = createHostedHandler({
+      ...handlerOptions, attemptRecoveryEnabled: false,
+      evidenceV2Enabled: false
     });
+    const recoveryHandler = attemptRecoveryEnabled ? createHostedHandler({
+      ...handlerOptions, attemptRecoveryEnabled: true, evidenceV2Enabled
+    }) : null;
     authorizeAccount = createStagingEntitlementVerifier({
       db, projectId: STAGE_PROJECT, getUser: uid => getAuth(app).getUser(uid)
     });
@@ -345,6 +363,7 @@ function createRuntime() {
       return firstUse ? result : { ...result, alreadyConsumed: true };
     };
     handleReply = handler;
+    handleRecoveryReply = recoveryHandler;
     if (attemptRecoveryEnabled) {
       const { createAiTurnRecovery, validateStatusBody } =
         require("../ai/aiTurnRecovery.cjs");
@@ -410,7 +429,7 @@ function createRuntime() {
     ready: () => ready, allowProvider: () => outboundEnabled,
     authorizeAccount, checkRuntime, checkProvider,
     verifyAuth, verifyAppCheck, handleReply,
-    attemptRecoveryEnabled, handleAttemptStatus,
+    attemptRecoveryEnabled, handleAttemptStatus, handleRecoveryReply,
     contextReplyEnabled, handleContextReply
   });
   return (req, res) => {
