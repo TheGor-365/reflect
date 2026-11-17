@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Ellipsis, Check, X } from 'lucide-react';
+import { Ellipsis, Check, Trash2, X } from 'lucide-react';
 import ReflectContentIcon from '../../components/common/ReflectContentIcon';
 
 export const SESSION_TOOL_LABELS = Object.freeze({
@@ -17,7 +17,8 @@ const TOOLS = Object.freeze([
 
 /** Technical details live behind ONE scoped menu, outside the dialog flow. */
 export default function SessionToolsMenu({
-  activePanel, onChange, hasSavedSession = false, contextAvailable = false
+  activePanel, onChange, hasSavedSession = false, contextAvailable = false,
+  onDeleteRequest
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef(null);
@@ -63,6 +64,16 @@ export default function SessionToolsMenu({
               {activePanel === id && <Check size={15} aria-hidden="true"/>}
             </button>
           ))}
+          {hasSavedSession && onDeleteRequest && (
+            <div className="reflect-session-tool-danger-area">
+              <button type="button" role="menuitem"
+                className="reflect-session-tool-delete"
+                onClick={() => { setOpen(false); onDeleteRequest(); }}>
+                <Trash2 size={16} aria-hidden="true"/>
+                <span>Удалить сеанс</span>
+              </button>
+            </div>
+          )}
           {!hasSavedSession &&
             <p className="reflect-session-tool-list-hint">
               Инструменты появятся после сохранения первого сообщения.
