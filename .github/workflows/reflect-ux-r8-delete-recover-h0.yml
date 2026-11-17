@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'src/features/Sessions/**'
+      - 'src/api/reflectRailwayService.js'
+      - 'src/api/reflectRailwayService.recoveryRoute.test.js'
       - 'src/index.css'
       - 'docs/release/REFLECT_UX_R8_SESSION_DELETE_RECOVERY_GATE_2026-11-17.md'
       - '.github/workflows/reflect-ux-r8-delete-recover-h0.yml'
@@ -32,7 +34,7 @@ jobs:
           BASE=d67fb7e2570315c3127a247e5ca5c1462ad98b69
           git merge-base --is-ancestor "$BASE" "$EXPECTED_SHA"
           git diff --name-only "$BASE" "$EXPECTED_SHA" > /tmp/changed
-          if grep -v -E '^src/features/Sessions/|^src/index\.css$|^docs/release/REFLECT_UX_R8_SESSION_DELETE_RECOVERY_GATE_2026-11-17\.md$|^\.github/workflows/reflect-ux-r8-delete-recover-h0\.yml$' /tmp/changed; then
+          if grep -v -E '^src/features/Sessions/|^src/api/reflectRailwayService(\.recoveryRoute\.test)?\.js$|^src/index\.css$|^docs/release/REFLECT_UX_R8_SESSION_DELETE_RECOVERY_GATE_2026-11-17\.md$|^\.github/workflows/reflect-ux-r8-delete-recover-h0\.yml$' /tmp/changed; then
             echo 'STOP: R8 touched an unrelated file'; exit 1
           fi
           echo 'R8 exact head and scope PASS'
