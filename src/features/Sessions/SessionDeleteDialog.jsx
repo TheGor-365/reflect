@@ -80,7 +80,7 @@ export default function SessionDeleteDialog({
         <div className="reflect-session-delete-actions">
           <button type="button" ref={cancelRef} onClick={onCancel} disabled={busy}
             className="reflect-session-delete-cancel">Оставить сеанс</button>
-          <button type="button" onClick={onConfirm} disabled={busy}
+          <button type="button" onClick={() => onConfirm?.()} disabled={busy}
             className="reflect-session-delete-confirm">
             <Trash2 size={15} aria-hidden="true"/>
             {busy ? 'Удаление…' : 'Удалить навсегда'}
