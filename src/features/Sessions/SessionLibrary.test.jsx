@@ -69,3 +69,12 @@ test('existing active session can be reopened without creating a new thread', ()
   fireEvent.click(screen.getByRole('button', { name: 'Вернуться к разговору' }));
   expect(select).toHaveBeenCalledWith('session-b');
 });
+
+
+test('UX R8: delete is clearly available per card but does not execute without confirmation', () => {
+  const requestDelete = vi.fn();
+  render(<SessionLibrary sessions={sessions} onNewSession={vi.fn()}
+    onSelectSession={vi.fn()} onDeleteSession={requestDelete}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Удалить сеанс: Спокойствие и границы' }));
+  expect(requestDelete).toHaveBeenCalledExactlyOnceWith('session-b');
+});
