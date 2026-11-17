@@ -122,9 +122,12 @@ describe('PRODUCT-04 Journey interactive UX',()=>{
     const viewport=screen.getByRole('region',{name:'Интерактивная диаграмма связей'});
     const world=viewport.querySelector('.reflect-journey-world');
     expect(world.style.transform).toContain('scale(0.62)');
+    // Start away from the scroll edge so a touch drag has room to move.
+    viewport.scrollLeft=100;viewport.scrollTop=100;
     fireEvent.pointerDown(viewport,{pointerType:'touch',pointerId:1,button:0,clientX:90,clientY:120});
     fireEvent.pointerMove(viewport,{pointerType:'touch',pointerId:1,clientX:120,clientY:155});
-    expect(world.style.transform).toContain('translate(38px, 43px)');
+    expect(viewport.scrollLeft).toBe(70);
+    expect(viewport.scrollTop).toBe(65);
     fireEvent.pointerDown(viewport,{pointerType:'touch',pointerId:2,button:0,clientX:200,clientY:120});
     fireEvent.pointerMove(viewport,{pointerType:'touch',pointerId:2,clientX:250,clientY:120});
     expect(screen.getByLabelText('Масштаб').textContent).not.toBe('62%');
@@ -177,9 +180,10 @@ test('UX R5 Journey shows owner-rated agreement, never model truth probability',
     }}:turn
   )}];
   render(<JourneyMap sessions={assessed} goals={goals}/>);
-  const details=screen.getByText(/Оценки гипотез · 1 из 1/).closest('details');
-  expect(details).toBeInTheDocument();
-  fireEvent.click(details.querySelector('summary'));
+  const disclosure=screen.getByRole('button',{name:/Оценки гипотез · 1 из 1/});
+  expect(disclosure).toHaveAttribute('aria-expanded','false');
+  fireEvent.click(disclosure);
+  expect(disclosure).toHaveAttribute('aria-expanded','true');
   expect(screen.getByRole('img',{name:/Оценки: 0, 0, 0, 0, 1/}))
     .toBeInTheDocument();
   expect(screen.getByText(/Не вероятность их истинности/)).toBeInTheDocument();

@@ -498,7 +498,7 @@ export default function Goals({
       <section className="reflect-goals-board reflect-goals-board--focused"
         id="reflect-goals-current-panel" role="tabpanel"
         aria-labelledby={'reflect-goals-tab-' + currentGroup.status}>
-        <div className="reflect-goals-column">
+        <div key={selectedStatus} className="reflect-goals-column reflect-goals-column--animate">
           {currentGroup.items.length === 0 && (
             <p className="reflect-goals-empty">
               {selectedStatus === 'active'

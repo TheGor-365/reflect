@@ -69,7 +69,7 @@ export default function InteractionResult({
       // editor; source-of-truth snapshot / scoped echo paints the saved chip.
       setReviewIndex(null);
     } catch {
-      setReviewError('Отклик не подтверждён сервером. Текст остался на экране — повторите сохранение.');
+      setReviewError('Отклик не подтверждён сервером. Текст остался в форме; повторное сохранение доступно.');
     } finally { setReviewSaving(false); }
   };
   const decide = async (index, action, draft = {}) => {
@@ -87,7 +87,7 @@ export default function InteractionResult({
           : action === 'postponed' ? 'Предложение отложено.' : 'Предложение отклонено.');
     } catch (failure) {
       // Keep the editable goal draft on failure; no silent second attempt.
-      setError(failure?.message || 'Решение не сохранилось. Проверьте соединение.');
+      setError(failure?.message || 'Решение не сохранено. Возможно, отсутствует соединение.');
     } finally {
       setBusyIndex(null);
     }
@@ -97,8 +97,8 @@ export default function InteractionResult({
 
       {isV2 && <section className="reflect-interaction-section"
         aria-label="Источники и неизвестное — версия 2">
-        <strong>Что подтверждено вами, а что ещё неизвестно</strong>
-        <p>Дословные цитаты ниже — только ваши слова из текущего сообщения.
+        <strong>Подтверждённое и неизвестное</strong>
+        <p>Ниже — дословные цитаты из текущего сообщения.
           Это не независимая проверка их достоверности и не мнение специалиста.</p>
         {claims.length ? (
           <ul aria-label="Слова владельца с источниками">
@@ -116,16 +116,16 @@ export default function InteractionResult({
         {evidence && <>
           <p>По состоянию на момент ответа подтверждено категорий:
             {' '}{evidence.completeCount} из 4. Это показатель заполненности
-            ваших сведений, а не вероятность правильного совета.</p>
+            сведений о ситуации, а не вероятность правильного совета.</p>
           {evidence.missingSlots.length > 0 && (
-            <p>Ещё требуют вашего подтверждения:
+            <p>Требуют подтверждения:
               {' '}{evidence.missingSlots
                 .filter(slot => EVIDENCE_SLOT_LABELS[slot])
                 .map(slot => EVIDENCE_SLOT_LABELS[slot]).join(', ')}.</p>
           )}
           {Array.isArray(evidence.disputedSlots) &&
             evidence.disputedSlots.length > 0 && (
-              <p>Вы оспорили:
+              <p>Оспорено:
                 {' '}{evidence.disputedSlots
                   .filter(slot => EVIDENCE_SLOT_LABELS[slot])
                   .map(slot => EVIDENCE_SLOT_LABELS[slot]).join(', ')}.</p>
@@ -140,8 +140,8 @@ export default function InteractionResult({
       {insights.length > 0 && <section className="reflect-interaction-section"
         aria-label="Непроверенные гипотезы Reflect">
         <strong>Возможные объяснения — пока гипотезы</strong>
-        <p>Я могу ошибаться. Оцените, насколько каждое объяснение соответствует вашей ситуации:
-          от «совсем мимо» до «очень точно». Это ваш отклик, не вероятность.</p>
+        <p>Я могу ошибаться. Насколько каждое объяснение соответствует ситуации?
+           От «совсем мимо» до «очень точно». Это оценка соответствия, не вероятность.</p>
         {insights.map((insight, index) => {
           const existing = reviews[`h-${messageId}-${index}`];
           return <div className="reflect-hypothesis-card" key={index}>
@@ -154,7 +154,7 @@ export default function InteractionResult({
                   {HYPOTHESIS_GRADES[existing.grade]}
                 </span>
                 {existing.comment && (
-                  <SmoothDisclosure label="Ваш комментарий"
+                  <SmoothDisclosure label="Комментарий"
                     iconKind="information" className="reflect-hypothesis-saved-comment">
                     <p>{existing.comment}</p>
                   </SmoothDisclosure>
@@ -226,7 +226,7 @@ export default function InteractionResult({
           return (
             <section className="reflect-interaction-section" key={index}
               aria-label="Отклонённая рекомендация">
-              <small>Предложение отклонено и скрыто по вашему решению.</small>
+              <small>Предложение отклонено и скрыто.</small>
               <button type="button" onClick={() => setReconsiderIndex(index)}>
                 <Undo2 size={15} aria-hidden="true"/> Показать отклонённое предложение
               </button>
@@ -249,7 +249,7 @@ export default function InteractionResult({
                 onClick={() => onCompose('Хочу обсудить предложение «' + item.title + '»: ')}>
                 <MessageCircle size={15} aria-hidden="true"/> Обсудить
               </button>}
-              {onDecision && !isSaved && <small>Сначала сохраните сеанс, чтобы принять решение.</small>}
+              {onDecision && !isSaved && <small>Для решения сначала нужно сохранить сеанс.</small>}
               {onDecision && isSaved && (
                 <>
                   {status && <span role="status" className="reflect-interaction-decision">
@@ -261,10 +261,10 @@ export default function InteractionResult({
                   </span>}
                   {status !== 'accepted' && (
                     <>
-                      <button type="button" disabled={busyIndex !== null}
-                        onClick={() => decide(index, 'saved')}><BookmarkPlus size={15} aria-hidden="true"/> Сохранить идею</button>
-                      <button type="button" disabled={busyIndex !== null}
-                        onClick={() => decide(index, 'postponed')}><CalendarClock size={15} aria-hidden="true"/> Отложить</button>
+                      {status !== 'saved' && <button type="button" disabled={busyIndex !== null}
+                        onClick={() => decide(index, 'saved')}><BookmarkPlus size={15} aria-hidden="true"/> Сохранить идею</button>}
+                      {status !== 'postponed' && <button type="button" disabled={busyIndex !== null}
+                        onClick={() => decide(index, 'postponed')}><CalendarClock size={15} aria-hidden="true"/> Отложить</button>}
                       <button type="button" disabled={busyIndex !== null}
                         onClick={() => decide(index, 'dismissed')}><CircleX size={15} aria-hidden="true"/> Не подходит</button>
                       <button type="button"
@@ -289,7 +289,7 @@ export default function InteractionResult({
                   event.preventDefault();
                   decide(index, 'goal', goalDraft);
                 }}>
-                <p>Цель создаётся только после вашего подтверждения. Укажите один конкретный первый шаг и критерий, по которому вы сами проверите результат.</p>
+                <p>Цель создаётся только после явного подтверждения. Нужны конкретный первый шаг и проверяемый критерий результата.</p>
                 <label>Название цели
                   <input required maxLength={240} value={goalDraft.title}
                     disabled={busyIndex !== null}

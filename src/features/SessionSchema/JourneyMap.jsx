@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReflectSelect from '../../components/ReflectSelect';
 import SmoothDisclosure from '../../components/common/SmoothDisclosure';
 import ReflectContentIcon from '../../components/common/ReflectContentIcon';
@@ -47,45 +47,74 @@ const mobileGraph = () => typeof window !== 'undefined' &&
 const initialGraphScale = () => mobileGraph() ? .62 : .8;
 const pointerDistance = (a,b) => Math.hypot(a.x-b.x,a.y-b.y);
 const pointerMidpoint = (a,b) => ({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+const GRAPH_PAD=28; // Unscaled viewport-space padding on all sides.
 
 export default function JourneyMap({
   sessions = [], goals = [], selectedSessionId = null,
   onOpenSource
 }) {
-  const [sessionFilter,setSessionFilter]=useState(selectedSessionId || 'all');
+  const [sessionFilter,setSessionFilter]=useState(selectedSessionId || sessions[0]?.id || '');
   const [period,setPeriod]=useState('all');
   const [kind,setKind]=useState('all');
   const [status,setStatus]=useState('all');
   const [selectedId,setSelectedId]=useState(null);
   const [scale,setScale]=useState(initialGraphScale);
-  const [pan,setPan]=useState({x:8,y:8});
   const [listOpen,setListOpen]=useState(false);
   const canvasRef=useRef(null);
   const dragRef=useRef(null);
   const touchPoints=useRef(new Map());
   const pinchRef=useRef(null);
+  const pendingScroll=useRef(null);
+  const lastRequestedSession=useRef(selectedSessionId);
   const mobileRef=useRef(mobileGraph());
   const graph=useMemo(()=>projectJourney(sessions,goals),[sessions,goals]);
+  const visibleSessions=useMemo(()=>graph.nodes.filter(n=>n.type==='session'),[graph]);
+  // Always show exactly one persisted session. Keep the user's manual choice
+  // while it is valid; only fall back when that record is no longer available.
+  const activeSessionId=visibleSessions.some(n=>n.sessionId===sessionFilter)
+    ? sessionFilter
+    : visibleSessions.some(n=>n.sessionId===selectedSessionId)
+      ? selectedSessionId
+      : sessions.find(s=>visibleSessions.some(n=>n.sessionId===s.id))?.id || '';
   const projected=useMemo(()=>filterJourney(graph,{
-    sessionId:sessionFilter,period,kind,status
-  }),[graph,sessionFilter,period,kind,status]);
+    sessionId:activeSessionId,period,kind,status
+  }),[graph,activeSessionId,period,kind,status]);
   const layout=useMemo(()=>layoutJourney(projected),[projected]);
   const facts=useMemo(()=>journeyFacts(projected,period),[projected,period]);
   const coverage=useMemo(()=>journeyCoverage(projected),[projected]);
   const hypothesisStats=useMemo(()=>summarizeOwnerHypothesisRatings(sessions,{
-    sessionId:sessionFilter,period
-  }),[sessions,sessionFilter,period]);
+    sessionId:activeSessionId,period
+  }),[sessions,activeSessionId,period]);
   const selected=projected.nodes.find(node=>node.id===selectedId) || null;
-  const visibleSessions=graph.nodes.filter(n=>n.type==='session');
+  // Respect a newly requested session, but don't erase a manual choice on
+  // unrelated Firestore updates. Newly loaded sessions get a valid fallback.
   useEffect(() => {
-    if(selectedSessionId && graph.nodes.some(n=>n.type==='session'&&n.sessionId===selectedSessionId)) {
-      setSessionFilter(selectedSessionId);
-    }
-  },[selectedSessionId,graph]);
+    const preferredChanged=lastRequestedSession.current!==selectedSessionId;
+    lastRequestedSession.current=selectedSessionId;
+    const ids=new Set(visibleSessions.map(n=>n.sessionId));
+    setSessionFilter(previous=>
+      preferredChanged && ids.has(selectedSessionId) ? selectedSessionId
+        : ids.has(previous) ? previous
+          : ids.has(selectedSessionId) ? selectedSessionId
+            : sessions.find(s=>ids.has(s.id))?.id || '');
+  },[selectedSessionId,graph,sessions,visibleSessions]);
   useEffect(() => {
     setSelectedId(value=>projected.nodes.some(node=>node.id===value)?value:null);
   },[projected]);
-  useEffect(()=>{setPan({x:8,y:8});},[sessionFilter,period,kind,status]);
+  useEffect(()=>{
+    pendingScroll.current=null;
+    if(canvasRef.current){
+      canvasRef.current.scrollLeft=0;
+      canvasRef.current.scrollTop=0;
+    }
+  },[activeSessionId,period,kind,status]);
+  // Restore the same visual anchor after the scaled scroll surface is sized.
+  useLayoutEffect(()=>{
+    if(!pendingScroll.current || !canvasRef.current) return;
+    canvasRef.current.scrollLeft=pendingScroll.current.left;
+    canvasRef.current.scrollTop=pendingScroll.current.top;
+    pendingScroll.current=null;
+  },[scale,layout.width,layout.height]);
   // A desktop-to-mobile resize should initialize a legible two-node overview.
   // User-controlled zoom stays untouched within either breakpoint.
   useEffect(()=>{
@@ -96,32 +125,52 @@ export default function JourneyMap({
         touchPoints.current.clear();
         pinchRef.current=null;
         dragRef.current=null;
+        pendingScroll.current=null;
         setScale(mobile?.62:.8);
-        setPan({x:8,y:8});
+        if(canvasRef.current){
+          canvasRef.current.scrollLeft=0;
+          canvasRef.current.scrollTop=0;
+        }
       }
     };
     window.addEventListener('resize',onResize);
     return ()=>window.removeEventListener('resize',onResize);
   },[]);
-  const move=(dx,dy)=>setPan(previous=>({x:previous.x+dx,y:previous.y+dy}));
-  // Zoom about the viewport center instead of throwing the current graph away.
+  // Panning moves the viewport's real scroll offsets, not an unbounded
+  // transform that can place source nodes outside the reachable area.
+  const move=(dx,dy)=>{
+    const canvas=canvasRef.current;
+    if(!canvas)return;
+    canvas.scrollLeft-=dx;
+    canvas.scrollTop-=dy;
+  };
+  // Preserve the viewport center when zooming via the accessible controls.
   const zoom=direction=>{
     const next=within(Math.round((scale+direction)*100)/100,.45,1.45);
-    const rect=canvasRef.current?.getBoundingClientRect();
-    if(rect){
-      const center={x:rect.width/2,y:rect.height/2};
-      const ratio=next/scale;
-      setPan(previous=>({
-        x:center.x-(center.x-previous.x)*ratio,
-        y:center.y-(center.y-previous.y)*ratio
-      }));
+    const canvas=canvasRef.current;
+    if(next===scale)return;
+    if(canvas){
+      const rect=canvas.getBoundingClientRect();
+      const cx=canvas.clientWidth/2 || rect.width/2;
+      const cy=canvas.clientHeight/2 || rect.height/2;
+      const worldX=(canvas.scrollLeft+cx-GRAPH_PAD)/scale;
+      const worldY=(canvas.scrollTop+cy-GRAPH_PAD)/scale;
+      pendingScroll.current={
+        left:GRAPH_PAD+worldX*next-cx,
+        top:GRAPH_PAD+worldY*next-cy
+      };
     }
     setScale(next);
   };
   const reset=()=>{
     touchPoints.current.clear();
     pinchRef.current=null;dragRef.current=null;
-    setScale(initialGraphScale());setPan({x:8,y:8});
+    pendingScroll.current=null;
+    setScale(initialGraphScale());
+    if(canvasRef.current){
+      canvasRef.current.scrollLeft=0;
+      canvasRef.current.scrollTop=0;
+    }
   };
   const startPinch=()=>{
     const points=[...touchPoints.current.values()].slice(0,2);
@@ -130,10 +179,11 @@ export default function JourneyMap({
     const center=pointerMidpoint(...points);
     const distance=pointerDistance(...points);
     if(distance<8)return;
+    const canvas=canvasRef.current;
     pinchRef.current={
       distance,scale,
-      worldX:(center.x-rect.left-pan.x)/scale,
-      worldY:(center.y-rect.top-pan.y)/scale
+      worldX:(canvas.scrollLeft+center.x-rect.left-GRAPH_PAD)/scale,
+      worldY:(canvas.scrollTop+center.y-rect.top-GRAPH_PAD)/scale
     };
     dragRef.current=null;
   };
@@ -166,11 +216,17 @@ export default function JourneyMap({
           pointerDistance(...points)/pinchRef.current.distance*100)/100,
         .45,1.45
       );
-      setScale(next);
-      setPan({
-        x:center.x-rect.left-pinchRef.current.worldX*next,
-        y:center.y-rect.top-pinchRef.current.worldY*next
-      });
+      const anchor={
+        left:GRAPH_PAD+pinchRef.current.worldX*next-(center.x-rect.left),
+        top:GRAPH_PAD+pinchRef.current.worldY*next-(center.y-rect.top)
+      };
+      if(next===scale){
+        canvasRef.current.scrollLeft=anchor.left;
+        canvasRef.current.scrollTop=anchor.top;
+      }else{
+        pendingScroll.current=anchor;
+        setScale(next);
+      }
       return;
     }
     const drag=dragRef.current;
@@ -202,10 +258,10 @@ export default function JourneyMap({
       </header>
       <div className="reflect-journey-filters" role="group" aria-label="Фильтры карты">
         <ReflectSelect label="Тема" ariaLabel="Тема карты"
-          value={sessionFilter} onChange={setAndReset(setSessionFilter)}
-          options={ [['all','Все темы'], ...visibleSessions.map(
+          value={activeSessionId} onChange={setAndReset(setSessionFilter)}
+          options={visibleSessions.map(
             session => [session.sessionId, session.label]
-          )] }/>
+          )}/>
         <ReflectSelect label="Период" ariaLabel="Период карты"
           value={period} onChange={setAndReset(setPeriod)} options={PERIODS}/>
         <ReflectSelect label="Тип" ariaLabel="Тип событий"
@@ -245,12 +301,14 @@ export default function JourneyMap({
             ))}
           </div>
           {hypothesisStats.reviewed>0 && (
-            <details className="reflect-journey-hypothesis-stats">
-              <summary>
-                Оценки гипотез · {hypothesisStats.reviewed} из {hypothesisStats.reviewable}
-                <span>Похоже: {hypothesisStats.match} · частично: {hypothesisStats.partial}
-                  {' '}· не похоже: {hypothesisStats.miss}</span>
-              </summary>
+            <SmoothDisclosure
+              className="reflect-journey-hypothesis-stats"
+              label={`Оценки гипотез · ${hypothesisStats.reviewed} из ${hypothesisStats.reviewable}`}
+              iconKind="information">
+              <p className="reflect-journey-hypothesis-summary">
+                Похоже: {hypothesisStats.match} · частично: {hypothesisStats.partial}
+                {' '}· не похоже: {hypothesisStats.miss}
+              </p>
               <div className="reflect-journey-hypothesis-meter"
                 role="img" aria-label={`Оценки: ${hypothesisStats.counts.join(', ')} от совсем мимо до очень точно`}>
                 {hypothesisStats.counts.map((count,index)=>(
@@ -263,7 +321,7 @@ export default function JourneyMap({
               <p>Это ваши субъективные оценки соответствия гипотез ситуации.
                 Не вероятность их истинности и не показатель профессионализма
                 модели. Для изменения оценки откройте исходный ответ Reflect.</p>
-            </details>
+            </SmoothDisclosure>
           )}
           <SmoothDisclosure label="Подробные показатели и методика"
             iconKind="information" className="reflect-journey-metrics-disclosure">
@@ -343,9 +401,13 @@ export default function JourneyMap({
                 ArrowUp:[0,50],ArrowDown:[0,-50]}[event.key];
               if(delta){event.preventDefault();move(...delta);}
             }}>
-            <div className="reflect-journey-world"
-              style={{width:layout.width,height:layout.height,
-                transform:`translate(${pan.x}px, ${pan.y}px) scale(${scale})`}}>
+            <div className="reflect-journey-surface"
+              style={{width:Math.ceil(layout.width*scale+GRAPH_PAD*2),
+                height:Math.ceil(layout.height*scale+GRAPH_PAD*2)}}>
+              <div className="reflect-journey-world"
+                style={{width:layout.width,height:layout.height,
+                  left:GRAPH_PAD,top:GRAPH_PAD,
+                  transform:`scale(${scale})`}}>
               <svg width={layout.width} height={layout.height}
                 className="reflect-journey-lines" aria-hidden="true">
                 <defs>
@@ -385,6 +447,7 @@ export default function JourneyMap({
                   <span>{node.label}</span>
                 </button>
               ))}
+              </div>
             </div>
           </div>
           <div id="reflect-journey-accessible-list"
