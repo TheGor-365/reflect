@@ -1,0 +1,56 @@
+name: Reflect Railway R2 dual-route exact-head H0 (no deploy)
+on:
+  pull_request:
+    paths:
+      - 'server/railway/index.cjs'
+      - 'server/railway/index.test.cjs'
+      - 'docs/release/RAILWAY_R2_COMPATIBLE_REPLY_RECOVERY_STAGING_2026-11-17.md'
+      - '.github/workflows/reflect-railway-r2-dual-route-h0.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  railway-compatibility-fixtures:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      CI: 'true'
+      VITE_FIREBASE_CONFIG: '{"apiKey":"test-only","authDomain":"demo-reflect-auth.firebaseapp.com","projectId":"demo-reflect-auth","appId":"1:123:web:demo"}'
+      VITE_APP_ID: 'reflect-8fdc8'
+      REFLECT_AI_ENABLED: 'no'
+      REFLECT_XAI_OUTBOUND_ENABLED: 'no'
+      REFLECT_AI_ATTEMPT_RECEIPTS_ENABLED: 'no'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify R1 ancestry and minimal source scope
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          BASE=81ceda1a92268317ed56c54c4912eacd8ffe57b5
+          git merge-base --is-ancestor "$BASE" "$EXPECTED_SHA"
+          git diff --name-only "$BASE" "$EXPECTED_SHA" >/tmp/diff
+          if grep -v -E '^server/railway/index\.cjs$|^server/railway/index\.test\.cjs$|^docs/release/RAILWAY_R2_COMPATIBLE_REPLY_RECOVERY_STAGING_2026-11-17\.md$|^\.github/workflows/reflect-railway-r2-dual-route-h0\.yml$' /tmp/diff; then
+            echo 'STOP: Unexpected production/source modification'; exit 1
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Validate route syntax
+        run: node --check server/railway/index.cjs && node --check server/railway/index.test.cjs
+      - name: Railway dual-route, receipts, auth, spending fixtures (offline)
+        run: |
+          node --test server/railway/index.test.cjs server/ai/aiTurnRecovery.test.cjs server/ai/stagingEntitlement.test.cjs server/ai/xaiProviderProbe.test.cjs
+      - name: Locked full app regression and TypeScript
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run typecheck
+      - name: Build without any deploy or AI traffic
+        run: npm run build

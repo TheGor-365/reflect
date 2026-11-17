@@ -23,6 +23,9 @@ const deps = (overrides = {}) => ({
     alreadyConsumed: false
   }),
   handleReply: async () => ({ text: "Ответ модели", model: "grok-4.3", actualUsdTicks: null }),
+  handleRecoveryReply: async () => ({ text: "Синтетический ответ R8", model: "grok-4.3", persistedByServer: true }),
+  handleAttemptStatus: async () => ({ status: "not_tracked", billedPossible: true,
+    canRetry: true, sessionId: "owner-test-session", sourceTurnId: "user-original-1234567890" }),
   ...overrides
 });
 async function withServer(options, fn) {
@@ -610,4 +613,125 @@ test("M3d query params and third-party Origin cannot reach history handler", asy
     })).status, 403);
   });
   assert.equal(calls, 0);
+});
+
+
+test("R2: legacy R7 reply stays compatible while receipt-enabled R8 uses an independent path", async () => {
+  let legacy = 0, recovered = 0, statusReads = 0, seenRecovery = null;
+  await withServer(deps({
+    attemptRecoveryEnabled: true,
+    handleReply: async data => {
+      legacy++;
+      assert.equal(data.data.sessionId, undefined);
+      return { text: "Legacy R7 synthetic", model: "grok-4.3" };
+    },
+    handleRecoveryReply: async data => {
+      recovered++;
+      seenRecovery = data;
+      return { text: "R8 synthetic", model: "grok-4.3",
+        persistedByServer: true, sourceTurnId: "user-original-1234567890" };
+    },
+    handleAttemptStatus: async data => {
+      statusReads++;
+      return { status: "not_tracked", billedPossible: true,
+        canRetry: true, sessionId: data.sessionId, sourceTurnId: data.sourceTurnId };
+    }
+  }), async url => {
+    const headers = { origin: STAGE_ORIGIN,
+      authorization: "Bearer " + TOKEN, "x-firebase-appcheck": TOKEN,
+      "content-type": "application/json" };
+    const old = await fetch(url + "/v1/ai/reply", {
+      method: "POST", headers, body: JSON.stringify(payload)
+    });
+    assert.equal(old.status, 200);
+    assert.equal((await old.json()).text, "Legacy R7 synthetic");
+    const recoveredReply = await fetch(url + "/v1/ai/reply-recovery", {
+      method: "POST", headers, body: JSON.stringify({
+        ...payload, sessionId: "session-123",
+        sourceTurnId: "user-original-1234567890", retryConfirmed: true
+      })
+    });
+    assert.equal(recoveredReply.status, 200);
+    assert.equal((await recoveredReply.json()).persistedByServer, true);
+    assert.equal(seenRecovery.auth.uid, UID);
+    assert.equal(seenRecovery.app.alreadyConsumed, false);
+    const receipt = await fetch(url + "/v1/ai/attempt-status", {
+      method: "POST", headers, body: JSON.stringify({
+        sessionId: "session-123", sourceTurnId: "user-original-1234567890"
+      })
+    });
+    assert.equal(receipt.status, 200);
+    assert.equal((await receipt.json()).status, "not_tracked");
+  });
+  assert.equal(legacy, 1);
+  assert.equal(recovered, 1);
+  assert.equal(statusReads, 1);
+});
+
+test("R2: disabled recovery path is 404 and never touches legacy billable handler", async () => {
+  let legacy = 0, recovered = 0;
+  await withServer(deps({
+    handleReply: async () => { legacy++; return {}; },
+    handleRecoveryReply: async () => { recovered++; return {}; }
+  }), async url => {
+    const response = await fetch(url + "/v1/ai/reply-recovery", {
+      method: "POST", headers: {
+        origin: STAGE_ORIGIN, authorization: "Bearer " + TOKEN,
+        "x-firebase-appcheck": TOKEN, "content-type": "application/json"
+      }, body: JSON.stringify(payload)
+    });
+    assert.equal(response.status, 404);
+  });
+  assert.equal(legacy, 0);
+  assert.equal(recovered, 0);
+});
+
+test("R2: new route cannot bypass egress, account entitlement, consumed App Check or exact origin", async () => {
+  const cases = [
+    { allowProvider: () => false, expected: 503 },
+    { authorizeAccount: async () => false, expected: 403 },
+    { verifyAppCheck: async () => ({ appId: "1:599679789981:web:d4d8743dbff0fe40af1d74",
+      alreadyConsumed: true }), expected: 401 },
+    { origin: "https://other.invalid", expected: 403 }
+  ];
+  for (const { expected, origin, ...override } of cases) {
+    let paid = 0, legacy = 0;
+    await withServer(deps({
+      attemptRecoveryEnabled: true,
+      handleRecoveryReply: async () => { paid++; throw Error("provider-must-not-run"); },
+      handleReply: async () => { legacy++; throw Error("provider-must-not-run"); },
+      ...override
+    }), async url => {
+      const response = await fetch(url + "/v1/ai/reply-recovery", {
+        method: "POST", headers: { origin: origin || STAGE_ORIGIN,
+          authorization: "Bearer " + TOKEN,
+          "x-firebase-appcheck": TOKEN, "content-type": "application/json"
+        }, body: JSON.stringify(payload)
+      });
+      assert.equal(response.status, expected);
+      assert.equal(paid, 0);
+      assert.equal(legacy, 0);
+    });
+  }
+});
+
+test("R2: new route is exact-match, OPTIONS CORS is allowed for signed staging origin", async () => {
+  let hits = 0;
+  await withServer(deps({
+    attemptRecoveryEnabled: true,
+    handleRecoveryReply: async () => { hits++; return {}; }
+  }), async url => {
+    const options = { method: "POST", headers: {
+      origin: STAGE_ORIGIN, authorization: "Bearer " + TOKEN,
+      "x-firebase-appcheck": TOKEN, "content-type": "application/json"
+    }, body: JSON.stringify(payload) };
+    assert.equal((await fetch(url + "/v1/ai/reply-recovery?tracking=true",
+      options)).status, 404);
+    const preflight = await fetch(url + "/v1/ai/reply-recovery", {
+      method: "OPTIONS", headers: { origin: STAGE_ORIGIN }
+    });
+    assert.equal(preflight.status, 204);
+    assert.equal(preflight.headers.get("access-control-allow-origin"), STAGE_ORIGIN);
+    assert.equal(hits, 0);
+  });
 });
