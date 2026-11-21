@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-22 PG04D1 user 29/29 PASS; PG04D2 current untracked erasure writer source review needed before real Emulator fake-transport patch.
+Revision: 2026-11-22 PG04D2 local filenames/guard hooks verified; source archive exists only on user's Linux, byte-level review and Emulator test pending.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -241,6 +241,14 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - **PG04D2 next = SOURCE_REVIEW_PENDING**: untracked local `server/privacy/memoryErasure.r103c2b.cjs`, `server/privacy/demoMemoryConsentAdmission.r103c2b2.cjs`, dirty `server/railway/index.cjs` and any local memory M3 authorizer must be inspected in actual user worktree before authoring source-specific Emulator fake transport race tests. Their pinned remote GitHub versions are missing/stale. Do not substitute PG04D1 toy for real erasure writer.
 - [PG04D2 local-source preflight + real Firestore Emulator fake-transport test matrix](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D2_ERASURE_WRITER_SOURCE_REVIEW_AND_EMULATOR_RACE_PLAN_2026-11-22.md), docs commit `15ea4586f7fac228dfd9314666839e7768ef25c2`. Source may be reviewed via user terminal focused line evidence or attached code files, after user checks for sensitive strings. No new code patch, Emulator test, provider request or deployment for PG04D2 yet.
 - **Hard TOCTOU limitation:** `markDispatchStarted` transaction does not atomically cover external HTTP send. Erasure-effective state must wait for in-flight/unknown outcomes under owner-scoped coordination, and data-retention B2.3 remains unapproved. `PG04D2=NOT_IMPLEMENTED`; `PG04_HISTORY_PROVIDER=OFF`, `B2.1 census=PARTIAL`.
+
+
+## 2026-11-22 — PG04D2 user source discovery complete; bytes PENDING
+- **User actual local `git status --short`**: `M server/privacy/contextConsent.cjs`; `M server/railway/index.cjs`; `?? server/privacy/demoMemoryConsentAdmission.r103c2b2.cjs`; `?? server/privacy/memoryErasure.r103c2b.cjs`. These are user-owned dirty/untracked files; no checkout/reset/overwrite/deploy.
+- **User `rg` source map**: `memoryErasure.r103c2b.cjs` has injected `verifyOwnerWriteFence` and `verifyConsentCreationFence` callbacks (lines 50/59, called line 179), private/public fence paths at lines 63–64; local `contextConsent.cjs` fence helpers at 108/111; existing `memoryErasureEmulator.r103c2b3.smoke.cjs` has own consent-verification smoke and must be inspected for test isolation; privacy preview remains providerDispatchAllowed:false. Exact erasure transaction ordering still UNKNOWN, because snippets not full code.
+- **User `tar -czf`/listing succeeded**: `$HOME/REFLECT_PG04D2_SOURCE_REVIEW.tar.gz` contains `server/privacy/memoryErasure.r103c2b.cjs`, `server/privacy/demoMemoryConsentAdmission.r103c2b2.cjs`, `server/privacy/demoDispatchLease.pg04d1.cjs`. The archive **has NOT been uploaded to chat or GitHub**; don't claim contents reviewed. Next user action: attach reviewed archive in this conversation; do not request sensitive Railway full source or .env.
+- [PG04D2 source provenance + Emulator/fake transport test plan updated](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D2_ERASURE_WRITER_SOURCE_REVIEW_AND_EMULATOR_RACE_PLAN_2026-11-22.md), commit `620f5579a26bc9a72ad847057af97c4fe1aaf8b4`. Status `PG04D2=LOCAL_FILENAMES_AND_HOOKS_VERIFIED / SOURCE_BYTES_PENDING / IMPLEMENTATION_NOT_STARTED`, no real Emulator PG04D2 run. PG04D1 user 29/29 remains accepted; PG04D0 8/8; PG04C Emulator 6/6. History provider OFF; B2.1 and B2.3 pending.
+
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
