@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 B2.2-A USER_UNIT+EMULATOR_PASS; B2.2-B0 USER_LOCAL_APPLIED+EMULATOR_PASS; USER_UNITS=20/35 (15 env-guard failures); isolated B0 env-correct 16/16 PASS; USER 35/35 PENDING.
+Revision: 2026-11-21 B2.2-A + B0 LOCAL_APPLIED/UNIT_PASS/DEMO_EMULATOR_PASS; B2.2-B1a legacy hostedBudget test-only baseline in preparation.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -89,6 +89,11 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - User then ran B0 synthetic smoke with both env variables and `FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099`: **PASS** read-only synthetic receipt/ledger/index reconciliation and **PASS** exact synthetic cleanup only. No global billing deletion, provider, staging release or code commit.
 - **Current stage:** `B2.2-B0 = USER_LOCAL_APPLIED + DEMO_EMULATOR_PASS + USER_UNIT_ENV_BLOCKED`; `USER_COMBINED_35_PASS = PENDING`; `ASSISTANT_ISOLATED_B0_16_PASS = VERIFIED`. No source code change indicated. `B2.2-B1 = DESIGN/READ-ONLY PLANNING` only.
 - Next user command, from proper local backend tree: `GCLOUD_PROJECT=demo-reflect-auth-qa FIRESTORE_EMULATOR_HOST=127.0.0.1:18081 node --test server/privacy/demoLedgerOwnerIndex.r103c2c2b2a.test.cjs server/privacy/demoBillingReceiptReconciliation.r103c2c2b2b0.test.cjs` → expect 35 PASS; also `node --check` B0 files and `git diff --check`.
+
+## 2026-11-21 — B2.2-B0 user 35/35 PASS, prior env failure superseded
+- User repeated combined `node --test server/privacy/demoLedgerOwnerIndex.r103c2c2b2a.test.cjs server/privacy/demoBillingReceiptReconciliation.r103c2c2b2b0.test.cjs` on real Linux Node 22.23.4 with inline `GCLOUD_PROJECT=demo-reflect-auth-qa` and `FIRESTORE_EMULATOR_HOST=127.0.0.1:18081`: **35 tests / 35 PASS / 0 FAIL** (19 A + 16 B0), duration ~114ms; `git diff --check` printed no errors. Earlier 15 env-factory failures are superseded; no source patch needed.
+- Prior user B0 synthetic local Firebase Emulator smoke already PASS with exact synthetic cleanup; no real ledgers deleted. B0 = `LOCAL_APPLIED + UNIT_PASS + DEMO_EMULATOR_PASS`. Not REMOTE_COMMITTED/STAGING_DEPLOYED; no actual billing writer modified.
+- Next subphase **B2.2-B1a** test-only parity suite against the unchanged current pinned `server/ai/hostedBudget.cjs`, to establish immutable hashed identity / same-tx quota reserve / fail-closed / finish semantics. This is NOT B2.2-B1b billing source integration. Retention policy B2.3 and PG-04 fence remain blocked.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
