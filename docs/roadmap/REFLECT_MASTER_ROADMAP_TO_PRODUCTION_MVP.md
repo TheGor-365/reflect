@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-21 B1b1 user local 19/19 PASS; B1b2 hostedBudget source-integration design draft; ON blocked.
+Revision: 2026-11-21 B1b2 billing writer local diff empty; B1b3 isolated preview ready (22/22 author unit), user QA pending; real index integration blocked.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -239,4 +239,11 @@ R10.3-C2C2-B2.2-B1b real billing writer integration: **NOT_STARTED**; default-OF
 - **B1b1** user local new TEST-ONLY compatibility suite **19/19 PASS**, syntax/diff clean, no real hostedBudget modification; user-provided terminal at detached `1c4c121e`.
 - **B1b2** [source-integration review DRAFT](REFLECT_R10_3_C2C2_B2_2_B1B2_HOSTED_BUDGET_INTEGRATION_REVIEW.md) committed docs-only (revision `64bb94ef47571667089a2f6c46078ccddcef7abe`). Proposed OFF-by-default trusted adapter calls prepare on SAME Firestore tx before all writes, then stage 1/2 owner link creates with original 3 legacy writes. Existing `hostedHandler` 2-arg createBudget call requires explicit source-wiring review; do not use fixture-only B1b0 module in live staging.
 - **B1b3 real source patch NOT_STARTED**, no rollout or provider. Mixed-version unindexed gap, retention B2.3, PG-04 missing contextConsent erasure fence, B2.1 writer census still block ON.
+
+
+
+## B2.2-B1b2 → B1b3 checkpoint (2026-11-21)
+- Real user `git diff` for billing writer and handler EMPTY; scoped status shows only B1b0/B1b1 untracked synthetic files.
+- B1b3 **SHADOW_PATCH_PREPARED** with 3 new non-imported files; author isolated **22/22 B1b3 + 73/73 aggregate** mock Node PASS, fresh git apply/syntax PASS. Patch `REFLECT_R10_3C2C2_B2_2_B1B3_SHADOW_SOURCE_PREVIEW_2026-11-21.patch` SHA256 `06dad36e5b10e68deafddb0cb511481b6689aad171e7177c43f23d46eab61475`, in this ChatGPT conversation only, not GitHub main/staging source. **User apply/QA PENDING**.
+- B1b3 is a **non-imported standalone shadow** of hostedBudget with default-OFF index API and independent in-memory contract tests, not an applied modification of the existing writer; new source integration separately gated by B2.1 complete census, B2.3 retention decision, PG-04 fence fix, stage emulator race verification and rollout approval. No payments or provider calls.
 
