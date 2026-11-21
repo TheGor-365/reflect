@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-22 PG04D1 user unit 29/29 PASS, PG04D2 exact local erasure/Railway source preflight, no test patch yet.
+Revision: 2026-11-22 PG04D2 user source-discovery complete, local archive not uploaded, true writer review/Emulator testing pending.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -300,4 +300,11 @@ R10.3-C2C2-B2.2-B1b real billing writer integration: **NOT_STARTED**; default-OF
 ## PG04D1 local proof accepted; PG04D2 exact writer source inspection first — 2026-11-22
 - **PG04D1 USER 29/29 unit PASS** on Linux after checksum-gated additive patch install; syntax/diff clean. PG04D1 is a synthetic in-memory coordinator/lease model only; no real Firebase transaction or provider transport.
 - **PG04D2=SOURCE_REVIEW_PENDING / NO TEST PATCH YET.** Need actual local untracked `memoryErasure.r103c2b.cjs`, `demoMemoryConsentAdmission.r103c2b2.cjs`, dirty Railway index and memory authorizer before designing real grant-vs-erasure-vs-fake transport race tests. [Evidence capture and acceptance matrix](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D2_ERASURE_WRITER_SOURCE_REVIEW_AND_EMULATOR_RACE_PLAN_2026-11-22.md). Existing production handler still sends NULL history. No source pushes/deploys. B2.1 writer census partial and B2.3 retention legal approval missing.
+
+
+
+## PG04D2 local source discovery checkpoint (2026-11-22)
+- Actual user dirty worktree: tracked `server/privacy/contextConsent.cjs` and `server/railway/index.cjs` modified; two untracked actual local demo erasure files. `memoryErasure.r103c2b.cjs` contains `verifyOwnerWriteFence` and `verifyConsentCreationFence` hooks (called near line 179), private/public erasure marker paths. Read-only grep **does not establish** transaction/race semantics.
+- User created `~/REFLECT_PG04D2_SOURCE_REVIEW.tar.gz` containing exactly three named demo .cjs files; **archive is still local to user's Linux**, not uploaded to conversation and not read by assistant. No PG04D2 code patch / true Emulator race run. [Scoped provenance and required acceptance matrix](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D2_ERASURE_WRITER_SOURCE_REVIEW_AND_EMULATOR_RACE_PLAN_2026-11-22.md).
+- Next: attach reviewed archive; inspect exact source and callbacks before designing a non-destructive localhost Emulator fake-transport race test. Do not replace real writer with PG04D1 toy. Mixed Railway versions, provider-egress TOCTOU, B2.1 writer census and B2.3 retention still block live history.
 
