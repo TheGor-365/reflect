@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-21.R10.3-C2C2-B1.unit-accepted. Language: Russian.
+Revision: 2026-11-21.R10.3-C2C2-B1.unit+emulator-accepted; B2.1 draft-audit. Language: Russian.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -13,7 +13,7 @@ Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. C
 4. Прежде чем писать/применять код, сформулируй: текущий этап/подэтап, точные файлы, ограничения, проверки и критерий PASS. Unit/Emulator/Browser/Staging/Production — отдельные уровни.
 5. После каждого подэтапа обнови GitHub tracker issue/checkpoint и, когда уместно, STATUS/MASTER; укажи LOCAL_ONLY либо настоящий remote CODE SHA. Если GitHub-действие не состоялось, не утверждай обратного.
 
-**CURRENT STOP 2026-11-21:** R10.3-C2C1 49/49 Node + Emulator PASS. R10.3-C2C2-A 30/30 Node + synthetic Emulator PASS. R10.3-C2C2-B1 patch locally applied and SHA-256 checked; 45/45 Node PASS, 0 failures, syntax/diff checks PASS. B1 real synthetic Emulator smoke STILL PENDING. Next run B1 smoke (after port check), then C2C2-B2 inventory of all *current local* private writers and hashed billing indexes; then Privacy Gate. No real user deletion, paid xAI calls, staging release or source push based on this documentation.
+**CURRENT STOP 2026-11-21:** R10.3-C2C1 49/49 Node + Emulator PASS. R10.3-C2C2-A 30/30 Node + synthetic Emulator PASS. R10.3-C2C2-B1 patch locally applied and SHA-256 checked; 45/45 Node PASS, 0 failures, syntax/diff checks PASS. B1 real synthetic Emulator smoke PASSED in user terminal on 2026-11-21 (owner-scoped orphan receipt, consent tombstone, bounded post-cleanup). Next C2C2-B2 inventory of all *current local* private writers and hashed billing indexes; then Privacy Gate. No real user deletion, paid xAI calls, staging release or source push based on this documentation.
 
 Local frontend: ~/reflect-r9-2-workflow, branch feat/reflect-r9-2-workflow-2026-11-18, dirty, base 6f20f8b31f91729b569f1c4d8a0465e865385811.
 Local backend: ~/reflect-r10-railway-review, detached HEAD 1c4c121e0e449f1a9360e4fb4588dcf58352e699, dirty. Node 22.23.4.
@@ -91,8 +91,8 @@ R10.3-C2C2-A.2 synthetic emulator orphan/retained quota detection + bounded clea
 R10.3-C2C2-A.3 scoped coverage manifest and output redaction — LOCAL; excludes backups/provider.
 R10.3-C2C2-B1.1 read-only attemptOwners receipts/grants descendants and bound checking — LOCAL APPLIED, 45/45 Node PASS, SHA256 patch 3fc2977aefc16c0832c35d602efab0ab7d6386bf5227f6ac10be452a6ad260e8.
 R10.3-C2C2-B1.2 legacy fence classification, retention unknowns, no auto repair — LOCAL DOC+TESTS PASS, legal policy not approved.
-R10.3-C2C2-B1.3 real synthetic local Emulator smoke — **PENDING: FIRST ACTION**. Do not claim B1 closed until actual stdout.
-R10.3-C2C2-B2.1 exhaustive CURRENT server-private writers + paths + owner constraints inventory: aiTurnRecovery, hostedBudget, contextConsent, local server/memory, dirty railway index and any new writers — NOT STARTED.
+R10.3-C2C2-B1.3 real synthetic local Emulator smoke — **PASS** (user terminal 2026-11-21; orphan receipt and consent tombstone detected, post-cleanup scoped audit; hashed ledgers/backups excluded).
+R10.3-C2C2-B2.1 exhaustive CURRENT server-private writers + paths + owner constraints inventory: aiTurnRecovery, hostedBudget, contextConsent, contextPreviewQuota, appCheckReplayGuard, local server/memory, dirty railway index and any new writers — **IN PROGRESS: pinned-source matrix draft committed to docs/roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md**; current dirty local writer inspection pending. B2.1 NOT ACCEPTED.
 R10.3-C2C2-B2.2 owner-addressable index/reconciliation for hashed requestLedger/ownerDays; preserve billing idempotency and quota semantics; agree design and retention first — NOT STARTED.
 R10.3-C2C2-B2.3 retained tombstones, immutable receipt ledger, backups/PITR/Railway logs/xAI provider retention mapping and policy — OPEN; never invent TTL.
 R10.3-C2C2-B2.4 negative + race + foreign UID + missing parent + new synthetic Emulator tests — NOT STARTED.
@@ -191,20 +191,11 @@ Backend local: dirty server/railway/index.cjs, untracked server/memory, server/p
 Previous R10.3-C2C2-A patch and test fix applied locally; B1 additive patch applied locally verified SHA. No claim these modules are in remote source commits.
 Existing contextConsent.cjs server grant 15min only; live staging route may not have new fence guard. Do not mistake mock data for production authorization.
 
-## 6. NEXT IMMEDIATE STEP (RUN ONLY ON LOCAL LINUX)
-cd ~/reflect-r10-railway-review
-export ASDF_NODEJS_VERSION=22.23.4
-ss -ltnp | grep -E ':(9099|18081)\\b' || true
-FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIRESTORE_EMULATOR_HOST=127.0.0.1:18081 node server/privacy/memoryPrivateRetention.r103c2c2b.smoke.cjs
-
-Only mark B1 EMULATOR_PASS when user sends actual stdout. This executes synthetic isolated demo only; do not run against staging or start another emulator.
-Then B2 READ ONLY audit:
-cd ~/reflect-r10-railway-review
-git status --short
-git diff --stat
-rg -n 'attemptOwners|requestLedger|ownerDays|contextGrants|contextConsentQuotas|memoryErasureFences|attestationQuotas|_reflectAiPrivate' server --glob '*.cjs' --glob '!**/node_modules/**'
-Use actual code to design safe owner-index and policy before writing B2. No auto repairs.
-
+## 6. NEXT IMMEDIATE STEP (READ ONLY: B2.1 LOCAL PRIVATE WRITER CLASSIFICATION)
+B1 synthetic Emulator QA already PASS. Do not re-run to satisfy outdated instructions.
+Read docs/roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md on the docs branch; it is a pinned-source draft, NOT an audit of the dirty Linux worktree.
+On local ~/reflect-r10-railway-review use read-only terminal commands to inspect relevant transaction writes and local source paths in server/memory, server/privacy/memoryErasure.r103c2b.cjs, server/privacy/demoMemoryConsentAdmission.r103c2b2.cjs, server/railway/index.cjs. No env files or secrets.
+Classify current local writer/reader, UID-scoped/hashed/global, retention/TTL vs physical purge, security and billing idempotency requirements, missing owner-index, and erasure exclusions. Only then design B2.2. Update issue #136 and status after verified evidence. No owner-index code patch before review.
 ## 7. RETENTION/BACKUP/COMPLETENESS BLOCKERS
 7-collection owner export v2 is not whole account; no automatic v2 Memory restore. Firestore doc deletion doesn't cascade subcollections. B1 scans known owner private paths but has bounded/unpaginated SDK enumeration (DEMO only); need paginated consistent approach for production.
 Legacy fences (private-only, public-only, mismatch, paired pending) have no automatic repair; memorySuppressed user operations create provenance gaps. Admin SDK bypasses Rules. Hashed requestLedger and ownerDays are not owner-queryable by prefix, and retention TTL for immutable requestLedger is NOT established.
