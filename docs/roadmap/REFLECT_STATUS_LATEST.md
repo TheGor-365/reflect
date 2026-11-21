@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 PG-04 local private/public erasure fence schema verified; consent source unchanged; PG04 candidate not applied; B2.3 retention unapproved.
+Revision: 2026-11-21 PG-04A demo-only dual-fence patch PREPARED, user QA pending; consent staging source unchanged; B2.3 unapproved.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -166,6 +166,14 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - Local `memoryErasure.r103c2b.cjs:120-126` creates public `{schemaVersion:1,ownerId:uid,state:"erasure-fenced",createdAtMs:now}` and private `{ownerId:uid,scope:"memory-derived-only",status:"pending",...}` inside same intent TX; later `visible.data()?.state === "erasure-fenced"` is validated at lines 144-148, 167-171, 214-219, 243-248.
 - **Important provenance:** these are user-verified local DEMO-ONLY prototype modules, *not proof of deployed staging erasure writer*. Their path contract is now grounded for PG-04 prototype, but real staging rollout/fence coordination remains unverified.
 - `PG-04=SOURCE_GAP_CONFIRMED+LOCAL_FENCE_SCHEMAS_VERIFIED`; `fix=NOT_APPLIED`, `actual provider egress=BLOCKED`; `B2.3 policy=UNAPPROVED`. Next safe step: isolated fail-closed dual-fence grant/check/list proof with tests, no real contextConsent source modification.
+
+
+## 2026-11-21 — PG-04A additive DEMO dual-fence consent proof PATCH_PREPARED
+- From user's actual Linux source snippets: untouched `server/privacy/contextConsent.cjs` (empty `git diff`); local synthetic erasure writer shares private `_reflectAiPrivate/reflect-8fdc8/memoryErasureFences/{uid}` and public `artifacts/reflect-8fdc8/users/{uid}/memoryControl/erasure` with `state:"erasure-fenced"` on the public record. These demo paths are not proof of deployed staging coordination.
+- **New PG-04A** ADDITIVE demo-only synthetic proof: `REFLECT_PG04A_DUAL_FENCE_CONSENT_DEMO_2026-11-21.patch`, SHA256 `5d406acb32e90f2378596e194388ee2280e3a5c93f5d1ead28c1f9b99ccb2d65`. Adds 3 new files: `server/privacy/demoConsentFencePg04a.{cjs,test.cjs}`, `docs/privacy/REFLECT_PG04A_DEMO_DUAL_FENCE_CONSENT_PROOF.md`; no source modification to real `contextConsent.cjs`, host, provider or Railway.
+- Fixture guard: exact project `demo-reflect-auth-qa`, localhost Firestore Emulator host `127.0.0.1:18081`, matching `db.projectId`, explicit `enabled:true`, synthetic IDs and consumed App Check only; default disabled. Models grant with read-before-write BOTH private/public fences + session/quota in one fake transaction; `check` transactional fence+grant; owner `list` bounded transaction; `revoke` remains idempotent when fenced. No permission to read provider context, real data or restore erased records.
+- Assistant isolated author Node 22.16.0: **20/20 unit PASS**, twice; fresh Git `git apply --check`, actual apply, syntax checks, `git diff --check`, ZIP CRC all PASS. **USER LOCAL PATCH APPLY/20-TEST QA PENDING**, and real Firestore Emulator conflict/race / staged provider egress NOT RUN. This is a standalone demo model, **not a tested source-level fix of staging consent**.
+- Current `PG04A=PATCH_PREPARED`, `PG04_REAL_SOURCE_FIX=NOT_STARTED`, `B2.3 retention=UNAPPROVED`, `PG-04 PROVIDER CONTEXT EGRESS=BLOCKED`; no source push or staged deployment. Next user download/verify new-file-only patch, apply and run 20 offline Node tests; DO NOT run legacy destructive billing integration tests.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
