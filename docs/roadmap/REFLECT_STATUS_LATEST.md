@@ -1,10 +1,11 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 / R10.3-C2C2-B1 UNIT_PASS; B1 real Emulator smoke PENDING.
+Revision: 2026-11-21 / R10.3-C2C2-B1 UNIT+EMULATOR_PASS; B2.1 LOCAL WRITER DISCOVERY IN PROGRESS.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
-- USER's 2026-11-21 Linux terminal: B1 patch applied, SHA256 3fc2977aefc16c0832c35d602efab0ab7d6386bf5227f6ac10be452a6ad260e8, 45/45 Node tests PASS, 0 FAIL, B1 code/smoke syntax and git diff --check clean. B1 real Emulator smoke NOT YET RUN.
+- USER's 2026-11-21 Linux terminal: B1 patch applied, SHA256 3fc2977aefc16c0832c35d602efab0ab7d6386bf5227f6ac10be452a6ad260e8, 45/45 Node tests PASS, 0 FAIL, B1 code/smoke syntax and git diff --check clean. B1 real Emulator smoke subsequently PASS (user terminal 2026-11-21, see next bullet).
+- USER's 2026-11-21 Linux terminal (latest): B1 demo Auth localhost:9099 and Firestore localhost:18081 observed listening; `memoryPrivateRetention.r103c2c2b.smoke.cjs` printed `PASS: B1 Emulator found owner-scoped orphan receipt and consent tombstone` and `PASS: B1 scoped post-cleanup audit only; hashed ledgers/backups NOT certified`. LOCAL demo-only, no full deletion.
 - USER's prior Linux terminal: C2C2-A 30/30 Node PASS, real Firebase demo Emulator smoke PASS (synthetic orphan descendants/retained quota and bounded post-cleanup audit).
 - Prior latest checkpoint: R10.3-C2C1 49/49 Node and real demo Emulator PASS.
 - Historical R9.2 before latest R10 changes: 802/802 Vitest, 13/13 qa-state, typecheck/build PASS; no current end-to-end R9.2+R10 regression.
@@ -29,8 +30,8 @@ R10.3-C2A export v2 7 owner collections 45/45 PASS, not whole-account export or 
 R10.3-C2B/B2/B3A/B3B demo erasure/fence/source-only writes address tests and real synthetic lifecycle PASS; not global account deletion.
 R10.3-C2C1 residual scan 49/49 + Emulator PASS.
 R10.3-C2C2-A nested/orphan scan 30/30 + Emulator PASS.
-R10.3-C2C2-B1 owner private receipts, consent grants, retention/legacy policy: PATCH LOCAL_APPLIED + 45/45 NODE PASS; EMULATOR **PENDING**.
-R10.3-C2C2-B2 current server-private writer index / hashed-ledger design **NOT_STARTED**.
+R10.3-C2C2-B1 owner private receipts, consent grants, retention/legacy policy: PATCH LOCAL_APPLIED + 45/45 NODE PASS + REAL DEMO EMULATOR SMOKE PASS (synthetic orphan receipt, consent tombstone, scoped cleanup).
+R10.3-C2C2-B2 **B2.1 DISCOVERY IN PROGRESS**: user `rg` enumerated private-path references in `server/ai/hostedBudget.cjs`, `aiTurnRecovery.cjs`, `server/privacy/contextConsent.cjs`, `contextPreviewQuota.cjs`, `server/memory/memoryAttestationQuota.r103c1.cjs`, `server/privacy/memoryErasure.r103c2b.cjs`, `server/railway/appCheckReplayGuard.cjs`, `server/ai/stagingEntitlement.cjs`, `server/railway/index.cjs`, plus auditor/tests; writer-method and dynamic-path classification PENDING. B2.2–B2.4 NOT_STARTED.
 R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP **NOT_ACCEPTED**; some earlier product components exist, audit before writing.
 
 ## Proven limitations / OPEN BLOCKERS
@@ -41,16 +42,10 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - QA snapshots, Firestore backups/PITR, Railway logs/receipts, xAI copies, local cache/downloads not covered by bounded memory erasure.
 - No providerUseAllowed=true, fullDeletionCertified=true, production claims, paid provider calls, real deletion or release approval.
 
-## Exactly next step: B1 real synthetic-only Emulator
-Run on USER's Linux after checking emulators on 9099/18081:
-  cd ~/reflect-r10-railway-review
-  export ASDF_NODEJS_VERSION=22.23.4
-  ss -ltnp | grep -E ':(9099|18081)\\b' || true
-  FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIRESTORE_EMULATOR_HOST=127.0.0.1:18081 node server/privacy/memoryPrivateRetention.r103c2c2b.smoke.cjs
-
-Only mark B1 EMULATOR_PASS after user supplies stdout.
-Then B2 read-only local writers audit; review server/ai/aiTurnRecovery.cjs, server/ai/hostedBudget.cjs, server/privacy/contextConsent.cjs, dirty server/railway/index.cjs, server/memory/*, all private paths.
-No arbitrary source commits/push/deploy.
-
+## Exactly next step: B2.1 read-only current-local writer audit
+B1 passed. Do NOT re-run B1 smoke solely because an older master says pending.
+On USER's Linux backend, use targeted line-numbered read-only searches for current LOCAL writers, including dirty railway/index and untracked server/memory.
+Classify actual sources as writes/reads/tests, owner-addressable/hashed/global, purposes/retention, erasure scope, invariants.
+No owner index or legacy migration until source and design review; no arbitrary source push/deploy.
 ## Update protocol
 For every checkpoint record: phase and subphase ID, exact dated user log and test PASS/FAIL, local paths/base HEAD, actual remote code commit SHA (or LOCAL_ONLY), staging release SHA if available (or NOT_DEPLOYED), blockers and next 1–3 actions. Update GitHub tracker issue and this status AFTER actual evidence, with no invented sync. The GitHub issue may be newer than this file; always compare dates.
