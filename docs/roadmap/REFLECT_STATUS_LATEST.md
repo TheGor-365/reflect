@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 B2.2-A+B0 USER UNIT+EMULATOR_PASS; B2.2-B1a additive TEST_PATCH_PREPARED, user Linux QA pending; no billing writer changes.
+Revision: 2026-11-21 B2.2-A+B0 LOCAL_UNIT+EMULATOR_PASS; B2.2-B1a LOCAL_UNIT_PASS 17/17; B2.2-B1b design in progress; source dirty local only.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -102,6 +102,13 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - New patch `REFLECT_R10_3C2C2_B2_2_B1A_HOSTED_BUDGET_BASELINE_2026-11-21.patch`, SHA256 `f14a4931545a0a194ed7fc1e0e5e39a1a8966819b30699cd5bccce3381ad61ad`; user-downloadable in current ChatGPT conversation only, not remotely committed source. Only 2 new files. 17 offline tests cover transaction atomicity, hashed paths, no raw IDs, duplicates, concurrent model, owner/global counters, limits, rollback, finishing/unknown charge and kill-switch behavior.
 - Stage: `B2.2-B1a=TEST_PATCH_PREPARED`, `USER_APPLY/UNIT=PENDING`, NO Emulator required for this in-memory test; `B2.2-B1b=NOT_STARTED` (production billing writer integration). B2.1 private writers partial, B2.3 retention policy UNAPPROVED and PG-04 staging grant erasure-fence blocker persists; no provider enablement.
 - **Next:** user downloads patch, verifies exact checksum and `git apply --check` in dirty backend review worktree; runs `node --test server/ai/hostedBudget.r103c2c2b1a.test.cjs` (expect 17 PASS), syntax and `git diff --check`. After user PASS, update tracker and plan B1b integration.
+
+## 2026-11-21 — B2.2-B1a USER LOCAL UNIT ACCEPTED (17/17)
+- User actual terminal in `~/reflect-r10-railway-review` at detached HEAD `1c4c121e`, `ASDF_NODEJS_VERSION=22.23.4`: SHA-gated B1a patch application printed `PASS: B2.2-B1a установлен`. Filename `REFLECT_R10_3C2C2_B2_2_B1A_HOSTED_BUDGET_BASELINE_2026-11-21.patch`, expected SHA256 `f14a4931545a0a194ed7fc1e0e5e39a1a8966819b30699cd5bccce3381ad61ad` (the terminal did not print the computed hash separately, but installation used a match guard).
+- `node --test server/ai/hostedBudget.r103c2c2b1a.test.cjs` output **17 tests / 17 pass / 0 fail** on user's actual project modules (not mirrored dependencies). `node --check` and `git diff --check` produced no errors.
+- Cases: legacy hashed request/owner paths, same-transaction budget & ledger writes, concurrent duplicate/same-day/cross-day rejections, owner/global counters & limits, fail-closed kill switch, commit rollback, finish/reservations and excess-charge shutdown.
+- **B2.2-B1a=LOCAL_APPLIED + UNIT_PASS**, no Firestore Emulator needed for these mock fixtures. `B2.2-B1b` writer index integration = **NOT_STARTED / DESIGN IN REVIEW**; current `hostedBudget.cjs` remains unchanged in user's tracked diff. No claim of source push, staging/prod deploy, real provider billing, or retention policy approval.
+- B2.1 writer census still partial; B2.3 retention unapproved; PG-04 consent erasure-fence gap blocks provider usage.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
