@@ -64,16 +64,42 @@ Evidence: user supplied read-only `sed` and `git diff -U3 -- server/railway/inde
 ### Findings that need correction or design decisions
 1. **Critical privacy gate:** The demo-only `demoMemoryConsentAdmission` reads the erasure fence transactionally. The older pinned staging `contextConsent.cjs` grant writer has no demonstrated equivalent check, and the new attestation route is not proof of it. Treat production consent after erasure as **UNVERIFIED**, deny new provider use until independently proven.
 2. **Quota persistence:** `memoryAttestationQuotas/{uid}` survives memory-only erasure in earlier QA; do not infer TTL from a per-hour counter. Clarify privacy policy/retention and export/reconciliation scope.
-3. **Exact erasure tail missing:** The supplied `sed -n '1,300p'` cuts off in the middle of `step`. Must inspect lines 300–end and export to confirm no invisible writer/cleanup/retry assumptions.
+3. **Exact erasure tail NOW VERIFIED locally (2026-11-21):** `step` deletes up to 20 docs from one of 3 known top-level memory collections per transaction, increments `steps` and `totalDeleted`, then when those top-level collections are empty reads and, if it exists, deletes `memoryAttestationQuotas/{uid}`; it marks the private fence `complete` and retains the paired public/private fences. Returned flags explicitly say `fullAccountDeletion:false`, `nestedCollectionsAudited:false`, `externalCopiesAudited:false`. `status` is a private fence read and does not certify residual absence. This does **not** delete `contextConsentQuotas`, receipts, hashed ledgers, originals, nested descendants, or backups; no recursive deletion. No actual staging wiring.
 4. **Potential constructor hardening:** `createMemoryAttestationQuota` validates its `projectId` argument but did not check actual `db.projectId` in the shown file; its production impact depends on trusted call-chain and must be assessed before release. No code change authorized here.
 5. **Other CURRENT local writes still to inspect:** `server/memory/*` loader/route, `server/privacy/contextConsent.cjs`, `server/privacy/contextPreviewQuota.cjs`, `server/railway/appCheckReplayGuard.cjs`; where pinned code matches local, record exact SHA or `git diff` result. Hashed billing and anti-replay remain excluded from B1 deletion certification.
 
 ### B2.1 progress / remaining gates
 - DONE: pinned remote 14-row draft + exact local references; read-only local inspection of three R10 writer modules and Railway attestation diff.
-- PENDING: actual local erasure final half and all private writer paths, confirmation of staging consent guard, reader/writer matrix for all private paths, retention owner-scope and auth/cost invariants.
+- PENDING: actual local `railwayAttestationRoute.r103c1.mjs` and other server/memory modules, actual staging consent guard mitigation (known missing at pinned HEAD), remaining private writer paths, reader/writer matrix for all private paths, retention owner-scope and auth/cost invariants.
 - `B2.1=PARTIAL_LOCAL_SOURCE_VERIFIED`, **NOT ACCEPTED**; `B2.2=NOT STARTED`, no patch.
 
 
 ### Confirmed staging consent-fence gap from pinned unmodified source (B2.1 security finding)
 **Verified 2026-11-21:** read full `server/privacy/contextConsent.cjs` at backend pinned commit `1c4c121e0e449f1a9360e4fb4588dcf58352e699`. The user `git status --short` lists only `server/railway/index.cjs` as a modified tracked file; no `contextConsent.cjs` modification is reported. At lines **104–184**, `execute` creates context grants (`tx.create(recordRef, record)`) and consumes quota, but never reads `memoryErasureFences/{uid}` or public `memoryControl/erasure` in the grant transaction. At lines **187–201**, `check` validates grant active state but does not read those fences either; `list` only fetches active grants. This is a **concrete code-level coverage gap** relative to demo consent admission's same-transaction fence guard, not a claim that a public HTTP route currently exposes or exploits it. Railway release/feature-flag enablement is not verified. Keep provider-use authorization **OFF** until an independently tested staging guard exists.
 Acceptance fix later under Privacy Gate: create grant requires transactionally checking an authoritative fence and source ownership; check/list must fail closed on erased owner; negative race and emulator tests, no implicit un-erasure. Preserve 15-minute scope, expiry and immutable grant IDs.
+
+
+## Verified LOCAL erasure completion and attestation loader — second read-only pass (2026-11-21)
+
+Evidence: user terminal `sed -n '300,460p' server/privacy/memoryErasure.r103c2b.cjs` and `sed -n '1,260p' server/memory/railwayAttestationLoader.r103c1.cjs`, both from dirty backend worktree, HEAD `1c4c121e`.
+
+**Demo erasure completion (verified).**
+- `step` uses `tx.delete(doc.ref)` on each selected top-level memory document, tracks `steps/totalDeleted`, and at completion `tx.get(quotaRef(uid))`, `tx.delete(quotaRef(uid))` (if present), and `tx.update(privateFence, { status:"complete", ... })`. Paired public state remains fenced; private fence remains an irreversible tombstone after confirm.
+- Normal `cancelPending` before any step/confirmation deletes *both* fences; not a rollback of completed erasure.
+- Returned `scope:"memory-derived-only"`, `fullAccountDeletion:false`, `nestedCollectionsAudited:false`, `externalCopiesAudited:false`; `status` only reports fence status, counters, `fullAccountDeletion:false`. No data-content or descendant scan in this final step.
+- **Retention correction:** The demo engine explicitly deletes `memoryAttestationQuotas/{uid}` at completion. Earlier B1 residual test proves quotas *can* exist; it does not prove they must survive a successfully completed demo erasure. `contextConsentQuotas/{uid}` is different and **not** deleted in this excerpt. Billing/receipt/index/backup scope excluded.
+
+**Lazy staging attestation loader (verified).**
+- `createLazyRailwayMemoryAttestationRoute(options)` returns a 404 rejector when `enabled !== true`. Enabled mode dynamically imports `railwayAttestationRoute.r103c1.mjs` on the first request, caches its promise, and invokes its generated handler. Import/handler failure before sending response becomes generic `503 attestation-unavailable`.
+- This loader contains **no Auth, App Check, entitlement or quota checks itself**; the surrounding dirty `server/railway/index.cjs` injects these dependencies. Whether the imported route consumes them correctly remains **UNVERIFIED** until the real local `.mjs` file is inspected and its tests pass. No evidence of deployed route or provider access.
+
+**B2.1 status:** ERASURE TAIL VERIFIED + LOADER VERIFIED; end-to-end route, staging consent fence, hashed/global writer ownership/retention and full ledger index audit STILL PENDING. `B2.1=PARTIAL_LOCAL_SOURCE_VERIFIED`, not accepted. `B2.2=NOT_STARTED`, no code patch.
+
+**Precisely next source request (read-only, no secrets):**
+```bash
+cd ~/reflect-r10-railway-review
+sed -n '1,320p' server/memory/railwayAttestationRoute.r103c1.mjs
+git diff -- server/privacy/contextConsent.cjs server/ai/hostedBudget.cjs server/railway/appCheckReplayGuard.cjs
+rg -n --glob '!*.test.*' --glob '!*.smoke.*' 'createMemoryAttestationQuota|createLazyRailwayMemoryAttestationRoute|createRailwayMemoryAttestationRoute|memoryErasureFences|requestLedger|ownerDays' server/memory server/railway server/ai server/privacy
+```
+`git diff` empty for pinned files is useful evidence of no tracked local modifications; `rg` captures extra dynamic callers, not proof by itself.
