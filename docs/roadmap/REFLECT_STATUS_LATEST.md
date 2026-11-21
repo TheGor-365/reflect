@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 / B2.1 PARTIAL SOURCE REVIEW; B2.2 DESIGN_DRAFT; B2.2-A PATCH_PREPARED with 19/19 isolated mock tests; NOT APPLIED ON USER LINUX.
+Revision: 2026-11-21 / B2.1 PARTIAL SOURCE REVIEW; B2.2 DESIGN_DRAFT; B2.2-A LOCAL_APPLIED + 19/19 UNIT_PASS + DEMO_EMULATOR_PASS; B2.2-B NOT STARTED.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -61,6 +61,13 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - Patch named `REFLECT_R10_3C2C2_B2_2_A_DEMO_OWNER_LEDGER_2026-11-21.patch` SHA256 `83e5241c5138fd6888fb5fa4c59087badbfa535c7581440cd6d597a4a886e570`. Available as current ChatGPT conversation artifact, **not a remote GitHub code commit**. Adds `server/privacy/demoLedgerOwnerIndex.r103c2c2b2a.{cjs,test.cjs,smoke.cjs}` and `docs/privacy/REFLECT_R10_3_C2C2_B2_2_A_DEMO_OWNER_LEDGER_PROOF.md`.
 - Demo code validates demo `GCLOUD_PROJECT`, emulator localhost `127.0.0.1:18081`, `db.projectId`, explicit enabled flag and synthetic UID/requestId. Prototype creates an **existing-format synthetic digest-key** requestLedger entry + private UID-addressable request/day sidecar in same transaction, supports synthetic finish and read-only per-request inspection. It does NOT implement monetary reservations, real hosted writer integration, historical backfill, global owner inventory, consent fence, provider calls or deletion. The optional smoke cleans up only its three fresh synthetic records. No actual data deletion certification.
 - **Status:** `B2.2-A PATCH_PREPARED`, **USER_APPLY=PENDING / USER_UNIT=PENDING / DEMO_EMULATOR=PENDING**. B2.2-B production-writer changes NOT STARTED. B2.1 source census still partial; B2.3 retention unapproved; PG-04 still BLOCKED. Source code NOT in GitHub main or staging; only documents updated.
+
+## R10.3-C2C2-B2.2-A — USER LOCAL UNIT + EMULATOR ACCEPTED (2026-11-21)
+- User Linux worktree `~/reflect-r10-railway-review`, detached HEAD `1c4c121e`, Node 22.23.4: downloaded `REFLECT_R10_3C2C2_B2_2_A_DEMO_OWNER_LEDGER_2026-11-21.patch`, `sha256sum` printed exact expected `83e5241c5138fd6888fb5fa4c59087badbfa535c7581440cd6d597a4a886e570`; `git apply --check && git apply --whitespace=error` returned without error.
+- `GCLOUD_PROJECT=demo-reflect-auth-qa FIRESTORE_EMULATOR_HOST=127.0.0.1:18081 node --test server/privacy/demoLedgerOwnerIndex.r103c2c2b2a.test.cjs` → **19/19 PASS, 0 FAIL**; two `node --check` commands for new module/smoke produced no error.
+- Local listeners on `127.0.0.1:9099` (node PID 1728982) and `127.0.0.1:18081` (java PID 1729032). Synthetic demo smoke printed exactly `PASS: B2.2-A demo Emulator atomic synthetic ledger + owner links and duplicate protection` and `PASS: B2.2-A synthetic three-document cleanup verified (NOT global ledger erasure)`.
+- **Status B2.2-A = LOCAL_APPLIED / UNIT_PASS / DEMO_EMULATOR_PASS**. This proves isolated synthetic owner-index atomicity/duplicate protection only. It does NOT integrate with live `hostedBudget.cjs`, perform actual monetary reservation, stage/source commit, backfill legacy ledgers, certify all deletion, or authorize provider use. Local overlay remains uncommitted; GitHub docs-only checkpoint is not a source deployment.
+- Next B2.2-B: analyze real pinned billing writer transaction seams and its existing tests; propose an OFF-by-default, testable integration adapter BEFORE changing the existing writer; protect `requestLedger` and `ownerDays` key derivation, quotas, anti-replay and `finish`; B2.1 full census/retention approvals still missing, Privacy Gate PG-04 blocked.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
