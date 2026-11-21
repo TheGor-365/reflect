@@ -38,3 +38,13 @@ Expected six scenario PASS and exact cleanup PASS; capture full stdout or explic
 - **Minimum non-code retry:** (1) check dependency in server scope `(cd server && node -p "require.resolve('firebase-admin')")`; do not assume absent from root test. If missing, pinned `firebase-admin@13.4.0` can be locally installed in server scope without saving manifest/lock: `(cd server && npm install --ignore-scripts --no-save --package-lock=false firebase-admin@13.4.0)`. (2) Rerun exact isolated CLI with child `env -u FIREBASE_CONFIG` immediately before required opt-in, project/host variables, and Node. This removes only CLI-injected project JSON from the child; hard safety checks remain unchanged. No staging cloud calls, no provider, no Rules changes, no old Emulator 18081.
 - If still blocked, collect only sanitized Boolean/enum condition checks (no raw FIREBASE_CONFIG or credentials). Do not weaken exact localhost/project guard or connect directly to staging Firestore.
 - Outcome status: `PG04C=LOCAL_APPLIED+OFFLINE_GUARD_PASS`, `REAL_EMULATOR=ENV_BLOCKED 0/6`, `PG04D=NOT_STARTED`, `PROVIDER_CONTEXT=OFF`.
+
+## PG04C final user acceptance — 2026-11-22 (supersedes ENV_BLOCKED)
+User's actual Linux stdout after the shell-only `env -u FIREBASE_CONFIG` adjustment:
+- `server/node_modules/firebase-admin/lib/index.js` resolved correctly from `server`; Firebase CLI 15.34.2.
+- Isolated `firebase emulators:exec` started Firestore at `127.0.0.1:19085`. Six PASS lines: `Transaction.get(Query)` and grant/check/list, private fence deny, malformed public fence deny, old active grant unusable after fencing, concurrent grant/erasure final permission denied, cross-owner deny.
+- Aggregate `PASS: PG04C 6/6 isolated localhost real Firestore Emulator checks`, `PASS: PG04C exact synthetic per-run cleanup only (no recursiveDelete)`, child exited **code 0**. Emulator shut down normally.
+- Original failed attempt due to environment guard did not run any cases and is now superseded; no cloud project, provider, real user data, source release or billed transaction was accessed.
+- Cautions: Firestore Emulator reports no explicit Rules file (Admin SDK tests do not certify client Rules), case 5 checks final state under concurrency but is not a deterministic forced conflict, and PG04D provider-egress TOCTOU remains unresolved. [PG04D threat model](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D_PROVIDER_CONTEXT_EGRESS_BOUNDARY_DESIGN_2026-11-22.md).
+
+**Accepted stage**: `PG04C=USER_LOCAL_EMULATOR_PASS+SYNTHETIC_CLEANUP_PASS`. `PG04D=DESIGN_DRAFT/NON_DEPLOYED`.
