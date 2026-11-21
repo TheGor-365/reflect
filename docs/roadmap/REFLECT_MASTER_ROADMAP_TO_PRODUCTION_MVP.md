@@ -102,7 +102,7 @@ R10.3-C2C2-C consolidated scoped coverage/manifest closure — proposed child ga
 PG-01 verify ALL client/Admin writer paths and authorization.
 PG-02 independent server evidence provenance: UID, source revisions, immutable ledger head, sourceRef, corrections, suppressed gaps.
 PG-03 owner-scoped export + memory-only erasure + account-deletion limits, nested descendants and retention exceptions; no whole account claim from 7 collections.
-PG-04 explicit cross-session grants, preview, scopes, revocation, exact request-time server checks. Existing session-turns TTL 15 min isn't enough.
+PG-04 explicit cross-session grants, preview, scopes, revocation, exact request-time server checks. **Confirmed 2026-11-21 B2.1 code gap:** pinned unmodified staging `server/privacy/contextConsent.cjs` has no `memoryErasureFences/{uid}` check inside grant `execute()` transaction or grant `check()`; demo consent guard is separate and not staging. Fix with atomic fail-closed fence reads and Emulator negative/race tests before memory provider egress. Existing session-turns TTL 15 min isn't enough.
 PG-05 legacy private-only/public-only/mismatch/pending fence repair and deterministic consent-approved reconciliation of memorySuppressed with provenance (not model hallucination).
 PG-06 Auth/AppCheck, Replay, Rules/Admin, owner-switch, race, limit, read errors, no private payload leakage.
 PG-07 verified policy: legal owner/retention periods, Firestore backups/PITR, xAI data handling, QA snapshots and logs, cost.
