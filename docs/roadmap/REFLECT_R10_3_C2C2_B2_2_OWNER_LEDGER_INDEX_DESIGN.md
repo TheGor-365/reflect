@@ -66,3 +66,9 @@ Suggested fields for the request link: `{schemaVersion:1, ledgerKey:legacyReques
 
 ## Status language
 `B2.1 = PARTIAL_SOURCE_REVIEWED`; `B2.2 = DESIGN_DRAFT`; `B2.2-A CODE = NOT_STARTED`; `B2.3 retention = UNAPPROVED`; `B2.4 tests = NOT_STARTED`; `PrivacyGate = BLOCKED`; `staging/prod = NOT_DEPLOYED`.
+
+
+## Additional code compatibility review — pinned source, 2026-11-21
+- Read `server/ai/policy.cjs` at pinned HEAD: `planQuotaReservation` returns `ids: [...prior.ids, requestId]` as part of a *general quota planner*, but `hostedBudget.cjs` explicitly passes `ids: []` into that planner and persists `ids: []` to `ownerDays`. This distinction matters: do NOT copy `tokens.ids` or store raw request IDs in proposed sidecar or billing day documents.
+- In pinned `hostedBudget.cjs`, owner/day `recent` contains timestamps from planner and is retained alongside numeric counters. The immutable property applies to request ledger **identity**, not its mutable completion fields.
+- Existing backend tests available at pinned HEAD include `server/ai/aiTurnRecovery.test.cjs` and `server/railway/appCheckReplayGuard.test.cjs`; billing regression tests are also represented in `server/ai/hosted.integration.test.cjs` (direct `hostedBudget.test.cjs` path not verified). Next changes must choose actual available paths before command construction.
