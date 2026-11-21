@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 B1b1 USER LOCAL_UNIT_PASS 19/19; B1b2 design draft docs-only, no real writer integration; Privacy Gate blocked.
+Revision: 2026-11-21 B1b2 local source clean verified; B1b3 SHADOW_SOURCE_PATCH_PREPARED, user QA pending; original hostedBudget unchanged, PG blocked.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -138,6 +138,14 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - Status: `B1b1=LOCAL_APPLIED+UNIT_PASS`; `B1b2=DESIGN_DRAFT`; `B1b3 real writer source=NOT_STARTED`; `B2.1 writer census=PARTIAL`; `B2.3 retention=UNAPPROVED`; `PG-04=BLOCKED`.
 - Next user read-only check: `git diff -- server/ai/hostedBudget.cjs server/ai/hostedHandler.cjs` then `git status --short -- server/ai/hostedBudget.cjs server/ai/hostedHandler.cjs server/ai/ownerLedgerTxExtension.r103c2c2b1b0.cjs server/ai/hostedBudgetOwnerIndexCompatibility.r103c2c2b1b1.test.cjs`. No tests/deploy required for this review.
 
+
+
+## 2026-11-21 B1b2 source status confirmed; B1b3 SHADOW PATCH PREPARED (NOT user-applied)
+- **Actual user Linux read-only evidence** on `~/reflect-r10-railway-review` detached HEAD `1c4c121e`: `git diff -- server/ai/hostedBudget.cjs server/ai/hostedHandler.cjs` EMPTY; targeted `git status --short` showed ONLY `?? server/ai/hostedBudgetOwnerIndexCompatibility.r103c2c2b1b1.test.cjs` and `?? server/ai/ownerLedgerTxExtension.r103c2c2b1b0.cjs`. Thus both tracked financial files are clean and the two sidecars/test modules are separate LOCAL untracked files; no staged/remote writer integration.
+- **B1b3 new SHADOW-SOURCE PREVIEW patch prepared** (NOT actual writer patch): `REFLECT_R10_3C2C2_B2_2_B1B3_SHADOW_SOURCE_PREVIEW_2026-11-21.patch`; SHA256 `06dad36e5b10e68deafddb0cb511481b6689aad171e7177c43f23d46eab61475`. Adds 3 new files ONLY: `server/ai/hostedBudget.r103c2c2b1b3.preview.cjs`, `server/ai/hostedBudgetIndexIntegration.r103c2c2b1b3.test.cjs`, `docs/privacy/REFLECT_R10_3_C2C2_B2_2_B1B3_SHADOW_SOURCE_PREVIEW.md`. Original `hostedBudget.cjs`, `hostedHandler.cjs`, Railway and Firebase code untouched.
+- Shadow source candidate explicitly models optional server-owned `{ownerIndexEnabled=false,ownerIndexStore}` with same reserve transaction read-before-write and stage sidecar writes, preserving OFF legacy 3 writes; ON fixture 5 new-day /4 existing-day writes. Uses B1b0 **fixture-only** gate; this preview must NEVER be imported by Railway or activated against actual staging.
+- Author isolated QA on Node 22.16 and semantically matching, **non-byte-identical** pinned writer copy: **22/22 new B1b3 tests PASS; 73/73 combined B1a+B1b0+B1b1+B1b3 PASS**, fresh `git apply --check` / `git apply --whitespace=error`, `node --check` and `git diff --check` PASS; ZIP integrity PASS. Test imports `./hostedBudget.cjs` for explicit OFF-mode parity; this test must run on user's actual local source for acceptance. **USER B1b3 APPLY/QA PENDING**, no Emulator/staging/paid provider test claimed.
+- `B1b3=SHADOW_PATCH_PREPARED`; **REAL WRITER SOURCE INTEGRATION NOT_STARTED**; B2.1 writer census PARTIAL, B2.3 index retention UNAPPROVED, PG-04 contextConsent erasure fence BLOCKED. No source/branch deployment. User next downloads, verifies SHA, applies new-file-only patch, runs 22 mock tests and syntax/diff checks. No existing tests or Emulators need repeating.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
