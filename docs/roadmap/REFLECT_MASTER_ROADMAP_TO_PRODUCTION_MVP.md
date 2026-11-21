@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-21 B1a local accepted; B1b0 fixture transaction extension patch prepared; no billing integration.
+Revision: 2026-11-21 B1b0 local 15/15 ACCEPTED; B1b1 test-only 19-case patch prepared, user QA pending; PG still blocked.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -228,3 +228,8 @@ R10.3-C2C2-B2.2-B1b real billing writer integration: **NOT_STARTED**; default-OF
 - B1b0: **FIXTURE-ONLY TRANSACTION EXTENSION PATCH_PREPARED**; 3 additive new files, assistant isolated **15/15 PASS** and clean git apply/syntax, user apply/QA PENDING. Patch `REFLECT_R10_3C2C2_B2_2_B1B0_TX_INDEX_EXTENSION_2026-11-21.patch` SHA256 `ccbe32542950cc9d1872e1c49257489d29a730f4cfba4e542f4f5ffc7ca8d555`. No real `hostedBudget` modification, no real provider, no deploy.
 - B1b1 production/staging writer integration = NOT_STARTED; B2.1 private writer census PARTIAL; B2.3 retention UNAPPROVED; PG-04 staging erasure fence BLOCKED. The owner-link prototype is NOT permission for provider history usage or deletion certification.
 
+
+## Latest B2.2-B1b0/B1b1 checkpoint — 2026-11-21
+- B1b0 fixture-side owner-index TX extension: **USER LOCAL UNIT 15/15 PASS**, syntax/diff PASS; no Emulator and no production writer integration.
+- B1b1: **TEST-ONLY PATCH_PREPARED**, `REFLECT_R10_3C2C2_B2_2_B1B1_COMPATIBILITY_TESTS_2026-11-21.patch`, SHA256 `e3cc56981f0f0ae0aaca89aa49751e53622fb774732938e5590f0ded957b1169`; two additive files only. Author scratch mirrors 19/19 new and 51/51 combined PASS, clean apply and syntax, user exact-local test PENDING. No change to actual `hostedBudget.cjs` or paid/production services.
+- Next after user B1b1 local 19 PASS: review explicit source-integrated default-OFF transaction extension and failing/rollback Emulators **without enabling** stage/prod. Full B2.1 writer audit, B2.3 ledger retention, PG-04 consent fence are blocking gates.
