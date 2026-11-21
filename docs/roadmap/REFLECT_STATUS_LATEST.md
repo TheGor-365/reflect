@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 / B2.1 PARTIAL SOURCE REVIEW; B2.2 DESIGN_DRAFT; B2.2-A LOCAL_APPLIED + 19/19 UNIT_PASS + DEMO_EMULATOR_PASS; B2.2-B NOT STARTED.
+Revision: 2026-11-21 B2.2-A LOCAL_UNIT+EMULATOR_PASS; B2.2-B0 PATCH_PREPARED, USER QA PENDING; B2.1 partial; PG blocked.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -61,6 +61,13 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - Patch named `REFLECT_R10_3C2C2_B2_2_A_DEMO_OWNER_LEDGER_2026-11-21.patch` SHA256 `83e5241c5138fd6888fb5fa4c59087badbfa535c7581440cd6d597a4a886e570`. Available as current ChatGPT conversation artifact, **not a remote GitHub code commit**. Adds `server/privacy/demoLedgerOwnerIndex.r103c2c2b2a.{cjs,test.cjs,smoke.cjs}` and `docs/privacy/REFLECT_R10_3_C2C2_B2_2_A_DEMO_OWNER_LEDGER_PROOF.md`.
 - Demo code validates demo `GCLOUD_PROJECT`, emulator localhost `127.0.0.1:18081`, `db.projectId`, explicit enabled flag and synthetic UID/requestId. Prototype creates an **existing-format synthetic digest-key** requestLedger entry + private UID-addressable request/day sidecar in same transaction, supports synthetic finish and read-only per-request inspection. It does NOT implement monetary reservations, real hosted writer integration, historical backfill, global owner inventory, consent fence, provider calls or deletion. The optional smoke cleans up only its three fresh synthetic records. No actual data deletion certification.
 - **Status:** `B2.2-A PATCH_PREPARED`, **USER_APPLY=PENDING / USER_UNIT=PENDING / DEMO_EMULATOR=PENDING**. B2.2-B production-writer changes NOT STARTED. B2.1 source census still partial; B2.3 retention unapproved; PG-04 still BLOCKED. Source code NOT in GitHub main or staging; only documents updated.
+
+## R10.3-C2C2-B2.2-B0 — synthetic read-only receipt reconciliation patch prepared (2026-11-21)
+- 4 additive files prepared for review: `server/privacy/demoBillingReceiptReconciliation.r103c2c2b2b0.{cjs,test.cjs,smoke.cjs}` + `docs/privacy/REFLECT_R10_3_C2C2_B2_2_B0_READONLY_RECEIPT_RECONCILIATION.md`.
+- Assistant isolated Node v22.16.0: **16/16 B0 mock tests PASS twice**, **35/35 combined B2.2-A + B0 mock tests PASS**; B0 module/smoke syntax PASS and clean `git apply --check` + `git apply --whitespace=error` PASS. **User Linux application and real Emulator B0 smoke NOT YET RUN**.
+- Patch: `REFLECT_R10_3C2C2_B2_2_B0_READONLY_RECONCILIATION_2026-11-21.patch` sha256 `71538330b88c56ac14b9a22be4b7b5434139a8e2cc938dff76244f911fc38365` in this ChatGPT turn (not published as remote GitHub source). No `hostedBudget.cjs` or Railway changes.
+- B0 only inspects a **known synthetic request** via owner-scoped AI attempt receipt, legacy hashed billing ledger, request/day sidecars. It returns no identifiable data, never permits provider use/retry, never claims complete inventory, settled billing or full deletion. Missing/legacy/mismatch/billed-unknown fail closed. Optional smoke uses only 4 fresh synthetic docs on demo project and explicitly cleans them.
+- Stage status: `B2.2-A LOCAL_UNIT+EMULATOR_PASS`; `B2.2-B0 PATCH_PREPARED / USER_TEST_PENDING`; `B2.2-B1 hostedBudget integration NOT_STARTED`; `B2.1 writer census PARTIAL`; `B2.3 retention UNAPPROVED`; `PG-04 BLOCKED`.
 
 ## R10.3-C2C2-B2.2-A — USER LOCAL UNIT + EMULATOR ACCEPTED (2026-11-21)
 - User Linux worktree `~/reflect-r10-railway-review`, detached HEAD `1c4c121e`, Node 22.23.4: downloaded `REFLECT_R10_3C2C2_B2_2_A_DEMO_OWNER_LEDGER_2026-11-21.patch`, `sha256sum` printed exact expected `83e5241c5138fd6888fb5fa4c59087badbfa535c7581440cd6d597a4a886e570`; `git apply --check && git apply --whitespace=error` returned without error.
