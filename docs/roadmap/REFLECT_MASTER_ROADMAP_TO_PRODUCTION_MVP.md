@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-21 B2.2-A locally verified, B2.2-B0 patch prepared; B2.1/PG blockers remain.
+Revision: 2026-11-21 B2.2-A accepted, B2.2-B0 installed + Emulator PASS, user env-correct units pending, B2.2-B1 design only.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -214,3 +214,5 @@ For every numbered subphase:
 - next one to three exact user actions and expected evidence;
 - update live GitHub issue and STATUS after acceptance. Mark old plan items SUPERSEDED when current code proves already done. Do not publish secrets or raw private user data.
 Historical archive REFLECT_2_MASTER_HANDOFF_R10_3C2C1_TO_NEXT_CHAT_2026-11-21(1).md is superseded for current starting phase (it instructed C2C2-A). The even older Nov20 master marks R10.3-A pending and is superseded. Retain history, never retroactively rewrite it.
+
+R10.3-C2C2-B2.2-B0 — NEW LOCAL EVIDENCE (2026-11-21): user B0 patch installed; synthetic demo Emulator PASS including cleanup. First combined unit command omitted demo env, so `35 total / 20 PASS / 15 FAIL`, all 15 B0 `demo-reconciliation-environment-denied` in constructor. Assistant isolated env-correct B0 unit 16/16 PASS. User rerun with proper inline `GCLOUD_PROJECT` + `FIRESTORE_EMULATOR_HOST` still PENDING; do not call B0 full unit PASS yet. B2.2-B1 has design-only preflight in B2.2 owner-index design document; `hostedBudget.cjs` remains unchanged, no provider or deployment.
