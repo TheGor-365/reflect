@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-22 PG04C user guard 6/6 PASS but real Emulator ENV_BLOCKED 0/6, safe retry pending; no rollout.
+Revision: 2026-11-22 PG04C real Emulator 6/6 user PASS, PG04D0 OFF provider context test patch prepared, future lease/race blocked.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -280,3 +280,11 @@ R10.3-C2C2-B2.2-B1b real billing writer integration: **NOT_STARTED**; default-OF
 - PG04C checksum-gated patch USER APPLIED; guard unit **6/6 PASS**, JS syntax and git diff check clean; Firebase CLI 15.34.2 successfully starts isolated Firestore on port 19085.
 - Initial root `require.resolve('firebase-admin')` failed, but package is declared `firebase-admin:13.4.0` in **server/package.json**; test from `server` before declaring package absent. PG04C runtime exited at environment guard `PG04C_STOP: isolated localhost Firestore Emulator required`, before Firebase SDK or any of six tests: **0/6 integration scenarios run**. Probable CLI `FIREBASE_CONFIG` auto-includes `databaseURL`; not independently confirmed. Retry only with CLI-child `env -u FIREBASE_CONFIG` while preserving exact opt-in/project/localhost host, and check server-scoped Admin resolution.
 - NO provider, cloud Firestore, staging deploy, or real deletion. PG04D, B2.1, B2.3 remain pending. [Failure analysis and safe retry](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04C_ISOLATED_FIRESTORE_EMULATOR_GATE_2026-11-22.md).
+
+
+## PG-04C ACCEPTED / PG-04D boundary design and regression (2026-11-22)
+- PG04C actual USER localhost Firestore Emulator `127.0.0.1:19085` after `env -u FIREBASE_CONFIG`: **6/6 PASS**, exact synthetic cleanup, exit 0. Previous PG04C env-blocked (0 tests) superseded. This proves local consent grant/check/list dual-fence behavior but not provider egress or production rollout.
+- Exact pinned `hostedHandler.cjs` calls `adapter.invoke(..., null, ...)` and `contextPreviewHttp.cjs` returns `providerDispatchAllowed:false`: **CURRENT historical provider context remains disconnected**. [PG04D audit and egress TOCTOU state-machine requirements](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D_PROVIDER_CONTEXT_EGRESS_BOUNDARY_DESIGN_2026-11-22.md).
+- PG04D0 **non-imported TEST-ONLY add-new-files patch PREPARED**, SHA256 `0ebe849aa0c1ba6ebb320a3a588d38586a8d9b078a1338a075af7827df76e98d`, 8 structural regression tests against current OFF boundary; author isolated 8/8 PASS and exact pinned GitHub source regex 8/8 PASS; user local unit QA PENDING. Not a race-safety proof.
+- PG04D1 owner erasure-intent + in-flight dispatch lease protocol and PG04D2 real emulator + fake transport race **NOT_STARTED**; B2.1 full writer audit partial, B2.3 ledger/index retention not approved, mixed-version rollout blocked. `npm` audit warning: 8 moderate vulnerabilities reported from `server` after no-save firebase-admin@13.4.0 install; no forced audit fixes.
+
