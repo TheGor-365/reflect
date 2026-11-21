@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 B2.2-A+B0 LOCAL_UNIT+EMULATOR_PASS; B2.2-B1a LOCAL_UNIT_PASS 17/17; B2.2-B1b design in progress; source dirty local only.
+Revision: 2026-11-21 B1a USER_UNIT_PASS 17/17; B1b0 fixture-only PATCH_PREPARED author 15/15, user QA pending; PG blocked.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -109,6 +109,13 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - Cases: legacy hashed request/owner paths, same-transaction budget & ledger writes, concurrent duplicate/same-day/cross-day rejections, owner/global counters & limits, fail-closed kill switch, commit rollback, finish/reservations and excess-charge shutdown.
 - **B2.2-B1a=LOCAL_APPLIED + UNIT_PASS**, no Firestore Emulator needed for these mock fixtures. `B2.2-B1b` writer index integration = **NOT_STARTED / DESIGN IN REVIEW**; current `hostedBudget.cjs` remains unchanged in user's tracked diff. No claim of source push, staging/prod deploy, real provider billing, or retention policy approval.
 - B2.1 writer census still partial; B2.3 retention unapproved; PG-04 consent erasure-fence gap blocks provider usage.
+
+
+## ## 2026-11-21 B2.2-B1b0 transaction-extension prototype PATCH_PREPARED
+- **B1a USER ACCEPTED:** user successfully installed checksum-gated B1a patch on Linux `~/reflect-r10-railway-review`, detached HEAD `1c4c121e`, Node 22.23.4; `node --test server/ai/hostedBudget.r103c2c2b1a.test.cjs` → **17/17 PASS, 0 FAIL**; syntax and `git diff --check` clean. This proves current *unmodified* real `hostedBudget.cjs` baseline in isolated mocked Firestore.
+- **B1b0 prototype PATCH_PREPARED only:** 3 additive new files: `server/ai/ownerLedgerTxExtension.r103c2c2b1b0.{cjs,test.cjs}` and `docs/privacy/REFLECT_R10_3_C2C2_B2_2_B1B0_TRANSACTION_EXTENSION_CONTRACT.md`. No `hostedBudget.cjs`, Railway, Firebase client, rules, consent, payment, source commit or provider integration changed.
+- Artifact `REFLECT_R10_3C2C2_B2_2_B1B0_TX_INDEX_EXTENSION_2026-11-21.patch`, SHA256 `ccbe32542950cc9d1872e1c49257489d29a730f4cfba4e542f4f5ffc7ca8d555`; downloadable from this original ChatGPT turn, **NOT** published to GitHub source. Isolated author Node 22.16.0 **15/15 PASS**, clean `git apply --check`, `git apply --whitespace=error`, and syntax PASS. **User apply and local 15-case test PENDING**; no Emulator smoke claimed.
+- Fixture-only default-OFF index extension models `prepare()` with `tx.get` before writes, then `stage()` in same synthetic transaction as legacy request/owner/global records. Model checks digest invariance, day marker validation, reject duplicate, same-transaction atomicity, cross-owner and legacy-unindexed gaps. It is **not wired** to real `budget.reserve` or billed provider. Production writer integration B1b1 NOT_STARTED; B2.3 retention UNAPPROVED, B2.1 writer census PARTIAL, PG-04 staging consent erasure-fence BLOCKED.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
