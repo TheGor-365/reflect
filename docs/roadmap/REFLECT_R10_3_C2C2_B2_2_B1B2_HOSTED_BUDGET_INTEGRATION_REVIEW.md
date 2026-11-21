@@ -79,3 +79,9 @@ git diff -- server/ai/hostedBudget.cjs server/ai/hostedHandler.cjs
 git status --short -- server/ai/hostedBudget.cjs server/ai/hostedHandler.cjs server/ai/ownerLedgerTxExtension.r103c2c2b1b0.cjs server/ai/hostedBudgetOwnerIndexCompatibility.r103c2c2b1b1.test.cjs
 ```
 Return output. No patch, Firebase emulator, provider or deploy is needed for this B1b2 design review.
+
+## 2026-11-21 follow-up — source clean confirmed; B1b3 shadow patch only
+- User actual local `git diff -- server/ai/hostedBudget.cjs server/ai/hostedHandler.cjs` returned empty output; targeted `git status --short` returned only untracked B1b0 fixture helper and B1b1 test. Thus current tracked billing writer remains unchanged.
+- Subsequent **B1b3 SHADOW_SOURCE_PATCH_PREPARED**: new-file-only `REFLECT_R10_3C2C2_B2_2_B1B3_SHADOW_SOURCE_PREVIEW_2026-11-21.patch`, SHA256 `06dad36e5b10e68deafddb0cb511481b6689aad171e7177c43f23d46eab61475`; no edit to the actual billing writer or handler. Preview candidate + 22-case in-memory contract suite + privacy doc. Isolated author mock tests 22/22 new and 73/73 aggregate PASS on non-identical pinned dependency copies, apply/syntax PASS; user run PENDING.
+- Distinguish `B1b2=DESIGN_REVIEW_DRAFT`, `B1b3=SHADOW_PATCH_PREPARED`, **`REAL_BILLING_SOURCE_PATCH=NOT_STARTED`**, `PROVIDER_USE=OFF`. B2.1 private writer inventory, B2.3 retention and PG-04 erasure-fence blockers remain, alongside mixed-version rollout and independent Emulator QA.
+- Next local action: SHA-gated apply of three NEW review-only files, run `node --test server/ai/hostedBudgetIndexIntegration.r103c2c2b1b3.test.cjs` (22 expected) + syntax and git diff check. Do not copy/rename the shadow module over `hostedBudget.cjs`.
