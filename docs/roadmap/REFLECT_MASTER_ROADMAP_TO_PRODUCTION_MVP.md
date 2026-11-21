@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-21.R10.3-C2C2-B1.accepted; B2.1 partial; B2.2 design; B2.2-A prototype patch prepared, user QA pending. Language: Russian.
+Revision: 2026-11-21 B2.2-A locally verified, B2.2-B0 patch prepared; B2.1/PG blockers remain.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -97,6 +97,11 @@ R10.3-C2C2-B2.2 owner-addressable index/reconciliation for hashed requestLedger/
 R10.3-C2C2-B2.3 retained tombstones, immutable receipt ledger, backups/PITR/Railway logs/xAI provider retention mapping and policy — OPEN; never invent TTL.
 R10.3-C2C2-B2.4 negative + race + foreign UID + missing parent + new synthetic Emulator tests — NOT STARTED.
 R10.3-C2C2-C consolidated scoped coverage/manifest closure — proposed child gate, not a historical implementation; NOT STARTED.
+
+R10.3-C2C2-B2.2-A (2026-11-21): **LOCAL UNIT_PASS 19/19 + REAL DEMO EMULATOR_PASS** for synthetic owner ledger and cleanup. Not a production hostedBudget index.
+R10.3-C2C2-B2.2-B0 (2026-11-21): **PATCH_PREPARED** read-only synthetic receipt/billing/index reconciliation. Author isolated **16/16 B0** and **35/35 A+B0** unit PASS; clean patch apply and syntax PASS. User Linux apply/real demo Emulator **PENDING**. Patch SHA256 `71538330b88c56ac14b9a22be4b7b5434139a8e2cc938dff76244f911fc38365`, in current ChatGPT turn only. No real billing writer integration, provider call or deployment.
+R10.3-C2C2-B2.2-B1 real `hostedBudget.cjs` integration: **NOT_STARTED**, review retention, source and billing idempotency first.
+R10.3-C2C2-B2.1 exhaustive writer census: still PARTIAL; B2.3 retention UNAPPROVED; PG-04 staging erasure-fence gap persists.
 
 ### PG — PRIVACY GATE (MUST PASS BEFORE R10.4 MEMORY PROVIDER EGRESS)
 PG-01 verify ALL client/Admin writer paths and authorization.
