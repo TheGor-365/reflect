@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-22 PG04D2 user patch installed guard 8/8 PASS; localhost 18081 occupied, 0/6 real diagnostic Emulator tests executed; PG04D3 design next.
+Revision: 2026-11-22 PG04D2 guard 8/8 PASS, actual Emulator 0/6 blocked by listener JAVA PID 1729032 on localhost:18081; owner still unverified; no deployment.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -270,6 +270,11 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - **Canonical full current→MVP execution document**: [REFLECT_EXECUTION_ROADMAP_FROM_PG04D2_TO_PRODUCTION_2026-11-22.md](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/roadmap/REFLECT_EXECUTION_ROADMAP_FROM_PG04D2_TO_PRODUCTION_2026-11-22.md), docs commit `f7ff901508117a56664eafa23e12b2b97fa75418`. Covers real remaining R9.2/R10.0–R10.7, PG01–08, R11–R14, legal/payment/operational commercial production MVP with dependency gates and statuses. Supersedes old master "next B2.1" as sole immediate user task; B2.1/B2.3 remain parallel critical blockers.
 - **PG04D3 source-grounded design DRAFT only**: [REFLECT_PG04D3_COORDINATED_ERASURE_DISPATCH_STATE_MACHINE_DRAFT_2026-11-22.md](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D3_COORDINATED_ERASURE_DISPATCH_STATE_MACHINE_DRAFT_2026-11-22.md), docs commit `2637456001851c47c258816b6d863491e6b7614e`. Requires single erasure-fence owner, monotonic generation, no cancel resurrection, unknown in-flight outcome conservatism and fake transport. External HTTP POST cannot be made atomic with Firestore; no PG04D3 source patch, Emulator acceptance or live history authorization.
 - User's immediate safe action: read-only identify owner of occupied localhost 18081. Do NOT terminate listener, change exact test host/port or conflate PG04D2 8/8 guard PASS with real diagnostic Emulator (0/6, not run).
+
+## 2026-11-22 — PG04D2 local port listener PID identified (JAVA; ownership still unknown)
+- **User actual read-only terminal** in `~/reflect-r10-railway-review`: `ss -H -ltnp '( sport = :18081 )'` returned `LISTEN 0 4096 [::ffff:127.0.0.1]:18081 *:* users:(("java",pid=1729032,fd=55))`. **Verified: local Java PID 1729032 is bound to exact port 18081**. This output does NOT prove which Firebase project, job or parent owns Java; don't infer it's safe to attach or stop. Earlier PG04D2 unit strict guard remains 8/8 PASS, actual Firestore PG04D2 diagnostic 0/6 EXECUTED.
+- Next strictly read-only inspection: `ps -p 1729032 -o pid,ppid,user,etime,comm`; `readlink -f /proc/1729032/cwd` if permitted; user may omit/redact any sensitive directory. Do NOT `kill`, `pkill`, `fuser -k`, reuse pre-existing emulator, alter source hardcoded `18081` guard, or assume Java is orphan.
+- Independent safe parallel track: PG04D3 single erasure writer + monotonic generation / lease stale cancellation **DESIGN DRAFT** already published; full roadmap to MVP already published; B2.1 current private writer census and B2.3 data retention rules remain open. No code release or real AI context egress.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
