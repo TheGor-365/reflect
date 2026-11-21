@@ -26,7 +26,6 @@ This is an architectural contract. It intentionally does not give an executable 
 - Host's currently unconditional `createHostedBudget(db, projectId)` needs separately reviewed server-only wiring; never let HTTP body, app settings or client-supplied flag select ON. Preserve current provider, entitlement and consent gates unchanged.
 - Exact index paths:
   ```text
-  _reflectAiPrivate/reflect-8fd8c8/... # WRONG: do NOT use this! Example intentionally invalid
   _reflectAiPrivate/reflect-8fdc8/ownerLedgerIndexes/{uid}/requests/{sha256("request\0"+uid+"\0"+requestId)}
   _reflectAiPrivate/reflect-8fdc8/ownerLedgerIndexes/{uid}/days/{YYYY-MM-DD}
   ```
@@ -71,7 +70,7 @@ No reads after the first write. OFF mode exactly 3 original writes; ON fresh day
 - [ ] Externally authorized retention policy (B2.3), complete B2.1 private-writer census, and PG-04 staging grant/read-erasure fence fix with negative/race tests BEFORE enabling ON.
 - [ ] Explicit release strategy, mixed-version protection, observability and rollback without ledger deletion, paid-call authorization separate.
 
-**Status:** `B1b1=LOCAL_APPLIED+UNIT_PASS`; `B1b2=DESIGN_REVIEW_COMPLETE / SOURCE_INTEGRATION_NOT_STARTED`; `B1b3=NOT_STARTED`; `PrivacyGate=BLOCKED`; `real staging/prod=NOT_DEPLOYED`.
+**Status:** `B1b1=LOCAL_APPLIED+UNIT_PASS`; `B1b2=DESIGN_DRAFT / SOURCE_INTEGRATION_NOT_STARTED`; `B1b3=NOT_STARTED`; `PrivacyGate=BLOCKED`; `real staging/prod=NOT_DEPLOYED`.
 
 ## Next safe two user-side checks (READ ONLY)
 ```bash
