@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-21 PG-04A demo dual-fence candidate patch ready author 20/20, user QA pending; real staging consent fix not started.
+Revision: 2026-11-21 PG04A user local 20/20 PASS; PG04B consent-source patch prepared author 22/22, full user/Emulator/egress QA pending; B2.3 unapproved.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -260,4 +260,11 @@ R10.3-C2C2-B2.2-B1b real billing writer integration: **NOT_STARTED**; default-OF
 - Grounded by user local fence source: private `memoryErasureFences/{uid}` and public `memoryControl/erasure`, `state:"erasure-fenced"`; original `contextConsent.cjs` diff empty and still lacks erasure-fence gate in grant/check/list.
 - PG-04A **3-file DEMO-ONLY ADDITIVE PATCH_PREPARED**, SHA256 `5d406acb32e90f2378596e194388ee2280e3a5c93f5d1ead28c1f9b99ccb2d65`, author Node 22.16.0 **20/20 unit PASS**, clean git apply/syntax; user local apply/test **PENDING**. Adds synthetic `demoConsentFencePg04a.cjs`, 20 tests, privacy documentation. No deployed source changes or real provider/Firestore Emulator confirmation. Mock serial transaction is NOT a real Firestore race proof.
 - Next on user Linux: SHA-check/add new files, `node --test server/privacy/demoConsentFencePg04a.test.cjs` expected 20 PASS, syntax and diff check. After user confirmation, pursue *actual staging writer* source-level transactional fence patch and real Emulator conflicts, strict host/provider boundary. Retention B2.3 remains unapproved, index ON blocked.
+
+
+
+## PG-04A accepted / PG-04B consent source candidate prepared — 2026-11-21
+- PG-04A demo additive dual fence: **USER LOCAL UNIT_PASS 20/20**, syntax/diff PASS.
+- PG-04B source-level real `contextConsent.cjs` **PATCH_PREPARED / USER NOT APPLIED**. [Review and safety contract](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04B_REAL_CONTEXT_CONSENT_SOURCE_CANDIDATE_2026-11-21.md). Patch `REFLECT_PG04B_CONTEXT_CONSENT_DUAL_FENCE_SOURCE_2026-11-21.patch` SHA256 `9131431a39502f2d8df090f1f8e39554e7c3856ca7fd6cc20bc1398caa4aac19`: modifies staging-source consent and two old fixture assertions, adds 22 new test-only checks and doc. Isolated new tests **22/22 PASS**, clean apply/syntax; original baseline old tests NOT author-run, user both-suites required. No source push/deploy.
+- PG-04C real local Firestore Emulator concurrency and provider-boundary TOCTOU NOT STARTED; PG04 remains BLOCKED for provider-context use. B2.3 retention legal choices OPEN, B2.1 private writer census incomplete; no billing index ON.
 
