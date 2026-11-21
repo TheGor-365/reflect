@@ -51,3 +51,36 @@ If line-numbered matches are insufficient for a precise patch, ask the user to u
 - Full B2.1 private writer inventory remains incomplete, B2.3 retention/ledger/index policy unapproved, PG-04D true provider-egress TOCTOU not closed, mixed-version Railway rollout not validated.
 - Staging historical context **OFF**. No live provider calls, paid services, actual end-user account erasures, production deployment, or remote backend source changes.
 - PG04D2=SOURCE_REVIEW_PENDING; Emulator suite=NOT_STARTED. **Next evidence is exact current source**, not re-running PG04D1 tests.
+
+## 2026-11-22 USER source-discovery evidence (read-only; **archive NOT uploaded**)
+The user executed the scoped status and source grep on local `~/reflect-r10-railway-review`:
+```text
+ M server/privacy/contextConsent.cjs
+ M server/railway/index.cjs
+?? server/privacy/demoMemoryConsentAdmission.r103c2b2.cjs
+?? server/privacy/memoryErasure.r103c2b.cjs
+```
+This confirms **dirty real consent source**, **dirty Railway integration file**, and both **untracked locally-existing erasure/consent demo modules**. No approval to overwrite, reset, clean, publish, or deploy these files. Their contents cannot be reconstructed from remote HEAD.
+
+Grounded `rg` excerpts:
+- `server/privacy/memoryErasure.r103c2b.cjs:50,59`: accepts `verifyOwnerWriteFence` and `verifyConsentCreationFence` injected callbacks; `:63-64` same private/public owner fence paths; `:179` invokes `verifyOwnerWriteFence(uid), verifyConsentCreationFence(uid)`. Need inspect **when** both are awaited relative to writing fence and actual deletion; callbacks may be outside critical TX.
+- `server/privacy/demoMemoryConsentAdmission.r103c2b2.cjs:29` same private fence.
+- `server/privacy/contextConsent.cjs:108,111` now locally has both fenceRef helpers after PG04B; this is a modified tracked source, **not remote deployed code**.
+- `server/privacy/sessionContextPreview.cjs:154` and `contextPreviewHttp.cjs:150` signal `providerDispatchAllowed:false`.
+- `server/privacy/memoryErasureEmulator.r103c2b3.smoke.cjs:150-162,253` contains an existing consent-creation verification callback and erasure smoke, so PG04D2 should audit its fixture conventions and avoid reusing destructive test entrypoints.
+- `server/privacy/demoDispatchLease.pg04d1.cjs:37-38` has the same fence paths but remains independent synthetic state-machine code. No evidence that `server/railway/index.cjs` imports it.
+
+User ran `tar -czf "$HOME/REFLECT_PG04D2_SOURCE_REVIEW.tar.gz"` listing exactly:
+```text
+server/privacy/memoryErasure.r103c2b.cjs
+server/privacy/demoMemoryConsentAdmission.r103c2b2.cjs
+server/privacy/demoDispatchLease.pg04d1.cjs
+```
+The listing proves a **local archive was created** and contains these paths, **NOT** that this ChatGPT conversation has received the archive or that its contents were examined. The artifact is in the user's Linux `$HOME`, not accessible through GitHub or the conversation container. Next indispensable action is user attachment of that checked archive; alternatively paste exact redacted source files. No need to re-run already accepted tests.
+
+### Source-specific inspection after receipt
+1. Verify archive entries are exactly expected relative paths, files are regular (no symlinks), size small, no path traversal or secrets; read code, record SHA256 and function/callback contracts.
+2. Identify the actual erasure-intent **first write** transaction; compare the two fence creates, state transitions and verification callbacks with D1's proposed owner-coordinator read/write. Determine if the current writer can add an in-flight lease coordination check or if a separate design revision is mandatory.
+3. Review `memoryErasureEmulator.r103c2b3.smoke.cjs` test references and only narrowly user-shared `server/railway/index.cjs` callsite excerpts before any fake transport wiring. Explicitly handle race of grant/check/dispatch admission vs erasure intent vs send. A deterministic mock is not enough to claim external network egress atomicity.
+
+**Checkpoint:** PG04D2 local paths/dirty-state VERIFIED; source bytes NOT PROVIDED; executable integration patch NOT PREPARED; genuine Firestore Emulator+FAKE transport race NOT RUN; staging/prod history OFF; B2.1/B2.3 outstanding.
