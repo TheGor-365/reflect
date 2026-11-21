@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 / R10.3-C2C2-B1 UNIT+EMULATOR_PASS; B2.1 PARTIAL LOCAL SOURCE REVIEWED; B2.2 DESIGN_DRAFT, NO CODE.
+Revision: 2026-11-21 / B2.1 PARTIAL SOURCE REVIEW; B2.2 DESIGN_DRAFT; B2.2-A PATCH_PREPARED with 19/19 isolated mock tests; NOT APPLIED ON USER LINUX.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -54,6 +54,13 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - `hostedBudget.cjs` pinned source: hashed request ledger identity created in same transaction as day counters and runtime flag checks; later ledger status updated, no TTL; ownerDays hashed, globalDays shared. `appCheckReplayGuard.cjs`: hashed token fingerprint, bounded opportunistic expiry cleanup. Do not weaken billing idempotency/replay defenses.
 - B2.1 audit updates: `docs/roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md`, docs commit `3c00abffbfa909c1e8c33583c66eb251f426eac7`.
 - **B2.2 design begun (NO CODE):** `docs/roadmap/REFLECT_R10_3_C2C2_B2_2_OWNER_LEDGER_INDEX_DESIGN.md`, docs commit `1391ee9757b096f49356cdeed1605c550ec5d8f7`. Proposed owner-addressable private sidecar links transactionally paired with unchanged legacy hashed request ledger and day counters, no data migration or deletion; historical legacy entries remain `legacy-unindexed-unknown`. Blocked on B2.1 comprehensive writer/retention review and policy approval. No source commits or rollout.
+
+## R10.3-C2C2-B2.2-A — patch prepared 2026-11-21, USER QA PENDING
+- User actual Linux terminal (2026-11-21): `node --test server/ai/aiTurnRecovery.test.cjs server/railway/appCheckReplayGuard.test.cjs server/privacy/contextConsent.test.cjs` → **39 tests PASS, 0 FAIL** under Node 22.23.4, without proof of staging/Emulator. Listed attestation tests under `server/memory`: `railwayAttestationIntegration.r103c1.test.cjs`, `railwayAttestationRoute.r103c1.test.mjs`, `topicAttestationCore.r103c.test.mjs` (not run in this batch).
+- Assistant created **additive new-file-only** B2.2-A DEMO-ONLY ledger owner-index proof with 19 synthetic in-memory unit tests and optional live DEMO emulator smoke; NO changes to `server/ai/hostedBudget.cjs`, ledger/replay/consent, Railway or frontend. Mock tests 19/19 PASS on assistant's isolated Node 22.16.0; fresh clean-repo git apply check/apply PASS, module/smoke syntax PASS. This is NOT user-local QA nor real Emulator QA.
+- Patch named `REFLECT_R10_3C2C2_B2_2_A_DEMO_OWNER_LEDGER_2026-11-21.patch` SHA256 `83e5241c5138fd6888fb5fa4c59087badbfa535c7581440cd6d597a4a886e570`. Available as current ChatGPT conversation artifact, **not a remote GitHub code commit**. Adds `server/privacy/demoLedgerOwnerIndex.r103c2c2b2a.{cjs,test.cjs,smoke.cjs}` and `docs/privacy/REFLECT_R10_3_C2C2_B2_2_A_DEMO_OWNER_LEDGER_PROOF.md`.
+- Demo code validates demo `GCLOUD_PROJECT`, emulator localhost `127.0.0.1:18081`, `db.projectId`, explicit enabled flag and synthetic UID/requestId. Prototype creates an **existing-format synthetic digest-key** requestLedger entry + private UID-addressable request/day sidecar in same transaction, supports synthetic finish and read-only per-request inspection. It does NOT implement monetary reservations, real hosted writer integration, historical backfill, global owner inventory, consent fence, provider calls or deletion. The optional smoke cleans up only its three fresh synthetic records. No actual data deletion certification.
+- **Status:** `B2.2-A PATCH_PREPARED`, **USER_APPLY=PENDING / USER_UNIT=PENDING / DEMO_EMULATOR=PENDING**. B2.2-B production-writer changes NOT STARTED. B2.1 source census still partial; B2.3 retention unapproved; PG-04 still BLOCKED. Source code NOT in GitHub main or staging; only documents updated.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
