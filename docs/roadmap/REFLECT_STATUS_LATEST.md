@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-22 PG04B real-source local unit ACCEPTED 37/37; PG04C Firestore Emulator race test design in progress, NO actual Emulator QA; PG04/B2.3 blocked.
+Revision: 2026-11-22 PG04B 37/37 USER PASS; PG04C isolated Emulator test patch PREPARED author guard 6/6, user Emulator QA pending; PG04D/retention blocked.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -189,6 +189,14 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - **PG04B=LOCAL_APPLIED + UNIT_PASS 37/37**; the actual grant/check/list local module is now fence-aware; `revoke` retains prior semantics. This is **not** a real Firestore Emulator concurrency test or live provider-egress check, and not evidence of deployed protections.
 - **Next PG04C:** isolate a different localhost Firestore Emulator instance, test the exact user-patched `contextConsent.cjs` using Firebase Admin Transaction.get(Query), concurrent grant-vs-erasure transaction behavior, owner isolation, and bounded exact synthetic cleanup. NO production data/providers; use explicit emulator+project guards; no `recursiveDelete`.
 - **Remaining blockers:** real PG-04 egress TOCTOU/race and mixed-version staging rollout, full B2.1 writer census PARTIAL, B2.3 retention policy UNAPPROVED. Provider history/context remains OFF. B1b3 shadow budget source remains unconnected to actual writer.
+
+
+## 2026-11-22 — PG04C isolated Firebase Emulator patch PREPARED
+- **PG04B USER ACCEPTED**: prior actual Linux 37/37 old+new consent unit tests PASS, syntax/diff clean; local patched `contextConsent.cjs`, no backend source commit or stage release.
+- **PG04C patch prepared**, NOT yet installed/run by user: `REFLECT_PG04C_ISOLATED_FIRESTORE_EMULATOR_RACE_2026-11-22.patch`, SHA256 `067fd19e88c8ec243e849950976404d99e6b2fbcb758f86a06151858cd0bc31d`. Exactly FOUR new files: `server/privacy/contextConsent.pg04c.emulator.cjs`, guard test, Firestore-only config at localhost `19085` and privacy plan. Test uses actual user-local `contextConsent.cjs`, firebase-admin, six synthetic scenarios and exact cleanup; not connected to provider/Railway.
+- Assistant preflight **6/6 offline guard Node tests PASS**, syntax, fresh `git apply --check` / apply, JSON and ZIP integrity PASS; bad/no Emulator env denied before SDK. **Real Firestore Emulator TESTS NOT RUN**, as assistant environment lacks Firebase CLI and firebase-admin. User real QA pending.
+- [PG04C review + runbook](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04C_ISOLATED_FIRESTORE_EMULATOR_GATE_2026-11-22.md) docs commit `d4894773e2fe46bcda0c895a4bfc6d31e23aae1d`. PG04D provider-boundary erasure TOCTOU remains open even if PG04C passes; mixed-version Railway, full B2.1 inventory and B2.3 retention remain blocked. No stage/prod provider consent or billing ON.
+
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
