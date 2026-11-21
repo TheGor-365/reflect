@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-21 PG04A user local 20/20 PASS; PG04B consent-source patch prepared author 22/22, full user/Emulator/egress QA pending; B2.3 unapproved.
+Revision: 2026-11-22 PG04B 37/37 local accepted; PG04C isolated Emulator test patch prepared, user real QA pending; PG04D blocked.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -267,4 +267,11 @@ R10.3-C2C2-B2.2-B1b real billing writer integration: **NOT_STARTED**; default-OF
 - PG-04A demo additive dual fence: **USER LOCAL UNIT_PASS 20/20**, syntax/diff PASS.
 - PG-04B source-level real `contextConsent.cjs` **PATCH_PREPARED / USER NOT APPLIED**. [Review and safety contract](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04B_REAL_CONTEXT_CONSENT_SOURCE_CANDIDATE_2026-11-21.md). Patch `REFLECT_PG04B_CONTEXT_CONSENT_DUAL_FENCE_SOURCE_2026-11-21.patch` SHA256 `9131431a39502f2d8df090f1f8e39554e7c3856ca7fd6cc20bc1398caa4aac19`: modifies staging-source consent and two old fixture assertions, adds 22 new test-only checks and doc. Isolated new tests **22/22 PASS**, clean apply/syntax; original baseline old tests NOT author-run, user both-suites required. No source push/deploy.
 - PG-04C real local Firestore Emulator concurrency and provider-boundary TOCTOU NOT STARTED; PG04 remains BLOCKED for provider-context use. B2.3 retention legal choices OPEN, B2.1 private writer census incomplete; no billing index ON.
+
+
+
+## PG04B acceptance, PG04C isolated Firestore race patch (2026-11-22)
+- PG04B actual staging `contextConsent.cjs` PATCHED **LOCALLY** and old+new unit 37/37 USER PASS; not in remote backend, no Railway/staging/prod deploy.
+- PG04C synthetic local real-Firestore-Emulator acceptance script **PATCH_PREPARED**, SHA256 `067fd19e88c8ec243e849950976404d99e6b2fbcb758f86a06151858cd0bc31d`, 4 new files only. Author 6/6 guard tests and clean git apply/syntax PASS; **user real Firestore Emulator six integration cases NOT RUN**, no provider. Dedicated emulator `127.0.0.1:19085` distinct from current `18081`. [PG04C runbook](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04C_ISOLATED_FIRESTORE_EMULATOR_GATE_2026-11-22.md).
+- Even if PG04C passes, PG04D authorization-to-provider TOCTOU and mixed-version erasure rollout require separate proof; B2.1 writer census and B2.3 retention unapproved, provider history OFF.
 
