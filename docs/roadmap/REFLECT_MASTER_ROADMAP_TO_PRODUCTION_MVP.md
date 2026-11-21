@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-21.R10.3-C2C2-B1.unit+emulator-accepted; B2.1 draft-audit. Language: Russian.
+Revision: 2026-11-21.R10.3-C2C2-B1.unit+emulator-accepted; B2.1 source review partial; B2.2 design draft. Language: Russian.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -93,7 +93,7 @@ R10.3-C2C2-B1.1 read-only attemptOwners receipts/grants descendants and bound ch
 R10.3-C2C2-B1.2 legacy fence classification, retention unknowns, no auto repair — LOCAL DOC+TESTS PASS, legal policy not approved.
 R10.3-C2C2-B1.3 real synthetic local Emulator smoke — **PASS** (user terminal 2026-11-21; orphan receipt and consent tombstone detected, post-cleanup scoped audit; hashed ledgers/backups excluded).
 R10.3-C2C2-B2.1 exhaustive CURRENT server-private writers + paths + owner constraints inventory: aiTurnRecovery, hostedBudget, contextConsent, contextPreviewQuota, appCheckReplayGuard, local server/memory, dirty railway index and any new writers — **IN PROGRESS: pinned-source matrix draft committed to docs/roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md**; current dirty local writer inspection pending. B2.1 NOT ACCEPTED.
-R10.3-C2C2-B2.2 owner-addressable index/reconciliation for hashed requestLedger/ownerDays; preserve billing idempotency and quota semantics; agree design and retention first — NOT STARTED.
+R10.3-C2C2-B2.2 owner-addressable index/reconciliation for hashed requestLedger/ownerDays; preserve billing idempotency and quota semantics; agree design and retention first — **DESIGN_DRAFT (2026-11-21, NO CODE)**; see `docs/roadmap/REFLECT_R10_3_C2C2_B2_2_OWNER_LEDGER_INDEX_DESIGN.md`. Historic entries remain unindexed-unknown; retention approval and demo proof required.
 R10.3-C2C2-B2.3 retained tombstones, immutable receipt ledger, backups/PITR/Railway logs/xAI provider retention mapping and policy — OPEN; never invent TTL.
 R10.3-C2C2-B2.4 negative + race + foreign UID + missing parent + new synthetic Emulator tests — NOT STARTED.
 R10.3-C2C2-C consolidated scoped coverage/manifest closure — proposed child gate, not a historical implementation; NOT STARTED.
@@ -195,7 +195,7 @@ Existing contextConsent.cjs server grant 15min only; live staging route may not 
 B1 synthetic Emulator QA already PASS. Do not re-run to satisfy outdated instructions.
 Read docs/roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md on the docs branch; it is a pinned-source draft, NOT an audit of the dirty Linux worktree.
 On local ~/reflect-r10-railway-review use read-only terminal commands to inspect relevant transaction writes and local source paths in server/memory, server/privacy/memoryErasure.r103c2b.cjs, server/privacy/demoMemoryConsentAdmission.r103c2b2.cjs, server/railway/index.cjs. No env files or secrets.
-Classify current local writer/reader, UID-scoped/hashed/global, retention/TTL vs physical purge, security and billing idempotency requirements, missing owner-index, and erasure exclusions. Only then design B2.2. Update issue #136 and status after verified evidence. No owner-index code patch before review.
+Classify current local writer/reader, UID-scoped/hashed/global, retention/TTL vs physical purge, security and billing idempotency requirements, missing owner-index, and erasure exclusions. B2.2 DESIGN draft is now available; review its invariants and negative-test plan, then create a DEMO-ONLY proof without modifying the existing billing writer. Update issue #136 and status after verified evidence. No owner-index production integration before review.
 ## 7. RETENTION/BACKUP/COMPLETENESS BLOCKERS
 7-collection owner export v2 is not whole account; no automatic v2 Memory restore. Firestore doc deletion doesn't cascade subcollections. B1 scans known owner private paths but has bounded/unpaginated SDK enumeration (DEMO only); need paginated consistent approach for production.
 Legacy fences (private-only, public-only, mismatch, paired pending) have no automatic repair; memorySuppressed user operations create provenance gaps. Admin SDK bypasses Rules. Hashed requestLedger and ownerDays are not owner-queryable by prefix, and retention TTL for immutable requestLedger is NOT established.
