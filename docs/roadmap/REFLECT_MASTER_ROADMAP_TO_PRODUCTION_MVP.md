@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-21 B1b2 billing writer local diff empty; B1b3 isolated preview ready (22/22 author unit), user QA pending; real index integration blocked.
+Revision: 2026-11-21 B1b3 user 22/22 PASS; PG04 consent-fence blocker confirmed; B2.3 retention register draft, unapproved.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -246,4 +246,11 @@ R10.3-C2C2-B2.2-B1b real billing writer integration: **NOT_STARTED**; default-OF
 - Real user `git diff` for billing writer and handler EMPTY; scoped status shows only B1b0/B1b1 untracked synthetic files.
 - B1b3 **SHADOW_PATCH_PREPARED** with 3 new non-imported files; author isolated **22/22 B1b3 + 73/73 aggregate** mock Node PASS, fresh git apply/syntax PASS. Patch `REFLECT_R10_3C2C2_B2_2_B1B3_SHADOW_SOURCE_PREVIEW_2026-11-21.patch` SHA256 `06dad36e5b10e68deafddb0cb511481b6689aad171e7177c43f23d46eab61475`, in this ChatGPT conversation only, not GitHub main/staging source. **User apply/QA PENDING**.
 - B1b3 is a **non-imported standalone shadow** of hostedBudget with default-OFF index API and independent in-memory contract tests, not an applied modification of the existing writer; new source integration separately gated by B2.1 complete census, B2.3 retention decision, PG-04 fence fix, stage emulator race verification and rollout approval. No payments or provider calls.
+
+
+
+## PG-04 / B2.3 source-grounded blockers — 2026-11-21
+- **B1b3 user local shadow source pass:** 22/22 PASS, syntax + diff checks clean. Real `hostedBudget.cjs` unchanged, no staging or real billing integration.
+- **PG-04 CODE GAP CONFIRMED**, fix not started: pinned `contextConsent.cjs` grant transaction / check / list ignore both owner erasure fences. [New PG-04 contract and negative/race cases](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04_CONTEXT_CONSENT_ERASURE_FENCE_GAP_2026-11-21.md). Source/local fence shapes must be verified before any code patch.
+- **B2.3 inventory/decision register DRAFT, NOT APPROVED:** [billing retention matrix](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_R10_3_C2C2_B2_3_BILLING_RETENTION_DECISION_REGISTER_2026-11-21.md). No fabricated TTL, ledger purge or complete deletion claim. Source owner-index remains default-OFF and not wired; PG-04 and retention/rollout B2.1 full census block ON.
 
