@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-22 PG04D2 user source-discovery complete, local archive not uploaded, true writer review/Emulator testing pending.
+Revision: 2026-11-22 PG04D2 source archive audited, unsafe D1/erasure cancel gap; guarded diagnostic 8/8 author PASS, real Emulator pending; PG04D3 needed.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -307,4 +307,11 @@ R10.3-C2C2-B2.2-B1b real billing writer integration: **NOT_STARTED**; default-OF
 - Actual user dirty worktree: tracked `server/privacy/contextConsent.cjs` and `server/railway/index.cjs` modified; two untracked actual local demo erasure files. `memoryErasure.r103c2b.cjs` contains `verifyOwnerWriteFence` and `verifyConsentCreationFence` hooks (called near line 179), private/public erasure marker paths. Read-only grep **does not establish** transaction/race semantics.
 - User created `~/REFLECT_PG04D2_SOURCE_REVIEW.tar.gz` containing exactly three named demo .cjs files; **archive is still local to user's Linux**, not uploaded to conversation and not read by assistant. No PG04D2 code patch / true Emulator race run. [Scoped provenance and required acceptance matrix](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D2_ERASURE_WRITER_SOURCE_REVIEW_AND_EMULATOR_RACE_PLAN_2026-11-22.md).
 - Next: attach reviewed archive; inspect exact source and callbacks before designing a non-destructive localhost Emulator fake-transport race test. Do not replace real writer with PG04D1 toy. Mixed Railway versions, provider-egress TOCTOU, B2.1 writer census and B2.3 retention still block live history.
+
+
+
+## PG04D2 archive audit and blocked integration diagnosis — 2026-11-22
+- Received, verified and inspected 3-file user source tarball, SHA256 `a5fadd0501d02b2b13b24cbb50d51537089111b97950664321da6a4030dea723`. **Actual erasure writer's prepare/cancel do NOT coordinate D1 leases**; D1 synthetic requestErasure creates an incompatible private fence. Current history path remains OFF, so this is a future integration blocker, not evidence of a live breach.
+- [Actual source review + diagnostic patch instructions](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D2_RECEIVED_SOURCE_AUDIT_AND_DIAGNOSTIC_HANDOFF_2026-11-22.md). PG04D2 **4-new-file ONLY diagnostic patch PREPARED**, SHA256 `c7c96da9e467f84eac01727e349164e82571f01999556c9a964b2f20fbdde632`. Author 8/8 offline guard tests + clean apply/syntax PASS, user 6 real Firestore cases **PENDING** on dedicated `demo-reflect-auth-qa` localhost `18081` required by exact original constructors. Fake transport is an in-memory spy only. Test deliberately prints **GATE_BLOCKED** even after diagnostic PASS; it does not certify real egress safety. No source push/deploy.
+- Next PG04D3: coordinated writer intent/lease redesign including cancelPending and unknown charge, then real Emulator races and mock transport; full B2.1 census and B2.3 retention still unapproved. Do NOT enable provider context or import D1 toy.
 
