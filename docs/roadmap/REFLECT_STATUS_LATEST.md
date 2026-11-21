@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 B2.2-A + B0 LOCAL_APPLIED/UNIT_PASS/DEMO_EMULATOR_PASS; B2.2-B1a legacy hostedBudget test-only baseline in preparation.
+Revision: 2026-11-21 B2.2-A+B0 USER UNIT+EMULATOR_PASS; B2.2-B1a additive TEST_PATCH_PREPARED, user Linux QA pending; no billing writer changes.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -94,6 +94,14 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - User repeated combined `node --test server/privacy/demoLedgerOwnerIndex.r103c2c2b2a.test.cjs server/privacy/demoBillingReceiptReconciliation.r103c2c2b2b0.test.cjs` on real Linux Node 22.23.4 with inline `GCLOUD_PROJECT=demo-reflect-auth-qa` and `FIRESTORE_EMULATOR_HOST=127.0.0.1:18081`: **35 tests / 35 PASS / 0 FAIL** (19 A + 16 B0), duration ~114ms; `git diff --check` printed no errors. Earlier 15 env-factory failures are superseded; no source patch needed.
 - Prior user B0 synthetic local Firebase Emulator smoke already PASS with exact synthetic cleanup; no real ledgers deleted. B0 = `LOCAL_APPLIED + UNIT_PASS + DEMO_EMULATOR_PASS`. Not REMOTE_COMMITTED/STAGING_DEPLOYED; no actual billing writer modified.
 - Next subphase **B2.2-B1a** test-only parity suite against the unchanged current pinned `server/ai/hostedBudget.cjs`, to establish immutable hashed identity / same-tx quota reserve / fail-closed / finish semantics. This is NOT B2.2-B1b billing source integration. Retention policy B2.3 and PG-04 fence remain blocked.
+
+## 2026-11-21 — B2.2-B1a test-only hostedBudget baseline PATCH_PREPARED
+- Based on unchanged pinned remote `server/ai/hostedBudget.cjs` SHA `1c4c121e0e449f1a9360e4fb4588dcf58352e699` and user earlier empty `git diff` for that tracked file. New-file-only **offline test contract** `server/ai/hostedBudget.r103c2c2b1a.test.cjs` and documentation `docs/privacy/REFLECT_R10_3_C2C2_B2_2_B1A_HOSTED_BUDGET_BASELINE.md`. No change to `hostedBudget.cjs` or Railway.
+- User-local already confirmed A+B0 combined `35/35 PASS` and B0 earlier Emulator PASS; no rerun needed.
+- Assistant isolated scratch baseline mirrored pinned `hostedBudget` logic with lightweight test copies of its dependencies: **17/17 PASS** Node 22.16.0; new test syntax PASS; clean Git patch apply check/apply PASS. This is **not evidence of user-local tests against actual project dependencies**.
+- New patch `REFLECT_R10_3C2C2_B2_2_B1A_HOSTED_BUDGET_BASELINE_2026-11-21.patch`, SHA256 `f14a4931545a0a194ed7fc1e0e5e39a1a8966819b30699cd5bccce3381ad61ad`; user-downloadable in current ChatGPT conversation only, not remotely committed source. Only 2 new files. 17 offline tests cover transaction atomicity, hashed paths, no raw IDs, duplicates, concurrent model, owner/global counters, limits, rollback, finishing/unknown charge and kill-switch behavior.
+- Stage: `B2.2-B1a=TEST_PATCH_PREPARED`, `USER_APPLY/UNIT=PENDING`, NO Emulator required for this in-memory test; `B2.2-B1b=NOT_STARTED` (production billing writer integration). B2.1 private writers partial, B2.3 retention policy UNAPPROVED and PG-04 staging grant erasure-fence blocker persists; no provider enablement.
+- **Next:** user downloads patch, verifies exact checksum and `git apply --check` in dirty backend review worktree; runs `node --test server/ai/hostedBudget.r103c2c2b1a.test.cjs` (expect 17 PASS), syntax and `git diff --check`. After user PASS, update tracker and plan B1b integration.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
