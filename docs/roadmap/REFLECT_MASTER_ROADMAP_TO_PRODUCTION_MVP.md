@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-22 PG04B 37/37 local accepted; PG04C isolated Emulator test patch prepared, user real QA pending; PG04D blocked.
+Revision: 2026-11-22 PG04C user guard 6/6 PASS but real Emulator ENV_BLOCKED 0/6, safe retry pending; no rollout.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -275,3 +275,8 @@ R10.3-C2C2-B2.2-B1b real billing writer integration: **NOT_STARTED**; default-OF
 - PG04C synthetic local real-Firestore-Emulator acceptance script **PATCH_PREPARED**, SHA256 `067fd19e88c8ec243e849950976404d99e6b2fbcb758f86a06151858cd0bc31d`, 4 new files only. Author 6/6 guard tests and clean git apply/syntax PASS; **user real Firestore Emulator six integration cases NOT RUN**, no provider. Dedicated emulator `127.0.0.1:19085` distinct from current `18081`. [PG04C runbook](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04C_ISOLATED_FIRESTORE_EMULATOR_GATE_2026-11-22.md).
 - Even if PG04C passes, PG04D authorization-to-provider TOCTOU and mixed-version erasure rollout require separate proof; B2.1 writer census and B2.3 retention unapproved, provider history OFF.
 
+
+## PG04C user attempt — env-blocked, NOT Emulator PASS (2026-11-22)
+- PG04C checksum-gated patch USER APPLIED; guard unit **6/6 PASS**, JS syntax and git diff check clean; Firebase CLI 15.34.2 successfully starts isolated Firestore on port 19085.
+- Initial root `require.resolve('firebase-admin')` failed, but package is declared `firebase-admin:13.4.0` in **server/package.json**; test from `server` before declaring package absent. PG04C runtime exited at environment guard `PG04C_STOP: isolated localhost Firestore Emulator required`, before Firebase SDK or any of six tests: **0/6 integration scenarios run**. Probable CLI `FIREBASE_CONFIG` auto-includes `databaseURL`; not independently confirmed. Retry only with CLI-child `env -u FIREBASE_CONFIG` while preserving exact opt-in/project/localhost host, and check server-scoped Admin resolution.
+- NO provider, cloud Firestore, staging deploy, or real deletion. PG04D, B2.1, B2.3 remain pending. [Failure analysis and safe retry](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04C_ISOLATED_FIRESTORE_EMULATOR_GATE_2026-11-22.md).
