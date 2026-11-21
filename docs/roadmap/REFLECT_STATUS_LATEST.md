@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 B1b3 USER LOCAL_APPLIED + UNIT_PASS 22/22; PG-04 and B2.3 source/risk review under way, no stage release.
+Revision: 2026-11-21 B1b3 USER UNIT_PASS 22/22; PG-04 source gap documented, B2.3 retention register draft; no code fix or deploy.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -153,6 +153,12 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - `B1b3=USER_LOCAL_APPLIED + UNIT_PASS`; NO B1b3 Firebase Emulator run or real billing/provider authorization. Original `server/ai/hostedBudget.cjs` and `hostedHandler.cjs` remain unmodified by this additive patch and still disconnected from owner-index. GitHub documentation branch does not contain user dirty source.
 - Next blocker **PG-04**: pinned unmodified `server/privacy/contextConsent.cjs` grant `execute()` transaction and `check()`/`list()` lack any private/public memory erasure-fence reads. Next phase must verify current local erasure-fence schemas before a fail-closed **single-transaction** consent change with race tests. The current module is server-only/not itself a live HTTP route; do not assume this gap proves production exploit.
 - Concurrent **B2.3**: retention/legal basis for owner-linked billing index and immutable hashed request ledger is unapproved; never invent a TTL, migrate legacy records blindly, or certify global erasure. No provider context enabling, staging switch, or billing writer changes.
+
+
+## 2026-11-21 — PG-04 and B2.3 blocker review DOCUMENTED (not fixed)
+- [PG-04 source-level consent fence gap and transactional/race test contract](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04_CONTEXT_CONSENT_ERASURE_FENCE_GAP_2026-11-21.md), docs SHA `d70a5b88b63cf22333fd677f23f6db746a1ee73c`. The pinned unmodified `contextConsent.cjs` grant `execute()` and `check()`/`list()` never read private/public erasure fences. Existing 15m consent grant TTL does not close this. **PG-04 source patch/test/Emulator remains NOT STARTED**.
+- [B2.3 retention decision register](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_R10_3_C2C2_B2_3_BILLING_RETENTION_DECISION_REGISTER_2026-11-21.md), docs SHA `4f84604aa5c88db70d5c2340d2df4beb728be88c`. Separates hashed immutable-ID request ledger, owner/day/global budgets, proposed personally identifiable UID index, receipts, consent tombstones, security replay, erasure fences, PITR/backups/logs/provider records; ALL unapproved duration/legal basis decisions remain explicitly OPEN. No TTL or deletion set.
+- **Next source evidence:** verify untracked local `memoryErasure.r103c2b.cjs` and `demoMemoryConsentAdmission.r103c2b2.cjs` actual fence paths/state and current `contextConsent.cjs` tracked diff before PG-04 patch. Do not remove a fence, alter billing, enable provider context or stage/deploy anything.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
