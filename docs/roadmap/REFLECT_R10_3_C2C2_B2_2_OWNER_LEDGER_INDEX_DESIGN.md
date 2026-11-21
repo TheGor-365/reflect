@@ -72,3 +72,16 @@ Suggested fields for the request link: `{schemaVersion:1, ledgerKey:legacyReques
 - Read `server/ai/policy.cjs` at pinned HEAD: `planQuotaReservation` returns `ids: [...prior.ids, requestId]` as part of a *general quota planner*, but `hostedBudget.cjs` explicitly passes `ids: []` into that planner and persists `ids: []` to `ownerDays`. This distinction matters: do NOT copy `tokens.ids` or store raw request IDs in proposed sidecar or billing day documents.
 - In pinned `hostedBudget.cjs`, owner/day `recent` contains timestamps from planner and is retained alongside numeric counters. The immutable property applies to request ledger **identity**, not its mutable completion fields.
 - Existing backend tests available at pinned HEAD include `server/ai/aiTurnRecovery.test.cjs` and `server/railway/appCheckReplayGuard.test.cjs`; billing regression tests are also represented in `server/ai/hosted.integration.test.cjs` (direct `hostedBudget.test.cjs` path not verified). Next changes must choose actual available paths before command construction.
+
+
+## B2.2-A additive demo proof prepared (2026-11-21) — NOT user-applied
+
+**Evidence level and scope:**
+- User's previously requested regression ran on real Linux: `aiTurnRecovery.test.cjs + appCheckReplayGuard.test.cjs + contextConsent.test.cjs` → **39/39 PASS, 0 failures**. This does not include new B2.2-A files.
+- Isolated assistant prototype: `server/privacy/demoLedgerOwnerIndex.r103c2c2b2a.cjs` + `.test.cjs` + optional `.smoke.cjs` and a privacy README; new files only, no change to real `hostedBudget.cjs` or any live route. A mock Firestore fixture in Node 22.16.0 ran **19/19 PASS twice**, code syntax and clean-repo `git apply --check`/apply PASS. A **real demo Emulator run is pending** until user applies patch and executes smoke.
+- Patch `REFLECT_R10_3C2C2_B2_2_A_DEMO_OWNER_LEDGER_2026-11-21.patch`; SHA256 `83e5241c5138fd6888fb5fa4c59087badbfa535c7581440cd6d597a4a886e570`. Delivered as user-downloadable artifact in ChatGPT conversation, **NOT published in GitHub source**.
+- Demo-only environmental guard: exact `demo-reflect-auth-qa` project, loopback Firestore Emulator `127.0.0.1:18081`, verified db project and explicit enabled flag, synthetic-only IDs. Proof stores a *synthetic* SHA256 legacy ledger entry and private owner request/day links atomically, tests double reserve across days, injected commit failure rollback, malformed link, foreign UID, missing ledger, legacy-unindexed state, benign synthetic finish. No real quota/money reservation, prompt, tokens, receipt leak, provider call, or production index.
+- Optional smoke creates fresh random synthetic UID/requestId and cleans up only the three resulting synthetic docs. Never delete real billing ledgers or restart running emulator.
+- **STATUS B2.2-A = PATCH_PREPARED**, user LOCAL_APPLIED/UNIT_PASS/EMULATOR_PASS **UNCONFIRMED**. B2.2-B production integration NOT STARTED. Retention approvals and PG-04 consent-fence blocker remain open.
+
+**First next action on user's Linux:** apply patch by verified SHA256; run the 19 new in-memory unit tests and syntax checks. Only on user PASS run synthetic demo smoke on verified localhost Firebase Emulators. Then update tracker issue #136, master and latest status with exact user evidence; no preemptive acceptance.
