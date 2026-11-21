@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-22 PG04B 37/37 USER PASS; PG04C isolated Emulator test patch PREPARED author guard 6/6, user Emulator QA pending; PG04D/retention blocked.
+Revision: 2026-11-22 PG04C user patch applied + offline guard 6/6 PASS, actual Emulator script ENV_GUARD_BLOCKED (0/6 scenarios), no cloud access; runtime fix investigation.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -197,6 +197,13 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - Assistant preflight **6/6 offline guard Node tests PASS**, syntax, fresh `git apply --check` / apply, JSON and ZIP integrity PASS; bad/no Emulator env denied before SDK. **Real Firestore Emulator TESTS NOT RUN**, as assistant environment lacks Firebase CLI and firebase-admin. User real QA pending.
 - [PG04C review + runbook](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04C_ISOLATED_FIRESTORE_EMULATOR_GATE_2026-11-22.md) docs commit `d4894773e2fe46bcda0c895a4bfc6d31e23aae1d`. PG04D provider-boundary erasure TOCTOU remains open even if PG04C passes; mixed-version Railway, full B2.1 inventory and B2.3 retention remain blocked. No stage/prod provider consent or billing ON.
 
+
+## 2026-11-22 — PG-04C user local environment block (NOT emulator PASS)
+- User actual terminal `~/reflect-r10-railway-review`, detached `1c4c121e`, Node 22.23.4: downloaded SHA-guarded PG04C patch, output `PASS: PG-04C установлен`; `node --test server/privacy/contextConsent.pg04c.guard.test.cjs` **6/6 PASS**, `node --check` and `git diff --check` clean. `firebase --version` is **15.34.2**.
+- Root-level `node -p "require.resolve('firebase-admin')"` threw `MODULE_NOT_FOUND`, but this probe used repository ROOT, whereas `server/package.json` declares `firebase-admin:13.4.0`; **not proof** that `server/node_modules/firebase-admin` is unavailable. Check module resolution from `server` before installing anything; no `server/package-lock.json` at pinned Git commit.
+- `firebase emulators:exec --only firestore --project reflect-ai-staging --config docs/privacy/pg04c-firestore.firebase.json ...` successfully started local Firestore Emulator (isolated port `19085`; hub/log ports auto shifted 4400→4401 and 4500→4501). It ran test script but aborted **BEFORE Firebase Admin require / first Firestore test**: `FAIL: PG04C PG04C_STOP: isolated localhost Firestore Emulator required`. `6/6` offline env guards do **NOT** mean 6/6 real Emulator cases. Emulator later shut down normally. **PG04C real integration = 0/6 executed / ENV_GUARD_BLOCKED**, not six failed transactions.
+- Exact PG04C guard rejects any `FIREBASE_CONFIG` text containing `databaseURL`; Firebase CLI may inject FIREBASE_CONFIG even when only Firestore emulator is used (commonly a project-default RTDB URL). This is a **suspected, not yet verified** source of mismatch; exact mismatch cannot be inferred solely from output. Safe plan: first test package resolution from `server`, then rerun only in Firebase CLI's own isolated execution with `env -u FIREBASE_CONFIG` on the **child process**, preserving explicit consent to synthetic-only, project ID and exact localhost `FIRESTORE_EMULATOR_HOST`. Do not edit/remove hard guard, do not point to cloud or use credentials.
+- New user action: `cd ~/reflect-r10-railway-review/server && node -p "require.resolve('firebase-admin')"`; if not installed, install only pinned declared `13.4.0` in server directory with no tracked manifest/lock changes and recheck. Then run isolated Emulator with `env -u FIREBASE_CONFIG` and all original PG04C flags and report actual stdout. No dynamic migration, `recursiveDelete`, source push or provider calls. PG04D, B2.1 census and B2.3 retention remain blocked.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
