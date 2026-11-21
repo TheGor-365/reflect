@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 B1a USER_UNIT_PASS 17/17; B1b0 fixture-only PATCH_PREPARED author 15/15, user QA pending; PG blocked.
+Revision: 2026-11-21 B1b0 USER_LOCAL_APPLIED+UNIT_PASS 15/15; B1b1 fixture-only real-writer compatibility tests IN PREPARATION; B1b real writer NOT MODIFIED.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -116,6 +116,12 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - **B1b0 prototype PATCH_PREPARED only:** 3 additive new files: `server/ai/ownerLedgerTxExtension.r103c2c2b1b0.{cjs,test.cjs}` and `docs/privacy/REFLECT_R10_3_C2C2_B2_2_B1B0_TRANSACTION_EXTENSION_CONTRACT.md`. No `hostedBudget.cjs`, Railway, Firebase client, rules, consent, payment, source commit or provider integration changed.
 - Artifact `REFLECT_R10_3C2C2_B2_2_B1B0_TX_INDEX_EXTENSION_2026-11-21.patch`, SHA256 `ccbe32542950cc9d1872e1c49257489d29a730f4cfba4e542f4f5ffc7ca8d555`; downloadable from this original ChatGPT turn, **NOT** published to GitHub source. Isolated author Node 22.16.0 **15/15 PASS**, clean `git apply --check`, `git apply --whitespace=error`, and syntax PASS. **User apply and local 15-case test PENDING**; no Emulator smoke claimed.
 - Fixture-only default-OFF index extension models `prepare()` with `tx.get` before writes, then `stage()` in same synthetic transaction as legacy request/owner/global records. Model checks digest invariance, day marker validation, reject duplicate, same-transaction atomicity, cross-owner and legacy-unindexed gaps. It is **not wired** to real `budget.reserve` or billed provider. Production writer integration B1b1 NOT_STARTED; B2.3 retention UNAPPROVED, B2.1 writer census PARTIAL, PG-04 staging consent erasure-fence BLOCKED.
+
+## 2026-11-21 B2.2-B1b0 — USER LOCAL QA ACCEPTED (15/15 PASS)
+- User local worktree `~/reflect-r10-railway-review`, detached HEAD `1c4c121e`, Node ASDF 22.23.4: user ran guarded patch `REFLECT_R10_3C2C2_B2_2_B1B0_TX_INDEX_EXTENSION_2026-11-21.patch` with expected SHA256 `ccbe32542950cc9d1872e1c49257489d29a730f4cfba4e542f4f5ffc7ca8d555`; shell printed `PASS: B2.2-B1b0 установлен`. Checksum condition passed; exact computed hash was not separately printed.
+- `node --test server/ai/ownerLedgerTxExtension.r103c2c2b1b0.test.cjs` → **15/15 PASS**, 0 FAIL (including same transaction 5 writes, request/day sidecar, invalid existing marker, orphan link, duplicate, no partial commit, cross-owner isolation, fixture project-only guard, no provider interface). `node --check` helper and `git diff --check` produced no errors.
+- `B2.2-B1b0=LOCAL_APPLIED+UNIT_PASS`; in-memory fixture only, **NO Firebase Emulator acceptance for B1b0**, no real payment, no production/staging release, no remote source commit. The original `hostedBudget.cjs` is unchanged.
+- **Next B1b1:** compatible fixture-only test contract exercising the genuine unchanged `hostedBudget.cjs` alongside `ownerLedgerTxExtension.r103c2c2b1b0.cjs`, without editing existing writer, simulating same TX and strict OFF parity. Full source integration remains a separate gated step: retention policy unapproved, PG-04 fence gap and exhaustive B2.1 writer census unresolved.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
