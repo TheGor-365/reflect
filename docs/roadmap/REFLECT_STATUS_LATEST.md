@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 B2.2-A LOCAL_UNIT+EMULATOR_PASS; B2.2-B0 PATCH_PREPARED, USER QA PENDING; B2.1 partial; PG blocked.
+Revision: 2026-11-21 B2.2-A USER_UNIT+EMULATOR_PASS; B2.2-B0 USER_LOCAL_APPLIED+EMULATOR_PASS; USER_UNITS=20/35 (15 env-guard failures); isolated B0 env-correct 16/16 PASS; USER 35/35 PENDING.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -81,6 +81,14 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - Subsequent `node --test A.test.cjs B0.test.cjs` only executed the existing B2.2-A cases: **19 PASS**; missing B0 test file was not executed. `node --check B0.cjs`, `node --check B0.smoke.cjs`, and `node B0.smoke.cjs` returned MODULE_NOT_FOUND. Two local emulator listeners 9099 and 18081 still observed.
 - Original B0 patch on conversation artifact storage was re-verified by assistant at `/mnt/data/REFLECT_R10_3C2C2_B2_2_B0_READONLY_RECONCILIATION_2026-11-21.patch`; SHA256 exactly `71538330b88c56ac14b9a22be4b7b5434139a8e2cc938dff76244f911fc38365`; it creates four files only. This is **NOT** the user's `/home/gor/Загрузки` path.
 - Correct next step: explicitly download patch to Linux `Загрузки` (or `Downloads`), locate actual file and verify digest before `git apply --check` / `git apply`. Only after successful apply run both tests (expected 35 total) and then B0 synthetic demo Emulator smoke. `B2.2-A` remains accepted; `B2.2-B0` remains PATCH_PREPARED/USER_APPLY_BLOCKED and has not advanced. No code commit or deployment.
+
+## Latest B2.2-B0 user validation (2026-11-21, user-provided terminal)
+- Initially downloaded file missing, but **second attempt did succeed**: user terminal printed `PASS: B2.2-B0 установлен`. Thus B0 now LOCAL_APPLIED in dirty `~/reflect-r10-railway-review`, detached HEAD `1c4c121e`.
+- User ran `node --test` for A+B0 without setting `GCLOUD_PROJECT` or `FIRESTORE_EMULATOR_HOST` on that invocation; output `tests 35, pass 20, fail 15`. A's 19 tests passed. B0 one negative environment-guard test passed; **all other 15 B0 tests threw `demo-reconciliation-environment-denied` at B0 constructor lines 28/33**, before executing their target assertions. This is an environment setup failure in the test command, not evidence of failed receipt reconciliation logic.
+- Direct inspection of B0 patch SHA256 `71538330b88c56ac14b9a22be4b7b5434139a8e2cc938dff76244f911fc38365` confirms constructor requires exact `process.env.GCLOUD_PROJECT === "demo-reflect-auth-qa"` and `process.env.FIRESTORE_EMULATOR_HOST === "127.0.0.1:18081"`. Assistant reran the exact B0 16 tests in isolated Node 22.16.0 with those env variables and **16/16 PASS**. This does NOT replace user-local combined 35/35 test evidence.
+- User then ran B0 synthetic smoke with both env variables and `FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099`: **PASS** read-only synthetic receipt/ledger/index reconciliation and **PASS** exact synthetic cleanup only. No global billing deletion, provider, staging release or code commit.
+- **Current stage:** `B2.2-B0 = USER_LOCAL_APPLIED + DEMO_EMULATOR_PASS + USER_UNIT_ENV_BLOCKED`; `USER_COMBINED_35_PASS = PENDING`; `ASSISTANT_ISOLATED_B0_16_PASS = VERIFIED`. No source code change indicated. `B2.2-B1 = DESIGN/READ-ONLY PLANNING` only.
+- Next user command, from proper local backend tree: `GCLOUD_PROJECT=demo-reflect-auth-qa FIRESTORE_EMULATOR_HOST=127.0.0.1:18081 node --test server/privacy/demoLedgerOwnerIndex.r103c2c2b2a.test.cjs server/privacy/demoBillingReceiptReconciliation.r103c2c2b2b0.test.cjs` → expect 35 PASS; also `node --check` B0 files and `git diff --check`.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
