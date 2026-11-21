@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 B1b0 user local unit 15/15 ACCEPTED; B1b1 test-only compatibility PATCH_PREPARED, user QA pending; real hostedBudget unchanged.
+Revision: 2026-11-21 B1b1 USER LOCAL_UNIT_PASS 19/19; B1b2 design draft docs-only, no real writer integration; Privacy Gate blocked.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -129,6 +129,15 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - Author isolated Node 22.16 scratch tests: **19/19 B1b1 PASS** and **51/51 combined B1a+B1b0+B1b1 PASS**; fresh Git `git apply --check` and `git apply --whitespace=error` PASS, syntax and diff check PASS; ZIP integrity PASS. **Honest boundary:** scratch used semantically matching, *not byte-identical*, copies of pinned hostedBudget and its pure dependencies. Only the user's next test can certify the exact real local modules. No actual Firebase Emulator B1b1 run or external provider use.
 - Test-local AsyncLocalStorage transaction wrapper demonstrates B1b0 `prepare`/ `stage` sidecar calls in the **same fake Firestore transaction** as the unchanged real `budget.reserve` callback, testing feature OFF exact 3 writes versus indexed fixture ON 5 writes, duplicate/cross-day/legacy, rollback, 2-per-minute and global USD caps, finish/no-refund, anti-retry and overspend kill-switch. This wrapper is **NOT** intended as runtime integration; real explicit source changes require privacy/retention approval.
 - Stage: `B1b1=TEST_PATCH_PREPARED/USER_LOCAL_QA_PENDING`. Actual writer integration **NOT STARTED**, B2.1 exhaustive writer census partial, B2.3 retention unapproved, PG-04 erasure-fence consent/check gap blocking provider memory use. No source push/deploy.
+
+
+## B1b1 accepted on USER Linux; B1b2 billing-writer change design DRAFT (2026-11-21)
+- **B1b1 USER LOCAL QA ACCEPTED**: checksum-guarded patch printed `PASS: B2.2-B1b1 установлен`; `node --test server/ai/hostedBudgetOwnerIndexCompatibility.r103c2c2b1b1.test.cjs` ran **19/19 PASS, 0 FAIL** on real local source and in-memory fixture (171.47ms). `node --check` + `git diff --check` no errors. This supersedes assistant scratch 19/19; no real Firestore Emulator/prod billing claim.
+- **B1b2 DESIGN_DRAFT**: Reviewed pinned `hostedBudget.cjs`, `hostedHandler.cjs`, `policy.cjs`, `xaiCost.cjs`. [Reviewed transaction integration proposal](REFLECT_R10_3_C2C2_B2_2_B1B2_HOSTED_BUDGET_INTEGRATION_REVIEW.md) docs commit `64bb94ef47571667089a2f6c46078ccddcef7abe`. Original host creates budget with two args; index integration requires trusted server-only OFF-by-default wiring and same-TX sidecar reads before any writes; B1b0 fixture-only helper must NOT be promoted to staging.
+- Risks: mixed Railway versions could continue writing unindexed ledger while flag appears ON; owner links are personal metadata requiring B2.3 retention approval; PG-04 erasure-fence staging consent gap remains. **No source change/push, staging rollout, real billing, provider call or deletion.**
+- Status: `B1b1=LOCAL_APPLIED+UNIT_PASS`; `B1b2=DESIGN_DRAFT`; `B1b3 real writer source=NOT_STARTED`; `B2.1 writer census=PARTIAL`; `B2.3 retention=UNAPPROVED`; `PG-04=BLOCKED`.
+- Next user read-only check: `git diff -- server/ai/hostedBudget.cjs server/ai/hostedHandler.cjs` then `git status --short -- server/ai/hostedBudget.cjs server/ai/hostedHandler.cjs server/ai/ownerLedgerTxExtension.r103c2c2b1b0.cjs server/ai/hostedBudgetOwnerIndexCompatibility.r103c2c2b1b1.test.cjs`. No tests/deploy required for this review.
+
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
