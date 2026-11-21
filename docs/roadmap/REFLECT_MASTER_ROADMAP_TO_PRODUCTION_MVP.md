@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-21.R10.3-C2C2-B1.unit+emulator-accepted; B2.1 source review partial; B2.2 design draft. Language: Russian.
+Revision: 2026-11-21.R10.3-C2C2-B1.accepted; B2.1 partial; B2.2 design; B2.2-A prototype patch prepared, user QA pending. Language: Russian.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -93,7 +93,7 @@ R10.3-C2C2-B1.1 read-only attemptOwners receipts/grants descendants and bound ch
 R10.3-C2C2-B1.2 legacy fence classification, retention unknowns, no auto repair — LOCAL DOC+TESTS PASS, legal policy not approved.
 R10.3-C2C2-B1.3 real synthetic local Emulator smoke — **PASS** (user terminal 2026-11-21; orphan receipt and consent tombstone detected, post-cleanup scoped audit; hashed ledgers/backups excluded).
 R10.3-C2C2-B2.1 exhaustive CURRENT server-private writers + paths + owner constraints inventory: aiTurnRecovery, hostedBudget, contextConsent, contextPreviewQuota, appCheckReplayGuard, local server/memory, dirty railway index and any new writers — **IN PROGRESS: pinned-source matrix draft committed to docs/roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md**; current dirty local writer inspection pending. B2.1 NOT ACCEPTED.
-R10.3-C2C2-B2.2 owner-addressable index/reconciliation for hashed requestLedger/ownerDays; preserve billing idempotency and quota semantics; agree design and retention first — **DESIGN_DRAFT (2026-11-21, NO CODE)**; see `docs/roadmap/REFLECT_R10_3_C2C2_B2_2_OWNER_LEDGER_INDEX_DESIGN.md`. Historic entries remain unindexed-unknown; retention approval and demo proof required.
+R10.3-C2C2-B2.2 owner-addressable index/reconciliation for hashed requestLedger/ownerDays; preserve billing idempotency and quota semantics; agree design and retention first — **DESIGN_DRAFT**; see `docs/roadmap/REFLECT_R10_3_C2C2_B2_2_OWNER_LEDGER_INDEX_DESIGN.md`. Historical entries remain unindexed-unknown. **B2.2-A additive DEMO prototype PATCH_PREPARED, new-file-only; assistant in-memory tests 19/19 PASS, clean git apply PASS; USER apply/QA/Emulator PENDING.** Patch SHA256 `83e5241c5138fd6888fb5fa4c59087badbfa535c7581440cd6d597a4a886e570`, downloadable in current ChatGPT turn, NOT in GitHub remote code. B2.2-B existing hostedBudget integration NOT STARTED and retention approval required.
 R10.3-C2C2-B2.3 retained tombstones, immutable receipt ledger, backups/PITR/Railway logs/xAI provider retention mapping and policy — OPEN; never invent TTL.
 R10.3-C2C2-B2.4 negative + race + foreign UID + missing parent + new synthetic Emulator tests — NOT STARTED.
 R10.3-C2C2-C consolidated scoped coverage/manifest closure — proposed child gate, not a historical implementation; NOT STARTED.
