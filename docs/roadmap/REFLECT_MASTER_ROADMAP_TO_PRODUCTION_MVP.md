@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-21 B1b3 user 22/22 PASS; PG04 consent-fence blocker confirmed; B2.3 retention register draft, unapproved.
+Revision: 2026-11-21 PG-04A demo dual-fence candidate patch ready author 20/20, user QA pending; real staging consent fix not started.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -253,4 +253,11 @@ R10.3-C2C2-B2.2-B1b real billing writer integration: **NOT_STARTED**; default-OF
 - **B1b3 user local shadow source pass:** 22/22 PASS, syntax + diff checks clean. Real `hostedBudget.cjs` unchanged, no staging or real billing integration.
 - **PG-04 CODE GAP CONFIRMED**, fix not started: pinned `contextConsent.cjs` grant transaction / check / list ignore both owner erasure fences. [New PG-04 contract and negative/race cases](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04_CONTEXT_CONSENT_ERASURE_FENCE_GAP_2026-11-21.md). Source/local fence shapes must be verified before any code patch.
 - **B2.3 inventory/decision register DRAFT, NOT APPROVED:** [billing retention matrix](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_R10_3_C2C2_B2_3_BILLING_RETENTION_DECISION_REGISTER_2026-11-21.md). No fabricated TTL, ledger purge or complete deletion claim. Source owner-index remains default-OFF and not wired; PG-04 and retention/rollout B2.1 full census block ON.
+
+
+
+## 2026-11-21 — PG-04A DEMO dual-fence candidate PATCH_PREPARED
+- Grounded by user local fence source: private `memoryErasureFences/{uid}` and public `memoryControl/erasure`, `state:"erasure-fenced"`; original `contextConsent.cjs` diff empty and still lacks erasure-fence gate in grant/check/list.
+- PG-04A **3-file DEMO-ONLY ADDITIVE PATCH_PREPARED**, SHA256 `5d406acb32e90f2378596e194388ee2280e3a5c93f5d1ead28c1f9b99ccb2d65`, author Node 22.16.0 **20/20 unit PASS**, clean git apply/syntax; user local apply/test **PENDING**. Adds synthetic `demoConsentFencePg04a.cjs`, 20 tests, privacy documentation. No deployed source changes or real provider/Firestore Emulator confirmation. Mock serial transaction is NOT a real Firestore race proof.
+- Next on user Linux: SHA-check/add new files, `node --test server/privacy/demoConsentFencePg04a.test.cjs` expected 20 PASS, syntax and diff check. After user confirmation, pursue *actual staging writer* source-level transactional fence patch and real Emulator conflicts, strict host/provider boundary. Retention B2.3 remains unapproved, index ON blocked.
 
