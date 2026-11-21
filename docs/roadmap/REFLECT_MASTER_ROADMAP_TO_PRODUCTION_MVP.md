@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-22 PG04D0 user 8/8 PASS, PG04D1 demo lease-intent proof author 29/29 prepared, PG04D2/retention pending.
+Revision: 2026-11-22 PG04D1 user unit 29/29 PASS, PG04D2 exact local erasure/Railway source preflight, no test patch yet.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -294,4 +294,10 @@ R10.3-C2C2-B2.2-B1b real billing writer integration: **NOT_STARTED**; default-OF
 - PG04D0 **USER LOCAL 8/8 PASS**, source OFF-context baseline: handler passes null as provider context and preview dispatch forbidden. No source push/deploy.
 - PG04D1 isolated **PATCH_PREPARED**, SHA256 `3d2b904b7d32ea71bd13fb187b002a989cc11a17c5b33341c169dbbb253d8e40`: three additive synthetic-only files, owner coordinator phases open/erasure-pending/dispatches-drained, transactionally counted in-flight leases, fake transport **not** connected. Assistant **29/29 unit PASS** twice and clean apply/syntax/ZIP; user local proof PENDING. [Detailed design](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D1_OWNER_DISPATCH_LEASE_DESIGN_2026-11-22.md).
 - PG04D2 real localhost Firestore Emulator + fake external transport race NOT STARTED, pending source review of untracked actual local erasure writer and dirty Railway/M3 authorizer. Never infer external network atomicity or completed memory erase from model's dispatches-drained counter. B2.1 writer census incomplete, B2.3 metadata/receipts retention legally UNAPPROVED; provider context remains OFF.
+
+
+
+## PG04D1 local proof accepted; PG04D2 exact writer source inspection first — 2026-11-22
+- **PG04D1 USER 29/29 unit PASS** on Linux after checksum-gated additive patch install; syntax/diff clean. PG04D1 is a synthetic in-memory coordinator/lease model only; no real Firebase transaction or provider transport.
+- **PG04D2=SOURCE_REVIEW_PENDING / NO TEST PATCH YET.** Need actual local untracked `memoryErasure.r103c2b.cjs`, `demoMemoryConsentAdmission.r103c2b2.cjs`, dirty Railway index and memory authorizer before designing real grant-vs-erasure-vs-fake transport race tests. [Evidence capture and acceptance matrix](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D2_ERASURE_WRITER_SOURCE_REVIEW_AND_EMULATOR_RACE_PLAN_2026-11-22.md). Existing production handler still sends NULL history. No source pushes/deploys. B2.1 writer census partial and B2.3 retention legal approval missing.
 
