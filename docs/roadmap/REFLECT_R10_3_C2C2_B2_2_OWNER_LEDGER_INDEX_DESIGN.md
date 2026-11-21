@@ -127,3 +127,14 @@ The tests import the **real** `hostedBudget.cjs` and `policy.cjs` in the user's 
 
 Exact next task: download/apply by SHA, user executes `node --test server/ai/hostedBudget.r103c2c2b1a.test.cjs`, `node --check`, `git diff --check`; acceptance expected 17 PASS. Subsequently B2.2-B1b integration design only after retention/PG safety review; never run existing `hosted.integration.test.cjs` against current demo emulator because that script calls `recursiveDelete(root)` and requires DIFFERENT project `reflect-ai-stage-fixture01` at Firestore `127.0.0.1:19084`.
 
+
+
+## ## B2.2-B1a user-verified contract and B2.2-B1b0 fixture-only transaction extension (2026-11-21)
+**B1a user evidence:** actual `hostedBudget.r103c2c2b1a.test.cjs` ran on user's Linux against unchanged project modules, **17/17 PASS**, syntax and diff checks clean. This supersedes prior author scratch 17/17 as the acceptance evidence.
+
+**B1b0 prepared (not user-applied):** `REFLECT_R10_3C2C2_B2_2_B1B0_TX_INDEX_EXTENSION_2026-11-21.patch` SHA256 `ccbe32542950cc9d1872e1c49257489d29a730f4cfba4e542f4f5ffc7ca8d555`, in original ChatGPT artifact. 3 new files only: pure fixture-scoped helper `server/ai/ownerLedgerTxExtension.r103c2c2b1b0.cjs`, 15 in-memory transactional tests, and `docs/privacy/REFLECT_R10_3_C2C2_B2_2_B1B0_TRANSACTION_EXTENSION_CONTRACT.md`. Author tests 15/15 PASS, syntax/apply PASS; **user local validation pending**. No actual billing writer modified, no Firestore service or provider calls.
+
+**Contract intended for eventual integration:** same owner/request digest as current hostedBudget, synthetic owner-scoped `ownerLedgerIndexes/{uid}/requests/{digest}` and `.../days/{day}`. `prepare({tx,uid,requestId,nowMs})` reads both target sidecars within existing TX before writes; validates any day marker and refuses request collision; `stage({tx,plan})` verifies plan belongs to same transaction and stages two or one sidecar `tx.create` calls alongside, NOT after, original legacy request/owner/global TX writes. An injected TX commit failure drops all 5 writes, duplicate winner one. No raw requestId or message in sidecar document values. This is a contract prototype and uses fixture-only IDs/project `reflect-ai-stage-fixture01` and default `enabled=false`, not deployable staging integration.
+
+**Explicit next gates:** user tests new prototype (15 cases), then review integration diff with `hostedBudget.cjs` default OFF and negative tests against old 17-case suite. Actual source integration B1b1 blocked until separate retention/Privacy Gate review and exact billing/idempotency protection. Existing historical `requestLedger` entries without owner sidecar remain `legacy-unindexed-unknown`. Global counters and security anti-replay never owner-deleted. No account-deletion or provider-permission certification.
+
