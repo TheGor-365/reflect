@@ -116,3 +116,14 @@ Inspected current unchanged pinned `server/ai/hostedBudget.cjs`, `server/ai/host
 - No production/staging writer change until B2.1 writer census, PG-04 consent fence and billing regression gates are satisfied.
 
 **B1 negative acceptance cases to implement later:** OFF-mode parity; same/different-day duplicate and concurrent requests; malformed/missing day marker; injected transaction write failure aborts entire reservation and provider has 0 calls; before-provider crash; post-provider uncertain charge; over-reservation disable; no raw request IDs; budget and receipt status remain safely unmatched where necessary; synthetic cross-owner isolation; legacy-unindexed unknown; signed release/rollback review.
+
+## B2.2-B1a test-only hostedBudget baseline — PATCH_PREPARED (2026-11-21)
+
+Current actual Linux user evidence: **35/35 PASS** for B2.2-A+B0 unit tests with correct env, no diff errors; earlier synthetic B0 Emulator PASS. B2.2-B0 is thus accepted only at LOCAL UNIT/EMULATOR QA.
+
+Before touching the real `hostedBudget.cjs` transaction, an additive offline contract test suite was prepared (17 cases). Patch `REFLECT_R10_3C2C2_B2_2_B1A_HOSTED_BUDGET_BASELINE_2026-11-21.patch` SHA256 `f14a4931545a0a194ed7fc1e0e5e39a1a8966819b30699cd5bccce3381ad61ad`. Adds `server/ai/hostedBudget.r103c2c2b1a.test.cjs` + `docs/privacy/REFLECT_R10_3_C2C2_B2_2_B1A_HOSTED_BUDGET_BASELINE.md` ONLY; no changes to original writer, routes, flags, provider or Firestore schemas.
+
+The tests import the **real** `hostedBudget.cjs` and `policy.cjs` in the user's tree, using only an in-memory serial transactional mock; they cover digest path parity, atomic 3-write reservation, owner/global USD limits, quota/rate caps, same/different UTC-day duplicate rejection, synthetic concurrency, abort rollback, idempotent and unknown-charge finish, overspend kill switch and input validation. The author verified 17/17 PASS on a separate mirror of pinned hostedBudget logic with lightweight dependency fixtures (not exact user project), clean syntax and fresh git apply check; user real-source unit/Emulator QA NOT YET RUN. This suite is *baseline*, not implementation of the owner sidecar.
+
+Exact next task: download/apply by SHA, user executes `node --test server/ai/hostedBudget.r103c2c2b1a.test.cjs`, `node --check`, `git diff --check`; acceptance expected 17 PASS. Subsequently B2.2-B1b integration design only after retention/PG safety review; never run existing `hosted.integration.test.cjs` against current demo emulator because that script calls `recursiveDelete(root)` and requires DIFFERENT project `reflect-ai-stage-fixture01` at Firestore `127.0.0.1:19084`.
+
