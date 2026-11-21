@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 B1b0 USER_LOCAL_APPLIED+UNIT_PASS 15/15; B1b1 fixture-only real-writer compatibility tests IN PREPARATION; B1b real writer NOT MODIFIED.
+Revision: 2026-11-21 B1b0 user local unit 15/15 ACCEPTED; B1b1 test-only compatibility PATCH_PREPARED, user QA pending; real hostedBudget unchanged.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -122,6 +122,13 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - `node --test server/ai/ownerLedgerTxExtension.r103c2c2b1b0.test.cjs` → **15/15 PASS**, 0 FAIL (including same transaction 5 writes, request/day sidecar, invalid existing marker, orphan link, duplicate, no partial commit, cross-owner isolation, fixture project-only guard, no provider interface). `node --check` helper and `git diff --check` produced no errors.
 - `B2.2-B1b0=LOCAL_APPLIED+UNIT_PASS`; in-memory fixture only, **NO Firebase Emulator acceptance for B1b0**, no real payment, no production/staging release, no remote source commit. The original `hostedBudget.cjs` is unchanged.
 - **Next B1b1:** compatible fixture-only test contract exercising the genuine unchanged `hostedBudget.cjs` alongside `ownerLedgerTxExtension.r103c2c2b1b0.cjs`, without editing existing writer, simulating same TX and strict OFF parity. Full source integration remains a separate gated step: retention policy unapproved, PG-04 fence gap and exhaustive B2.1 writer census unresolved.
+
+## 2026-11-21 B2.2-B1b1 — test-only actual-writer compatibility PATCH_PREPARED
+- **B1b0 ACCEPTED** from user's Linux stdout: patch applied by checksum guard, `node --test server/ai/ownerLedgerTxExtension.r103c2c2b1b0.test.cjs` **15/15 PASS**; syntax and `git diff --check` clean. Fixture-only mock, no user Emulator run claimed for this child. See previous B1b0 checkpoint.
+- **NEW B1b1 test-only patch prepared:** `REFLECT_R10_3C2C2_B2_2_B1B1_COMPATIBILITY_TESTS_2026-11-21.patch` SHA256 `e3cc56981f0f0ae0aaca89aa49751e53622fb774732938e5590f0ded957b1169`. Adds ONLY `server/ai/hostedBudgetOwnerIndexCompatibility.r103c2c2b1b1.test.cjs` + `docs/privacy/REFLECT_R10_3_C2C2_B2_2_B1B1_REAL_WRITER_COMPATIBILITY.md`. Existing `hostedBudget.cjs`, B1b0 helper, Railway, rules, provider unchanged; downloadable in this ChatGPT conversation, not remotely committed source.
+- Author isolated Node 22.16 scratch tests: **19/19 B1b1 PASS** and **51/51 combined B1a+B1b0+B1b1 PASS**; fresh Git `git apply --check` and `git apply --whitespace=error` PASS, syntax and diff check PASS; ZIP integrity PASS. **Honest boundary:** scratch used semantically matching, *not byte-identical*, copies of pinned hostedBudget and its pure dependencies. Only the user's next test can certify the exact real local modules. No actual Firebase Emulator B1b1 run or external provider use.
+- Test-local AsyncLocalStorage transaction wrapper demonstrates B1b0 `prepare`/ `stage` sidecar calls in the **same fake Firestore transaction** as the unchanged real `budget.reserve` callback, testing feature OFF exact 3 writes versus indexed fixture ON 5 writes, duplicate/cross-day/legacy, rollback, 2-per-minute and global USD caps, finish/no-refund, anti-retry and overspend kill-switch. This wrapper is **NOT** intended as runtime integration; real explicit source changes require privacy/retention approval.
+- Stage: `B1b1=TEST_PATCH_PREPARED/USER_LOCAL_QA_PENDING`. Actual writer integration **NOT STARTED**, B2.1 exhaustive writer census partial, B2.3 retention unapproved, PG-04 erasure-fence consent/check gap blocking provider memory use. No source push/deploy.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
