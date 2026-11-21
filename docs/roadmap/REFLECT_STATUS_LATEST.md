@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-22 PG04D2 user archive content VERIFIED; real erasure writer/D1 lease incompatible, diagnostic patch prepared guard 8/8 author, user Emulator pending; provider history OFF.
+Revision: 2026-11-22 PG04D2 user patch installed guard 8/8 PASS; localhost 18081 occupied, 0/6 real diagnostic Emulator tests executed; PG04D3 design next.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -258,6 +258,13 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - **New PG04D2 DIAGNOSTIC patch PREPARED, USER NOT APPLIED**: `REFLECT_PG04D2_ACTUAL_ERASURE_WRITER_EMULATOR_DIAGNOSTIC_2026-11-22.patch` SHA256 `c7c96da9e467f84eac01727e349164e82571f01999556c9a964b2f20fbdde632`, adds exactly four new files (Emulator test, 8 guard tests, config, privacy README) with no tracked source changes. Original demo factory guards require exact port **127.0.0.1:18081** and project `demo-reflect-auth-qa`, not the staging 19085. Do not attach to an existing emulator/kill a port owner. Script pins reviewed file hashes, guard before Admin import, fixture-only exact cleanup, no recursiveDelete, no real xAI. Six real Firestore test scenarios PENDING; in-process fakeTransport spy reveals unsafe lease-after-cancel path. Even all six diagnostic PASS emits `GATE_BLOCKED` — **NOT** provider safety acceptance.
 - Assistant Node 22.16.0 **8/8 offline guard PASS**; both JS syntax, fresh Git patch apply + `git diff --check`, JSON validity, ZIP integrity PASS; **author did NOT run real Emulator** (Firebase CLI/SDK missing). User local apply/8 guard/6 Emulator tests pending. Stage `PG04D2=SOURCE_VERIFIED+DIAGNOSTIC_PATCH_PREPARED`, `PG04D3=NOT_STARTED`; B2.1 private writers PARTIAL, B2.3 retention UNAPPROVED, provider history OFF; no GitHub backend source push or deploy.
 
+
+## 2026-11-22 — PG04D2 USER GUARD 8/8 PASS; real Emulator PORT_OCCUPIED (0/6 executed)
+- **Actual user Linux** `~/reflect-r10-railway-review`, detached HEAD `1c4c121e`, Node 22.23.4: SHA-verified download, `PASS: PG-04D2 установлен`; `node --test server/privacy/pg04d2ActualWriterDiagnostic.guard.test.cjs` **8 tests / 8 PASS / 0 FAIL** (~91ms), including checked hashes of all three user-local source files matching the reviewed archive. `node --check` of Emulator script and `git diff --check` printed no errors.
+- User guarded Firestore command first checked `ss -H -ltn '( sport = :18081 )'`, returned **`STOP: порт 18081 занят`**; therefore **Firebase CLI did not run and PG04D2 six real diagnostic scenarios = 0/6 EXECUTED**. No actual scenario failures were observed. Never kill unknown port process, attach to occupied Emulator, substitute 19085 or weaken exact demo host guard.
+- **Safe next**: user read-only `ss -ltnp '( sport = :18081 )'` and `ps` for returned own PID (if any), identify owner before deciding when isolated test can be scheduled. If host remains occupied, proceed with independent PG04D3 DESIGN and B2.1/B2.3 review; do not claim Emulator PASS.
+- **Source blockers remain**: actual demo erasure `prepare`/ `cancelPending` don't serialize D1 leases; D1 synthetic erasure fence schema incompatible with original writer; active external dispatch cannot be retracted by Firestore transaction; user-only project source still dirty and not remote deployed.
+- Stage `PG04D2=LOCAL_APPLIED+OFFLINE_GUARD_PASS_8/8+REAL_EMULATOR_PORT_BLOCKED_0/6`, `PG04D3=DESIGN_NEXT`; history provider OFF, B2.1 writer audit PARTIAL, B2.3 retention UNAPPROVED. No actual cloud/prod/Railway or paid provider calls.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
