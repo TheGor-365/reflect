@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 PG-04A user 20/20 PASS; PG-04B actual consent source patch PREPARED, author 22/22, user full QA pending; PG04/retention still blocked.
+Revision: 2026-11-22 PG04B real-source local unit ACCEPTED 37/37; PG04C Firestore Emulator race test design in progress, NO actual Emulator QA; PG04/B2.3 blocked.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -182,6 +182,13 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - [New PG-04B review with exact scope and gate](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04B_REAL_CONTEXT_CONSENT_SOURCE_CANDIDATE_2026-11-21.md) docs commit `ab0f521c775334f87b1b66ba9f202fe612118be1`. Grant reads BOTH erasure fences before quota/grant writes in same TX, `check` reads both+grant transactionally, `list` transactionally reads both+bounded Query, `revoke` remains possible. Default prior grant TTL/cap untouched.
 - Assistant isolated checks **22/22 new unit PASS**, fresh `git apply --check`, apply, `node --check`, `git diff --check` and ZIP integrity PASS on a baseline containing the byte-exact pinned `contextConsent.cjs`; old existing test suite was NOT executed in author environment. **USER existing+new tests PENDING**; real Firestore Emulator grant/erasure races and provider egress fence NOT TESTED.
 - Status `PG04A=USER_UNIT_PASS`, `PG04B=SOURCE_PATCH_PREPARED/AUTHOR_22_PASS/USER_QA_PENDING`, `PG04C=EMULATOR_NOT_STARTED`, `PG04_PROVIDER_EGRESS=BLOCKED`. B2.1 full writer census PARTIAL, B2.3 retention UNAPPROVED. No billing writer, xAI or stage/prod deploy.
+
+## 2026-11-22 — PG-04B LOCAL REAL-SOURCE UNIT PASS, 37/37
+- **User actual Linux log** at `~/reflect-r10-railway-review`, detached HEAD `1c4c121e`, Node 22.23.4: checksum-gated PG04B patch application printed `PASS: PG-04B установлен`. It modified ONLY the local tracked `server/privacy/contextConsent.cjs` + `contextConsent.test.cjs` and added `contextConsent.pg04b.test.cjs` + privacy doc. No remote source commit/staging release.
+- User ran `node --test server/privacy/contextConsent.test.cjs server/privacy/contextConsent.pg04b.test.cjs`: **37 tests / 37 PASS / 0 FAIL** = 15 old consent regressions + 22 new dual-fence cases, ~149ms. `node --check` on source and new suite PASS; `git diff --check` clean. User's terminal `git diff --stat` displayed no content, but source/test patch apply + test output establish the intended local source.
+- **PG04B=LOCAL_APPLIED + UNIT_PASS 37/37**; the actual grant/check/list local module is now fence-aware; `revoke` retains prior semantics. This is **not** a real Firestore Emulator concurrency test or live provider-egress check, and not evidence of deployed protections.
+- **Next PG04C:** isolate a different localhost Firestore Emulator instance, test the exact user-patched `contextConsent.cjs` using Firebase Admin Transaction.get(Query), concurrent grant-vs-erasure transaction behavior, owner isolation, and bounded exact synthetic cleanup. NO production data/providers; use explicit emulator+project guards; no `recursiveDelete`.
+- **Remaining blockers:** real PG-04 egress TOCTOU/race and mixed-version staging rollout, full B2.1 writer census PARTIAL, B2.3 retention policy UNAPPROVED. Provider history/context remains OFF. B1b3 shadow budget source remains unconnected to actual writer.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
