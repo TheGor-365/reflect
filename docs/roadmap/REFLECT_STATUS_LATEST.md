@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-22 PG04D0 user actual local 8/8 PASS, current historical context OFF; PG04D1 isolated intent/lease state model in preparation; PG04D2 and staging remain blocked.
+Revision: 2026-11-22 PG04D0 user 8/8 PASS; PG04D1 synthetic lease patch prepared author 29/29, user QA pending; PG04D2/retention blocked.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -224,6 +224,15 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - **User actual Linux** `~/reflect-r10-railway-review`, detached HEAD `1c4c121e`, Node 22.23.4: SHA-guarded `REFLECT_PG04D0_OFF_EGRESS_REGRESSION_2026-11-22.patch` installed (stdout `PASS: PG-04D0 установлен`); `node --test server/privacy/providerEgressOff.pg04d0.test.cjs` yielded **8 tests, 8 PASS, 0 FAIL** (~88ms). `node --check` and `git diff --check` without errors. Exactly two additive local files; existing hostedHandler/xaiAdapter unchanged, not source pushed or deployed.
 - Source-regression findings: `hostedHandler` passes explicit third-argument `null` to provider adapter, owner preview sets `providerDispatchAllowed:false`, consent management route no provider invoke, xAI M3 context param defaults to null and rejects context without interaction config. **This verifies current OFF-state pattern, NOT the safety of future authorized context transfer.**
 - `PG04D0=USER_LOCAL_APPLIED+UNIT_PASS 8/8`; `PG04D1 erasure intent + in-flight dispatch lease=DESIGN/PROTOTYPE NEXT`; `PG04D2 genuine Firestore Emulator fake-transport races=NOT_STARTED`; `B2.1 writer census=PARTIAL`, `B2.3 retention=UNAPPROVED`. No historical context enabled, paid provider request, Railway deploy or erasure.
+
+
+## 2026-11-22 — PG04D0 USER ACCEPTED; PG04D1 synthetic lease PATCH_PREPARED
+- **PG04D0 user Linux accepted:** checksum-gated patch applied, `node --test server/privacy/providerEgressOff.pg04d0.test.cjs` **8/8 PASS**, JS syntax and `git diff --check` clean, no backend source push or deployment. Pinned `hostedHandler.cjs` still passes NULL historical-context argument.
+- **PG04D1 new isolated additive patch PREPARED, NOT user-applied:** `REFLECT_PG04D1_SYNTHETIC_DISPATCH_LEASE_2026-11-22.patch`, SHA256 `3d2b904b7d32ea71bd13fb187b002a989cc11a17c5b33341c169dbbb253d8e40`. Exactly three new files: `server/privacy/demoDispatchLease.pg04d1.cjs`, `server/privacy/demoDispatchLease.pg04d1.test.cjs`, `docs/privacy/REFLECT_PG04D1_SYNTHETIC_ERASURE_INTENT_DISPATCH_LEASE.md`. It is a synthetic fixture-only owner coordinator/lease model, requires explicit `enabled:true`, exact demo project/db and localhost host, accepts only synthetic IDs; NO actual provider transport / Emulator / real erasure writer import.
+- Assistant Node 22.16 isolated model **29/29 unit PASS**, repeated after fresh Git patch apply **29/29 PASS**, JS syntax, `git diff --check` and ZIP integrity PASS. **USER 29-unit QA PENDING**, genuine Firestore races for PG04D2 NOT STARTED. [Design and non-guarantee](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D1_OWNER_DISPATCH_LEASE_DESIGN_2026-11-22.md), docs commit `09cafe3f3d0d03312a32ae08a9f213340e41996a`.
+- **Important limitation**: real external provider POST cannot be inside Firestore transaction. PG04D1 models `dispatches-drained` not memory-erasure completion; active or uncertain provider work must block effective erasure. No claim that last-second check prevents post-request sends. PG04D2 requires actual local erasure/Railway authorizer code and separate Emulator+FAKE transport tests.
+- `PG04D0=USER_LOCAL_UNIT_PASS`; `PG04D1=PATCH_PREPARED/AUTHOR_29_PASS`; `PG04D2=NOT_STARTED`; `B2.1 writer census=PARTIAL`; `B2.3 retention=UNAPPROVED`. No live history egress, real billing writer change or Railway deploy.
+
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
