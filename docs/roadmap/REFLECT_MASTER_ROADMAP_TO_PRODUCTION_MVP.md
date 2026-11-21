@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-21 B2.2-B0 local 35/35+Emulator PASS; B2.2-B1a test patch prepared, user QA pending; PG still blocked.
+Revision: 2026-11-21 B1a local accepted; B1b0 fixture transaction extension patch prepared; no billing integration.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -220,4 +220,11 @@ R10.3-C2C2-B2.2-B0 — NEW LOCAL EVIDENCE (2026-11-21): user B0 patch installed;
 R10.3-C2C2-B2.2-B0: **LOCAL UNIT+EMULATOR ACCEPTED** (user 35/35 A+B0 PASS, B0 smoke PASS; earlier 15 missing-env errors superseded).
 R10.3-C2C2-B2.2-B1a: **TEST_PATCH_PREPARED** (offline test-only, no real writer change), 17 author isolated unit PASS, fresh git apply/syntax PASS, user apply/unit PENDING. Patch SHA256 `f14a4931545a0a194ed7fc1e0e5e39a1a8966819b30699cd5bccce3381ad61ad`, ChatGPT download in original conversation not Github source. Adds `server/ai/hostedBudget.r103c2c2b1a.test.cjs` and one privacy doc. Direct user project test required before acceptance.
 R10.3-C2C2-B2.2-B1b real billing writer integration: **NOT_STARTED**; default-OFF design and retention/privacy gates before modifying `hostedBudget.cjs`; no real provider or deployment.
+
+
+
+## R10.3-C2C2-B2.2-B1a / B1b0 checkpoint (2026-11-21)
+- B1a: **USER LOCAL_UNIT_PASS 17/17**, syntax and `git diff --check` clean, original `hostedBudget.cjs` unchanged, no Emulator needed.
+- B1b0: **FIXTURE-ONLY TRANSACTION EXTENSION PATCH_PREPARED**; 3 additive new files, assistant isolated **15/15 PASS** and clean git apply/syntax, user apply/QA PENDING. Patch `REFLECT_R10_3C2C2_B2_2_B1B0_TX_INDEX_EXTENSION_2026-11-21.patch` SHA256 `ccbe32542950cc9d1872e1c49257489d29a730f4cfba4e542f4f5ffc7ca8d555`. No real `hostedBudget` modification, no real provider, no deploy.
+- B1b1 production/staging writer integration = NOT_STARTED; B2.1 private writer census PARTIAL; B2.3 retention UNAPPROVED; PG-04 staging erasure fence BLOCKED. The owner-link prototype is NOT permission for provider history usage or deletion certification.
 
