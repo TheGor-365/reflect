@@ -43,6 +43,11 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - B2.1 audit draft updated at `docs/roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md` (GitHub docs commit `34231ca54b5d22bfd706c1425fbbfa0bd23542eb`).
 - B2.1 not accepted pending local erasure tail, full private writer/retention mapping, current staging consent writer and route's real guard tests. B2.2 not started. Source remains LOCAL_ONLY.
 
+## R10.3-C2C2-B2.1 second local source review — user terminal 2026-11-21
+- Verified previously unseen `memoryErasure.r103c2b.cjs` tail, `step()` after known top-level memory collections empty: **deletes `memoryAttestationQuotas/{uid}` if present**, transitions private fence to `complete`, retains fences, and returns `fullAccountDeletion:false`, `nestedCollectionsAudited:false`, `externalCopiesAudited:false`. Corrects any assumption that memory attestation quota necessarily survives completed demo erasure; private consent quota and other retained classes are NOT covered.
+- Verified `server/memory/railwayAttestationLoader.r103c1.cjs`: default-disabled route returns 404, lazy dynamic import of `railwayAttestationRoute.r103c1.mjs` when enabled, generic 503 on load/route rejection before headers. Actual handler Auth/AppCheck/entitlement/quota behavior NOT YET INSPECTED.
+- Detailed evidence: `docs/roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md`, docs commit `2ab340a1824dfd61a26d418ec14806e390587c9f`. B2.1 remains PARTIAL_LOCAL_SOURCE_VERIFIED, B2.2 not started. No source push/deploy.
+
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
 - Source-only actions tagged memorySuppressed create gaps in historical event ledger, requiring explicit policy; do not invent missing events.
