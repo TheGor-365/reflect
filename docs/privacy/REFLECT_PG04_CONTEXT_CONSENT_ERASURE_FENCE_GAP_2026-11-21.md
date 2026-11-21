@@ -37,3 +37,8 @@ Proposed private fence `_reflectAiPrivate/reflect-8fdc8/memoryErasureFences/{uid
 
 ## Decision gates
 `PG04_CODE_GAP=CONFIRMED`; `PG04_SOLUTION=DESIGN_DRAFT`; `PG04_SOURCE_PATCH=NOT_STARTED`; `PG04_REAL_EMULATOR_RACE=NOT_RUN`; `PG04_PROVIDER_CONTEXT_EGRESS=BLOCKED`.
+
+## 2026-11-21 follow-up: local fence paths VERIFIED; synthetic PG-04A candidate prepared
+- User local `git diff -- server/privacy/contextConsent.cjs` empty. `rg` confirms `memoryErasure.r103c2b.cjs` private `_reflectAiPrivate/${NAMESPACE}/memoryErasureFences/${uid}`, public `artifacts/${NAMESPACE}/users/${uid}/memoryControl/erasure` and public `state:"erasure-fenced"`; `demoMemoryConsentAdmission.r103c2b2.cjs` uses same private path. These source files are **untracked synthetic erasure modules**, NOT proof of the actual deployed writer.
+- Isolated, non-imported, **new-file-only PG-04A prototype** `REFLECT_PG04A_DUAL_FENCE_CONSENT_DEMO_2026-11-21.patch`, SHA256 `5d406acb32e90f2378596e194388ee2280e3a5c93f5d1ead28c1f9b99ccb2d65`. Adds `server/privacy/demoConsentFencePg04a.{cjs,test.cjs}` and `docs/privacy/REFLECT_PG04A_DEMO_DUAL_FENCE_CONSENT_PROOF.md`. Author in-memory 20/20 Node tests PASS, fresh patch apply/syntax PASS, user Linux QA PENDING. It demonstrates transaction pre-write BOTH fences, fail-closed `check`/`list`, and `revoke` after fence, but does **NOT** alter actual `contextConsent.cjs` or prove real Firestore concurrent grant-vs-erasure transactions.
+- PG-04 `SOURCE_PATCH=NOT_STARTED`; provider-memory egress BLOCKED. The next stage after user QA must target the actual staging writer with fresh baseline tests and dedicated local Emulator concurrency, provider-boundary TOCTOU checks, plus B2.3 retention policy decisions before staged activation.
