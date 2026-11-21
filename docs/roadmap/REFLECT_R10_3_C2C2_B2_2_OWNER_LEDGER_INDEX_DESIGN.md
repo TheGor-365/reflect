@@ -91,3 +91,28 @@ Suggested fields for the request link: `{schemaVersion:1, ledgerKey:legacyReques
 - **STATUS B2.2-A = PATCH_PREPARED**, user LOCAL_APPLIED/UNIT_PASS/EMULATOR_PASS **UNCONFIRMED**. B2.2-B production integration NOT STARTED. Retention approvals and PG-04 consent-fence blocker remain open.
 
 **First next action on user's Linux:** apply patch by verified SHA256; run the 19 new in-memory unit tests and syntax checks. Only on user PASS run synthetic demo smoke on verified localhost Firebase Emulators. Then update tracker issue #136, master and latest status with exact user evidence; no preemptive acceptance.
+
+## B2.2-B0 USER APPLY / EMULATOR RESULTS, environment rerun required (2026-11-21)
+
+- User successfully applied B0 new-file patch (terminal printed `PASS: B2.2-B0 установлен`).
+- Combined user Node test command *without the required demo environment* yielded `35 total / 20 PASS / 15 FAIL`; all 15 B0 FAIL occurred in the constructor before test-specific operations: `demo-reconciliation-environment-denied`. The 19 existing A cases and B0 environment-negative case passed. Source constructor checks `process.env.GCLOUD_PROJECT === "demo-reflect-auth-qa"` and `process.env.FIRESTORE_EMULATOR_HOST === "127.0.0.1:18081"`. No fix to source environment guard is indicated.
+- The assistant independently extracted the exact B0 patch and reran **16/16 B0 unit PASS** in a separate Node 22.16.0 container with correct environment variables. This is *not* proof of user's 35/35 combined PASS.
+- The user B0 Firebase demo smoke **PASSED**: `PASS: B2.2-B0 demo read-only synthetic receipt/ledger/index reconciliation`, `PASS: B2.2-B0 exact synthetic cleanup only (NOT real billing deletion)`.
+- New status: `B2.2-B0=LOCAL_APPLIED+DEMO_EMULATOR_PASS; USER_UNIT_FULL_GREEN_PENDING`. Rerun from local backend with both env vars inline before `node --test`. No new patch is necessary.
+
+## B2.2-B1 production billing writer integration — preflight review, NOT IMPLEMENTED (2026-11-21)
+Inspected current unchanged pinned `server/ai/hostedBudget.cjs`, `server/ai/hostedHandler.cjs`, `server/ai/aiTurnRecovery.cjs` at `1c4c121e0e449f1a9360e4fb4588dcf58352e699`; previous user `git diff -- hostedBudget.cjs` empty. This is **planning**, not authorization to change Railway or financial flows.
+
+**Current real call order from pinned `hostedHandler.cjs`**:
+`recovery.claim` (when enabled) → `budget.reserve` → `recovery.providerStarted` → provider invocation → `recovery.persistReply` → best-effort `budget.finish(completed)`; exception path after provider invokes recovery failure and attempts `budget.finish(failed)`, retaining full reservation on ambiguous outcomes. An index failure **inside reserve** must abort before any provider call; an index failure in a separate asynchronous write would violate this property.
+
+**Candidate integration seam (only after policy approvals):**
+- Add server-only default-OFF configuration; never switch by request body. Keep same hash derivation `sha256("request\\0"+uid+"\\0"+requestId)`; current `requestLedger` and `ownerDays` schema/keys unchanged, and no raw requestId stored in owner sidecars.
+- Add `ownerLedgerIndexes/{uid}/requests/{digest}` and `ownerLedgerIndexes/{uid}/days/{utcDay}` **in the existing `budget.reserve` Firestore transaction**, after validating the existing ledger and quotas; all additional index reads occur before *any* writes; verify index collision and existing day link shape; create request link and create/update day link only if valid.
+- Preserve global `globalDays` / `runtimeFlags/ai` outside owner erasure. Do not change `finish` status-transition rules, unknown-billed outcome or retained reservation; do not automatically retry xAI from an index audit.
+- Existing receipt may be created by `recovery.claim` before `reserve`, so an aborted reserve may leave a before-provider receipt. The read-only audit must report this as partial rather than false spend/complete.
+- Additional transaction writes may have Firestore limits, concurrency and cost impact; measure with isolated emulator using same original money/quota counters.
+- Retention for owner-linked billing data and potential backfill must be independently approved; owner link is personally identifiable metadata in a server-private path.
+- No production/staging writer change until B2.1 writer census, PG-04 consent fence and billing regression gates are satisfied.
+
+**B1 negative acceptance cases to implement later:** OFF-mode parity; same/different-day duplicate and concurrent requests; malformed/missing day marker; injected transaction write failure aborts entire reservation and provider has 0 calls; before-provider crash; post-provider uncertain charge; over-reservation disable; no raw request IDs; budget and receipt status remain safely unmatched where necessary; synthetic cross-owner isolation; legacy-unindexed unknown; signed release/rollback review.
