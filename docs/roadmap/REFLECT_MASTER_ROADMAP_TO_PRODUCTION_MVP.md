@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-22 PG04C real Emulator 6/6 user PASS, PG04D0 OFF provider context test patch prepared, future lease/race blocked.
+Revision: 2026-11-22 PG04D0 user 8/8 PASS, PG04D1 demo lease-intent proof author 29/29 prepared, PG04D2/retention pending.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -287,4 +287,11 @@ R10.3-C2C2-B2.2-B1b real billing writer integration: **NOT_STARTED**; default-OF
 - Exact pinned `hostedHandler.cjs` calls `adapter.invoke(..., null, ...)` and `contextPreviewHttp.cjs` returns `providerDispatchAllowed:false`: **CURRENT historical provider context remains disconnected**. [PG04D audit and egress TOCTOU state-machine requirements](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D_PROVIDER_CONTEXT_EGRESS_BOUNDARY_DESIGN_2026-11-22.md).
 - PG04D0 **non-imported TEST-ONLY add-new-files patch PREPARED**, SHA256 `0ebe849aa0c1ba6ebb320a3a588d38586a8d9b078a1338a075af7827df76e98d`, 8 structural regression tests against current OFF boundary; author isolated 8/8 PASS and exact pinned GitHub source regex 8/8 PASS; user local unit QA PENDING. Not a race-safety proof.
 - PG04D1 owner erasure-intent + in-flight dispatch lease protocol and PG04D2 real emulator + fake transport race **NOT_STARTED**; B2.1 full writer audit partial, B2.3 ledger/index retention not approved, mixed-version rollout blocked. `npm` audit warning: 8 moderate vulnerabilities reported from `server` after no-save firebase-admin@13.4.0 install; no forced audit fixes.
+
+
+
+## PG04D0 accepted / PG04D1 isolated lease-intent proof — 2026-11-22
+- PG04D0 **USER LOCAL 8/8 PASS**, source OFF-context baseline: handler passes null as provider context and preview dispatch forbidden. No source push/deploy.
+- PG04D1 isolated **PATCH_PREPARED**, SHA256 `3d2b904b7d32ea71bd13fb187b002a989cc11a17c5b33341c169dbbb253d8e40`: three additive synthetic-only files, owner coordinator phases open/erasure-pending/dispatches-drained, transactionally counted in-flight leases, fake transport **not** connected. Assistant **29/29 unit PASS** twice and clean apply/syntax/ZIP; user local proof PENDING. [Detailed design](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D1_OWNER_DISPATCH_LEASE_DESIGN_2026-11-22.md).
+- PG04D2 real localhost Firestore Emulator + fake external transport race NOT STARTED, pending source review of untracked actual local erasure writer and dirty Railway/M3 authorizer. Never infer external network atomicity or completed memory erase from model's dispatches-drained counter. B2.1 writer census incomplete, B2.3 metadata/receipts retention legally UNAPPROVED; provider context remains OFF.
 
