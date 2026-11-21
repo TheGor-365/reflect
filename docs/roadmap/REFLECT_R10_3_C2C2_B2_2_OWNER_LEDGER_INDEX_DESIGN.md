@@ -74,6 +74,12 @@ Suggested fields for the request link: `{schemaVersion:1, ledgerKey:legacyReques
 - Existing backend tests available at pinned HEAD include `server/ai/aiTurnRecovery.test.cjs` and `server/railway/appCheckReplayGuard.test.cjs`; billing regression tests are also represented in `server/ai/hosted.integration.test.cjs` (direct `hostedBudget.test.cjs` path not verified). Next changes must choose actual available paths before command construction.
 
 
+## B2.2-A actual user QA and B2.2-B0 new read-only proof (2026-11-21)
+- **B2.2-A USER VERIFIED:** exact downloaded patch SHA256 `83e5241c5138fd6888fb5fa4c59087badbfa535c7581440cd6d597a4a886e570`, successful local `git apply`, **19/19 Node unit PASS**, real localhost Firebase demo Emulator `PASS` for atomic synthetic ledger+owner links/duplicate protection, and three-document synthetic cleanup. No real billing operations.
+- **B2.2-B0 PATCH_PREPARED (not installed by user):** `REFLECT_R10_3C2C2_B2_2_B0_READONLY_RECONCILIATION_2026-11-21.patch`, SHA256 `71538330b88c56ac14b9a22be4b7b5434139a8e2cc938dff76244f911fc38365`; 4 new files only. Assistant isolated mock tests **16/16 B0 PASS**, **35/35 combined A+B0 PASS**; `git apply --check`/apply PASS in clean scratch repo; optional real demo Emulator smoke pending user run.
+- B0 compares **known synthetic request** UID-scoped attempt receipt with legacy SHA256 requestLedger key and B2.2-A owner request/day sidecars. Unknown billed state, missing receipt, orphan index, malformed day, foreign owner or legacy unindexed records remain `unverified`, and `safeToRetryProvider:false`, `providerUseAllowed:false`, `fullDeletionCertified:false`. No global scan, writes or ledger cleanup.
+- Next B2.2-B1 transactionally integrating this into real `hostedBudget.cjs` is **NOT STARTED** and requires exact code review, retention policy and end-to-end billing safety/Privacy Gate checks; do not enable provider or modify live ledger now.
+
 ## B2.2-A additive demo proof prepared (2026-11-21) — NOT user-applied
 
 **Evidence level and scope:**
