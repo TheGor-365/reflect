@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 PG-04A demo-only dual-fence patch PREPARED, user QA pending; consent staging source unchanged; B2.3 unapproved.
+Revision: 2026-11-21 PG-04A user 20/20 PASS; PG-04B actual consent source patch PREPARED, author 22/22, user full QA pending; PG04/retention still blocked.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -174,6 +174,14 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - Fixture guard: exact project `demo-reflect-auth-qa`, localhost Firestore Emulator host `127.0.0.1:18081`, matching `db.projectId`, explicit `enabled:true`, synthetic IDs and consumed App Check only; default disabled. Models grant with read-before-write BOTH private/public fences + session/quota in one fake transaction; `check` transactional fence+grant; owner `list` bounded transaction; `revoke` remains idempotent when fenced. No permission to read provider context, real data or restore erased records.
 - Assistant isolated author Node 22.16.0: **20/20 unit PASS**, twice; fresh Git `git apply --check`, actual apply, syntax checks, `git diff --check`, ZIP CRC all PASS. **USER LOCAL PATCH APPLY/20-TEST QA PENDING**, and real Firestore Emulator conflict/race / staged provider egress NOT RUN. This is a standalone demo model, **not a tested source-level fix of staging consent**.
 - Current `PG04A=PATCH_PREPARED`, `PG04_REAL_SOURCE_FIX=NOT_STARTED`, `B2.3 retention=UNAPPROVED`, `PG-04 PROVIDER CONTEXT EGRESS=BLOCKED`; no source push or staged deployment. Next user download/verify new-file-only patch, apply and run 20 offline Node tests; DO NOT run legacy destructive billing integration tests.
+
+
+## 2026-11-21 — PG-04A user accepted; PG-04B real consent source PATCH_PREPARED
+- **Verified user terminal PG-04A:** checksum-guarded install printed `PASS: PG-04A установлен`; `node --test server/privacy/demoConsentFencePg04a.test.cjs` **20/20 PASS**, syntax for both demo files and `git diff --check` had no errors. Local-only synthetic proof, not stage consent integration.
+- **PG-04B prepared source patch**: `REFLECT_PG04B_CONTEXT_CONSENT_DUAL_FENCE_SOURCE_2026-11-21.patch` SHA256 `9131431a39502f2d8df090f1f8e39554e7c3856ca7fd6cc20bc1398caa4aac19`. This will MODIFY tracked `server/privacy/contextConsent.cjs` and minimally update two fixtures in `contextConsent.test.cjs`, ADD `contextConsent.pg04b.test.cjs` (22 new cases) and one privacy doc. Not installed on user's Linux; no source changes to GitHub or Railway. First verify both tracked files clean before apply.
+- [New PG-04B review with exact scope and gate](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04B_REAL_CONTEXT_CONSENT_SOURCE_CANDIDATE_2026-11-21.md) docs commit `ab0f521c775334f87b1b66ba9f202fe612118be1`. Grant reads BOTH erasure fences before quota/grant writes in same TX, `check` reads both+grant transactionally, `list` transactionally reads both+bounded Query, `revoke` remains possible. Default prior grant TTL/cap untouched.
+- Assistant isolated checks **22/22 new unit PASS**, fresh `git apply --check`, apply, `node --check`, `git diff --check` and ZIP integrity PASS on a baseline containing the byte-exact pinned `contextConsent.cjs`; old existing test suite was NOT executed in author environment. **USER existing+new tests PENDING**; real Firestore Emulator grant/erasure races and provider egress fence NOT TESTED.
+- Status `PG04A=USER_UNIT_PASS`, `PG04B=SOURCE_PATCH_PREPARED/AUTHOR_22_PASS/USER_QA_PENDING`, `PG04C=EMULATOR_NOT_STARTED`, `PG04_PROVIDER_EGRESS=BLOCKED`. B2.1 full writer census PARTIAL, B2.3 retention UNAPPROVED. No billing writer, xAI or stage/prod deploy.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
