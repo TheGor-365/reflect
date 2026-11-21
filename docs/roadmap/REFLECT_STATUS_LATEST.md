@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-22 PG04D0 user 8/8 PASS; PG04D1 synthetic lease patch prepared author 29/29, user QA pending; PG04D2/retention blocked.
+Revision: 2026-11-22 PG04D1 user 29/29 PASS; PG04D2 current untracked erasure writer source review needed before real Emulator fake-transport patch.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -233,6 +233,14 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - **Important limitation**: real external provider POST cannot be inside Firestore transaction. PG04D1 models `dispatches-drained` not memory-erasure completion; active or uncertain provider work must block effective erasure. No claim that last-second check prevents post-request sends. PG04D2 requires actual local erasure/Railway authorizer code and separate Emulator+FAKE transport tests.
 - `PG04D0=USER_LOCAL_UNIT_PASS`; `PG04D1=PATCH_PREPARED/AUTHOR_29_PASS`; `PG04D2=NOT_STARTED`; `B2.1 writer census=PARTIAL`; `B2.3 retention=UNAPPROVED`. No live history egress, real billing writer change or Railway deploy.
 
+
+
+## 2026-11-22 — PG04D1 USER 29/29 accepted; PG04D2 actual writer preflight
+- **User local actual evidence:** checksum-gated PG04D1 initially `STOP: патч не найден`, then successfully downloaded and printed `PASS: PG-04D1 установлен`. `node --test server/privacy/demoDispatchLease.pg04d1.test.cjs` yielded **29 tests, 29 PASS, 0 FAIL** (~123ms); `node --check` both synthetic model/test and `git diff --check` printed no errors. User dirty detached `1c4c121e`, Node 22.23.4.
+- `PG04D1=USER_LOCAL_APPLIED+UNIT_PASS` now ACCEPTED. No actual Firestore Emulator/network transport for D1, no real erasure or production egress enabled.
+- **PG04D2 next = SOURCE_REVIEW_PENDING**: untracked local `server/privacy/memoryErasure.r103c2b.cjs`, `server/privacy/demoMemoryConsentAdmission.r103c2b2.cjs`, dirty `server/railway/index.cjs` and any local memory M3 authorizer must be inspected in actual user worktree before authoring source-specific Emulator fake transport race tests. Their pinned remote GitHub versions are missing/stale. Do not substitute PG04D1 toy for real erasure writer.
+- [PG04D2 local-source preflight + real Firestore Emulator fake-transport test matrix](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D2_ERASURE_WRITER_SOURCE_REVIEW_AND_EMULATOR_RACE_PLAN_2026-11-22.md), docs commit `15ea4586f7fac228dfd9314666839e7768ef25c2`. Source may be reviewed via user terminal focused line evidence or attached code files, after user checks for sensitive strings. No new code patch, Emulator test, provider request or deployment for PG04D2 yet.
+- **Hard TOCTOU limitation:** `markDispatchStarted` transaction does not atomically cover external HTTP send. Erasure-effective state must wait for in-flight/unknown outcomes under owner-scoped coordination, and data-retention B2.3 remains unapproved. `PG04D2=NOT_IMPLEMENTED`; `PG04_HISTORY_PROVIDER=OFF`, `B2.1 census=PARTIAL`.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
