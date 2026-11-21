@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 / R10.3-C2C2-B1 UNIT+EMULATOR_PASS; B2.1 PARTIAL LOCAL SOURCE VERIFIED, NOT ACCEPTED.
+Revision: 2026-11-21 / R10.3-C2C2-B1 UNIT+EMULATOR_PASS; B2.1 PARTIAL LOCAL SOURCE REVIEWED; B2.2 DESIGN_DRAFT, NO CODE.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -31,7 +31,7 @@ R10.3-C2B/B2/B3A/B3B demo erasure/fence/source-only writes address tests and rea
 R10.3-C2C1 residual scan 49/49 + Emulator PASS.
 R10.3-C2C2-A nested/orphan scan 30/30 + Emulator PASS.
 R10.3-C2C2-B1 owner private receipts, consent grants, retention/legacy policy: PATCH LOCAL_APPLIED + 45/45 NODE PASS + REAL DEMO EMULATOR SMOKE PASS (synthetic orphan receipt, consent tombstone, scoped cleanup).
-R10.3-C2C2-B2 **B2.1 DISCOVERY IN PROGRESS**: user `rg` enumerated private-path references in `server/ai/hostedBudget.cjs`, `aiTurnRecovery.cjs`, `server/privacy/contextConsent.cjs`, `contextPreviewQuota.cjs`, `server/memory/memoryAttestationQuota.r103c1.cjs`, `server/privacy/memoryErasure.r103c2b.cjs`, `server/railway/appCheckReplayGuard.cjs`, `server/ai/stagingEntitlement.cjs`, `server/railway/index.cjs`, plus auditor/tests; writer-method and dynamic-path classification PENDING. B2.1 pinned-source private writer matrix DRAFT committed at `docs/roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md`; current dirty writer classification PENDING. B2.2–B2.4 NOT_STARTED.
+R10.3-C2C2-B2 **B2.1 DISCOVERY IN PROGRESS**: user `rg` enumerated private-path references in `server/ai/hostedBudget.cjs`, `aiTurnRecovery.cjs`, `server/privacy/contextConsent.cjs`, `contextPreviewQuota.cjs`, `server/memory/memoryAttestationQuota.r103c1.cjs`, `server/privacy/memoryErasure.r103c2b.cjs`, `server/railway/appCheckReplayGuard.cjs`, `server/ai/stagingEntitlement.cjs`, `server/railway/index.cjs`, plus auditor/tests; writer-method and dynamic-path classification PENDING. B2.1 pinned-source private writer matrix DRAFT committed at `docs/roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md`; current dirty writer classification PENDING. B2.2 DESIGN_DRAFT (sidecar owner-index proposal, not approved or coded); B2.3 retention UNAPPROVED; B2.4 tests NOT_STARTED.
 R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP **NOT_ACCEPTED**; some earlier product components exist, audit before writing.
 
 ## R10.3-C2C2-B2.1 latest verified progress, user local excerpt 2026-11-21
@@ -47,6 +47,13 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - Verified previously unseen `memoryErasure.r103c2b.cjs` tail, `step()` after known top-level memory collections empty: **deletes `memoryAttestationQuotas/{uid}` if present**, transitions private fence to `complete`, retains fences, and returns `fullAccountDeletion:false`, `nestedCollectionsAudited:false`, `externalCopiesAudited:false`. Corrects any assumption that memory attestation quota necessarily survives completed demo erasure; private consent quota and other retained classes are NOT covered.
 - Verified `server/memory/railwayAttestationLoader.r103c1.cjs`: default-disabled route returns 404, lazy dynamic import of `railwayAttestationRoute.r103c1.mjs` when enabled, generic 503 on load/route rejection before headers. Actual handler Auth/AppCheck/entitlement/quota behavior NOT YET INSPECTED.
 - Detailed evidence: `docs/roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md`, docs commit `2ab340a1824dfd61a26d418ec14806e390587c9f`. B2.1 remains PARTIAL_LOCAL_SOURCE_VERIFIED, B2.2 not started. No source push/deploy.
+
+## Latest 2026-11-21 B2.1 local route review and B2.2 design draft
+- User pasted complete 160-line local `server/memory/railwayAttestationRoute.r103c1.mjs`. Observed actual logic: exact staging route + origin/method/headers → strict JSON topicId → verified Auth UID/audience → consumed App Check appId → entitlement → per-UID quota → owner-scoped Admin reads + bounded event query → `providerUseAllowed:false`. No provider call. Requires independent integration tests and review of limited unordered event query; absence of erasure-fence read in attestation route is a privacy gap for post-erasure owner.
+- User `git diff -- server/privacy/contextConsent.cjs server/ai/hostedBudget.cjs server/railway/appCheckReplayGuard.cjs server/privacy/contextPreviewQuota.cjs` was EMPTY. Pinned verified source for these four writers matches current tracked HEAD relative to local worktree; no staging deployment inferred.
+- `hostedBudget.cjs` pinned source: hashed request ledger identity created in same transaction as day counters and runtime flag checks; later ledger status updated, no TTL; ownerDays hashed, globalDays shared. `appCheckReplayGuard.cjs`: hashed token fingerprint, bounded opportunistic expiry cleanup. Do not weaken billing idempotency/replay defenses.
+- B2.1 audit updates: `docs/roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md`, docs commit `3c00abffbfa909c1e8c33583c66eb251f426eac7`.
+- **B2.2 design begun (NO CODE):** `docs/roadmap/REFLECT_R10_3_C2C2_B2_2_OWNER_LEDGER_INDEX_DESIGN.md`, docs commit `1391ee9757b096f49356cdeed1605c550ec5d8f7`. Proposed owner-addressable private sidecar links transactionally paired with unchanged legacy hashed request ledger and day counters, no data migration or deletion; historical legacy entries remain `legacy-unindexed-unknown`. Blocked on B2.1 comprehensive writer/retention review and policy approval. No source commits or rollout.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
