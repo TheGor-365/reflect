@@ -31,7 +31,7 @@ R10.3-C2B/B2/B3A/B3B demo erasure/fence/source-only writes address tests and rea
 R10.3-C2C1 residual scan 49/49 + Emulator PASS.
 R10.3-C2C2-A nested/orphan scan 30/30 + Emulator PASS.
 R10.3-C2C2-B1 owner private receipts, consent grants, retention/legacy policy: PATCH LOCAL_APPLIED + 45/45 NODE PASS + REAL DEMO EMULATOR SMOKE PASS (synthetic orphan receipt, consent tombstone, scoped cleanup).
-R10.3-C2C2-B2 **B2.1 DISCOVERY IN PROGRESS**: user `rg` enumerated private-path references in `server/ai/hostedBudget.cjs`, `aiTurnRecovery.cjs`, `server/privacy/contextConsent.cjs`, `contextPreviewQuota.cjs`, `server/memory/memoryAttestationQuota.r103c1.cjs`, `server/privacy/memoryErasure.r103c2b.cjs`, `server/railway/appCheckReplayGuard.cjs`, `server/ai/stagingEntitlement.cjs`, `server/railway/index.cjs`, plus auditor/tests; writer-method and dynamic-path classification PENDING. B2.2–B2.4 NOT_STARTED.
+R10.3-C2C2-B2 **B2.1 DISCOVERY IN PROGRESS**: user `rg` enumerated private-path references in `server/ai/hostedBudget.cjs`, `aiTurnRecovery.cjs`, `server/privacy/contextConsent.cjs`, `contextPreviewQuota.cjs`, `server/memory/memoryAttestationQuota.r103c1.cjs`, `server/privacy/memoryErasure.r103c2b.cjs`, `server/railway/appCheckReplayGuard.cjs`, `server/ai/stagingEntitlement.cjs`, `server/railway/index.cjs`, plus auditor/tests; writer-method and dynamic-path classification PENDING. B2.1 pinned-source private writer matrix DRAFT committed at `docs/roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md`; current dirty writer classification PENDING. B2.2–B2.4 NOT_STARTED.
 R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP **NOT_ACCEPTED**; some earlier product components exist, audit before writing.
 
 ## Proven limitations / OPEN BLOCKERS
@@ -44,7 +44,7 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 
 ## Exactly next step: B2.1 read-only current-local writer audit
 B1 passed. Do NOT re-run B1 smoke solely because an older master says pending.
-On USER's Linux backend, use targeted line-numbered read-only searches for current LOCAL writers, including dirty railway/index and untracked server/memory.
+Read `docs/roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md` as a pinned-source DRAFT, then on USER's Linux backend use targeted line-numbered read-only searches for current LOCAL writers, including dirty railway/index and untracked server/memory.
 Classify actual sources as writes/reads/tests, owner-addressable/hashed/global, purposes/retention, erasure scope, invariants.
 No owner index or legacy migration until source and design review; no arbitrary source push/deploy.
 ## Update protocol
