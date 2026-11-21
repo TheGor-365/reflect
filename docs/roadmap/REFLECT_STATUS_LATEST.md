@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-22 PG04C USER REAL FIRESTORE EMULATOR_PASS 6/6 + exact cleanup; PG04D provider boundary review underway, NOT authorized; B2.3 unapproved.
+Revision: 2026-11-22 PG04C real Emulator user 6/6 PASS; PG04D0 source OFF regression patch PREPARED (8/8 exact source checks), user QA pending; TOCTOU blocked.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -211,6 +211,14 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - Cases passed: Admin `Transaction.get(Query)` with unfenced grant/check/list; private-only fence denying new grant+quota; public malformed fence deny; previously active grant unavailable following fence; concurrent grant/erasure leaves no usable consent; cross-owner isolation. This is a real synthetic Emulator test of user's LOCAL patched `contextConsent.cjs`; **not a deterministic forced-commit ordering proof**, not provider boundary or staging production rollout.
 - Emulator warnings: hub 4400→4401/logging 4500→4501 due collision, Firestore no multi-db support, no Rules file so Emulator defaults allow client reads/writes. Tests ran via Admin SDK only; **FireStore Rules/actual client denial NOT certified**. Port 19085 remained isolated from demo port 18081; project name `reflect-ai-staging` applied only within the emulator due source's hard-coded project ID.
 - **PG04C=LOCAL_APPLIED+GUARDS_PASS+REAL_EMULATOR_PASS 6/6+EXACT_FIXTURE_CLEANUP**; prior `PG04C=ENV_BLOCKED` checkpoint superseded. **PG04D provider-context admission and TOCTOU = NOT_STARTED**, B2.1 full private writer census PARTIAL, B2.3 legal billing/index retention UNAPPROVED, no real provider context/ledger index ON, no deploy or remote source commit.
+
+
+## 2026-11-22 — PG-04D0 OFF-context regression PATCH_PREPARED
+- **PG04C USER_EMULATOR_PASS 6/6 + exact cleanup** remains accepted (see prior entry); user local server/Admin dependency resolved, `npm` reported 8 moderate vulnerabilities requiring separate audit (not an authorization to auto-upgrade).
+- **Current provider boundary assessed in exact pinned Github sources**: `server/ai/hostedHandler.cjs` uses `adapter.invoke(input.message, settings, null, ...)`, so current path does **not** send historical context through third argument. `server/privacy/contextPreviewHttp.cjs` explicitly refuses `providerDispatchAllowed !== false` and returns `providerDispatchAllowed:false`. Consent listener manages consents only. `xaiProviderAdapter.cjs` has optional M3 third argument (null by default) but does not validate Auth/AppCheck/consent/fences; future opt-in cannot rely on adapter alone.
+- [PG04D source threat model + erasure/dispatch lease lifecycle design](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D_PROVIDER_CONTEXT_EGRESS_BOUNDARY_DESIGN_2026-11-22.md), docs commit `1bbc76deca80b6f03abb0693a1f7086720530874`. **CRITICAL TOCTOU**: consent check→external POST cannot be atomic in a Firestore transaction. Require coordinated erasure-intent and active-dispatch lifecycle before any enabled historical context egress; do not claim a standalone last-second check prevents all races.
+- **New PG04D0 additive TEST-ONLY patch prepared**, `REFLECT_PG04D0_OFF_EGRESS_REGRESSION_2026-11-22.patch`, SHA256 `0ebe849aa0c1ba6ebb320a3a588d38586a8d9b078a1338a075af7827df76e98d`, adds only `server/privacy/providerEgressOff.pg04d0.test.cjs` and `docs/privacy/REFLECT_PG04D0_OFF_EGRESS_REGRESSION.md`. Structural assertions of CURRENT OFF invariant. Author isolated 8/8 Node tests PASS with synthetic source stubs, fresh Git patch apply/syntax/diff PASS, **same eight regex checks independently evaluated on exact pinned GitHub source 8/8 PASS**; **USER patch apply/QA PENDING**, no real provider/emulator calls in this phase.
+- `PG04C=USER_REAL_EMULATOR_PASS`; `PG04D0=PATCH_PREPARED/AUTHOR_8_PASS`; `PG04D1+PG04D2 future transport/erasure lease=NOT_STARTED`; `provider_history=OFF`; `B2.1 census=PARTIAL`, `B2.3 retention=UNAPPROVED`. Source push/deploy NOT DONE.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
