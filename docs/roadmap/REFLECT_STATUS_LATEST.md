@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-21 / R10.3-C2C2-B1 UNIT+EMULATOR_PASS; B2.1 LOCAL WRITER DISCOVERY IN PROGRESS.
+Revision: 2026-11-21 / R10.3-C2C2-B1 UNIT+EMULATOR_PASS; B2.1 PARTIAL LOCAL SOURCE VERIFIED, NOT ACCEPTED.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -33,6 +33,14 @@ R10.3-C2C2-A nested/orphan scan 30/30 + Emulator PASS.
 R10.3-C2C2-B1 owner private receipts, consent grants, retention/legacy policy: PATCH LOCAL_APPLIED + 45/45 NODE PASS + REAL DEMO EMULATOR SMOKE PASS (synthetic orphan receipt, consent tombstone, scoped cleanup).
 R10.3-C2C2-B2 **B2.1 DISCOVERY IN PROGRESS**: user `rg` enumerated private-path references in `server/ai/hostedBudget.cjs`, `aiTurnRecovery.cjs`, `server/privacy/contextConsent.cjs`, `contextPreviewQuota.cjs`, `server/memory/memoryAttestationQuota.r103c1.cjs`, `server/privacy/memoryErasure.r103c2b.cjs`, `server/railway/appCheckReplayGuard.cjs`, `server/ai/stagingEntitlement.cjs`, `server/railway/index.cjs`, plus auditor/tests; writer-method and dynamic-path classification PENDING. B2.1 pinned-source private writer matrix DRAFT committed at `docs/roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md`; current dirty writer classification PENDING. B2.2–B2.4 NOT_STARTED.
 R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP **NOT_ACCEPTED**; some earlier product components exist, audit before writing.
+
+## R10.3-C2C2-B2.1 latest verified progress, user local excerpt 2026-11-21
+- User's read-only local `sed` output verifies `memoryAttestationQuota.r103c1.cjs`: server transaction upserts `memoryAttestationQuotas/{uid}` at 6/hour, record retention unknown; supplied module checks injected `projectId` but not `db.projectId` directly. This is an assessment gap, not a demonstrated exploit.
+- `memoryErasure.r103c2b.cjs` locally verified DEMO-ONLY: atomic paired private/public fence, pending cancellation before confirmation, guarded confirmation, grant revocation and bounded memory erasure; pasted `sed -n '1,300p'` cuts off within `step`, so final erasure lifecycle remains uninspected.
+- `demoMemoryConsentAdmission.r103c2b2.cjs` locally verified DEMO-ONLY: same-transaction private fence read before grant creation. Does NOT validate staging `contextConsent.cjs` writer after fence.
+- Dirty local `server/railway/index.cjs` diff verified: `REFLECT_MEMORY_ATTESTATION_ENABLED === "yes"` default OFF; exact `/v1/privacy/memory-attest` route, existing auth/app-check/entitlement dependencies; no staging deploy.
+- B2.1 audit draft updated at `docs/roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md` (GitHub docs commit `34231ca54b5d22bfd706c1425fbbfa0bd23542eb`).
+- B2.1 not accepted pending local erasure tail, full private writer/retention mapping, current staging consent writer and route's real guard tests. B2.2 not started. Source remains LOCAL_ONLY.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
