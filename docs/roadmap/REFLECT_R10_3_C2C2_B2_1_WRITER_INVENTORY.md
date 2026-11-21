@@ -49,3 +49,26 @@ Avoid printing live env files, secrets, credentials, private Firestore documents
 - metadata redaction and no unbounded provider/history access;
 - exact known gaps/negative tests and policy blockers;
 - status updated to B2.1 ACCEPTED only after evidence and user confirmation.
+
+## Verified CURRENT LOCAL source excerpts — user terminal, 2026-11-21 (B2.1 PARTIAL)
+
+Evidence: user supplied read-only `sed` and `git diff -U3 -- server/railway/index.cjs` from the dirty `~/reflect-r10-railway-review` worktree, pinned HEAD `1c4c121e`; pasted output is exact local source up to `memoryErasure.r103c2b.cjs` line 300, NOT beyond it. This evidence supersedes assumptions in pinned remote source for the following four files.
+
+| Source | Local evidence | Consequence/status |
+|---|---|---|
+| `server/memory/memoryAttestationQuota.r103c1.cjs` | `STAGING_PROJECT = reflect-ai-staging`; method `consume(uid)` uses `db.runTransaction`, reads `memoryAttestationQuotas/{uid}`, then `tx.update` or `tx.create` with `{uid,hour,count}`, cap 6/hour; no explicit record expiry field or deletion in displayed module. | **LOCAL VERIFIED WRITER**, owner-addressable metadata; physical retention unknown. Module constructor checks supplied `projectId`, but in supplied excerpt does not independently compare `db.projectId` — review environment binding and tests before real deployment. |
+| `server/privacy/memoryErasure.r103c2b.cjs` | `enabled=false` default; rejects non-`demo-reflect-auth-qa` project and emulator host other than `127.0.0.1:18081`; `prepare` atomically `tx.create` public `memoryControl/erasure` and private `memoryErasureFences/{uid}`, records nonce hash and pending state. `cancelPending` atomically deletes both fences only before confirmation and before any work. `confirm` transitions to `revoking` after independent owner/consent guards; `step` revokes up to 20 active grants and deletes from owner memory collections in subsequent pages. | **LOCAL VERIFIED DEMO WRITER + scoped erasure**, not an HTTP handler or production-safe account deletion. Source excerpt ends inside `step` at line 300; remaining code, finishing status and all paths NOT YET VERIFIED. Nested/orphan descendants excluded by known erasure scope. |
+| `server/privacy/demoMemoryConsentAdmission.r103c2b2.cjs` | `enabled=false` default and isolated demo project/host. `issue` requires trusted-like principal and reads private fence in **same Firestore transaction** before checking existing grant/source and `tx.create` for `contextGrants/{uid}/grants/{grantId}`; TTL of active grant 15 minutes. | **LOCAL VERIFIED DEMO CONSENT WRITER**, independent fence race gate. It does not prove current `server/privacy/contextConsent.cjs` (staging) has an equivalent in-transaction fence read. Grant authorization TTL != storage purge. |
+| Dirty `server/railway/index.cjs` | Exact diff introduces `REFLECT_MEMORY_ATTESTATION_ENABLED === "yes"`, default OFF; requires existing `enabled && valid && consentEnabled`, constructs quota and lazy attestation route from `server/memory/*`, reuses `verifyAuth`, `verifyAppCheck`, `authorizeAccount`, exact route `/v1/privacy/memory-attest`. | **LOCAL VERIFIED ROUTE WIRING, NOT DEPLOYED**, not direct proof of auth behavior or provider egress. A new quota write is possible when explicitly enabled in staging. Review route's consumption order and reject/error tests before production. |
+
+### Findings that need correction or design decisions
+1. **Critical privacy gate:** The demo-only `demoMemoryConsentAdmission` reads the erasure fence transactionally. The older pinned staging `contextConsent.cjs` grant writer has no demonstrated equivalent check, and the new attestation route is not proof of it. Treat production consent after erasure as **UNVERIFIED**, deny new provider use until independently proven.
+2. **Quota persistence:** `memoryAttestationQuotas/{uid}` survives memory-only erasure in earlier QA; do not infer TTL from a per-hour counter. Clarify privacy policy/retention and export/reconciliation scope.
+3. **Exact erasure tail missing:** The supplied `sed -n '1,300p'` cuts off in the middle of `step`. Must inspect lines 300–end and export to confirm no invisible writer/cleanup/retry assumptions.
+4. **Potential constructor hardening:** `createMemoryAttestationQuota` validates its `projectId` argument but did not check actual `db.projectId` in the shown file; its production impact depends on trusted call-chain and must be assessed before release. No code change authorized here.
+5. **Other CURRENT local writes still to inspect:** `server/memory/*` loader/route, `server/privacy/contextConsent.cjs`, `server/privacy/contextPreviewQuota.cjs`, `server/railway/appCheckReplayGuard.cjs`; where pinned code matches local, record exact SHA or `git diff` result. Hashed billing and anti-replay remain excluded from B1 deletion certification.
+
+### B2.1 progress / remaining gates
+- DONE: pinned remote 14-row draft + exact local references; read-only local inspection of three R10 writer modules and Railway attestation diff.
+- PENDING: actual local erasure final half and all private writer paths, confirmation of staging consent guard, reader/writer matrix for all private paths, retention owner-scope and auth/cost invariants.
+- `B2.1=PARTIAL_LOCAL_SOURCE_VERIFIED`, **NOT ACCEPTED**; `B2.2=NOT STARTED`, no patch.
