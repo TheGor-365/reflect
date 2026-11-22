@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-22 PG04D3 model candidate author unit 32/32 PASS prepared; source code not enabled and PG04D2 Emulator still blocked by R9.2 port.
+Revision: 2026-11-22 PG04D3 user 32/32 local PASS, separate-port PG04D3F 5-file Emulator candidate offline author 12/12 PASS and real Emulator pending, R10.4 history OFF.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -332,4 +332,10 @@ R10.3-C2C2-B2.2-B1b real billing writer integration: **NOT_STARTED**; default-OF
 - Local `rg`: `server/railway/index.cjs` creates attestation route at lines ~377–380 and `createContextConsentStore({db,projectId:STAGE_PROJECT})` at 401–403. Demo erasure and PG04D1 lease factories are not imported by searched Railway code; only diagnostic module creates all three. Historical provider context in existing handler still OFF.
 - 18081 Java PID 1729032 belongs to frontend R9.2 `tests/emulator` cwd and parent Node PID 1728982. Do not stop or reuse. PG04D2 guard 8/8 PASS, real Firestore six diagnostics 0/6 NOT RUN, expected eventual GATE_BLOCKED due source incompatibility.
 - PG04D3 *three new files only* `REFLECT_PG04D3_GENERATION_UNKNOWN_CANDIDATE_2026-11-22.patch` SHA256 `28bed526665908f324a5bf0032156f0888cfb3cf4cc54fb5a7609bfafa0f818f`, pure in-memory generation-bound lease and separate unknownCount quarantine. Author isolated **32/32 unit PASS**, fresh patch apply+syntax+diff clean, **USER QA PENDING**. It makes no actual Firestore TX, no HTTP, no real erasure, no billing, no code deploy. [Source review and next QA](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D3_GENERATION_UNKNOWN_CANDIDATE_SOURCE_REVIEW_2026-11-22.md). B2.1 and B2.3 open; full execution roadmap unchanged.
+
+
+## 2026-11-22 PG04D3 accepted / PG04D3F separate-port real-TX test-only candidate
+- PG04D3 user local SHA-guarded candidate successfully installed, **32/32 Node unit PASS** including 4-source SHA gate; JS syntax and diff PASS. This is OFFLINE synthetic model only.
+- PG04D3F **new additive 5-file local QA candidate PREPARED**, `REFLECT_PG04D3F_INDEPENDENT_FIRESTORE_FAKE_TRANSPORT_2026-11-22.patch` SHA256 `223e136a243a4732bc82a578a98940342ab596051777aa4d6cb54e1449e3ce81`. Author offline **12/12 PASS** and new-file apply/syntax/diff/JSON/ZIP PASS; user 12 and real 6 Firestore Emulator tests PENDING. Completely different synthetic-only Firebase project `reflect-pg04d3f-synthetic` and port 19086, no real original erasure writer import (it requires occupied 18081). Tests fake transport and late-send gap, which still BLOCKS real egress. [Technical handoff](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D3F_INDEPENDENT_FIRESTORE_HANDOFF_2026-11-22.md).
+- Original PG04D2 real erasure writer diagnostic remains **0/6 not run** due R9.2 frontend test server on 18081; do not stop it or change its hard-coded guard. D3F cannot substitute for true end-to-end integration, B2.1 writer census partial, B2.3 retention unapproved, no paid provider/Railway/staging/production code release.
 
