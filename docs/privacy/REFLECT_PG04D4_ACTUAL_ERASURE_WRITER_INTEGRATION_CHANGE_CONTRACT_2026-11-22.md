@@ -1,0 +1,49 @@
+# Reflect 2.0 — PG04D4 actual erasure writer + request egress coordination integration contract
+**2026-11-22 • SOURCE-REVIEW / EXACT CHANGE PLAN ONLY. NO EXECUTABLE PATCH, NO SOURCE OVERWRITE, NO REAL AI HISTORY EGRESS.**
+
+## Verified evidence and previous acceptance
+- User original demo writer **byte-exact reviewed**: `server/privacy/memoryErasure.r103c2b.cjs`, SHA256 `485757d8bd718bc31a1052e500994aa9314de46531fdb707000a1505ee088f81` from uploaded tarball. Current user Linux offline strict-source checks of PG04D2 and PG04D3F both PASS; before drafting a source diff, require new local hash if bytes changed. This is DEMO-only, not an HTTP route; do not replace or overwrite user dirty/untracked file.
+- Real local `contextConsent.cjs` PG04B patched and 37/37 Node PASS, PG04C actual isolated Firestore Emulator 6/6 PASS; current Railway index has real consent store/attestation wiring but no demo writer/lease import in user's scoped `rg`.
+- PG04D0 user provider-history-OFF source regression 8/8 PASS; PG04D1 local unit 29/29 PASS; PG04D3 local in-memory generation + unknown handling **32/32 PASS**.
+- **PG04D3F USER ACCEPTED**: patch installed, **12/12** offline test PASS, **6/6 actual isolated Firestore Emulator** diagnostics PASS with `reflect-pg04d3f-synthetic` + `127.0.0.1:19086` + in-process fake provider spy; `GATE_BLOCKED` printed as intended, exact synthetic per-run cleanup PASS, child exit 0 and Emulator stopped. Warn: no Firestore Rules config; this is Admin SDK transaction QA, not client authorization. PG04D2 original-writer diagnostic remains **0/6 NOT RUN** because frontend R9.2 emulator owns original hardcoded port `18081`.
+- Actual D3F source test-only: `pg04d3fFirestoreCoordination.cjs` uses its OWN `pg04d3fSyntheticRuns/{runId}` collections and copies only a **test fixture fence shape**. It does **NOT** import/call original writer. Its late fake-only send AFTER request is a verified admissible ordering, not a resolved race. No xAI/network request.
+
+## Architectural decision needed BEFORE modifying actual writer
+A future production mode must define the *effective erasure point*. A Firestore transaction cannot include an external provider HTTP POST. If a request was marked `dispatch-started` before an erasure request TX but sent to the provider afterward, only **deferred effective-erasure** and conservative in-flight tracking can protect the guarantee. Do NOT advertise `no outbound bytes after erasure-click` unless an independently proved single outbound gateway/serialization mechanism supplies that stronger property. Never assume that killing an HTTP client or expiring a lease reverses provider receipt/charge.
+
+**One canonical erasure-fence owner:** original writer, retaining its challenge/nonce and memory-derived-only scope. Separate D1 `requestErasure()` synthetic toy must **never** write canonical `memoryErasureFences/{uid}` or public `memoryControl/erasure` in production.
+
+**Shared coordinator**: private owner `generation` (monotonic), `phase`, counts `reserved/inFlight/unknown`, `intentId`; metadata-only lease docs tied to generation+owner+request+grant+previewDigest+current source revision. D3F constructor is a test-only reference for transaction ordering, **not a production dependency**. Exact production collection path, migration/TTL/retention, metadata exposure and Rules must be agreed under B2.1/B2.3.
+
+## Source-specific surgical change matrix (PROPOSAL, NOT APPLIED)
+| Current method and lines (uploaded exact CJS) | Existing behavior | Required candidate behavior before real provider-history integration |
+| --- | --- | --- |
+| `createDemoMemoryErasure` lines 47–74 | Requires default-OFF DEMO project, exact host 127.0.0.1:18081, injected independent callbacks | Preserve current factory and guard without editing in place. For a separate reviewed demo-compatible candidate, inject a **trusted coordinator** with identical DEMO scope; no production default enable or host bypass. |
+| `prepare()` 103–131 | Reads two fences; transaction creates canonical public+private fences, returns nonce challenge; does NOT read owner dispatch leases | In **same Firestore TX**, read owner coordinator + both fences; reject malformed/partial/stale states; atomically bump owner generation, set erasure-intent/draining, invalidate reserved leases by generation, create BOTH fences in original schema. In-flight/unknown remain conservatively accounted. Preserve challenge and expiry. |
+| `cancelPending()` 136–162 | On pending/zero work, deletes both fences; does NOT inspect lease or advance generation | **Same TX** read coordinator and fences; require matching intent/generation and no in-flight or unresolved unknown outcomes; advance generation (invalidate all old reserved leases) then only delete both paired fences. No auto-fix partial fences, no reset of replay identifiers. |
+| `checkIndependentGuards()` 165–193 | External owner/consent fence callbacks checked separately (not TX with writer status) | Preserve as **additional** gates, but do not use callbacks to replace owner/lease TX admission or in-flight checks. Check Auth/AppCheck/revocation source at boundary, not via HTTP booleans; callbacks can race and are not provider-call locks. |
+| `confirm()` 196–232 | Reads fence and independent callbacks, transitions to `revoking` in TX | In status transition TX read coordinator, generation and both fences; **refuse** if in-flight or unknownCount>0, including a finished counter after unknown. Preserve nonce verification and recent authentication. Distinguish erasure request vs effective/purge eligibility. |
+| `step()` 234–321 | Bounded revocation and deletion of 3 memory collections; end marks scoped `complete` | Require consistent coordinator/fence state **within each transition TX** (especially `complete`); no deletion while unresolved in-flight/unknown. Preserve per-owner paging, tombstones and quota behavior. Separate nested descendant residual proof; don't label whole account deletion. |
+| `status()` 323–332 | Reads private fence and exposes scoped counters | Return **scope-limited** status; do not present `dispatches-drained` as completed erasure, and do not leak raw lease IDs, provider payload, nonce, or billing ledger. |
+| New server egress-admit/begin/settle (NOT in original writer) | Current `hostedHandler.cjs` provides adapter third argument `null`; OFF means no history-provider egress | New server-owned routines must read BOTH canonical fences plus owner coordinator/grant/source/preview digest in shared transactions; one-shot begin, request idempotency, exact request identity, owner isolation and durable unknown outcome. **No bypass by older Railway workers.** |
+| Billing/receipt integration | Existing `hostedBudget.cjs` has hashed immutable request ledger and outcome-unknown | Preserve existing ledger reservation/idempotency, never auto-refund or retry when provider outcome unknown; source-specific review needed before any write plan. B2.3 retention policy still unapproved. |
+
+## Negative/race acceptance suite before any safe integration
+1. Admit and erasure prepare racing must serialize: no post-intent admissions, cross-owner isolation, no duplicated lease IDs.
+2. `beginDispatch` vs `prepare` race: if begin commits first, lease remains inFlight and erasure **not effective**; fake transport may run late, report as intended gap. If prepare commits first, begin denied.
+3. Cancel pending vs reserved-before-generation: old lease remains unusable, cannot be restarted or reused after fence deletion even with stale grant/source.
+4. Cancel with in-flight/unknown must fail closed; `unknownCount` survives `activeCount=0`, cannot trigger eligibility, no TTL auto settle.
+5. Same-owner interrupted/external timeout after transport dispatch: no automatic paid retry; durable unknown event and charge/receipt semantics. Crash before begin and after begin tested separately.
+6. Concurrent `confirm` / `step` vs `settle`: fence/protocol still transactionally gates deletion and status changes. No early scoped complete.
+7. Mismatched private-only/public-only/legacy malformed fence deny; no silent repair; grant denial and independent Auth/AppCheck hooks remain.
+8. Exact synthetic fixture cleanup only. If original writer requires 18081 and that port is occupied by frontend emulator, **do not** fake its host, kill other service, or claim its Emulator test passed. Use an independently reviewed *new* source candidate with a separately guarded port and no deployed paths, or wait for verified free window.
+9. Real Firestore Admin Emulator contention plus fake transport is required; passing mock or D3F alone is insufficient. Firestore client Rules need separate tests.
+10. Old-vs-new replica/feature flag rollout default OFF; source commit/PR with exact SHA and rollback, targeted approval before enabling historical context.
+
+## Proposed work split and honest statuses
+- **PG04D3F=LOCAL_APPLIED+OFFLINE_12/12_PASS+ACTUAL_FIRESTORE_EMULATOR_6/6_DIAGNOSTIC_PASS+EXACT_CLEANUP_PASS, GATE_BLOCKED (accepted as diagnostic)**.
+- **PG04D2=USER_GUARD_8/8_PASS, ACTUAL_ORIGINAL_WRITER_EMULATOR_0/6_NOT_RUN, occupied port 18081**.
+- **PG04D4=SOURCE-SPECIFIC CHANGE CONTRACT ONLY, no patch, no test.** Next deliverable should be a **review-only surgical diff**, applying to a *copy* of the uploaded original writer and a new separate owner-coordination helper; keep demo-only default OFF. Do not patch original dirty local source, Railway or billing without explicit user review. Source hash pin before working.
+- **PG01–08 privacy gate OPEN**; B2.1 private writer census PARTIAL; B2.3 retention/provider/backups/ledger UNAPPROVED; no historical provider context sent, no paid xAI, no staging or production deployment.
+
+Do not turn D3F diagnostic success into production authorization. The privacy invariant is stronger and demands the original writer + egress boundary + billing/consent/erasure proof together.
