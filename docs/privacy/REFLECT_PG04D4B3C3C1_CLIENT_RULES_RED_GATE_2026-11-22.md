@@ -44,3 +44,31 @@ Collect full client-owned collection inventory before replacing broad recursive 
 Status: **`C3C1=EXPECTED_RED_3FILE_PATCH_AUTHOR_VALIDATED/USER_EMULATOR_PENDING`**, `C3B=REAL_ADMIN_10/10_PASS`, `PRIVACY_GATE=BLOCKED`.
 
 **Final patch SHA correction:** Earlier initial test fixture had only a public erasure marker and used SHA `500d7e...` (obsolete). The final patch seeded both canonical private/public fence documents before post-fence checks and was rerun through author syntax/JSON/clean git apply+diff QA: SHA256 **`2fe63d14d5bc0c19dfa78f7e05c313d5b76aa33eebb23eb839aa4063254ac8da`**. Only use FINAL SHA; user genuine emulator not run.
+
+
+## 2026-11-22 owner real execution: test-only patch PASS; client SDK dependency BLOCKER (NOT EXPECTED_RED)
+
+Owner verified final patch SHA256 `2fe63d14d5bc0c19dfa78f7e05c313d5b76aa33eebb23eb839aa4063254ac8da`, `git apply`/Node syntax/JSON/diff PASS. Explicit demo Firestore Emulator on localhost19089 booted; the test process then failed at first `createRequire(root/package.json)("firebase/app")` with **`Cannot find module 'firebase/app'`**, code 1, before any client query. Emulator exited cleanly. **C3C1 results: 0/20, 0/7 EXPECTED_RED NOT RUN**; no client policy conclusion. [Actual owner evidence](https://github.com/TheGor-365/reflect/issues/136#issuecomment-7085509818).
+
+Root `package.json` declares `firebase: ^10.12.2`, but CJS module cannot currently be resolved. To avoid modifying user's dirty detached root `package.json`, `package-lock.json` or node_modules, install this **test-only dependency in a separate user cache directory** and expose it to the C3C1 child process using Node's `NODE_PATH`. Assistant verified `createRequire(root/package.json)` + `NODE_PATH` with a synthetic CJS package-exports fixture, but **not yet actual Firebase SDK inside owner's runtime**; the command explicitly checks this before Emulator boot. This download requires npm registry; no Firebase cloud account, Firestore data or provider token is required.
+
+```bash
+cd "$HOME/reflect-r10-railway-review"
+export ASDF_NODEJS_VERSION=22.23.4
+SDK_CACHE="$HOME/.cache/reflect-c3c1-firebase-sdk"
+mkdir -p "$SDK_CACHE"
+npm --prefix "$SDK_CACHE" install firebase@10.12.2 \
+  --no-save --package-lock=false --ignore-scripts --no-audit --no-fund
+export NODE_PATH="$SDK_CACHE/node_modules"
+node <<'NODE'
+const { createRequire } = require("node:module");
+const path = require("node:path");
+const root = createRequire(path.join(process.cwd(), "package.json"));
+const server = createRequire(path.join(process.cwd(), "server/package.json"));
+for (const spec of ["firebase/app", "firebase/firestore/lite"]) {
+  console.log("PASS C3C1 local-only SDK:", spec, root.resolve(spec));
+}
+console.log("PASS existing Admin SDK:", server.resolve("firebase-admin/app"));
+NODE
+```
+Only after both client SDK resolves succeed, run the **existing** Rules-specific `firebase emulators:exec` command under `demo-reflect-c3c1-rules` and localhost19089 with original SHA/port safety preflight, `NODE_PATH` exported into the shell and cloud env credentials unset. STOP on install/resolve/port/Rules hash mismatch; never weaken source or rules guard. **Expected RED is a vulnerability reproduction, not privacy acceptance.**
