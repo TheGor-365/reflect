@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-22 PG04D3 synthetic-only generation/unknown candidate prepared author 32/32 PASS user QA pending; D2 real Emu blocked at port 18081.
+Revision: 2026-11-22 PG04D3 user local synthetic model 32/32 PASS, accepted; next separate Firestore transaction/fake transport candidate; original PG04D2 Emulator blocked on frontend 18081.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -291,6 +291,11 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - Candidate is explicitly synthetic-only in-memory, no Firestore, network, provider, billing, erasure writer or staged feature flag. Per-lease generation stored, old reservations invalidated across erasure/cancel, `unknownCount` prevents `eligible-for-writer-review` while external outcome uncertain; never treats eligibility as actual data erasure.
 - [PG04D3 exact wiring + artifact handoff](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D3_GENERATION_UNKNOWN_CANDIDATE_SOURCE_REVIEW_2026-11-22.md) docs commit `e562de226324dfb649263d8fe97cb8fc088e198d`. `PG04D3=MODEL_PATCH_PREPARED/AUTHOR_UNIT_32_PASS, USER_QA_PENDING`, `PG04D2=PORT_BLOCKED_REAL_0/6`; history provider OFF, B2.1 writer census partial, B2.3 retention unapproved, no source commit/deploy.
 
+
+## 2026-11-22 — PG04D3 user local synthetic coordination ACCEPTED 32/32
+- **Latest actual user Linux** `~/reflect-r10-railway-review` dirty detached `1c4c121e`, ASDF Node 22.23.4: first download search returned `STOP: патч не найден`; user downloaded and reran expected SHA guard, second run **`PASS: PG-04D3 установлен`**. `node --test server/privacy/pg04d3OwnerCoordination.test.cjs` **32/32 PASS, 0 FAIL** (151.47ms); `node --check` both new JS and `git diff --check` emitted no errors. Source SHA pin of existing erasure file PASS. First missing-file error is superseded by successful installation.
+- `PG04D3=LOCAL_APPLIED+OFFLINE_UNIT_PASS_32/32` for **IN-MEMORY SYNTHETIC-ONLY MODEL**. Confirmed per-lease generation and refusal to treat unknown external request as eligible-for-erasure. This is **NOT** a real Firestore TX/emulator test, original `memoryErasure.r103c2b.cjs` integration, billing or deployment; no production history egress.
+- **NEXT**: build separate **PG04D3F TEST-ONLY** real Firestore transaction + fake in-process provider spy at an independent explicitly opt-in localhost Emulator port (NOT occupied frontend `18081`). Keep original `memoryErasure` unchanged/hardcoded 18081, and continue existing PG04D2 six actual-writer diagnostics BLOCKED 0/6. New synthetic DB coordination proof does **not** close D2 or certify actual writer integration.
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
