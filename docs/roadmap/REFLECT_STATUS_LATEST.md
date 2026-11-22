@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-22 PG04D3 user local synthetic model 32/32 PASS, accepted; next separate Firestore transaction/fake transport candidate; original PG04D2 Emulator blocked on frontend 18081.
+Revision: 2026-11-22 PG04D3 USER local 32/32 PASS; PG04D3F independent Emulator patch PREPARED (author offline 12/12 PASS, user QA pending); PG04D2 original emulator port blocked.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -296,6 +296,14 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - **Latest actual user Linux** `~/reflect-r10-railway-review` dirty detached `1c4c121e`, ASDF Node 22.23.4: first download search returned `STOP: патч не найден`; user downloaded and reran expected SHA guard, second run **`PASS: PG-04D3 установлен`**. `node --test server/privacy/pg04d3OwnerCoordination.test.cjs` **32/32 PASS, 0 FAIL** (151.47ms); `node --check` both new JS and `git diff --check` emitted no errors. Source SHA pin of existing erasure file PASS. First missing-file error is superseded by successful installation.
 - `PG04D3=LOCAL_APPLIED+OFFLINE_UNIT_PASS_32/32` for **IN-MEMORY SYNTHETIC-ONLY MODEL**. Confirmed per-lease generation and refusal to treat unknown external request as eligible-for-erasure. This is **NOT** a real Firestore TX/emulator test, original `memoryErasure.r103c2b.cjs` integration, billing or deployment; no production history egress.
 - **NEXT**: build separate **PG04D3F TEST-ONLY** real Firestore transaction + fake in-process provider spy at an independent explicitly opt-in localhost Emulator port (NOT occupied frontend `18081`). Keep original `memoryErasure` unchanged/hardcoded 18081, and continue existing PG04D2 six actual-writer diagnostics BLOCKED 0/6. New synthetic DB coordination proof does **not** close D2 or certify actual writer integration.
+
+
+## 2026-11-22 — PG04D3 user 32/32 accepted and PG04D3F isolated Firestore test patch prepared
+- **PG04D3 USER actual Linux accepted:** `REFLECT_PG04D3_GENERATION_UNKNOWN_CANDIDATE_2026-11-22.patch` downloaded after first `STOP: патч не найден`; user successful `PASS: PG-04D3 установлен`; `node --test server/privacy/pg04d3OwnerCoordination.test.cjs` **32/32 PASS**, source SHA, syntax and git diff clean. `PG04D3=USER_LOCAL_SYNTHETIC_UNIT_PASS` only, NO real Firestore/provider/erasure-writer integration.
+- **NEW PG04D3F independent five-new-file additive TEST-ONLY patch PREPARED** `REFLECT_PG04D3F_INDEPENDENT_FIRESTORE_FAKE_TRANSPORT_2026-11-22.patch`, SHA256 `223e136a243a4732bc82a578a98940342ab596051777aa4d6cb54e1449e3ce81`. Separate synthetic Firebase project `reflect-pg04d3f-synthetic` and free localhost `127.0.0.1:19086`; no 18081 dependence or modification of actual writer. Includes real Firestore-TX coordinator in synthetic-only `pg04d3fSyntheticRuns/{random-run}` namespace, 12 offline unit+source SHA tests and six prospective Firestore Emulator scenarios with FAKE in-process provider counter and exact fixture cleanup. **Author isolated 12/12 offline PASS**, fresh apply/syntax/JSON/diff and ZIP integrity PASS; **USER 12/12 and real Emulator six tests NOT YET RUN**.
+- [PG04D3F source/safety audit and runbook](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D3F_INDEPENDENT_FIRESTORE_HANDOFF_2026-11-22.md), docs commit `0a5310c040195e51945c211416fff332b36e325f`. User must first verify SHA/ apply only new five files and run 12/12 unit; then separate 19086 free-port preflight and `firebase emulators:exec`. Even after six diagnostics PASS, script intentionally emits `GATE_BLOCKED`: **original memoryErasure writer NOT integrated; HTTP-after-erasure request remains an external POST atomicity limitation**. Source-review candidate is NOT staging, provider history OFF, B2.1 audit partial, B2.3 retention unapproved.
+- **PG04D2 original actual erasure-writer diagnostic 0/6 NOT RUN** due R9.2 front-end Java on port 18081. Do not kill/reuse that process or change constructor guard. NEW D3F is independent proof, **does not replace PG04D2**.
+
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
