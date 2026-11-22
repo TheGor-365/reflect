@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-22 PG04D4A USER 12/12 offline + 6/6 real copied-writer Firestore diagnostic PASS and exact cleanup with expected GATE_BLOCKED; PG04D4B consent/budget source audit next.
+Revision: 2026-11-22 PG04D4B seven current user-local CJS sources verified; PG04B same-TX consent fences confirmed, two preview digests incompatible, history OFF; design review only.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -328,6 +328,16 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - **Critical acceptance boundary:** D4A exercises **review-copy writer** `pg04d4aMemoryErasureReviewedCopy.cjs`, not original untracked `memoryErasure.r103c2b.cjs`; Auth/consent callbacks mocked, real hostedBudget and xAI transport not invoked. PG04D2 original writer real Emulator remains **0/6 not run** on occupied 18081. No live history permission or deployment.
 - **PG04D4B new read-only source review plan** https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D4B_REAL_CONSENT_BUDGET_SOURCE_PREFLIGHT_2026-11-22.md docs commit `545c5df2184262242b713e0f2f09abea4263551e`. Real pinned hostedHandler budget.reserve `:97` → optional recovery.providerStarted → adapter.invoke(..., `null`) `:115` → budget.finish; hostedBudget own TX `:69` creates immutable hashed requestLedger, later finish own TX. Need exact user-local **modified** `contextConsent.cjs` + preview, recovery and budget sources before true integrated gate. Next user source-only tar and targeted Railway rg, no env/secret data, no repeat D4A tests.
 - `PG04D4A=USER_LOCAL_APPLIED+UNIT_PASS_12/12+REAL_EMULATOR_DIAGNOSTIC_PASS_6/6+EXACT_CLEANUP_PASS/GATE_BLOCKED`. `PG04D4B=SOURCE_PREFLIGHT_PENDING`; B2.1 PARTIAL; B2.3 UNAPPROVED; PG01–08 open, provider history OFF.
+
+
+
+## 2026-11-22 — PG04D4B seven actual user-local source bytes VERIFIED; canonical preview mismatch identified
+- USER ACTUALLY UPLOADED `REFLECT_PG04D4B_SOURCE_REVIEW.tar.gz`, safely inspected exactly seven CJS (no traversal/symlinks), archive SHA256 `7bc64b3aa47b82ec188d51a0e344d6f27b6690f8d0d910c370ac8ff1a74fa426`; `node --check` seven/ seven syntax PASS. Exact per-file SHA and line-verified source audit in [PG04D4B user-source audit](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D4B_EXACT_USER_SOURCE_AUDIT_AND_INTEGRATION_PLAN_2026-11-22.md), docs commit `c492b6716952f14a2b060001fda426d95c918bfa`.
+- LOCAL `contextConsent.cjs` PG04B revision **VERIFIED**: `execute(grant)` reads private+public erasure fences within SAME Firestore transaction as grant/quota writes, `check` and `list` also fence guarded/fail closed. Earlier pinned remote missing-fence finding is **SUPERSEDED for user's current local bytes**, but not proven deployed; no combined atomic provider send.
+- LOCAL `sessionContextPreview` + `contextPreviewHttp`: at most 4 turns, 700 bytes/turn, 2400 total, no per-turn sourceTurnId; HTTP `previewHash` computed for DISCLOSURE ONLY, `providerDispatchAllowed:false`, **NOT provider consent**.
+- PINNED remote `server/ai/sessionMemory.cjs` and `providerSessionContext.cjs` (not in archive) are a separate unconnected approval pathway: 300 bytes/turn, 1200 total, sourceTurnId for each turn, UID/request/message/source bound `approvalDigest`, committed current user turn required before `authorize`. Therefore `contextPreviewHttp.previewHash` is **not interchangeable** with `sessionMemory.approvalDigest`. Current local modification status of pinned files yet to verify.
+- LOCAL `hostedHandler:97 budget.reserve`, `:115 adapter.invoke(...,null,...)`, `:126/154 budget.finish` confirms history OFF; `hostedBudget` ledger reserve in separate TX, accepts at most **1200 trustedContextBytes** (incompatible with full 2400 preview). `aiTurnRecovery` has separate claim/providerStarted/persistReply receipts and user-CONFIRMED new-requestId retry after outcome_unknown (not automatic); each future history attempt must be newly fenced/authorized, old unknown does not become settled. No real paid calls.
+- `PG04D4B=SOURCE_BYTES_VERIFIED + DESIGN_REVIEW`, **not** source patch/QA or transport release. PG04D4A remains user 12/12 + real Firestore 6/6 diagnostic with GATE_BLOCKED; original PG04D2 0/6 on frontend occupied 18081. Next user ONLY scoped route imports + local status for alternate provider history modules; B2.1 writer census PARTIAL, B2.3 retention UNAPPROVED, PG01–08 OPEN, history provider OFF, no deploy.
 
 
 ## Proven limitations / OPEN BLOCKERS
