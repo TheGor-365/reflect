@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-22 PG04D2 emulator held by Java gor pid1729032 cwd R9.2 tests/emulator; PG04D3 generation and unknown-outcome hazards audited, B2.1 inventory advanced.
+Revision: 2026-11-22 PG04D3 synthetic-only generation/unknown candidate prepared author 32/32 PASS user QA pending; D2 real Emu blocked at port 18081.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -281,6 +281,15 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - **User actual read-only Linux output:** `ps -p 1729032 -o pid,ppid,user,etime,comm` → Java PID 1729032, parent 1728982, user `gor`, elapsed `22:58:26`; `readlink -f /proc/1729032/cwd` → `/home/gor/reflect-r9-2-workflow/tests/emulator`. The Java listener on localhost:18081 originates from R9.2 frontend test workspace by CWD. Its exact Firebase project/session identity remains UNVERIFIED and the user has not authorized stopping it. **PG04D2=guard 8/8 PASS, real Emulator diagnostics 0/6 NOT EXECUTED**, safe to continue independently on privacy/B2.1.
 - **New exact-source PG04D3 findings** from already received SHA-verified archive: D1 `admit` stores owner generation but NOT lease generation; `markDispatchStarted` doesn't compare lease/owner generation; after actual writer `cancelPending` deletes fences, an old reserved lease can be reactivated if wired. D1 `settle(outcome:"unknown")` decrements activeCount and may set `dispatches-drained`, which is not evidence an external provider request has ended. PG04D3 must require per-lease generation and conservative `unknown` quarantine before erasure-effective.
 - [Updated PG04D3 exact-source design](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D3_COORDINATED_ERASURE_DISPATCH_STATE_MACHINE_DRAFT_2026-11-22.md), commit `3ad52d6ed371a336d87ecd0db221617079901885`; [B2.1 inventory actual source classification](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md), commit `a3ba50ccd27dfbedc5e7715545c620626ca54de2`. B2.1 PARTIAL, B2.3 UNAPPROVED, no provider history, no code deploy.
+
+
+
+## 2026-11-22 — PG04D3 source wiring reviewed, in-memory generation/unknown candidate patch prepared
+- **User latest Linux**: parent of Java emulator listener PID 1729032 on 18081 is **Node PID 1728982**, user gor, PPID 1728971, ~23h47 uptime. The process cwd is R9.2 frontend `tests/emulator`. No approval to kill or attach; exact Firebase project not proven. PG04D2 real diagnostics still 0/6 NOT RUN due port occupied (guard 8/8 PASS).
+- **User scoped `rg`**: real dirty `server/railway/index.cjs:377–380` constructs lazy attestation route, `:401–403` constructs real `createContextConsentStore`. No `createDemoMemoryErasure` or D1 `createDemoDispatchLeasePg04d1` import found in searched Railway files; demo factories appear in own files and `pg04d2ActualWriterDiagnostic.emulator.cjs`. This is only scoped static evidence, not complete dynamic import or deployed status.
+- **PG04D3 NEW THREE-NEW-FILE SYNTHETIC CANDIDATE PATCH PREPARED (not user applied)**: `REFLECT_PG04D3_GENERATION_UNKNOWN_CANDIDATE_2026-11-22.patch` SHA256 `28bed526665908f324a5bf0032156f0888cfb3cf4cc54fb5a7609bfafa0f818f`, add only `server/privacy/pg04d3OwnerCoordination.cjs`, `server/privacy/pg04d3OwnerCoordination.test.cjs`, `docs/privacy/REFLECT_PG04D3_GENERATION_UNKNOWN_CANDIDATE_2026-11-22.md`. Author Node **32/32 PASS** including exact 3 reviewed source SHA guards, fresh `git apply --check`+apply, both JS syntax, `git diff --check` PASS, ZIP integrity verified. **USER LOCAL QA PENDING**.
+- Candidate is explicitly synthetic-only in-memory, no Firestore, network, provider, billing, erasure writer or staged feature flag. Per-lease generation stored, old reservations invalidated across erasure/cancel, `unknownCount` prevents `eligible-for-writer-review` while external outcome uncertain; never treats eligibility as actual data erasure.
+- [PG04D3 exact wiring + artifact handoff](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D3_GENERATION_UNKNOWN_CANDIDATE_SOURCE_REVIEW_2026-11-22.md) docs commit `e562de226324dfb649263d8fe97cb8fc088e198d`. `PG04D3=MODEL_PATCH_PREPARED/AUTHOR_UNIT_32_PASS, USER_QA_PENDING`, `PG04D2=PORT_BLOCKED_REAL_0/6`; history provider OFF, B2.1 writer census partial, B2.3 retention unapproved, no source commit/deploy.
 
 
 ## Proven limitations / OPEN BLOCKERS
