@@ -1,5 +1,5 @@
 # REFLECT 2.0 — LIVE MASTER PROMPT / ROADMAP TO PRODUCTION MVP
-Revision: 2026-11-22 PG04D3F USER 12/12 + six real synthetic Firestore diagnostics PASS, exact cleanup with expected GATE_BLOCKED; PG04D4 original writer change contract, no code integration.
+Revision: 2026-11-22 PG04D4A reviewed writer COPY additive candidate author offline 12/12 PASS, user real Emulator pending, no source/live provider integration.
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
@@ -345,4 +345,10 @@ R10.3-C2C2-B2.2-B1b real billing writer integration: **NOT_STARTED**; default-OF
 - **Original PG04D2 0/6** still not run: `memoryErasure.r103c2b.cjs` source constructor pins 18081, occupied by R9.2 frontend Emulator. Keep separate.
 - **Next PG04D4 SOURCE-SPECIFIC PROPOSAL**: https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D4_ACTUAL_ERASURE_WRITER_INTEGRATION_CHANGE_CONTRACT_2026-11-22.md (docs-only commit `0b192256904db438657573321e103d4cf9c77677`). Based on byte-exact user-uploaded original writer, method-by-method required changes: same-TX erasure intent/lease coordination in prepare; cancelPending monotonic generation and unknown/in-flight denial; confirm/step must refuse premature data purge; new server-only lease gate with source+grant/preview/billing identity, old workers fenced OFF. HTTP POST cannot be atomic with Firestore; strongest guaranteed state is deferred effective deletion until conservative in-flight outcome resolution.
 - `PG04D4=REVIEW_ONLY_CHANGE_CONTRACT`, no source patch applied/Emulator QA/production release. B2.1 writer inventory partial, B2.3 retention unapproved, PG01–08 open, history context OFF.
+
+
+## 2026-11-22 PG04D4A additive original-erasure REVIEW COPY integration patch prepared
+- User local source pins confirmed: `hostedHandler:97 budget.reserve`, `:115 adapter.invoke(...,null,...)`, `:126/:154 budget.finish`, real consent store imported in dirty Railway index. HostedHandler/Budget/Adapter unchanged vs pinned HEAD, contextConsent/Railway index dirty. Separate billing TX remains an unclosed real integration gate.
+- **PG04D4A six-NEW-file-only reviewed writer COPY and transactional coordinator patch** `REFLECT_PG04D4A_ORIGINAL_WRITER_REVIEW_COPY_2026-11-22.patch` SHA256 `86166a6cb421a7f4fd8c98c019594abdcf62dce9a5fa436d39ab7b542bd5c80b`, synthetic-only `reflect-pg04d4a-synthetic` Firestore localhost `19087`, original writer source hash-pinned, independent original→copy source diff. Original actual writer and real Railway/billing/consent untouched. Author **12/12 offline tests PASS** fresh applied Git and checks; USER patch/Emulator six diagnostics PENDING, **not source readiness proof**. [PG04D4A handoff](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D4A_REVIEW_COPY_INTEGRATION_CHECKPOINT_2026-11-22.md).
+- Existing PG04D3F user 12/12 offline and 6/6 REAL standalone Emulator accepted with GATE_BLOCKED; PG04D2 true original writer 0/6 still blocked on frontend 18081; D4A copied writer does not supersede either. Next PG04D4B needs reviewed source integration AND Auth/AppCheck/consent, Firestore Rules, hostedBudget ledger, provider transaction/unknown outcome, B2.1/B2.3 and mixed replica rollout gates before history egress. Railway/provider history OFF.
 
