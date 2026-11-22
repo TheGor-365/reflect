@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-22 B3B USER actual 11/11 Node and 7/7 Admin Firestore budget CREATE+lease diagnostics PASS, exact cleanup and GATE_BLOCKED; next B3C real memoryReply/approval/recovery source integration.
+Revision: 2026-11-22 B3B user 11/11+genuine Firestore 7/7 diagnostic PASS and exact cleanup; B3C1 additive actual-source memoryReply/recovery offline composition AUTHOR STUB 12/12, user true-source 0/12 pending, GATE_BLOCKED.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -396,6 +396,14 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - Emulator warnings hub 4400→4401, logging 4500→4501 did not affect results. No Firestore Rules file and defaults allow-all -> **Admin SDK transaction diagnostics are NOT client Rules tests**. Multi-database not tested. Frontend R9.2 Firestore 18081 untouched.
 - `PG04D4B3B=USER_INSTALLED+TRUE_SOURCE_OFFLINE_11/11_PASS+REAL_ADMIN_FIRESTORE_EMULATOR_7/7_DIAGNOSTIC_PASS+EXACT_CLEANUP_PASS/GATE_BLOCKED`. **NO real signed owner approval receipt, NO actual `createMemoryReplyExecutor` source integration, NO real `aiTurnRecovery` receipt sync, NO original staging-only budget/consent factory integration, NO actual erasure writer replacement, NO real Auth/AppCheck/provider/paid calls/deploy.** External HTTP cannot be included in Firestore TX; late send after erasure request remains possible and unknowns must block effective deletion. Deployed history-reply flag UNKNOWN, B2.1/B2.3 PG privacy gates OPEN.
 - NEXT PG04D4B3C: source-exact review and additive test-only bridge from current `memoryReply` + `sessionMemory.authorize` + `aiTurnRecovery` onto the B3B budget/lease coordinator using FAKE provider; require explicit owner-attested approval and crash recovery semantics, then true Admin and client Rules gates, no source overwrite/production enablement.
+
+
+## 2026-11-22 — B3C1 additive REAL-SOURCE memoryReply+consent+budget+recovery OFFLINE diagnostic patch prepared
+- **Accepted B3B USER 11/11 Node + 7/7 genuine Admin Firestore synthetic diagnostics PASS**, exact scoped cleanup and exit0; deliberate GATE_BLOCKED as memoryReply/real approval/Auth/Rules not integrated. This is a narrower source-readiness gate, not staging or production release.
+- NEW B3C1 **TWO-new-file TEST-ONLY patch** `REFLECT_PG04D4B3C1_REAL_MEMORY_REPLY_RECOVERY_COMPOSITION_2026-11-22.patch`, SHA256 `4f05257729e65e4356fe9c67339c85b93ded3f2da1f8a60277594d807d20ab9a`, tests actual user's `createMemoryReplyExecutor`, real `createSessionMemoryAdapter`, real `createContextConsentStore`, real `createHostedBudget` and real `createAiTurnRecovery` together (all exact hash pinned BEFORE import), on NO-NETWORK in-memory Firestore with stage project **string** solely for the original source guard. Real external adapter is injected FAKE. Twelve cases cover reply+ledger+attempt receipt, grant expiry/revoke, post-reserve source edit, budget kill, unknown, duplicate, partial fence and **EXPECTED UNSAFE late send** and **reply-persisted/ledger-reserved closeout failure**. [Exact scope and runbook](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D4B3C1_REAL_MEMORY_REPLY_RECOVERY_COMPOSITION_HANDOFF_2026-11-22.md), docs-only commit `e0a5a2308b3a1ed0acc79b9b42b0ea21d05effb7`.
+- **AUTHOR ONLY 12/12 TEMPORARY-STUB smoke PASS** (temporary memoryReply/sessionMemory/policy/cost substitutes, real user-uploaded consent/budget/recovery); fresh Git apply/check, JS syntax, diff/ZIP integrity PASS. User patch installation and **TRUE-SOURCE 0/12 PENDING**, no new real Admin Emulator. Source mismatches must STOP; do not bypass. Even USER green would be a DIAGNOSTIC, not a safe provider gate. No original files overwritten, source code pushed or Railway changed.
+- `PG04D4B3C1=SOURCE-PINNED_PATCH_PREPARED+AUTHOR_STUB_SMOKE_12/12+USER_TRUE_SOURCE_QA_PENDING`; `PG04D4B3B=USER_TRUE_SOURCE_11/11+REAL_FIRESTORE_7/7_DIAGNOSTIC_PASS/GATE_BLOCKED`; PG01–08, B2.1/B2.3 and deployed history flag still open/unknown.
+
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
