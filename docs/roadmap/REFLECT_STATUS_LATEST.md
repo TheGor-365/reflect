@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-22 PG04D2 guard 8/8 PASS, actual Emulator 0/6 blocked by listener JAVA PID 1729032 on localhost:18081; owner still unverified; no deployment.
+Revision: 2026-11-22 PG04D2 emulator held by Java gor pid1729032 cwd R9.2 tests/emulator; PG04D3 generation and unknown-outcome hazards audited, B2.1 inventory advanced.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -275,6 +275,13 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - **User actual read-only terminal** in `~/reflect-r10-railway-review`: `ss -H -ltnp '( sport = :18081 )'` returned `LISTEN 0 4096 [::ffff:127.0.0.1]:18081 *:* users:(("java",pid=1729032,fd=55))`. **Verified: local Java PID 1729032 is bound to exact port 18081**. This output does NOT prove which Firebase project, job or parent owns Java; don't infer it's safe to attach or stop. Earlier PG04D2 unit strict guard remains 8/8 PASS, actual Firestore PG04D2 diagnostic 0/6 EXECUTED.
 - Next strictly read-only inspection: `ps -p 1729032 -o pid,ppid,user,etime,comm`; `readlink -f /proc/1729032/cwd` if permitted; user may omit/redact any sensitive directory. Do NOT `kill`, `pkill`, `fuser -k`, reuse pre-existing emulator, alter source hardcoded `18081` guard, or assume Java is orphan.
 - Independent safe parallel track: PG04D3 single erasure writer + monotonic generation / lease stale cancellation **DESIGN DRAFT** already published; full roadmap to MVP already published; B2.1 current private writer census and B2.3 data retention rules remain open. No code release or real AI context egress.
+
+
+## 2026-11-22 — frontend R9.2 emulator owns 18081, PG04D3 deeper defect review
+- **User actual read-only Linux output:** `ps -p 1729032 -o pid,ppid,user,etime,comm` → Java PID 1729032, parent 1728982, user `gor`, elapsed `22:58:26`; `readlink -f /proc/1729032/cwd` → `/home/gor/reflect-r9-2-workflow/tests/emulator`. The Java listener on localhost:18081 originates from R9.2 frontend test workspace by CWD. Its exact Firebase project/session identity remains UNVERIFIED and the user has not authorized stopping it. **PG04D2=guard 8/8 PASS, real Emulator diagnostics 0/6 NOT EXECUTED**, safe to continue independently on privacy/B2.1.
+- **New exact-source PG04D3 findings** from already received SHA-verified archive: D1 `admit` stores owner generation but NOT lease generation; `markDispatchStarted` doesn't compare lease/owner generation; after actual writer `cancelPending` deletes fences, an old reserved lease can be reactivated if wired. D1 `settle(outcome:"unknown")` decrements activeCount and may set `dispatches-drained`, which is not evidence an external provider request has ended. PG04D3 must require per-lease generation and conservative `unknown` quarantine before erasure-effective.
+- [Updated PG04D3 exact-source design](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D3_COORDINATED_ERASURE_DISPATCH_STATE_MACHINE_DRAFT_2026-11-22.md), commit `3ad52d6ed371a336d87ecd0db221617079901885`; [B2.1 inventory actual source classification](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md), commit `a3ba50ccd27dfbedc5e7715545c620626ca54de2`. B2.1 PARTIAL, B2.3 UNAPPROVED, no provider history, no code deploy.
+
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
