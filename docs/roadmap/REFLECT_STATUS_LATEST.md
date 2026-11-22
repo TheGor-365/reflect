@@ -465,3 +465,11 @@ For every checkpoint record: phase and subphase ID, exact dated user log and tes
 - **Admin SDK ≠ client Rules:** config lacked rules file and emitted default ALLOW ALL warning; no client Rules, browser Auth/AppCheck, live owner approval, original `memoryReply`/original writer, old worker/prod migration, external HTTP xAI or paid billing tested. B2.1/B2.3 and PG01–08 OPEN; deployed history flag UNKNOWN. **PRIVACY_GATE=BLOCKED**.
 - `PG04D4B3C3B=USER_LOCAL_APPLIED+REAL_FIRESTORE_ADMIN_DIAGNOSTIC_10/10_PASS+EXACT_SCOPED_CLEANUP_PASS+EXIT0` (not source rollout). C3A 18/18 original-source in-memory PASS retained. Next: C3C0 narrow read-only original memoryReply/Auth/AppCheck/Rules/recovery/consent/budget/erasure wiring audit before code integration; no backend source push, staging/production deployment or provider egress.
 - Evidence: https://github.com/TheGor-365/reflect/issues/136#issuecomment-7083229492
+
+## 2026-11-22 — PG04D4B3C3C0 read-only archive BUILT LOCALLY / NOT YET TRANSFERRED
+- Owner's actual Linux terminal in dirty detached `~/reflect-r10-railway-review`: checksum-guarded `REFLECT_C3C0_SOURCE_PREFLIGHT_2026-11-22.sh` executed without STOP and reported `PASS: C3C0 scoped read-only archive`.
+- **Local-only archive path:** `/home/gor/Загрузки/reflect-c3c0-review-zd8WIboH/REFLECT_C3C0_REAL_SOURCE_PREFLIGHT.tar.gz`.
+- Terminal-reported SHA256 **`fadea18afaa995fbf79211f36700a65b924651574a7683259446ba038f464f6d`**. This is SHA output from owner, **not independently byte-verified** by assistant.
+- `C3C0=OWNER_LOCAL_ARCHIVE_CREATED/UPLOAD_PENDING`; full original source contents and manifest **NOT RECEIVED/NOT REVIEWED**. Next owner action: inspect and attach this exact tar.gz into conversation; assistant then independently verify SHA/member allowlist/source pins and prepare source-specific Auth/AppCheck/Rules integration plan. Do not infer real Auth, client Rules, production or xAI egress validation.
+- Prior C3B standalone Admin Emulator genuine 10/10+exact cleanup+exit0 PASS remains accepted. **PRIVACY_GATE=BLOCKED**. No backend source push/merge, no Railway/deployment/mixed-worker/provider calls.
+- Github tracking: https://github.com/TheGor-365/reflect/issues/136#issuecomment-7083282199
