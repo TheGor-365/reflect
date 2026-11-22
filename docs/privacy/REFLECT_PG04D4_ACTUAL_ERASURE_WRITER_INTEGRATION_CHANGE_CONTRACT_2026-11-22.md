@@ -47,3 +47,17 @@ A future production mode must define the *effective erasure point*. A Firestore 
 - **PG01–08 privacy gate OPEN**; B2.1 private writer census PARTIAL; B2.3 retention/provider/backups/ledger UNAPPROVED; no historical provider context sent, no paid xAI, no staging or production deployment.
 
 Do not turn D3F diagnostic success into production authorization. The privacy invariant is stronger and demands the original writer + egress boundary + billing/consent/erasure proof together.
+
+
+## Pinned REMOTE egress/budget source audit 2026-11-22 (not necessarily the user's dirty local code)
+Verified direct GitHub `1c4c121e0e449f1a9360e4fb4588dcf58352e699` source reads:
+| File | Pinned source SHA/blob | Exact callsite / implication |
+| --- | --- | --- |
+| `server/ai/hostedHandler.cjs` | `a6300851978c60e8d7c8e5695534e16658c19f80` | `createHostedBudget` line 69; `await budget.reserve(...)` line **97**; `await adapter.invoke(input.message, settings, null, ...)` line **115**; `budget.finish` lines **126/154**. Third context parameter is explicitly **null**. Current provider-history is OFF at this pinned callsite. |
+| `server/ai/hostedBudget.cjs` | `b6d847a2062a5359c2af0ec4abf510d67632dfc4` | `reserve` line 46 uses **its own** `db.runTransaction` line **69** and ledger creation at **112**; `finish` uses **another** transaction at **127**. This cannot be assumed atomic with the new owner dispatch lease admission/begin or an erasure fence. Preserve current hashed ledger/idempotency and unknown reserve handling, do not create a parallel paid request path. |
+| `server/ai/xaiProviderAdapter.cjs` | `139292be1bc2301deb0d01b3e4f5ce26440f9825` | `invoke(message, interactionConfig=null, consentedContext=null,...)` line **130**. Non-null context without interactionConfig denied around **135**, but adapter is **not** Auth/AppCheck, consent, erasure or billing authorization. |
+| `server/privacy/contextConsent.cjs` pinned | `fa80e33005a4866796713274910b6af335f5740f` | `execute` grant TX begins line **114**, grant `tx.create` **181**; `check` line **187**. User's LOCAL file differs (PG04B applied and 37/37 + PG04C 6/6 passed); this *older pinned source* must not be treated as the latest local guard. |
+
+**New integration hazard:** splitting `budget.reserve` (own Firestore TX) and `lease.beginDispatch` (new TX) could reserve quota/charge without sending or leave an admitted lease after reservation failure. Idempotent recovery must classify states `admitted|budget-reserved|dispatch-started|provider-outcome-known|outcome-unknown` and must not issue duplicate paid calls. A strong design needs one durable request ID shared across owner lease, grant/preview digest and immutable hashed billing ledger; either review an extensible budget TX API that shares the transaction or prove a safe two-phase reserve/compensation protocol where reserve is never silently refunded after uncertain send. **Not tested or approved yet.**
+
+**Next local evidence needed before code-generation:** user should confirm status/diff of `server/ai/hostedHandler.cjs`, `server/ai/hostedBudget.cjs`, `server/ai/xaiProviderAdapter.cjs` plus relevant current local `server/railway/index.cjs` hook references, without sharing .env or provider keys. Pinned source and actual dirty local code are separate truth domains.
