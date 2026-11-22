@@ -1,6 +1,6 @@
 # REFLECT 2.0 — LATEST VERIFIED STATUS (21 Nov 2026)
 
-Revision: 2026-11-22 PG04D4B2 user 17/17 offline and 7/7 genuine isolated Firestore Admin diagnostics PASS with exact cleanup and expected GATE_BLOCKED; B3 source integration next.
+Revision: 2026-11-22 B2 USER 17 unit + real Admin 7 diagnostics PASS with GATE_BLOCKED; B3A source-reviewed hostedBudget reserve read/plan/write COPY patch prepared, author stub-smoke 16/16, user real source parity pending.
 This is a status ledger, not a source-code release. Check dated newer GitHub issues/comments and current local code before acting. Master: docs/roadmap/REFLECT_MASTER_ROADMAP_TO_PRODUCTION_MVP.md (same documentation branch).
 
 ## Evidence and current truth
@@ -369,6 +369,13 @@ R10.3-C2C2-C global coverage review, Privacy Gate, R10.4–R14, commercial MVP *
 - Warnings hub 4400→4401 and logging 4500→4501 auto-fallback did not affect diagnostics. No Firestore Rules file → Emulator defaults allow-all clients; **Admin SDK TX PASS != client Firestore Rules PASS**. Multiple DB not tested.
 - **Accepted narrow scope:** `PG04D4B2=USER_LOCAL_APPLIED+OFFLINE_UNIT_17/17_PASS+REAL_ADMIN_EMULATOR_DIAGNOSTIC_7/7_PASS+EXACT_CLEANUP_PASS/GATE_BLOCKED`. Never claim real `hostedBudget.reserve` joined in same TX, actual `memoryReply` integration, owner-attested approvalDigest, production erasure writer, Auth/AppCheck, external POST atomicity, paid xAI, or staging deployment. Earlier B1 user 11/11 fake diagnostics expose unsafe late-send; D4A COPY 12/12 + real Emulator 6/6 accepted; original PG04D2 0/6 blocked by R9.2 frontend 18081. Actual deployed Railway `REFLECT_AI_SESSION_MEMORY_REPLY_ENABLED` remains UNKNOWN; source default OFF.
 - **PG04D4B3 next**: source-integrated reviewed DIFF PLAN on actual `memoryReply`+ `sessionMemory.authorize` with authoritatively approved source revision, hashed ledger `hostedBudget.reserve` inside shared grant/erasure/lease TX (or audited durable two-phase recovery), attempt receipt, and default-OFF egress, plus two separate actual Admin/Rules test gates; no code overwrite before user review. B2.1 census PARTIAL, B2.3 retention UNAPPROVED, PG01–08 OPEN.
+
+
+## 2026-11-22 — PG04D4B3A additive budget read/plan/write reviewed COPY patch prepared, TRUE-source parity pending
+- **New additive three-file REVIEW-COPY PATCH** `REFLECT_PG04D4B3A_HOSTED_BUDGET_TX_REVIEW_COPY_2026-11-22.patch` SHA256 `2f37e0cada518e142a3f98cc09935ed608669fab732e6162b0717e10104c629a`, adds a complete reviewed COPY of real `hostedBudget`, 16 Node parity tests and runbook; original user `hostedBudget.cjs` SHA256 `6e5c1e5e8bf7580312c8f5c8d51e7c2ecc28080da401976358d7689292e805ea` must match before import. Copy exposes `prepareReserveTx` **read+calculate only** and `applyReserveTx` **write only**, retaining original constants, hashed immutable ledger/quota/money functions, `finish` and legacy-shaped `reserve`. All actual real source files and Railway untouched.
+- Author **16/16 OFFLINE STUB-SMOKE PASS**, fresh Git apply/check, syntax, whitespace and ZIP integrity PASS, but used temporary fake `policy/xaiCost/xaiContract` modules (NOT delivered). **AUTHOR TRUE-SOURCE PARITY NOT PROVED; USER 0/16 NOT RUN**, NO B3A Emulator QA. B3A is offline in-process FakeFirestore with explicit opt-in and fake DB marker, does not instantiate real stage Firestore. [Detailed handoff](https://github.com/TheGor-365/reflect/blob/docs/reflect-live-roadmap-2026-11-21/docs/privacy/REFLECT_PG04D4B3A_SOURCE_EQUIVALENT_BUDGET_TX_REVIEW_COPY_HANDOFF_2026-11-22.md) docs-only commit `528ae7e7d78ee745194ed73f00caba5cc8bc61c6`.
+- Prior PG04D4B2 USER 17/17 unit + 7/7 genuine Admin Firestore Emulator diagnostic PASS with exact synthetic cleanup/exit0, expected GATE_BLOCKED remains. B3A is next necessary parity check before joining real `hostedBudget.reserve` to grant/fence/lease in same TX (B3B). Actual `memoryReply`, original erasure writer, Auth/AppCheck/client Rules and external POST remain unintegrated. Deployed history feature flag UNKNOWN, B2.1/B2.3 + PG privacy gates OPEN. No executable source code pushed to GitHub, no Railway deploy.
+
 
 ## Proven limitations / OPEN BLOCKERS
 - firestore nested/orphan paths, retained consent tombstones and AI attempt receipts are not evidence of physical full deletion.
