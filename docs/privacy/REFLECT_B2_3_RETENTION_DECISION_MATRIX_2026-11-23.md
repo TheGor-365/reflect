@@ -86,3 +86,12 @@ Actual SHA-guarded local `server/railway/index.cjs` read, SHA256 `1860094b4ef6d4
 **Retention policy remains separate:** confirmed memory-derived-only `MEMORY_COLLECTIONS` excludes preview quota and global replay fingerprints, but these server-private operational/security classes require explicit physical retention owner/policy approval; do not purge a live limiter or replay ledger on memory-only erasure, and do not claim deletion certification.
 
 **Next one owner read-only action:** local-only discovery of listener function definitions and guard call-site line numbers/sha (no project require, provider, Firebase, env values). Then decide exact negative tests/patch need. **B2.3 remains DRAFT_NOT_APPROVED**, B2.1 PARTIAL, PRIVACY_GATE BLOCKED.
+
+## 8. 2026-11-23 — both current preview HTTP handler source locations and guard anchors verified
+Owner-local `B2_1_PREVIEW_HANDLER_DISCOVERY_READY`, index HEAD/SHA guarded, no source printing or Firestore. 
+- `server/ai/sessionMemoryPreviewHttp.cjs`, SHA256 `9130a240520e34b3962b2351936c551246a35a375c0893ee7476ae0e2a4c58de`, 175 lines; handler references Auth L143, AppCheck L149, alreadyConsumed L152, account L155, rateLimit L157, principal L158, preview L162; consent L111–112; no direct literal erasure/fence name found.
+- `server/privacy/contextPreviewHttp.cjs`, SHA256 `f60a24cfeda227e31780177af223a8788c876c244a9ff6ccacc83d214a60a6b6`, 162 lines; handler references Auth L102, AppCheck L108, alreadyConsumed L113, consent L117/L140, account L118, rateLimit L125, preview L126; no direct literal erasure/fence name found.
+
+**Evidence limitation:** lexical line ordering is suggestive, not proof of executable security ordering/awaiting or race-safe erasure. Existing local `contextConsent.cjs` dual-fence guards were independently confirmed by exact SHA, but must verify each listener's actual invocation and preview adapter's consent rechecks. No new tests executed; real Railway release state unknown.
+
+**Next gate:** SHA-pinned sanitized source excerpts around these exact handler regions; assert Auth before AppCheck before account/owner before quota before preview, fail-closed on replay/error/foreign owner, and consent/fence pre/post delegated checks. Then define new negative tests only where code evidence warrants, don't automatically implement or delete preview quota/global replay token ledger. **B2.3 remains draft/unapproved**.
