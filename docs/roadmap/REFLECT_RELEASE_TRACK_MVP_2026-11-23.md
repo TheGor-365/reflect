@@ -83,3 +83,18 @@ Replace the broad exploratory audit loop with a *fixed acceptance list* for the 
 **KPIs for first pilot:** 1) real successful AI request saved once and reloadable; 2) correction honored in source-backed view; 3) goal proposed but saved only on acceptance; 4) factual goal step/outcome reflected without synthetic scores; 5) source graph navigable; 6) owner B no access; 7) explicit model spend receipt/limit; 8) rollback version retained. For long-term AI-memory pilot add demonstrable corrected cross-session recall under valid consent and verified provider payload.
 
 **Current decision:** `RELEASE_TRACK=P0_SOURCE_INVENTORY_PENDING`; `LIMITED_BETA_PRODUCTION=NOT_ACCEPTED`; `FULL_MEMORY_PROVIDER=BLOCKED`; `RAILWAY_STAGING=ONLINE_AT_1c4c121e`; `B2_1_TARGETED_MOCK=PASS_9_9`; `B2_3_RETENTION=UNAPPROVED`; `PG01_08=OPEN`. No active frontend/backend source commit, Railway change, Firebase Hosting/Rules deploy, xAI paid call or database mutation occurred in creation of this plan.
+
+## 2026-11-23 — P0 local release baseline inventory received (owner terminal)
+
+**Owner command:** read-only metadata inventory for both worktrees, completed `RELEASE_BASELINE_READY` / `NO_FILES_CHANGED`, Node.js `v22.23.4`. No tests, deploy or sync performed.
+
+| Worktree | Exact HEAD | Git branch | Tracked modified | Untracked (not ignored) |
+| --- | --- | --- | ---: | ---: |
+| `~/reflect-r9-2-workflow` (product frontend) | `6f20f8b31f91729b569f1c4d8a0465e865385811` | `feat/reflect-r9-2-workflow-2026-11-18` | 52 | 62 |
+| `~/reflect-r10-railway-review` (backend review) | `1c4c121e0e449f1a9360e4fb4588dcf58352e699` | DETACHED | 3 | 5060 |
+
+- GitHub [Draft PR #135](https://github.com/TheGor-365/reflect/pull/135) currently has source HEAD `6f20f8b31f91729b569f1c4d8a0465e865385811`, matching the frontend's **committed** local HEAD. **The 52 changed and 62 untracked files are NOT included in that PR commit.** Worktree branch label is not the same as PR head name; the hash is the useful identity.
+- Frontend inventory includes untracked candidate modules for topic Memory projection/audit, `automaticGoalDrafts.js`, `GoalSuggestions.jsx`, `src/api/sessionMemoryReplyService.js`, Goals, Journey/Mindspace, recommendations, and historical AI/model endpoints. Backend review inventory likewise shows product modules but an unusually large set of untracked paths; cannot infer that 5060 are useful R10 deliverables or safe to deploy. `git status --porcelain --untracked-files=all` counts include unignored files; **no destructive cleanup, bulk add, copy or automated merge**.
+- **Immediate decision:** use frontend tree as potential P0 application assembly source; treat backend review tree as read-only reference, not a deploy source. Current railway backend staging still pinned to original `1c4c121e`; no production release evidence.
+- **Next single step:** classify path-group counts and print a bounded, allowlisted inventory of **non-test runtime source changes** in frontend; classify 5060 backend untracked files by safe directory group without listing secrets, untracked contents or running modules. Then prepare a **separate clean candidate branch/worktree** from exact selected SHA while explicitly and selectively bringing only verified runtime modules from the dirty frontend. Runtime module wiring/build comes next, not another round of wide synthetic adapter tests.
+- **Gate status:** `P0_BASELINE_INVENTORY=OWNER_CONFIRMED`; `FRONTEND_RUNTIME_DIFF=NOT_REVIEWED`; `R10_UNTRACKED_CLASSIFICATION=OPEN`; `RELEASE_CANDIDATE=NOT_BUILT`; `PROD=NOT_DEPLOYED`; `FULL_AI_HISTORY_EGRESS=BLOCKED`. No Firebase/Firestore/Rules, Railway, credentials or paid AI affected.
