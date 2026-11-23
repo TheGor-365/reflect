@@ -78,3 +78,35 @@
 - [ ] Follow-on R10 full memory + trustworthy append-only/protected erasure only after live Rules, PG consent/retention/budget/owner isolation gates; production is not released
 
 **Rule for subsequent chats:** Continue at the nearest unchecked gate. GitHub statuses reflect only verified user screenshots, exact logs or source evidence. No automatically generated personal user data is committed.
+
+## 2026-11-24 — S1 first meaningful staged Reflect answer: UI/structured clarifying output OBSERVED
+
+**User screenshots (4 images)** from published `https://reflect-ai-staging.web.app/?view=sessions&utm_source=chatgpt.com` show owner Eric's **new fictional** story was successfully saved under auto-truncated title beginning "Последние три месяца..." (24.11.2026 sidebar date). The first-person user request appears as a full message card. An assistant response is present, headed `Предварительный взгляд Reflect · возможна ошибка в объяснении`, with a factual situation summary, section `Возможные объяснения — пока гипотезы`, **two numbered insight cards** with `Оценить гипотезу`, and **`Важное уточнение`** with `Ответить в диалоге`. Exact question: **`Что именно из «ещё одной ошибки» ты считаешь блокирующей для демонстрации в текущем состоянии?`**. Work progress reads **10%**; source `sessionWorkProgress.js` assigns 10 points for first saved owner message, not "AI correctness" or clinical progress. The navigation `Рекомендации` badge reads **2**; previously 1 on earlier stage, likely 1 new pending clarification, **not proof of 2 new actionable recommendations**. No first-turn goal or approved recommendation visible. Model response stage is **consistent with clarification**; exact stored `interaction.version` and all invisible attributes were **not** inspected from Firestore. No browser refresh/persistence confirmation yet.
+
+**Factual quality audit limited to visible S1 UI (0/1/2):**
+- Grounding/facts **2**: correct 6 hours/7 days, two working functions, no notifications, indefinite promise and deferred show. No invented prior personal story observed.
+- Voice/tone **2**: personalized informal `ты`, restrained nonjudgmental framing, no diagnosis or empty emotional platitudes.
+- Hypotheses **1**: both plausible and explicitly uncertain, but "perfectionism adding scope" vs "avoiding feedback" overlap and the second has weaker support; need challenge with real opposing evidence next.
+- Uncertainty/epistemics **2**: labels `пока гипотезы`, `могу ошибаться`, "fit is not probability"; no forced factual attribution of causation.
+- Clarification **2**: question pinpoints actual purported blocker rather than immediately prescribing a project plan.
+- Actionability **1**: first answer supplies no measurable step yet; acceptable for `stage=clarify`, but track whether follow-up yields practical action rather than perpetual questions.
+- Visible structured visual **2**: separates user, assistant summary, numbered hypothesis cards, review actions, clarifying card, composer; no visible severe layout failure on desktop. Full accessibility/mobile and schema v2 evidence fields not tested.
+**Scores are provisional for 7 observed facets, not a 12-facet full-product PASS.** Candidate P1 improvements to investigate rather than declare bugs: two hypotheses low semantic differentiation; auto title is a long excerpt rather than concise thematic title; whether "2" badge represents clarifications versus recommendations could confuse users.
+
+**Staging backend metric corroboration (read-only Railway plugin):** `reflect-ai-api` project `reflect-ai-railway-staging` POST path `/v1/ai/reply` **last 2 hours = exactly 1 HTTP 2xx, 0 4xx/5xx** at query time. This supports one successful backend API call corresponding in period to the visible first response but does **not** cryptographically correlate a particular requestId, identify the provider or prove charge/model entitlement. No logs containing private message text fetched, no API keys read.
+
+**Recommended S2, based on exact observed clarification and intended falsification:** after first capturing this S1 gate, owner role-plays feedback using `Оценить гипотезу` (hypothesis1 "Частично похоже": scope creep exists but not proof of motivation; hypothesis2 "Скорее мимо": actively solicited feedback, actual bug is specific), each with concise evidence comment, then **exactly one** new ordinary message **in same session** (not context/history), with the following natural fictional reply, 979 chars/1786 UTF-8 bytes, within client max 1400/2000:
+
+```text
+Для демонстрации я считаю важной одну конкретную проблему: после изменения времени записи иногда отображается прежнее значение. Я пока не выяснил, как стабильно воспроизвести ошибку, поэтому не хочу показывать редактирование времени как готовую функцию. Но создание новой записи и список клиентов на тестовых данных работают.
+
+Есть новая информация: один мастер прямо сказал, что готов посмотреть первый показ без уведомлений. Второму уведомления нужны перед началом реальной работы, но он не требовал их для демонстрации. Я сам уже предложил обоим дать обратную связь, поэтому версия, что я её избегаю, кажется мне не совсем точной.
+
+Похоже, я смешиваю две разные задачи: показать рабочее ядро и сдать готовый сервис. Я не хочу скрывать ограничения, но и дальше обещать «скоро» тоже нельзя. Как бы ты пересмотрел свои две гипотезы после этих фактов? Что можно честно показать в рамках шести часов на этой неделе и по какому конкретному признаку мы поймём, что первый шаг удался?
+```
+
+New information: real bug intermittent stale time edit not yet reproducibly diagnosed, creation/list works, one customer explicitly agrees to demo without reminders, second needs them before actual rollout, user actually solicited feedback and wants honest limited demonstration. Evaluate whether Reflect revises hypothesis2 with contradiction, makes distinction "demo vs completed delivery", avoids recommending broken edit, proposes a **6-hour bounded, measurable next step**, preserves source references/uncertainty and adjusts `Проработка темы` when the saved owner feedback/continuation occurs. This is **planned**, NOT completed. No second real xAI request executed by assistant; no automatic retry if ambiguous error.
+
+**Other pending facets:** Recommendations as cards / Goals as confirmed owner action, Diary/SessionSchema (Journey), Mindspace semantic confirmed links, save/reload, memory boundary, body map and mobile UX all **NOT_TESTED** by these screenshots; leave R10 full history and trusted memory disabled/blocked by pre-existing live Rules owner-write flaw. Do not publish user UID, prior personal sessions or screenshots to repo.
+
+**State:** `P0_S1_REAL_RESPONSE=VISIBLE`, `P0_S1_RAILWAY_POST_2XX=1_LAST_2H`, `P0_S1_TONE_FACTS=PASS_PROVISIONAL`, `P0_S1_HYPOTHESES=PARTIAL`, `P0_S1_RECOMMENDATION=CLARIFICATION_ONLY_VISIBLE`, `P0_S2=NEXT_PENDING_OWNER`, `P0_S3_S5=NOT_TESTED`, `P0_GROK_CHARGE_ID=NOT_VERIFIED`, `PROD=NOT_DEPLOYED`, `FULL_R10_MEMORY=BLOCKED`.
