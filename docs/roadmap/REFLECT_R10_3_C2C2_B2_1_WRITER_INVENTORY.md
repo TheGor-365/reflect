@@ -247,3 +247,19 @@ Owner *actual* Linux read-only result in dirty detached backend HEAD `1c4c121e0e
 - Preserved: `MEMORY_COLLECTIONS` exact three-member memory-only scope = memoryEvents, memoryTopics, memoryProjections; BW07/BW08 excluded from *that specific list*. Do not conflate this with a universal data inventory or certified account deletion.
 
 **Gates:** `B2.1=PARTIAL_CURRENT_LOCAL_ENTRYPOINT_ANCHORS_FOUND`, `BW07/BW08_RUNTIME_WIRING=UNVERIFIED`, `B2.3=DRAFT_UNAPPROVED`, `PG01–08=OPEN`, `CLEAN_EVAL=NOT_CERTIFIED`, **`PRIVACY_GATE=BLOCKED`**; 24/24 + 4/4 synthetic Node tests previously PASS, not rerun. No code/Rules/Firestore/staging/production/paid provider changes.
+
+## 2026-11-23 — B2.1 owner local Railway BW07 BW08 verified source wiring
+**Source/verification:** Owner local terminal `B2_1_RAILWAY_WIRING_SOURCE_REVIEW`, `HEAD_AND_SHA256_OK`, `B2_1_RAILWAY_WIRING_SOURCE_READY`, `SOURCE_FILES_UNCHANGED`, `FIRESTORE_OPERATIONS=0`. Read-only sanitized `server/railway/index.cjs` L348–374 + L408–445; current dirty local SHA256 **`1860094b4ef6d41d5a5675013fdb06fa96fefbaea59eb2884f9b39d058a301c7`** at pinned HEAD `1c4c121e0e449f1a9360e4fb4588dcf58352e699`.
+
+| Component | Actual current-local source observation | Evidence limit |
+| --- | --- | --- |
+| Common Auth | L358: `verifyAuth=token=>getAuth(app).verifyIdToken(token,true)`; L349–351: `authorizeAccount=createStagingEntitlementVerifier({db,projectId:STAGE_PROJECT,getUser:uid=>getAuth(app).getUser(uid)})` | Verified injection/definition only, not actual HTTP auth execution |
+| BW08 replay | L361–371: `createAppCheckReplayGuard({db,projectId:STAGE_PROJECT})`; `verifyAppCheck` calls Firebase `verifyToken(token,{consume:true})` first, then on `alreadyConsumed === false` calls private `replayGuard.consume(token,result)`; if guard returns false, returns `{...result,alreadyConsumed:true}` | Function composition is source-confirmed, actual downstream `alreadyConsumed` refusal and guard presence on every route **not yet verified** |
+| BW07 memory preview | L417–431 gated by `memoryPreviewEnabled`: makes adapter and quota, injects `verifyAuth`, `verifyAppCheck`, `authorizeAccount`, `rateLimit: uid=>quota.consume(uid)`, `preview:args=>memory.preview(args)` into `createSessionMemoryPreviewHttpListener` | Feature flag actual value/handler invocation order and privacy/erasure checks unknown |
+| BW07 context preview | L432–445 gated by `previewEnabled`: makes sessionContextPreview and quota, injects same gate functions + `preview:args=>bounded.preview(args)` into `createPreviewHttpListener` | Same limitations |
+
+**Read-only conclusion:** BW07 & BW08 are **wired** into the current local Railway entrypoint, beyond mere lexical references, but not certified as enabled, actually executed, or deployed. In particular, **dependency injection does not prove safe order or fail-closed semantics** inside two preview HTTP listeners. Existing `contextConsent.cjs` local SHA matched the 2026-11-22 archived dual-fence implementation; independent HTTP listener order/fences still unverified. The three-member `MEMORY_COLLECTIONS` list still excludes BW07/BW08 from DEMO memory-only roots; their broader private retention remains B2.3 DRAFT.
+
+**Next evidence (1 owner action, no source writes):** find/read only *current local definitions* of `createSessionMemoryPreviewHttpListener` and `createPreviewHttpListener` (trusted same pinned HEAD), with only SHA256, source file names and guard/callback **line numbers** (and optionally structurally redacted small excerpts) for `verifyAuth`, `verifyAppCheck`, `authorizeAccount`, `rateLimit`, `preview` and `consent`/erasure. Then evaluate actual gate ordering and missing negative cases; do not assume because index passes functions.
+
+**Gates:** `B2.1=PARTIAL`; `B2.3=DRAFT_NOT_APPROVED`; `BW08_LOCAL_SOURCE_WIRED=YES`; `BW07_LOCAL_SOURCE_WIRED=YES`; `LIVE_WIRING=UNVERIFIED`; `PG01–08=OPEN`; `CLEAN_EVAL=NOT_CERTIFIED`; **`PRIVACY_GATE=BLOCKED`**.
