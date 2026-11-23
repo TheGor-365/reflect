@@ -58,3 +58,20 @@ This decision record is a **proposal**, not a policy, deletion instruction, priv
 **Next bounded evidence before any B2.3 signature:** a metadata-only owner-local call-site scan of known private writer/readers (fixed matching names and factory identifiers, no lines/source/credentials) to determine whether BW07 and BW08 are invoked by current Railway adapters and whether any independent scoped residual checker exists. Then record a concrete retention/cleanup exception proposal and negative tests with named approval owners. No code, Rules, Firestore, Railway or provider operations.
 
 **Gates unchanged:** `B2.3=DRAFT_NOT_APPROVED`; `B2.1=PARTIAL`; `PG01–08=OPEN`; `CLEAN_EVAL=NOT_CERTIFIED`; **`PRIVACY_GATE=BLOCKED`**.
+
+## 6. 2026-11-23 — current-local BW07/BW08 call-site census, proposed negative acceptance criteria (unapproved)
+**Source:** owner read-only `B2_1_BW07_BW08_CALL_SITE_CENSUS` at dirty detached backend pinned HEAD `1c4c121e0e449f1a9360e4fb4588dcf58352e699`. 62 non-test JavaScript/CommonJS/ESM server source files inspected, 3 lexical matches:
+- `server/privacy/contextPreviewQuota.cjs` SHA256 `a1511a283b01fd02e4db6732359fa3b5d57767c03f955e656d108619d05550f0`, factory L17/L57, collection L33;
+- `server/railway/appCheckReplayGuard.cjs` SHA256 `382986c43e619f7eb9c7fe116e8c6deeb2e2eacd1530076d7b421149d9e4d3a0`, factory L24/L100, collection L41/L72, pruneExpired L33/L52/L89;
+- `server/railway/index.cjs` **CURRENT DIRTY local SHA256 `1860094b4ef6d41d5a5675013fdb06fa96fefbaea59eb2884f9b39d058a301c7`**, BW08 factory L361/L362, BW07 factory L421/L425/L434/L439.
+
+**Evidence interpretation:** These are **source lexical call-site anchors only**. Creation, use of `consume`, actual Auth/AppCheck/erasure guard ordering, feature flags, effective production/staging deployment and physical retention have **not** been proven. This scan excluded tests/spec/smoke and did not inspect dynamic aliases, so it is not a complete whole-program reachability proof.
+
+### Candidate technical acceptance checks — not implementation authority
+| Workstream | Checks to design before any release | Unsafe shortcut to avoid |
+| --- | --- | --- |
+| BW07 owner preview quota | Evidence that `consume(uid)` follows trusted verified UID/AppCheck/allowed account and fails closed on invalid/foreign UID; confirm quota increment/over-limit transactional behavior; decide whether erasure-fenced owner can consume preview quota; define physical purge after approved retention without resetting a live abuse limit; account export/residual audit must distinguish memory-only vs operational metadata | Automatic deletion of active quota merely because memory-derived erasure completes |
+| BW08 global replay guard | Evidence that real Firebase limited-use `verifyToken({consume:true})` is enforced where intended and private SHA256-ledger `consume` runs in suitable route ordering; negative checks for reused token, consumed upstream token, wrong app/project, ledger outages and concurrent transactions; verify expiry cleanup backlog under bounded free-tier; obtain signed max retention/security exception | Per-user deletion of global replay fingerprints or treating opportunistic `pruneExpired` as guaranteed TTL |
+| Cross-cutting | Confirm **actual dirty `server/railway/index.cjs` SHA-guarded source snippets**, never assume pinned remote matches. Document owner-scoped account deletion/export coverage, logging/backup/provider copies and named approval roles, then test in isolated emulator before release | Setting B2.3 `APPROVED` or privacy gate `PASS` solely from source substring hits |
+
+**Immediate next step:** single source-only HEAD+exact local `server/railway/index.cjs` SHA256 guard; inspect redacted excerpts around lines 348–374 and 408–445 (no env values, no credentials, no module imports) to classify BW07/BW08 factory wiring and injection. Keep `B2.3=DRAFT_NOT_APPROVED`, `BW07/BW08_RUNTIME_WIRING=NOT_CERTIFIED`, `PRIVACY_GATE=BLOCKED`; no Firestore/Rules/deploy.
