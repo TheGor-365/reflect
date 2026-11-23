@@ -3,6 +3,7 @@
  * No new collections, LLM inference, fabricated success score or persistence.
  */
 import { projectJourney } from '../SessionSchema/journeyModel';
+import { isArchivedRecord } from '../Archive/archiveSelectors';
 
 const DAY_MS=86400000;
 const idOk=value=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(value);
@@ -30,8 +31,12 @@ export function buildDashboardSnapshot({
   const now=Number.isFinite(nowMs)&&nowMs>=0?nowMs:Date.now();
   const end=Date.parse(utcKey(now)+'T00:00:00Z')+DAY_MS;
   const start=end-windowDays*DAY_MS;
-  const source=projectJourney(sessions,goals,{maxNodes:400});
-  const sessionById=new Map((Array.isArray(sessions)?sessions:[])
+  const currentSessions=(Array.isArray(sessions)?sessions:[])
+    .filter(s=>!isArchivedRecord(s));
+  const currentGoals=(Array.isArray(goals)?goals:[])
+    .filter(g=>!isArchivedRecord(g));
+  const source=projectJourney(currentSessions,currentGoals,{maxNodes:400});
+  const sessionById=new Map(currentSessions
     .filter(s=>idOk(s?.id)).map(s=>[s.id,s]));
   const dated=[],recentReturns=[];
   const counts=Array.from({length:windowDays},(_,index)=>({
@@ -46,7 +51,9 @@ export function buildDashboardSnapshot({
     dated.push({kind,at,sourceRef});
   };
   for(const node of source.nodes){
-    if(node.type==='decision'&&node.status==='accepted'){
+    if(node.type==='decision'&&node.status==='accepted' &&
+        !isArchivedRecord(sessionById.get(node.sessionId)
+          ?.recommendationDecisions?.[node.recommendationKey])){
       addEvent('decisions',node.timestampMs,node.sourceRef);
     }
     if(node.type==='return'&&node.status==='authored'){
@@ -78,7 +85,7 @@ export function buildDashboardSnapshot({
       addEvent('notes',at,note.sourceRef);
     }
   }
-  const activeGoals=(Array.isArray(goals)?goals:[])
+  const activeGoals=currentGoals
     .filter(goal=>idOk(goal?.id)&&goalStatus(goal)!=='completed')
     .map(goal=>{
       const steps=Array.isArray(goal.subItems)?goal.subItems.filter(item=>
@@ -109,7 +116,7 @@ export function buildDashboardSnapshot({
   }),{done:0,total:0});
   // Include completed goals in the all-time snapshot. These are current
   // confirmed booleans, NOT a claim about completion in a selected week.
-  const completedGoalSteps=(Array.isArray(goals)?goals:[])
+  const completedGoalSteps=currentGoals
     .filter(goal=>idOk(goal?.id)&&goalStatus(goal)==='completed')
     .flatMap(goal=>Array.isArray(goal.subItems)?goal.subItems:[])
     .filter(step=>step&&typeof step.text==='string'&&step.text.trim());

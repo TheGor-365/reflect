@@ -161,3 +161,34 @@ test('Journey focuses the actual saved turn in an existing owner session without
     .not.toHaveClass('reflect-chat-message--source-focus');
   expect(mocks.ai).not.toHaveBeenCalled();
 });
+
+
+test('session updates scroll only the messages pane when an authored turn is appended', () => {
+  const baseSession = {
+    id: 'scroll-qa-1', title: 'Разговор',
+    chatHistory: [{ id: 'user-one', role: 'user', content: 'Первый вопрос' }],
+    recommendations: [], exercises: []
+  };
+  const props = { ...defaults, currentSessionId: 'scroll-qa-1' };
+  const { container, rerender } = render(
+    <Sessions {...props} sessions={[baseSession]} />
+  );
+  const pane = container.querySelector('.reflect-session-messages');
+  expect(pane).toBeInTheDocument();
+  Object.defineProperty(pane, 'scrollHeight', { configurable: true, value: 500 });
+  pane.scrollTop = 7;
+
+  // Rating a hypothesis changes the Firestore snapshot, not the turn list.
+  rerender(<Sessions {...props} sessions={[{
+    ...baseSession, hypothesisReviews: { 'assistant-one-0': { grade: 0 } }
+  }]} />);
+  expect(pane.scrollTop).toBe(7);
+
+  // A new confirmed turn is the only event that advances the local viewport.
+  rerender(<Sessions {...props} sessions={[{
+    ...baseSession, chatHistory: [...baseSession.chatHistory, {
+      id: 'assistant-one', role: 'assistant', content: 'Уточняющий вопрос'
+    }]
+  }]} />);
+  expect(pane.scrollTop).toBe(500);
+});

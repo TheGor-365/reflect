@@ -195,3 +195,56 @@ describe('safe localhost-only restore', () => {
     expect(tx.set).toHaveBeenCalledTimes(2);
   });
 });
+
+
+describe('R10 v2 archives are inspectable but cannot restore append-only memory', () => {
+  function v2Archive() {
+    const result = archive();
+    result.schemaVersion = 2;
+    result.collections.memoryTopics = [{ id: 'topic1', fields: {
+      ownerId: owner, topicId: 'topic1', lastSequence: 1
+    } }];
+    result.collections.memoryEvents = [{ id: 'event1', fields: {
+      ownerId: owner, topicId: 'topic1', eventId: 'event1', sequence: 1
+    } }];
+    result.collections.memoryProjections = [{ id: 'topic1', fields: {
+      ownerId: owner, topicId: 'topic1', providerUseAllowed: false
+    } }];
+    return result;
+  }
+
+  it('inspects all seven collections and never labels an R10 archive restorable', () => {
+    const check = inspect(v2Archive());
+    expect(check.schemaVersion).toBe(2);
+    expect(check.total).toBe(6);
+    expect(check.counts.memoryEvents).toBe(1);
+    expect(check.counts.memoryTopics).toBe(1);
+    expect(check.counts.memoryProjections).toBe(1);
+    expect(check.canRestore).toBe(false);
+  });
+
+  it('rejects partial v2 archives, including archives missing just one memory collection', () => {
+    const missing = v2Archive();
+    delete missing.collections.memoryEvents;
+    expect(() => inspect(missing)).toThrow('коллекции');
+  });
+
+  it('never invokes a transaction to restore v2, including empty memory arrays', async () => {
+    const full = inspect(v2Archive());
+    await expect(restoreMissingOwnerDocsInDemo(full, { uid: owner }))
+      .rejects.toThrow('серверной проверки');
+    const empty = v2Archive();
+    empty.collections.memoryTopics = [];
+    empty.collections.memoryEvents = [];
+    empty.collections.memoryProjections = [];
+    await expect(restoreMissingOwnerDocsInDemo(inspect(empty), { uid: owner }))
+      .rejects.toThrow('серверной проверки');
+    expect(runTransaction).not.toHaveBeenCalled();
+  });
+
+  it('continues accepting old exact v1 archives in local-only recovery mode', () => {
+    const check = inspect(archive());
+    expect(check.schemaVersion).toBe(1);
+    expect(check.canRestore).toBe(true);
+  });
+});

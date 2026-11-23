@@ -18,7 +18,7 @@ const TOOLS = Object.freeze([
 /** Technical details live behind ONE scoped menu, outside the dialog flow. */
 export default function SessionToolsMenu({
   activePanel, onChange, hasSavedSession = false, contextAvailable = false,
-  onDeleteRequest
+  archived = false, onDeleteRequest
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef(null);
@@ -64,7 +64,7 @@ export default function SessionToolsMenu({
               {activePanel === id && <Check size={15} aria-hidden="true"/>}
             </button>
           ))}
-          {hasSavedSession && onDeleteRequest && (
+          {hasSavedSession && !archived && onDeleteRequest && (
             <div className="reflect-session-tool-danger-area">
               <button type="button" role="menuitem"
                 className="reflect-session-tool-delete"

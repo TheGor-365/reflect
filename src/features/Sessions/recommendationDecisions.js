@@ -3,6 +3,10 @@ import { isDateOnly, localNoonForDueDay } from '../Goals/goalDomain';
 import { db, appId } from '../../firebase/config';
 import { isSupportedInteraction } from './interactionVersions';
 import { recommendationGoalGate } from './recommendationGoalGate';
+import { isArchivedRecord } from '../Archive/archiveSelectors';
+import {
+  appendOwnerEvidenceInTransaction, createMemoryEventId, memoryLedgerEnabled
+} from '../Memory/memoryLedgerOperations';
 
 const idOk = value => typeof value === 'string' &&
   /^[A-Za-z0-9_-]{1,128}$/.test(value);
@@ -34,6 +38,7 @@ export async function applyRecommendationDecision({
     throw new Error('Нет безопасного контекста для сохранения решения.');
   }
   const key = recommendationKey(assistantMessageId, candidateIndex);
+  const memoryEventId = memoryLedgerEnabled() ? createMemoryEventId() : null;
   if (action === 'goal' &&
       (!idOk(goalId) || !textOk(goalTitle, 240) ||
         typeof goalPurpose !== 'string' || goalPurpose.length > 1000 ||
@@ -50,6 +55,9 @@ export async function applyRecommendationDecision({
       throw new Error('Сначала сохраните сеанс. Несохранённые ответы не становятся целями.');
     }
     const session = snapshot.data();
+    if (isArchivedRecord(session)) {
+      throw new Error('Исходный сеанс в архиве. Сначала восстановите его.');
+    }
     const history = Array.isArray(session.chatHistory) ? session.chatHistory : [];
     const assistantIndex = history.findIndex(message =>
       message?.id === assistantMessageId && message?.role === 'assistant');
@@ -70,6 +78,9 @@ export async function applyRecommendationDecision({
       !Array.isArray(session.recommendationDecisions)
       ? session.recommendationDecisions : {};
     const previous = existing[key];
+    if (isArchivedRecord(previous)) {
+      throw new Error('Рекомендация в архиве. Сначала восстановите её.');
+    }
     // Once a goal has been created, later clicks must not silently remove
     // its source link or create another goal from the same recommendation.
     if (previous?.status === 'accepted') {
@@ -94,6 +105,7 @@ export async function applyRecommendationDecision({
       candidateIndex, promptVersion: assistant.interaction.version,
       decidedAt: serverTimestamp()
     };
+    let newGoal = null;
     if (action === 'goal') {
       const goalSnapshot = await transaction.get(goalRef);
       if (goalSnapshot.exists()) {
@@ -103,7 +115,7 @@ export async function applyRecommendationDecision({
           throw new Error('ID цели занят другой записью. Повторная запись отменена.');
         }
       } else {
-        transaction.set(goalRef, {
+        newGoal = {
           text: goalTitle.trim(), purpose: goalPurpose.trim(),
           successCriteria: goalCriteria.trim(),
           type: 'checklist',
@@ -120,10 +132,25 @@ export async function applyRecommendationDecision({
           sourceMessageId: preceding.id, sourceAssistantMessageId: assistantMessageId,
           sourceType: 'user-accepted-ai-recommendation',
           createdAt: serverTimestamp()
-        });
+        };
       }
       result = { ...result, goalId };
     }
+    const recorded = memoryEventId ? await appendOwnerEvidenceInTransaction({
+      tx: transaction, database: db, appId, ownerId: userId, sessionId,
+      session, eventId: memoryEventId, kind: 'owner.recommendation.decision',
+      // Long legacy message IDs can produce a key longer than the R10.0
+      // 128-character source reference. The assistant turn plus payload index
+      // still identifies the exact hypothesis/recommendation without loss.
+      sourceRecordId: key.length <= 128 ? key : assistantMessageId,
+      text: `Решение по рекомендации: ${result.status}. ${candidate.title}`,
+      payload: { status: result.status, title: candidate.title,
+        assistantMessageId, sourceMessageId: preceding.id, candidateIndex,
+        ...(result.goalId ? { goalId: result.goalId } : {}) }
+    }) : null;
+    if (newGoal) transaction.set(goalRef, newGoal);
+    if (recorded?.eventId) result = { ...result, memoryEventId: recorded.eventId };
+    if (recorded?.suppressed) result = { ...result, memorySuppressed: true };
     transaction.update(sessionRef, {
       recommendationDecisions: { ...existing, [key]: result }
     });

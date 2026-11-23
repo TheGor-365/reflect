@@ -3,7 +3,13 @@ import { Star } from 'lucide-react';
 import ReflectDialog from './ReflectDialog';
 
 export default function ChecklistFeedbackModal({ goal, onSave, onCancel }) {
-  const [feedback, setFeedback] = useState({ comment: '', rating: 0 });
+  const [feedback, setFeedback] = useState(() => ({
+    comment: typeof goal?.checklistFeedback?.comment === 'string'
+      ? goal.checklistFeedback.comment : '',
+    rating: Number.isInteger(goal?.checklistFeedback?.rating) &&
+      goal.checklistFeedback.rating >= 0 && goal.checklistFeedback.rating <= 5
+      ? goal.checklistFeedback.rating : 0
+  }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -14,8 +20,10 @@ export default function ChecklistFeedbackModal({ goal, onSave, onCancel }) {
     setSaving(true);
     try {
       await onSave(feedback);
-    } catch {
-      setError('Не удалось сохранить оценку. Текст остался в форме — попробуй снова.');
+    } catch (failure) {
+      setError(failure?.message?.includes('Итог изменён в другой вкладке')
+        ? 'Итог изменён в другой вкладке. Скопируй новый текст и обнови страницу перед повтором.'
+        : 'Не удалось сохранить оценку. Текст остался в форме — попробуй снова.');
     } finally {
       setSaving(false);
     }
@@ -36,7 +44,7 @@ export default function ChecklistFeedbackModal({ goal, onSave, onCancel }) {
       closeDisabled={saving} footer={footer}>
       <form id="reflect-goal-feedback-form" onSubmit={save}
         className="reflect-goal-feedback-form">
-        <p>Ты отметил цель <strong>{goal.text}</strong> завершённой. Хочешь оценить результат?</p>
+        <p>Цель <strong>{goal.text}</strong> завершена. Здесь можно сохранить или изменить итог.</p>
         <fieldset className="reflect-goal-feedback-fieldset" disabled={saving}>
           <legend>Оценка выполнения (необязательно)</legend>
           <div className="reflect-goal-feedback-stars" role="group" aria-label="Оценка выполнения">
@@ -53,7 +61,7 @@ export default function ChecklistFeedbackModal({ goal, onSave, onCancel }) {
         </fieldset>
         <label className="reflect-goal-feedback-comment">
           Комментарий (необязательно)
-          <textarea rows={3} disabled={saving} value={feedback.comment}
+          <textarea rows={3} maxLength={2000} disabled={saving} value={feedback.comment}
             onChange={event => setFeedback(prev => ({ ...prev, comment: event.target.value }))}
             placeholder="Что получилось и что хочется изменить?"/>
         </label>

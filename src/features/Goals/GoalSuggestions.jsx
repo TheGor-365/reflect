@@ -4,6 +4,7 @@ import ReflectContentIcon from '../../components/common/ReflectContentIcon';
 import SmoothDisclosure from '../../components/common/SmoothDisclosure';
 import { buildRecommendationInbox } from '../Recommendations/recommendationInbox';
 import { buildDeepGoalDrafts } from './automaticGoalDrafts';
+import { isArchivedRecord, isArchivedRecommendation } from '../Archive/archiveSelectors';
 
 /**
  * Ideas are not user goals. Restore exact source context on request, then
@@ -11,9 +12,14 @@ import { buildDeepGoalDrafts } from './automaticGoalDrafts';
  */
 export default function GoalSuggestions({ sessions = [], onOpenSession }) {
   const inbox = useMemo(() => buildRecommendationInbox(sessions), [sessions]);
-  const candidates = inbox.recommendations.filter(item => item.status === 'pending');
+  const candidates = inbox.recommendations.filter(item =>
+    item.status === 'pending' && !isArchivedRecommendation(item));
+  const currentSessions = useMemo(() => sessions.filter(s => !isArchivedRecord(s)), [sessions]);
+  const currentRecommendations = useMemo(() => inbox.recommendations.filter(item =>
+    !isArchivedRecommendation(item)), [inbox]);
   const automaticDrafts = useMemo(() =>
-    buildDeepGoalDrafts(sessions, inbox.recommendations), [sessions, inbox]);
+    buildDeepGoalDrafts(currentSessions, currentRecommendations),
+    [currentSessions, currentRecommendations]);
   const preparedIds = new Set(automaticDrafts.map(item => item.id));
   if (!candidates.length) return null;
   return (

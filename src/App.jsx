@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { doc, getDoc, setDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
+import React, { useState, useEffect, useRef } from 'react';
+import { doc, getDoc, setDoc, runTransaction, arrayUnion, Timestamp } from 'firebase/firestore';
 import { db, appId } from './firebase/config';
 import { useAuth } from './hooks/useAuth';
 import { useFirestore } from './hooks/useFirestore';
@@ -16,6 +16,9 @@ import Goals from './features/Goals/Goals';
 import GoalSuggestions from './features/Goals/GoalSuggestions';
 import Sessions from './features/Sessions/Sessions';
 import Recommendations from './features/Recommendations/Recommendations';
+import { isArchivedRecord } from './features/Archive/archiveSelectors';
+import { setOwnerDocumentArchived, setOwnerRecommendationArchived } from './features/Archive/archiveOperations';
+import { newGoalId } from './features/Goals/goalOperations';
 import { buildSessionLibrary } from './features/Sessions/sessionLibrary';
 import SessionSchema from './features/SessionSchema/SessionSchema';
 import Loader from './components/common/Loader';
@@ -25,6 +28,7 @@ import AccountAccess from './components/modals/AccountAccess';
 import ContentModal from './components/modals/ContentModal';
 import ReflectionModal from './components/modals/ReflectionModal';
 import ChecklistFeedbackModal from './components/modals/ChecklistFeedbackModal';
+import { saveGoalCompletionFeedback } from './features/Goals/goalOperations';
 
 // Keep the same Midnight Aurora error treatment for auth and Firestore faults.
 function LoadErrorView({ message }) {
@@ -35,6 +39,8 @@ export default function App() {
   // --- Auth & Core Data ---
   const { user, isAuthReady, authError, signedOut, refreshUser, startGuestSession } = useAuth();
   const userId = user?.uid;
+  const activeOwnerRef = useRef(userId);
+  activeOwnerRef.current = userId;
 
   const { data: sessions, loading: sessionsLoading, error: sessionsError } = useFirestore('sessions', userId);
   const { data: goals, loading: goalsLoading, error: goalsError } = useFirestore('goals', userId);
@@ -123,7 +129,7 @@ export default function App() {
     // Resolve only from the authenticated owner's Firestore subscription:
     // no private identifiers, transcripts or profile in URL/localStorage.
     if (!userId || currentSessionId !== null || activeTab !== 'sessions') return;
-    const latest = buildSessionLibrary(sessions)[0];
+    const latest = buildSessionLibrary(sessions.filter(s => !isArchivedRecord(s)))[0];
     if (!latest) return;
     setCurrentSessionId(latest.id);
     setSessionLibraryRequested(false);
@@ -134,6 +140,13 @@ export default function App() {
   const [reflectionGoal, setReflectionGoal] = useState(null);
   const [editingNote, setEditingNote] = useState(null);
   const [feedbackGoal, setFeedbackGoal] = useState(null);
+  // A dialog opened by one UID must never survive an account switch.
+  useEffect(() => {
+    setFeedbackGoal(null);
+    setReflectionGoal(null);
+    setEditingNote(null);
+    setViewingContent(null);
+  }, [userId]);
 
   // --- Profile Fetching ---
   useEffect(() => {
@@ -201,7 +214,10 @@ export default function App() {
 
   const handleSaveReflection = async (text) => {
     const targetEntry = reflectionGoal || editingNote;
-    if (!targetEntry || !text.trim() || !db || !userId) return;
+    if (!targetEntry || !text.trim() || !db || !userId ||
+        targetEntry.editOwnerUid !== userId) {
+      throw new Error('Контекст пользователя изменился. Запись не выполнена.');
+    }
 
     const isGoal = !!reflectionGoal;
     const collectionName = isGoal ? 'goals' : 'diaryNotes';
@@ -213,35 +229,56 @@ export default function App() {
       return;
     }
 
-    const entryRef = doc(db, `artifacts/${appId}/users/${userId}/${collectionName}`, entryId);
+    const owner = userId;
+    const entryRef = doc(db, `artifacts/${appId}/users/${owner}/${collectionName}`, entryId);
     const newSubEntry = { text, createdAt: Timestamp.now() };
     
     // Writing a reflection is NOT evidence that the entire goal was
     // completed. Completion is an explicit action on the Goals board.
     const updatePayload = { [fieldToUpdate]: arrayUnion(newSubEntry) };
-    await updateDoc(entryRef, updatePayload);
-
-    setReflectionGoal(null);
-    setEditingNote(null);
+    await runTransaction(db, async tx => {
+      const snapshot = await tx.get(entryRef);
+      if (!snapshot.exists()) throw new Error('Исходная запись больше не существует.');
+      if (isArchivedRecord(snapshot.data())) {
+        throw new Error('Запись в архиве. Восстановите её перед дополнением.');
+      }
+      if (activeOwnerRef.current !== owner) {
+        throw new Error('Контекст пользователя изменился. Запись не выполнена.');
+      }
+      tx.update(entryRef, updatePayload);
+    });
+    if (activeOwnerRef.current === owner) {
+      setReflectionGoal(null);
+      setEditingNote(null);
+    }
   };
   
-  const handleSaveFeedback = async (feedback) => {
-    if (!feedbackGoal) return;
-    await updateDoc(doc(db, `artifacts/${appId}/users/${userId}/goals`, feedbackGoal.id), { checklistFeedback: { ...feedback, createdAt: Timestamp.now() } });
+  const handleSaveFeedback = async feedback => {
+    // UID-scoped on both sides: transaction reads live owner goal and checks
+    // the last visible feedback before writing. Never save a stale modal.
+    if (!userId || !feedbackGoal || feedbackGoal.feedbackOwnerUid !== userId) {
+      throw new Error('Контекст пользователя изменился. Итог не сохранён.');
+    }
+    const source = feedbackGoal.checklistFeedback;
+    const expected = source && typeof source === 'object' ? {
+      rating: Number.isInteger(source.rating) ? source.rating : 0,
+      comment: typeof source.comment === 'string' ? source.comment : ''
+    } : null;
+    await saveGoalCompletionFeedback(userId, feedbackGoal.id, feedback, expected);
     setFeedbackGoal(null);
   };
 
   const handleAppendToEntry = (entry) => {
     if (entry.type === 'goal') {
-      setReflectionGoal(entry);
+      setReflectionGoal({ ...entry, editOwnerUid: userId });
     } else if (entry.type === 'note') {
-      setEditingNote(entry);
+      setEditingNote({ ...entry, editOwnerUid: userId });
     }
   };
 
   const handleRenameSession = async (sessionId, title) => {
     const cleaned = typeof title === 'string' ? title.trim() : '';
-    if (!db || !userId || !sessions.some(item => item.id === sessionId) ||
+    if (!db || !userId || !sessions.some(item => item.id === sessionId && !isArchivedRecord(item)) ||
         !/^[a-zA-Z0-9_-]{1,128}$/.test(sessionId) ||
         !cleaned || cleaned.length > 100 ||
         /[\u0000-\u001f\u007f]/.test(cleaned)) {
@@ -249,8 +286,18 @@ export default function App() {
     }
     // Only the title field is updated; no transcript, event history or
     // user-authored journal content is modified.
-    await updateDoc(doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId), {
-      title: cleaned, titleSource: 'user'
+    const owner = userId;
+    const ref = doc(db, `artifacts/${appId}/users/${owner}/sessions`, sessionId);
+    await runTransaction(db, async tx => {
+      const snapshot = await tx.get(ref);
+      if (!snapshot.exists()) throw new Error('Сеанс больше не существует.');
+      if (isArchivedRecord(snapshot.data())) {
+        throw new Error('Сеанс в архиве. Восстановите его перед переименованием.');
+      }
+      if (activeOwnerRef.current !== owner) {
+        throw new Error('Контекст пользователя изменился. Запись не выполнена.');
+      }
+      tx.update(ref, { title: cleaned, titleSource: 'user' });
     });
   };
 
@@ -264,6 +311,12 @@ export default function App() {
     if (tab === 'sessions') setSessionLibraryRequested(!currentSessionId);
     if (tab === 'diary') setFocusDiaryNoteSource(null);
     navigateToTab(tab);
+  };
+  const openSessionLibrary = () => {
+    setReturnGoalIntent(null);
+    setFocusTurnId(null);
+    setSessionLibraryRequested(true);
+    navigateToTab('sessions');
   };
   const selectSession = (id, turnId = null) => {
     setReturnGoalIntent(null);
@@ -283,7 +336,8 @@ export default function App() {
     const goal = goals.find(record => record.id === goalId);
     const session = goal && sessions.find(record => record.id === goal.sessionId);
     const decision = session?.recommendationDecisions?.[goal?.sourceRecommendationKey];
-    if (!userId || !goal || !session ||
+    if (!userId || !goal || !session || isArchivedRecord(goal) ||
+        isArchivedRecord(session) ||
         goal.sourceType !== 'user-accepted-ai-recommendation' ||
         decision?.status !== 'accepted' || decision.goalRemovedAt ||
         decision.goalId !== goal.id ||
@@ -431,7 +485,10 @@ export default function App() {
           diaryNotes={diaryNotes}
           onOpenGoal={openDashboardGoal}
           onOpenSession={selectSession}
-          onOpenJourney={() => navigateToTab('sessionSchema')}
+          onOpenJourney={id => {
+            if (id && sessions.some(session => session.id === id)) setCurrentSessionId(id);
+            navigateToTab('sessionSchema');
+          }}
           onOpenMindspace={() => navigateToTab('mindspace')}
           onOpenRecommendations={() => navigateToTab('recommendations')}
           onOpenDiary={() => {
@@ -456,7 +513,13 @@ export default function App() {
               isLoading={isLoadingData}
           />;
       case 'recommendations':
-        return <Recommendations sessions={sessions}
+        return <Recommendations key={userId} sessions={sessions} userId={userId}
+          onNewGoalId={() => newGoalId(userId)}
+          onSetArchived={(item, archived) => setOwnerRecommendationArchived({
+            userId, sessionId: item.sessionId,
+            assistantMessageId: item.assistantMessageId,
+            candidateIndex: item.index, archived
+          })}
           onOpenSession={selectSession}
           onOpenGoals={() => navigateToTab('goals')} />;
       case 'aiSettings':
@@ -469,7 +532,10 @@ export default function App() {
             sessions={sessions}
             userId={userId}
             onAppend={handleAppendToEntry}
-            onFeedback={setFeedbackGoal}
+            onFeedback={goal => setFeedbackGoal({ ...goal, feedbackOwnerUid: userId })}
+            onSetArchived={(recordId, archived) => setOwnerDocumentArchived({
+              userId, kind: 'goals', recordId, archived
+            })}
             onOpenSession={selectSession}
             onOpenGoalReturn={openGoalReturn}
             focusGoalId={focusGoalId}
@@ -499,6 +565,9 @@ export default function App() {
             navigateToTab('goals');
           }}
           onOpenRecommendations={() => navigateToTab('recommendations')}
+          onSetArchived={(recordId, archived) => setOwnerDocumentArchived({
+            userId, kind: 'sessions', recordId, archived
+          })}
           libraryRequested={sessionLibraryRequested}
           onCloseLibrary={() => setSessionLibraryRequested(false)}
           onOpenLibrary={() => setSessionLibraryRequested(true)}
@@ -519,7 +588,7 @@ export default function App() {
       )}
       <a className="reflect-skip-link" href="#reflect-main">Перейти к содержимому</a>
 
-      {feedbackGoal && <ChecklistFeedbackModal goal={feedbackGoal} onSave={handleSaveFeedback} onCancel={() => setFeedbackGoal(null)} />}
+      {feedbackGoal?.feedbackOwnerUid === userId && <ChecklistFeedbackModal goal={feedbackGoal} onSave={handleSaveFeedback} onCancel={() => setFeedbackGoal(null)} />}
       {(reflectionGoal || editingNote) && <ReflectionModal entry={reflectionGoal || editingNote} onSave={handleSaveReflection} onCancel={() => {setReflectionGoal(null); setEditingNote(null);}} />}
       {viewingContent && <ContentModal content={viewingContent} onClose={() => setViewingContent(null)} />}
 
@@ -532,6 +601,7 @@ export default function App() {
         goals={goals}
         currentSessionId={currentSessionId}
         selectSession={selectSession}
+        onOpenSessionLibrary={openSessionLibrary}
         handleNewSession={handleNewSession}
         profile={profile}
         userId={userId}

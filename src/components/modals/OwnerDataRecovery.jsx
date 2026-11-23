@@ -135,6 +135,11 @@ export default function OwnerDataRecovery({ userId }) {
             <p>Сеансы: {inspection.counts.sessions} · Цели: {inspection.counts.goals}
               {' '}· Настроение: {inspection.counts.moods}
               {' '}· Дневник: {inspection.counts.diaryNotes}</p>
+            {inspection.schemaVersion === 2 && (
+              <p>Темы памяти: {inspection.counts.memoryTopics}
+                {' '}· События: {inspection.counts.memoryEvents}
+                {' '}· Проекции: {inspection.counts.memoryProjections}</p>
+            )}
             <p>Данные записей намеренно не выводятся на экран.
               Файл не имеет криптографической подписи и не доказывает подлинность содержимого.</p>
             {schemaAudit && (
@@ -142,13 +147,17 @@ export default function OwnerDataRecovery({ userId }) {
                 <summary>Совместимость данных со staging</summary>
                 <div aria-label="Сводка структуры архива">
                   <p>Проверено документов: {schemaAudit.totals.documents}
-                    {' '}· Коллекций с данными: {schemaAudit.reviewedCollections} из 5</p>
+                    {' '}· Коллекций с данными: {schemaAudit.reviewedCollections} из {Object.keys(schemaAudit.collectionSummary).length}</p>
                   <p>Нестандартных полей: {schemaAudit.totals.unknownFields}
                     {' '}· Структурных предупреждений: {schemaAudit.totals.shapeWarnings}</p>
                   <p>Старых записей без номера версии: {schemaAudit.totals.legacyEntries}
                     {' '}· Сохранённых предыдущих версий: {schemaAudit.totals.noteVersions}</p>
                   <p>Больших документов: {schemaAudit.totals.nearLimitDocuments}
                     {' '}· Очень больших: {schemaAudit.totals.oversizedDocuments}</p>
+                  {schemaAudit.memoryRequiresServerAttestation && (
+                    <p>События памяти требуют независимой серверной аттестации;
+                      проверки имён полей недостаточно для подтверждения истории.</p>
+                  )}
                   <p>Это только анализ локального файла. Никакие записи не изменяются.
                     Отсутствие предупреждений не означает готовность Rules к production.
                     Старые форматы не удаляются и не считаются повреждёнными.</p>
@@ -177,6 +186,10 @@ export default function OwnerDataRecovery({ userId }) {
                     Восстановить отсутствующие записи в тестовой среде
                   </button>
                 </>
+              ) : inspection.schemaVersion === 2 ? (
+                <p>R10 архив включает память. Восстановление отключено,
+                  пока не готова серверная проверка событий и источников.
+                  Файл доступен только для просмотра структуры.</p>
               ) : (
                 <p>Для атомарного восстановления необходимо не более 100 документов
                   и размер файла не больше 1 МБ. Этот файл можно только просмотреть.</p>

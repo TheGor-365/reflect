@@ -470,8 +470,10 @@ const Diary = ({
                         ? 'reflect-diary-entering' : ''}`}>
                       <span className="reflect-diary-event-marker" data-kind={entry.sourceKind}
                         aria-hidden="true"/>
-                      <DiaryNarrativeCard entry={entry} onAppend={onAppend}
-                        onEditNote={handleEditNote} onRenameSession={onRenameSession}
+                      <DiaryNarrativeCard entry={entry}
+                        onAppend={entry.archived ? undefined : onAppend}
+                        onEditNote={entry.archived ? undefined : handleEditNote}
+                        onRenameSession={entry.archived ? undefined : onRenameSession}
                         onOpenSession={onOpenSession} onOpenJourney={onOpenJourney}/>
                     </div>
                   ))}

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { isArchivedRecord } from '../Archive/archiveSelectors';
 
 const dateFrom = value => {
   try {
@@ -21,7 +22,7 @@ const formatEventDate = timestamp => {
 };
 
 /** Defensive, stable ordering: legacy events with missing dates stay visible last. */
-export const buildSessionChronology = (session, goals = []) => {
+export const buildSessionChronology = (session, goals = [], {includeArchived=false}={}) => {
   const events = [];
   const add = (timestamp, type, content, role) => {
     events.push({ timestamp, type, content, role, order: events.length });
@@ -41,7 +42,8 @@ export const buildSessionChronology = (session, goals = []) => {
   const decisions = session?.recommendationDecisions;
   if (decisions && typeof decisions === 'object' && !Array.isArray(decisions)) {
     Object.values(decisions).forEach(decision => {
-      if (!decisionLabels[decision?.status] || typeof decision?.title !== 'string') return;
+      if ((!includeArchived && isArchivedRecord(decision)) ||
+          !decisionLabels[decision?.status] || typeof decision?.title !== 'string') return;
       add(decision.decidedAt, decisionLabels[decision.status],
         decision.title, 'decision');
     });
@@ -79,8 +81,9 @@ export const buildSessionChronology = (session, goals = []) => {
   });
 };
 
-const SessionTable = React.memo(({ session, goals, onViewContent }) => {
-  const events = useMemo(() => buildSessionChronology(session, goals), [session, goals]);
+const SessionTable = React.memo(({ session, goals, onViewContent, includeArchived=false }) => {
+  const events = useMemo(() => buildSessionChronology(session, goals,{includeArchived}),
+    [session, goals,includeArchived]);
   const renderContent = content => {
     const text = typeof content === 'string' ? content : '';
     if (text.length <= 150 || typeof onViewContent !== 'function') {

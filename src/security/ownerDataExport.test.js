@@ -51,12 +51,15 @@ describe('owner-scoped Firestore JSON export', () => {
   it('reads every known collection and profile under the same authenticated UID', async () => {
     const result = await buildOwnerExport({ now: date });
     const output = JSON.parse(result.json);
-    expect(output.schemaVersion).toBe(1);
+    expect(output.schemaVersion).toBe(2);
     expect(output.format).toBe('reflect-owner-data-export');
     expect(output.source.uid).toBe('ownerA');
     expect(output.profile.id).toBe('userProfile');
     expect(output.collections.diaryNotes).toHaveLength(1);
     expect(output.collections.moods).toHaveLength(1);
+    expect(output.collections.memoryTopics).toEqual([]);
+    expect(output.collections.memoryEvents).toEqual([]);
+    expect(output.collections.memoryProjections).toEqual([]);
     expect(Object.keys(output.collections)).toEqual(OWNER_EXPORT_COLLECTIONS);
     expect(output.collections.diaryNotes[0].fields.entries[0].createdAt)
       .toEqual({ __reflectFirestoreType: 'timestamp',
@@ -127,6 +130,65 @@ describe('owner-scoped Firestore JSON export', () => {
       { id: 'dup', data: () => ({}) },
       { id: 'dup', data: () => ({}) }
     ] });
+    await expect(buildOwnerExport()).rejects.toThrow('недопустимого ID');
+  });
+});
+
+
+describe('R10 owner memory export coverage', () => {
+  it('exports the three new memory collections from the authenticated namespace', async () => {
+    const samples = {
+      memoryTopics: [{ id: 'topic1', data: () => ({ ownerId: 'ownerA', lastSequence: 1 }) }],
+      memoryEvents: [{ id: 'event1', data: () => ({
+        eventId: 'event1', ownerId: 'ownerA', kind: 'owner.correction',
+        createdAt: Timestamp.fromDate(date)
+      }) }],
+      memoryProjections: [{ id: 'topic1', data: () => ({
+        topicId: 'topic1', clientComputed: true, providerUseAllowed: false
+      }) }]
+    };
+    getDocsFromServer.mockImplementation(async ref => ({
+      docs: samples[ref.path.split('/').at(-1)] || []
+    }));
+    const result = await buildOwnerExport({ now: date });
+    const parsed = JSON.parse(result.json);
+    expect(parsed.schemaVersion).toBe(2);
+    expect(Object.keys(parsed.collections)).toEqual(OWNER_EXPORT_COLLECTIONS);
+    expect(parsed.collections.memoryTopics[0].fields.lastSequence).toBe(1);
+    expect(parsed.collections.memoryEvents[0].fields.createdAt.__reflectFirestoreType)
+      .toBe('timestamp');
+    expect(parsed.collections.memoryProjections[0].fields.providerUseAllowed).toBe(false);
+    expect(result.count).toBe(4); // three memory records plus profile
+    expect(result.json).not.toContain('PRIVATE_TOKEN');
+    expect(setDoc).not.toHaveBeenCalled();
+    for (const key of ['memoryTopics', 'memoryEvents', 'memoryProjections']) {
+      expect(collection).toHaveBeenCalledWith({},
+        'artifacts/reflect-8fdc8/users/ownerA', key);
+    }
+  });
+
+  it('denies the entire download if a memory collection cannot be read', async () => {
+    getDocsFromServer.mockImplementation(async ref => {
+      if (ref.path.endsWith('/memoryEvents')) throw { code: 'permission-denied' };
+      return { docs: [] };
+    });
+    await expect(buildOwnerExport()).rejects.toEqual({ code: 'permission-denied' });
+  });
+
+  it('fails when the UID changes during memory collection reads', async () => {
+    getDocsFromServer.mockImplementation(async ref => {
+      if (ref.path.endsWith('/memoryEvents')) {
+        testState.auth.currentUser = { uid: 'ownerB', isAnonymous: false };
+      }
+      return { docs: [] };
+    });
+    await expect(buildOwnerExport()).rejects.toThrow('Аккаунт изменился');
+  });
+
+  it('rejects an invalid Firestore document ID instead of silently exporting it', async () => {
+    getDocsFromServer.mockResolvedValue({ docs: [{
+      id: 'malformed/id', data: () => ({ value: 1 })
+    }] });
     await expect(buildOwnerExport()).rejects.toThrow('недопустимого ID');
   });
 });

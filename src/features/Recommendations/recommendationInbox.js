@@ -1,6 +1,7 @@
 import { sessionDisplayTitle } from '../Diary/diaryPresentation';
 import { readableSessionDate } from '../Sessions/sessionLibrary';
 import { isSupportedInteraction } from '../Sessions/interactionVersions';
+import { isArchivedRecord, isArchivedRecommendation } from '../Archive/archiveSelectors';
 
 const VALID_STATUS = new Set(['accepted', 'saved', 'postponed', 'dismissed']);
 const STATUS_RANK = Object.freeze({
@@ -48,6 +49,7 @@ export function buildRecommendationInbox(sessions = []) {
       }, 0);
       const base = {
         sessionId: session.id, sessionTitle: title,
+        sourceSessionArchived: isArchivedRecord(session),
         assistantMessageId: turn.id, sourceMessageId: preceding.id,
         sourceExcerpt: safeText(preceding.content).slice(0, 260),
         hypothesisCount: hypotheses.length, reviewedCount: reviewed,
@@ -81,7 +83,8 @@ export function buildRecommendationInbox(sessions = []) {
         recommendations.push({
           ...base, id: session.id + ':' + key,
           index, title: safeText(item.title), rationale: safeText(item.rationale),
-          status, goalId: refOk(decision?.goalId) ? decision.goalId : null
+          status, goalId: refOk(decision?.goalId) ? decision.goalId : null,
+          ...(decision?.archivedAt != null ? { archivedAt: decision.archivedAt } : {})
         });
       });
     }
@@ -91,7 +94,8 @@ export function buildRecommendationInbox(sessions = []) {
     STATUS_RANK[a.status] - STATUS_RANK[b.status] ||
     mostRecent(a, b) || a.id.localeCompare(b.id));
   clarifications.sort((a, b) => mostRecent(a, b) || a.id.localeCompare(b.id));
-  const pendingCount = recommendations.filter(x => x.status === 'pending').length +
-    clarifications.length;
+  const pendingCount = recommendations.filter(x =>
+    x.status === 'pending' && !isArchivedRecommendation(x)).length +
+    clarifications.filter(x => !x.sourceSessionArchived).length;
   return { recommendations, clarifications, pendingCount };
 }

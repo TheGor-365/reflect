@@ -1,13 +1,19 @@
-import React from 'react';
-import { BookOpen, BrainCircuit, GitBranch, LayoutDashboard, Lightbulb, MessageSquare, Plus, Target, User, ShieldCheck, SlidersHorizontal, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { BookOpen, BrainCircuit, GitBranch, LayoutDashboard, Lightbulb, MessageSquare, Plus, Target, User, ShieldCheck, SlidersHorizontal, X, Search } from 'lucide-react';
 import NavItem from './NavItem';
+import SessionQuickSwitcher from './SessionQuickSwitcher';
 import { sessionDisplayTitle, sessionExcerpt } from '../../features/Diary/diaryPresentation';
 import { buildRecommendationInbox } from '../../features/Recommendations/recommendationInbox';
+import { isArchivedRecord } from '../../features/Archive/archiveSelectors';
 
 const Sidebar = ({
   isOpen, onClose, activeTab, changeTab, sessions, goals = [], currentSessionId,
-  selectSession, handleNewSession, profile, userId, onProfileClick, onAccountClick, accountLabel
-}) => (
+  selectSession, handleNewSession, onOpenSessionLibrary, profile, userId, onProfileClick, onAccountClick, accountLabel
+}) => {
+  const [quickSwitcherOwner, setQuickSwitcherOwner] = useState(null);
+  useEffect(() => setQuickSwitcherOwner(null), [userId]);
+  const currentSessions = sessions.filter(session => !isArchivedRecord(session));
+  return (
   <>
     {isOpen && (
       <button type="button" className="reflect-backdrop"
@@ -39,7 +45,7 @@ const Sidebar = ({
             activeTab={activeTab} changeTab={changeTab} />
           <NavItem tabName="goals" icon={<Target size={20} />} label="Цели"
             count={goals.filter(goal => goal && goal.completed !== true &&
-              goal.status !== 'completed').length}
+              goal.status !== 'completed' && !isArchivedRecord(goal)).length}
             activeTab={activeTab} changeTab={changeTab} />
           <NavItem tabName="sessionSchema" icon={<GitBranch size={20} />} label="Схема сеансов" activeTab={activeTab} changeTab={changeTab} />
           <NavItem tabName="mindspace" icon={<BrainCircuit size={20} />} label="Mindspace" activeTab={activeTab} changeTab={changeTab} />
@@ -51,11 +57,23 @@ const Sidebar = ({
           <span>Новый сеанс</span>
         </button>
 
+        <div className="reflect-session-history-head">
+            <p className="reflect-sidebar-section-title">История сеансов</p>
+            <div className="reflect-session-history-actions">
+              <button type="button" className="reflect-session-library-link"
+                aria-label="Все сеансы" title="Открыть библиотеку сеансов"
+                onClick={() => onOpenSessionLibrary?.()}>Все</button>
+              <button type="button" className="reflect-session-picker-trigger reflect-session-picker-trigger--icon"
+                aria-label="Открыть полный список сеансов" title="Быстрый выбор сеанса" onClick={() => {
+                  setQuickSwitcherOwner(userId);
+                  if (isOpen) onClose?.();
+                }}><Search size={14} aria-hidden="true" /></button>
+            </div>
+        </div>
         <div className="reflect-session-history">
-          <p className="reflect-sidebar-section-title">История сеансов</p>
-          {sessions.length === 0 ? (
-            <p className="reflect-sidebar-empty">Ваши сеансы появятся здесь.</p>
-          ) : sessions.map(session => (
+          {currentSessions.length === 0 ? (
+            <p className="reflect-sidebar-empty">Текущих сеансов нет. Архив доступен через «Сеансы».</p>
+          ) : currentSessions.map(session => (
             <button key={session.id} type="button" onClick={() => selectSession(session.id)}
               className={`reflect-session-link ${activeTab === 'sessions' && currentSessionId === session.id ? 'reflect-session-link--active' : ''}`}>
               <span className="reflect-session-name">{sessionDisplayTitle(session)}</span>
@@ -94,7 +112,12 @@ const Sidebar = ({
         </details>
       </div>
     </aside>
+    {quickSwitcherOwner && quickSwitcherOwner === userId &&
+      <SessionQuickSwitcher key={userId} sessions={sessions}
+        activeSessionId={currentSessionId} onSelectSession={selectSession}
+        onClose={() => setQuickSwitcherOwner(null)}/>}
   </>
-);
+  );
+};
 
 export default Sidebar;

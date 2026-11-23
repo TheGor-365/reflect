@@ -35,13 +35,9 @@ const SessionComposer = ({
   useEffect(() => {
     if (focusRequest <= 0 || isLoading || diarySaveStatus === 'saving') return;
     const field = textareaRef.current;
-    field?.focus();
-    field?.scrollIntoView?.({
-      behavior: typeof window !== 'undefined' &&
-        window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
-          ? 'auto' : 'smooth',
-      block: 'nearest'
-    });
+    // Focusing the fixed composer must not scroll an overflow:hidden chat
+    // parent. scrollIntoView also scrolls ancestors, hiding the transcript.
+    field?.focus({ preventScroll: true });
     setReplyAttention(true);
     const timer = window.setTimeout(() => setReplyAttention(false), 850);
     return () => window.clearTimeout(timer);

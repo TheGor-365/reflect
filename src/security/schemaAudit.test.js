@@ -121,3 +121,35 @@ describe('Stage 03G read-only, aggregate schema compatibility', () => {
       .toThrow('Сначала проверьте');
   });
 });
+
+
+describe('R10 privacy schema inventory is read-only and refuses false proof', () => {
+  it('counts all memory document classes without returning private content or claiming attestation', () => {
+    const secret = 'SYNTHETIC_SECRET_CORRECTION';
+    const result = auditOwnerSchema(envelope([
+      d('memoryTopics', 'topic1', {
+        ownerId: OWNER, topicId: 'topic1', lastSequence: 1
+      }),
+      d('memoryEvents', 'event1', {
+        eventId: 'event1', text: secret, source: { documentId: 'session1' }
+      }),
+      d('memoryProjections', 'topic1', {
+        topicId: 'topic1', projection: { privateSummary: secret },
+        providerUseAllowed: false
+      })
+    ]));
+    expect(result.totals.documents).toBe(3);
+    expect(result.reviewedCollections).toBe(3);
+    expect(Object.keys(result.collectionSummary)).toHaveLength(8);
+    expect(result.memoryRequiresServerAttestation).toBe(true);
+    expect(result.requiresManualReview).toBe(true);
+    expect(JSON.stringify(result)).not.toContain(secret);
+    expect(JSON.stringify(result)).not.toContain(OWNER);
+  });
+
+  it('preserves old aggregate outcomes with no memory records', () => {
+    const result = auditOwnerSchema(envelope([]));
+    expect(result.memoryRequiresServerAttestation).toBe(false);
+    expect(result.requiresManualReview).toBe(false);
+  });
+});

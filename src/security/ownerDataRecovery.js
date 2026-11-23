@@ -3,8 +3,8 @@ import {
 } from 'firebase/firestore';
 import { auth, appId, db } from '../firebase/config';
 import {
-  OWNER_EXPORT_COLLECTIONS, OWNER_EXPORT_MAX_BYTES,
-  OWNER_EXPORT_SCHEMA_VERSION, serializeOwnerField
+  OWNER_EXPORT_COLLECTIONS, LEGACY_OWNER_EXPORT_COLLECTIONS,
+  OWNER_EXPORT_MAX_BYTES, OWNER_EXPORT_SCHEMA_VERSION, serializeOwnerField
 } from './ownerDataExport';
 
 /**
@@ -22,7 +22,6 @@ const PROFILE = 'userProfile';
 const USER_ID = /^[A-Za-z0-9_-]{1,128}$/;
 const DOC_ID = /^[A-Za-z0-9_-]{1,256}$/;
 const FORBIDDEN_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
-const allowedCollections = new Set(OWNER_EXPORT_COLLECTIONS);
 
 function plainObject(value) {
   return value !== null && typeof value === 'object' &&
@@ -152,7 +151,9 @@ export function inspectOwnerArchive(raw, { uid, namespace = appId } = {}) {
   }
   keysExactly(data, ['format', 'schemaVersion', 'exportedAt', 'source', 'profile',
     'collections'], 'архива');
-  if (data.format !== FORMAT || data.schemaVersion !== OWNER_EXPORT_SCHEMA_VERSION ||
+  const isLegacy = data.schemaVersion === 1;
+  if (data.format !== FORMAT ||
+      !(isLegacy || data.schemaVersion === OWNER_EXPORT_SCHEMA_VERSION) ||
       !validDate(data.exportedAt)) {
     throw new Error('Файл не является поддерживаемой версией экспорта Reflect.');
   }
@@ -161,8 +162,11 @@ export function inspectOwnerArchive(raw, { uid, namespace = appId } = {}) {
       typeof data.source.isAnonymous !== 'boolean') {
     throw new Error('Файл принадлежит другому UID или пространству Reflect. Импорт запрещён.');
   }
+  const expectedNames = isLegacy
+    ? LEGACY_OWNER_EXPORT_COLLECTIONS : OWNER_EXPORT_COLLECTIONS;
+  const allowedCollections = new Set(expectedNames);
   const names = Object.keys(data.collections || {});
-  if (!plainObject(data.collections) || names.length !== OWNER_EXPORT_COLLECTIONS.length ||
+  if (!plainObject(data.collections) || names.length !== expectedNames.length ||
       names.some(name => !allowedCollections.has(name))) {
     throw new Error('Файл содержит неожиданные или отсутствующие коллекции.');
   }
@@ -176,7 +180,7 @@ export function inspectOwnerArchive(raw, { uid, namespace = appId } = {}) {
     documents.push({ path: root + '/profiles/' + PROFILE, fields: data.profile.fields });
   }
   const counts = {};
-  for (const name of OWNER_EXPORT_COLLECTIONS) {
+  for (const name of expectedNames) {
     const list = data.collections[name];
     if (!Array.isArray(list)) throw new Error('Неверный список коллекции.');
     counts[name] = list.length;
@@ -194,9 +198,13 @@ export function inspectOwnerArchive(raw, { uid, namespace = appId } = {}) {
   }
   const bytes = new TextEncoder().encode(raw).byteLength;
   return {
-    uid, namespace, bytes, counts, hasProfile: data.profile !== null,
+    uid, namespace, schemaVersion: data.schemaVersion, bytes, counts,
+    hasProfile: data.profile !== null,
     total: documents.length,
-    canRestore: documents.length <= MAX_RESTORE_DOCS && bytes <= MAX_RESTORE_BYTES,
+    // R10 memory contains append-only events and derived checkpoints. Client
+    // restore MUST NOT recreate them outside the trusted server ledger flow.
+    canRestore: isLegacy && documents.length <= MAX_RESTORE_DOCS &&
+      bytes <= MAX_RESTORE_BYTES,
     // Retain only in the browser's current memory. Never persist or log this.
     documents
   };
@@ -225,6 +233,9 @@ export async function restoreMissingOwnerDocsInDemo(inspection, { uid } = {}) {
   if (auth.currentUser?.uid !== uid || !USER_ID.test(uid || '') ||
       inspection?.uid !== uid || inspection?.namespace !== appId) {
     throw new Error('Текущий UID не соответствует проверенному файлу.');
+  }
+  if (inspection.schemaVersion !== 1) {
+    throw new Error('R10 архив только для просмотра: восстановление памяти требует серверной проверки.');
   }
   if (!inspection.canRestore ||
       inspection.total > MAX_RESTORE_DOCS ||

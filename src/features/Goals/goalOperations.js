@@ -4,6 +4,7 @@ import {
 } from 'firebase/firestore';
 import { db, appId } from '../../firebase/config';
 import { dueDayOf, isDateOnly, localNoonForDueDay, nextSubtasks, statusOf } from './goalDomain';
+import { isArchivedRecord } from '../Archive/archiveSelectors';
 
 const root = userId => {
   if (typeof userId !== 'string' || !userId) {
@@ -77,6 +78,9 @@ export async function updateGoal(userId, goalId, action) {
       throw new Error('Цель больше не существует. Проверьте обновлённый список.');
     }
     const original = snapshot.data();
+    if (isArchivedRecord(original)) {
+      throw new Error('Цель в архиве. Восстановите её перед изменением.');
+    }
     const items = Array.isArray(original.subItems) ? original.subItems : [];
     let patch;
     switch (action.kind) {
@@ -140,6 +144,59 @@ export async function updateGoal(userId, goalId, action) {
   });
 }
 
+/** R9.2.3 — owner-scoped, explicit feedback change with stale-write protection.
+ * Preserves legacy checklistFeedback and its original creation timestamp.
+ * No AI call, implicit status change or separate feedback document.
+ */
+export async function saveGoalCompletionFeedback(userId, goalId, feedback, expected = null) {
+  if (!goalId || !/^[A-Za-z0-9_-]{1,128}$/.test(goalId)) {
+    throw new Error('Идентификатор цели отсутствует.');
+  }
+  if (!feedback || !Number.isInteger(feedback.rating) ||
+      feedback.rating < 0 || feedback.rating > 5 ||
+      typeof feedback.comment !== 'string' || feedback.comment.length > 2000 ||
+      /[\u0000-\u0008\u000b-\u001f\u007f]/.test(feedback.comment)) {
+    throw new Error('Проверь оценку и комментарий (до 2000 символов).');
+  }
+  const ref = doc(db, root(userId), goalId);
+  return runTransaction(db, async tx => {
+    const snapshot = await tx.get(ref);
+    if (!snapshot.exists()) throw new Error('Цель больше не существует.');
+    const current = snapshot.data();
+    if (isArchivedRecord(current)) {
+      throw new Error('Цель в архиве. Восстановите её перед изменением итога.');
+    }
+    if (statusOf(current) !== 'completed') {
+      throw new Error('Итог можно сохранить только для завершённой цели.');
+    }
+    const previous = current.checklistFeedback &&
+      typeof current.checklistFeedback === 'object' &&
+      !Array.isArray(current.checklistFeedback)
+      ? current.checklistFeedback : null;
+    const before = previous ? {
+      rating: Number.isInteger(previous.rating) ? previous.rating : 0,
+      comment: typeof previous.comment === 'string' ? previous.comment : ''
+    } : null;
+    // A different tab may have saved a newer result after this modal opened.
+    if (Boolean(before) !== Boolean(expected) ||
+        (before && (before.rating !== expected.rating ||
+                    before.comment !== expected.comment))) {
+      throw new Error('Итог изменён в другой вкладке.');
+    }
+    const next = { rating: feedback.rating, comment: feedback.comment.trim() };
+    if (before && before.rating === next.rating && before.comment === next.comment) {
+      return previous; // No-op for an ambiguous duplicate submission.
+    }
+    const value = {
+      ...next,
+      createdAt: previous?.createdAt || serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+    tx.update(ref, { checklistFeedback: value });
+    return value;
+  });
+}
+
 export async function removeGoal(userId, goalId) {
   if (!goalId) throw new Error('Идентификатор цели отсутствует.');
   const goalRef = doc(db, root(userId), goalId);
@@ -150,6 +207,9 @@ export async function removeGoal(userId, goalId) {
     const snapshot = await transaction.get(goalRef);
     if (!snapshot.exists()) return; // Retry after an already committed delete.
     const goal = snapshot.data();
+    if (isArchivedRecord(goal)) {
+      throw new Error('Архивную цель нельзя удалить без её явного восстановления.');
+    }
     const idOk = value => typeof value === 'string' &&
       /^[A-Za-z0-9_-]{1,128}$/.test(value);
     // The recommendation key has the format r-<assistant ID>-<index>

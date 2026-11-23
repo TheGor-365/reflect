@@ -26,11 +26,12 @@ const EXISTING = {
     content: 'Боюсь начать заниматься фрилансом.' }],
   recommendations: [], exercises: []
 };
-function Harness({ libraryRequested = false, initial = EXISTING.id, goals = [] }) {
+function Harness({ libraryRequested = false, initial = EXISTING.id,
+  goals = [], session = EXISTING }) {
   const [id, setId] = useState(initial);
   return <Sessions userId="eric-owner" profile={{ name: 'Eric' }}
     currentSessionId={id} setCurrentSessionId={setId}
-    sessions={[EXISTING]} goals={goals}
+    sessions={[session]} goals={goals}
     libraryRequested={libraryRequested}
     onStartNewSession={() => setId('new')}/>;
 }
@@ -88,4 +89,24 @@ test('unsubmitted owner draft prevents destructive session deletion', () => {
   fireEvent.click(screen.getByRole('menuitem', { name: 'Удалить сеанс' }));
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   expect(mocks.deleted).not.toHaveBeenCalled();
+});
+
+
+test('R9.2.4C-D: archived session keeps tools but hides delete action', () => {
+  render(<Harness session={{ ...EXISTING, archivedAt: { seconds: 1730000000 } }}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Инструменты сеанса' }));
+  expect(screen.queryByRole('menuitem', { name: 'Удалить сеанс' })).not.toBeInTheDocument();
+  expect(mocks.deleted).not.toHaveBeenCalled();
+});
+
+test('R9.2.4C-D: archive arriving while confirm dialog is open prevents deletion', () => {
+  const { rerender } = render(<Harness/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Инструменты сеанса' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Удалить сеанс' }));
+  expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+  rerender(<Harness session={{ ...EXISTING, archivedAt: { seconds: 1730000000 } }}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Удалить навсегда' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('Сеанс перемещён в архив');
+  expect(mocks.deleted).not.toHaveBeenCalled();
+  expect(mocks.ai).not.toHaveBeenCalled();
 });

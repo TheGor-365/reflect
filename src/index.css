@@ -5069,7 +5069,7 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
   gap:.32rem;
   min-height:26px;
   text-decoration:none;
-  padding:2px 0;
+  padding:2px 5px;
   font-weight:500;
   font-size:.74rem;
   color:var(--reflect-muted);
@@ -6148,4 +6148,184 @@ html[data-reflect-theme="light"] .reflect-failure-icon { color: #087f80; backgro
     min-height: 340px;
     scrollbar-gutter: auto;
   }
+}
+
+/* R9.2.1 — quiet, accessible inline owner decisions; no provider traffic. */
+.reflect-app .reflect-inbox-decision-controls {
+  display: flex; flex-wrap: wrap; gap: .45rem;
+  align-items: center; margin: .7rem 0 .3rem;
+}
+.reflect-app .reflect-inbox-decision-controls button {
+  min-height: 38px; padding: .44rem .76rem;
+  color: var(--reflect-ink); background: var(--reflect-card);
+  border: 1px solid var(--reflect-border);
+  border-radius: .6rem;
+  transition: border-color .18s ease, background-color .18s ease;
+}
+.reflect-app .reflect-inbox-decision-controls button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--reflect-accent) 38%, var(--reflect-border));
+}
+.reflect-app .reflect-inbox-decision-controls button:disabled {
+  opacity: .54; cursor: not-allowed;
+}
+.reflect-app :is(.reflect-inbox-decision-error, .reflect-inbox-decision-notice) {
+  flex-basis: 100%; margin: .2rem 0 0; font-size: .83rem;
+}
+.reflect-app .reflect-inbox-decision-error { color: var(--reflect-ink); }
+.reflect-app .reflect-inbox-decision-notice { color: var(--reflect-accent); }
+@media (prefers-reduced-motion: reduce) {
+  .reflect-app .reflect-inbox-decision-controls button { transition: none; }
+}
+
+/* R9.2.2 — inline confirmed-goal form reuses session form tokens. */
+.reflect-app .reflect-inbox-goal-form {
+  flex-basis: 100%; width: 100%; margin: .4rem 0;
+}
+.reflect-app .reflect-inbox-goal-gate {
+  flex-basis: 100%; margin: .3rem 0 .1rem;
+  font-size: .82rem; color: var(--reflect-muted);
+}
+.reflect-app .reflect-inbox-goal-form button { min-height: 38px; }
+
+/* R9.2.3 — feedback is visible on the confirmed goal, not hidden in a modal. */
+.reflect-app .reflect-goal-completion-summary {
+  display: grid;
+  gap: .45rem;
+  padding: .75rem .85rem;
+  margin: .65rem 0;
+  border: 1px solid var(--reflect-border);
+  background: var(--reflect-card);
+  border-radius: .75rem;
+  color: var(--reflect-ink);
+  font-size: .85rem;
+}
+.reflect-app .reflect-goal-completion-summary p { margin: 0; }
+.reflect-app .reflect-goal-completion-comment {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+.reflect-app .reflect-goal-completion-summary button {
+  justify-self: start;
+  min-height: 36px;
+  padding: .38rem .75rem;
+  color: var(--reflect-ink);
+  border: 1px solid var(--reflect-border);
+  border-radius: .65rem;
+  background: transparent;
+}
+.reflect-app .reflect-goal-completion-summary button:hover {
+  border-color: var(--reflect-focus);
+}
+
+/* R9.2.4B — archive view controls. Archived objects remain at their original IDs. */
+.reflect-app .reflect-archive-view-switch,
+.reflect-app .reflect-archive-action {
+  display: flex; align-items: center; flex-wrap: wrap; gap: .5rem;
+  margin: .65rem 0;
+}
+.reflect-app .reflect-archive-view-switch button,
+.reflect-app .reflect-archive-action button {
+  padding: .5rem .8rem; min-height: 38px;
+  color: var(--reflect-ink); background: var(--reflect-card);
+  border: 1px solid var(--reflect-border); border-radius: .65rem;
+}
+.reflect-app .reflect-archive-view-switch button[aria-pressed="true"] {
+  border-color: var(--reflect-accent); color: var(--reflect-accent);
+}
+.reflect-app .reflect-archive-action p[role="alert"] { color: var(--reflect-ink); }
+.reflect-app .reflect-archive-action button:disabled { opacity: .55; cursor: wait; }
+.reflect-app .reflect-goal-archived > p { font-size: .85rem; color: var(--reflect-muted); }
+.reflect-app .reflect-session-archive-label { font-size: .8rem; color: var(--reflect-muted); }
+
+/* R9.2 live QA: quiet hypothesis comment focus inside a clipped feedback card.
+   Keep a neutral keyboard-focus boundary, not an external neon halo. */
+.reflect-app .reflect-workspace .reflect-hypothesis-feedback textarea:focus,
+.reflect-app .reflect-workspace .reflect-hypothesis-feedback textarea:focus-visible {
+  outline: 1px solid var(--reflect-border);
+  outline-offset: -1px;
+  border-color: var(--reflect-border);
+  box-shadow: none;
+}
+
+/* R9.2 Live QA: a full, searchable session chooser without replacing the
+   existing sidebar shortcuts or the separate session-library page. */
+.reflect-session-history-head {
+  flex: none; display: flex; align-items: center; justify-content: space-between;
+  gap: 6px; padding-right: 5px;
+}
+.reflect-session-history-head > .reflect-sidebar-section-title { margin: 16px 0 10px; }
+.reflect-session-picker-trigger {
+  flex: none; padding: 5px 8px; font-size: 11px; font-weight: 650;
+  color: #a4f8e4; border-radius: 9px; border: 1px solid rgba(125,229,213,.23);
+}
+.reflect-session-picker-trigger:hover { background: rgba(125,229,213,.10); }
+.reflect-app .reflect-session-picker { display: grid; gap: 13px; min-width: 0; }
+.reflect-app .reflect-session-picker-tabs,
+.reflect-app .reflect-session-picker-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.reflect-app .reflect-session-picker-tabs button,
+.reflect-app .reflect-session-picker-filters button {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px; border-radius: 11px;
+  color: var(--reflect-muted); border: 1px solid var(--reflect-border);
+}
+.reflect-app .reflect-session-picker-tabs button[aria-pressed="true"],
+.reflect-app .reflect-session-picker-filters button[aria-pressed="true"] {
+  color: var(--reflect-accent); background: color-mix(in srgb, var(--reflect-accent) 10%, transparent);
+}
+.reflect-app .reflect-session-picker-search {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 9px 12px; border: 1px solid var(--reflect-border);
+  border-radius: 12px; color: var(--reflect-muted);
+}
+.reflect-app .reflect-session-picker-search input {
+  width: 100%; min-width: 0; border: 0; outline: none;
+  background: transparent; color: var(--reflect-ink);
+}
+.reflect-app .reflect-session-picker-search input:focus-visible { outline: none; }
+.reflect-app .reflect-session-picker-count { color: var(--reflect-muted); font-size: 12px; }
+.reflect-app .reflect-session-picker-list {
+  min-height: 0; max-height: min(47dvh, 420px); overflow-y: auto;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start; gap: 9px; padding: 2px;
+}
+.reflect-app .reflect-session-picker-item {
+  display: grid; gap: 5px; min-width: 0; text-align: left;
+  border: 1px solid var(--reflect-border); border-radius: 13px;
+  padding: 13px; background: color-mix(in srgb, var(--reflect-ink) 3%, transparent);
+}
+.reflect-app .reflect-session-picker-item:hover,
+.reflect-app .reflect-session-picker-item[aria-current="true"] {
+  border-color: var(--reflect-accent);
+  background: color-mix(in srgb, var(--reflect-accent) 8%, transparent);
+}
+.reflect-app .reflect-session-picker-title { font-weight: 680; color: var(--reflect-ink); overflow-wrap: anywhere; }
+.reflect-app .reflect-session-picker-preview {
+  font-size: 12px; line-height: 1.45; color: var(--reflect-muted);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; overflow-wrap: anywhere;
+}
+.reflect-app .reflect-session-picker-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 5px 9px;
+  color: var(--reflect-muted); font-size: 11px;
+}
+.reflect-app .reflect-session-picker-empty { color: var(--reflect-muted); padding: 15px; }
+@media (max-width: 640px) {
+  .reflect-app .reflect-session-picker-list { grid-template-columns: minmax(0, 1fr); max-height: 45dvh; }
+}
+
+/* R9.2 QA: direct access to the existing session library from the compact sidebar. */
+.reflect-session-history-actions {
+  display: inline-flex; align-items: center; justify-content: flex-end;
+  flex: none; gap: 4px;
+}
+.reflect-session-library-link {
+  color: var(--reflect-muted); font-size: 11px; font-weight: 650;
+  padding: 5px 2px; text-decoration: underline; text-underline-offset: 3px;
+}
+.reflect-session-library-link:hover,
+.reflect-session-library-link:focus-visible { color: var(--reflect-accent); }
+.reflect-session-picker-trigger--icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 5px; min-width: 26px; min-height: 26px;
 }

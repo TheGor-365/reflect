@@ -65,3 +65,17 @@ test('UX R8: deleting a saved session is an explicit separate menu action', () =
   expect(onChange).not.toHaveBeenCalled();
   expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
 });
+
+
+test('R9.2.4C-D: archived session has no destructive menu action, restore re-enables it', () => {
+  const requestDelete = vi.fn();
+  const props = { activePanel: null, onChange: vi.fn(), hasSavedSession: true,
+    onDeleteRequest: requestDelete };
+  const { rerender } = render(<SessionToolsMenu {...props} archived/>);
+  fireEvent.click(screen.getByRole('button', { name: 'Инструменты сеанса' }));
+  expect(screen.queryByRole('menuitem', { name: 'Удалить сеанс' })).not.toBeInTheDocument();
+  expect(requestDelete).not.toHaveBeenCalled();
+  rerender(<SessionToolsMenu {...props} archived={false}/>);
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Удалить сеанс' }));
+  expect(requestDelete).toHaveBeenCalledOnce();
+});

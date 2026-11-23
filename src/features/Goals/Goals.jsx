@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import ArchiveAction from '../Archive/ArchiveAction';
+import { isArchivedRecord } from '../Archive/archiveSelectors';
 import {
   CalendarDays, Check, CirclePause, ClipboardList, Pencil, Plus, SlidersHorizontal,
   RotateCcw, Sparkles, Target, Trash2, X
@@ -22,7 +24,7 @@ const targetFor = (item, index) => item?.id
   : { index, text: item?.text };
 
 function GoalCard({
-  goal, userId, onAppend, onFeedback, onOpenSession,
+  goal, userId, onAppend, onFeedback, onOpenSession, onSetArchived,
   onOpenGoalReturn, returnEntries = [], focused = false
 }) {
   const status = statusOf(goal);
@@ -173,6 +175,10 @@ function GoalCard({
         </form>
       )}
 
+      {onSetArchived && (
+        <ArchiveAction archived={false} subject={`цель «${goal.text}»`}
+          disabled={busy} onCommit={next => onSetArchived(goal.id, next)}/>
+      )}
       <div className="reflect-goal-meta">
         <span className={`reflect-goal-deadline ${due === 'overdue' ? 'reflect-goal-overdue' : ''}`}>
           <CalendarDays size={15} aria-hidden="true"/>
@@ -202,6 +208,34 @@ function GoalCard({
           </button>
         ))}
       </div>
+
+      {status === 'completed' && (
+        <section className="reflect-goal-completion-summary" aria-label="Итог по цели">
+          {goal.checklistFeedback && typeof goal.checklistFeedback === 'object' ? (
+            <>
+              <strong>Итог выполнения</strong>
+              {Number.isInteger(goal.checklistFeedback.rating) &&
+                goal.checklistFeedback.rating >= 1 && goal.checklistFeedback.rating <= 5 && (
+                <p>Оценка: {goal.checklistFeedback.rating} из 5</p>
+              )}
+              {typeof goal.checklistFeedback.comment === 'string' &&
+                goal.checklistFeedback.comment.trim() && (
+                <p className="reflect-goal-completion-comment">
+                  {goal.checklistFeedback.comment}
+                </p>
+              )}
+              {!goal.checklistFeedback.comment?.trim?.() &&
+                !(goal.checklistFeedback.rating >= 1 && goal.checklistFeedback.rating <= 5) && (
+                <p>Итог сохранён без оценки и комментария.</p>
+              )}
+            </>
+          ) : <p>Итог выполнения ещё не записан.</p>}
+          {onFeedback && <button type="button" disabled={busy}
+            onClick={() => onFeedback(goal)}>
+            {goal.checklistFeedback ? 'Изменить итог' : 'Добавить итог'}
+          </button>}
+        </section>
+      )}
 
       {goal.type === 'reflection' ? (
         <div className="reflect-goal-reflections">
@@ -301,7 +335,7 @@ function GoalCard({
 
 export default function Goals({
   goals = [], sessions = [], userId, onAppend, onFeedback,
-  onOpenSession, onOpenGoalReturn, focusGoalId = null
+  onOpenSession, onOpenGoalReturn, onSetArchived, focusGoalId = null
 }) {
   const [draft, setDraft] = useState(DEFAULT_DRAFT);
   const [newStep, setNewStep] = useState('');
@@ -340,14 +374,18 @@ export default function Goals({
       ...goals
     ];
   }, [goals, confirmedGoals, userId]);
-  const groups = useMemo(() => STATUS.map(([status, title]) => ({
-    status, title, items: visibleGoals.filter(goal => statusOf(goal) === status)
-  })), [visibleGoals]);
+  const groups = useMemo(() => [
+    ...STATUS.map(([status, title]) => ({
+      status, title, items: visibleGoals.filter(goal =>
+        !isArchivedRecord(goal) && statusOf(goal) === status)
+    })),
+    { status: 'archive', title: 'Архив', items: visibleGoals.filter(isArchivedRecord) }
+  ], [visibleGoals]);
   const currentGroup = groups.find(group => group.status === selectedStatus) || groups[0];
   useEffect(() => {
     if (!focusGoalId) return;
     const goal = visibleGoals.find(item => item.id === focusGoalId);
-    if (goal) setSelectedStatus(statusOf(goal));
+    if (goal) setSelectedStatus(isArchivedRecord(goal) ? 'archive' : statusOf(goal));
   }, [focusGoalId, visibleGoals]);
 
   const addDraftStep = () => {
@@ -509,7 +547,9 @@ export default function Goals({
           {currentGroup.items.map(goal => {
             const source = sessions.find(session => session.id === goal.sessionId);
             const decision = source?.recommendationDecisions?.[goal.sourceRecommendationKey];
-            const canOpenReturn = goal.sourceType === 'user-accepted-ai-recommendation' &&
+            const canOpenReturn = !isArchivedRecord(goal) &&
+              source && !isArchivedRecord(source) &&
+              goal.sourceType === 'user-accepted-ai-recommendation' &&
               decision?.status === 'accepted' && !decision.goalRemovedAt &&
               decision.goalId === goal.id &&
               decision.assistantMessageId === goal.sourceAssistantMessageId;
@@ -520,10 +560,26 @@ export default function Goals({
                 entry.goalId === goal.id &&
                 typeof entry.text === 'string'
               ) : [];
+            if (selectedStatus === 'archive') return (
+              <article key={`${userId}:${goal.id}`} className="reflect-goal-card reflect-goal-archived"
+                aria-label={goal.text || 'Архивная цель'}>
+                <h4>{goal.text || 'Архивная цель'}</h4>
+                {goal.purpose && <p className="reflect-goal-purpose">{goal.purpose}</p>}
+                <p>Статус на момент архива: {STATUS.find(([key]) => key === statusOf(goal))?.[1] || 'Не указан'}</p>
+                {goal.checklistFeedback?.comment && <p className="reflect-goal-purpose">
+                  Ваш итог: {goal.checklistFeedback.comment}</p>}
+                {goal.sessionId && onOpenSession && <button type="button"
+                  onClick={() => onOpenSession(goal.sessionId, goal.sourceAssistantMessageId || null)}>
+                  Открыть исходный сеанс</button>}
+                {onSetArchived && <ArchiveAction archived subject={`цель «${goal.text}»`}
+                  onCommit={next => onSetArchived(goal.id, next)}/>}
+              </article>
+            );
             return <GoalCard key={`${userId}:${goal.id}`}
               goal={goal} userId={userId}
               returnEntries={returnEntries}
               onAppend={onAppend} onFeedback={onFeedback}
+              onSetArchived={onSetArchived}
               onOpenSession={onOpenSession}
               onOpenGoalReturn={canOpenReturn ? onOpenGoalReturn : undefined}
               focused={goal.id === focusGoalId}/>;

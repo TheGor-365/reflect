@@ -21,6 +21,7 @@ import { sessionMemoryReplyUiEnabled, sendSessionMemoryReply }
   from '../../api/sessionMemoryReplyService';
 import { readOwnerContextLevel } from '../../api/ownerContextLevel';
 import SessionLibrary from './SessionLibrary';
+import { isArchivedRecord } from '../Archive/archiveSelectors';
 import { sessionDisplayTitle } from '../Diary/diaryPresentation';
 import SessionComposer from './SessionComposer';
 import SessionReturnCheckIn from './SessionReturnCheckIn';
@@ -34,7 +35,7 @@ import { useEntrySave } from '../../hooks/useEntrySave';
 import { BookOpen, BarChart2, MessageSquareText, ShieldCheck } from 'lucide-react';
 
 const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId, setCurrentSessionId, onStartNewSession, onOpenJourney, onOpenGoals, onOpenRecommendations, focusTurnId, returnGoalIntent = null,
-  libraryRequested = false, onCloseLibrary, onOpenLibrary }) => {
+  libraryRequested = false, onCloseLibrary, onOpenLibrary, onSetArchived }) => {
   const [userInput, setUserInput] = useState('');
   const [composerFocusRequest, setComposerFocusRequest] = useState(0);
   const [ownerContextLevel, setOwnerContextLevel] = useState(null);
@@ -108,7 +109,7 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
 
   const recognitionRef = useRef(null);
   const utteranceRef = useRef(null);
-  const chatEndRef = useRef(null);
+  const messagePaneRef = useRef(null);
 
   const isNewSessionView = currentSessionId === 'new';
   const savedSession = !isNewSessionView
@@ -155,10 +156,6 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
   }, [savedSession?.chatHistory, currentSessionId, userId, scopedLocalMessages.length]);
 
   useEffect(() => {
-    if (!focusTurnId) chatEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
-  }, [sessions, currentSessionId, isLoading, localMessages, focusTurnId]);
-
-  useEffect(() => {
     if (!focusTurnId || !activeSession) return;
     // Find only this saved session's actual authored turn. A legacy message
     // with no stable turn ID can only be opened at session level.
@@ -169,6 +166,10 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
+    if (isArchivedRecord(activeSession)) {
+      setSendError('Сеанс находится в архиве. Восстановите его перед отправкой.');
+      return;
+    }
     const message = userInput.trim();
     if (modeChangePending) {
       setSendError('Сначала сохраните выбранный режим сеанса. Grok не вызывался.');
@@ -304,6 +305,10 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
    * the previously saved turn through the free status endpoint instead.
    */
   const handleHistorySend = async approval => {
+    if (isArchivedRecord(activeSession)) {
+      setSendError('Архивный сеанс нельзя использовать для платного ответа. Восстановите его.');
+      return false;
+    }
     const message = userInput.trim();
     const owner = userId, sessionId = activeSession?.id;
     const turnMode = effectiveSessionMode;
@@ -388,6 +393,7 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
   // Explicit, owner-confirmed NEW paid attempt for an existing saved user
   // turn. No duplicate user turn, no silent retry, no history sent to Grok.
   const handleRetrySavedTurn = async turn => {
+    if (isArchivedRecord(activeSession)) throw new Error('recovery-unavailable');
     if (!railwayAiRecoveryEnabled || turn?.contextMode === 'consented-session' ||
         sendLock.current || isLoading ||
         !db || !userId || !activeSession ||
@@ -530,6 +536,23 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
     ...scopedLocalMessages.filter(turn => !storedIds.has(turn.id))
   ];
   const savedMessageCount = savedHistory.length;
+  // Scroll ONLY the message pane when changing threads or appending a turn.
+  // Firestore metadata updates (e.g. a hypothesis review) must not move the
+  // document, the composer or a reader who is inspecting an earlier reply.
+  const scrollScopeRef = useRef({ scope: null, count: -1, loading: false });
+  useEffect(() => {
+    const scope = `${userId}:${currentSessionId}`;
+    const previous = scrollScopeRef.current;
+    const shouldScroll = previous.scope !== scope ||
+      messagesToDisplay.length > previous.count ||
+      (isLoading && !previous.loading);
+    scrollScopeRef.current = {
+      scope, count: messagesToDisplay.length, loading: isLoading
+    };
+    if (focusTurnId || !shouldScroll) return;
+    const pane = messagePaneRef.current;
+    if (pane) pane.scrollTop = pane.scrollHeight;
+  }, [userId, currentSessionId, messagesToDisplay.length, isLoading, focusTurnId]);
   const savedDecisions = activeSession?.recommendationDecisions || {};
   const scopedDecisionPrefix = `${userId}:${activeSession?.id}:`;
   // The Firestore subscription is authoritative, including changes from a
@@ -605,7 +628,7 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
   // A failing Firestore write leaves both the dialog and the saved thread intact.
   const requestSessionDeletion = id => {
     const target = sessions.find(item => item.id === id);
-    if (!target || isDeleting) return;
+    if (!target || isArchivedRecord(target) || isDeleting) return;
     if (!canLeaveConversation()) {
       setSendError('Сначала отправьте или очистите черновик и завершите сохранение ответа. Сеанс не удалён.');
       return;
@@ -617,6 +640,12 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
     if (!deleteTarget || isDeleting || deleteTarget.ownerId !== userId ||
         sendLock.current || isLoading || !canLeaveConversation()) return;
     const targetId = deleteTarget.id;
+    // Subscription state can change after the confirmation dialog opened.
+    const latest = sessions.find(session => session.id === targetId);
+    if (!latest || isArchivedRecord(latest)) {
+      setDeleteError('Сеанс перемещён в архив или недоступен. Удаление отменено.');
+      return;
+    }
     const owner = userId;
     setIsDeleting(true);
     setDeleteError('');
@@ -648,6 +677,17 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
       onCancel={() => { if (!isDeleting) { setDeleteTarget(null); setDeleteError(''); } }}
       onConfirm={confirmSessionDeletion}/>
   ) : null;
+  const setSessionArchive = async (id, archived) => {
+    if (!onSetArchived || !userId || !sessions.some(s => s.id === id) ||
+        typeof archived !== 'boolean') {
+      throw new Error('Архивирование недоступно для этого сеанса.');
+    }
+    if (isLoading || sendLock.current || savingSession || isDeleting || modeChangePending ||
+        (archived && !canLeaveConversation())) {
+      throw new Error('Сначала завершите отправку AI и сохраните черновик. Сеанс не архивирован.');
+    }
+    return onSetArchived(id, archived);
+  };
   const selectFromLibrary = id => {
     if (id !== currentSessionId && !canLeaveConversation()) return;
     setCurrentSessionId(id);
@@ -681,6 +721,7 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
         warning={navigationWarning}
         onSelectSession={selectFromLibrary} onNewSession={startFromLibrary}
         onDeleteSession={requestSessionDeletion}
+        onSetArchived={onSetArchived ? setSessionArchive : undefined}
         onViewJourney={onOpenJourney ? journeyFromLibrary : undefined}
         onBackToConversation={(activeSession || isNewSessionView) ? () => {
           setShowLibrary(false); setNavigationWarning(''); onCloseLibrary?.();
@@ -695,6 +736,8 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
       <div className="reflect-session-chat">
         <div className="reflect-session-conversation-bar">
           <h2>{isNewSessionView ? 'Новый сеанс' : sessionDisplayTitle(activeSession)}</h2>
+          {isArchivedRecord(activeSession) && <span role="status"
+            className="reflect-session-archive-label">В архиве · отправка AI отключена</span>}
           <div className="reflect-session-conversation-actions">
             {AI_SESSION_ENABLED && (
               <SessionModePicker key={userId + ':' + currentSessionId}
@@ -721,7 +764,9 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
               </button>
             )}
             <SessionToolsMenu activePanel={activeToolPanel}
-              onDeleteRequest={activeSession?.id ? () => requestSessionDeletion(activeSession.id) : undefined}
+              archived={isArchivedRecord(activeSession)}
+              onDeleteRequest={activeSession?.id && !isArchivedRecord(activeSession)
+                ? () => requestSessionDeletion(activeSession.id) : undefined}
               onChange={setActiveToolPanel}
               hasSavedSession={Boolean(activeSession?.id)}
               contextAvailable={Boolean(AI_SESSION_ENABLED &&
@@ -784,7 +829,7 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
               )}
           </SessionToolPanel>
         )}
-        <div className="reflect-session-messages" role="log" aria-label="История сообщений" aria-live="polite">
+        <div className="reflect-session-messages" ref={messagePaneRef} role="log" aria-label="История сообщений" aria-live="polite">
           <div className="reflect-session-messages-inner">
             {isNewSessionView && messagesToDisplay.length === 0 && (
               <p className="reflect-session-welcome">
@@ -818,20 +863,21 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
                   match?.scrollIntoView?.({behavior:'smooth',block:'center'});
                 }}
                 currentlySpeakingId={currentlySpeakingId} />
-              {railwayAiRecoveryEnabled && activeSession &&
+              {railwayAiRecoveryEnabled && !isLoading && activeSession &&
                 savedHistory.some(t => t.id === msg.id) &&
                 unansweredTurn(msg, index, messagesToDisplay) && (
                   <ReplyRecoveryPanel
                     key={userId + ':' + activeSession.id + ':' + msg.id}
                     sessionId={activeSession.id} turn={msg}
                     onRetry={handleRetrySavedTurn} disabled={isLoading}
-                    allowRetry={msg.contextMode !== 'consented-session'}/>
+                    allowRetry={!isArchivedRecord(activeSession) &&
+                      msg.contextMode !== 'consented-session'}/>
                 )}
               </React.Fragment>
             ))}
 
             {isLoading && <div className="reflect-session-typing" role="status">Сеанс обрабатывается…</div>}
-            <div ref={chatEndRef} />
+            <div />
           </div>
         </div>
 
@@ -880,7 +926,7 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
             focusRequest={composerFocusRequest}
             onChange={(value) => { noteSave.clearFeedback(); setSendError(''); setUserInput(value); }}
             onSubmit={handleSendMessage}
-            sendDisabled={modeChangePending || effectiveSessionMode === null}
+            sendDisabled={isArchivedRecord(activeSession) || modeChangePending || effectiveSessionMode === null}
             onToggleRecording={handleToggleUserRecording}
             onSaveToDiary={handleSaveToDiary}
             diarySaveStatus={noteSave.status}
