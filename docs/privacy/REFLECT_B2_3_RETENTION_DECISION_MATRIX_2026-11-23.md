@@ -1,0 +1,46 @@
+# Reflect 2.0 — B2.3 draft retention and erasure decision matrix
+**Date:** 2026-11-23 · **Status: DRAFT / NOT APPROVED / NO RUNTIME ACTION** · Owner safety gate **PRIVACY_GATE=BLOCKED**.
+
+This decision record is a **proposal**, not a policy, deletion instruction, privacy guarantee, retention period approval or certification. It is derived from the owner's exact local read-only results and pinned/current-local source parity (see [B2.1 writer inventory](../roadmap/REFLECT_R10_3_C2C2_B2_1_WRITER_INVENTORY.md)). It does not claim anything was deployed to Railway, persisted in production Firestore or accessed with real account data. **Do not run Firestore deletion/migration/TTL, source patch, Rules change or provider dispatch on the strength of this draft.**
+
+## 1. Proven context and boundaries
+
+1. Owner current local HEAD `1c4c121e0e449f1a9360e4fb4588dcf58352e699` is **dirty detached**, distinct from documentation-only GitHub branch. Prior C3C3e12 route/core 24/24 and C3C3e14 integration 4/4 *synthetic* Node tests PASS; not real Firebase Auth/AppCheck or production.
+2. **BW-07** `server/privacy/contextPreviewQuota.cjs`: current-local tracked Git blob exactly matched inspected pinned `e27be69dc8f8d5eea940d54b410bfdf021d241fa`. Admin TX writes `_reflectAiPrivate/reflect-8fdc8/contextPreviewQuotas/{uid}`, metadata `uid,hour,count`; max 20/UTC hour. A **logical hourly counter window is not physical deletion**.
+3. **BW-08** `server/railway/appCheckReplayGuard.cjs`: current-local tracked Git blob matched inspected pinned `b155c9141bcc968a01e05567b9d7b3cd32d72866`. Admin TX creates `_reflectAiPrivate/reflect-8fdc8/appCheckReplayTokens/{SHA256(rawToken)}` with creation/expiration metadata; a separate opportunistic sampled cleanup prunes a bounded batch of up to 64 expired tokens. Fingerprints are global, not owner-queryable; expiration metadata **does not establish guaranteed deletion time**.
+4. `server/privacy/contextConsent.cjs` current local SHA256 `8b1c6e2790e49bc77982cfd5b98fadd2faa302dd0284f3cdc6280e1e1b86d738` equals 2026-11-22 exact inspected archive. Grant/create/check/list read private/public erasure fences in scoped transactions. **Does not prove Railway deployed SHA, provider-scoped consent, or account deletion**.
+5. The user's latest `B2_1_COLLECTION_SCOPE_READY` source-only output: `memoryResidualCoverage.r103c2c2.cjs` references `MEMORY_COLLECTIONS` L11/L109/L117 and imports `memoryResidualAudit.r103c2c.cjs`, `memoryErasure.r103c2b.cjs`; `memoryResidualAudit.r103c2c.cjs` references `MEMORY_COLLECTIONS` L8/L98 and imports `memoryErasure.r103c2b.cjs`. Neither file defines a static array locally. Direct literal string search in these two source files shows **no** `contextPreviewQuotas` or `appCheckReplayTokens`; it does **not** establish their membership in imported `MEMORY_COLLECTIONS`. Exact current local memoryErasure SHA256 previously owner-reported: `485757d8bd718bc31a1052e500994aa9314de46531fdb707000a1505ee088f81`, 342 lines. The imported constant definition **must be inspected in the owner worktree**; this untracked local source is not present at pinned GitHub commit and cannot be verified from GitHub.
+6. Four-module user-local lexical review: memoryPrivateRetention reports attempt/grant/nested receipts, hashed budget owner index unavailable; memoryResidualCoverage does bounded named-memory-root traversal and explicitly checks retained consent quota, fails closed on changed roots, truncated/incomplete scans; memoryErasure handles a **DEMO memory-derived-only scope**, not complete account deletion. Both specialized auditors return `fullDeletionCertified:false` and `providerUseAllowed:false`.
+
+## 2. BW-07 and BW-08 decision matrix (proposal, not approved)
+
+| Control | BW-07 — owner preview quota | BW-08 — global App Check replay fingerprint ledger |
+| --- | --- | --- |
+| Purpose | Enforce bounded previews per owner per UTC hour | Prevent reuse of limited-use App Check tokens across requests and replicas |
+| Data category | Private owner-scoped usage metadata `uid,hour,count` | Security deduplication metadata `SHA256(token),createdAt,expiresAt`; no raw token persisted in inspected module |
+| Storage/addressability | `contextPreviewQuotas/{uid}`, **owner-addressable** | `appCheckReplayTokens/{SHA256(token)}`, **not UID-addressable** |
+| Creation/update | Transaction get then `tx.create` / `tx.update` | Transaction `tx.create` only on first-use; opportunistic bounded expired batch deletes |
+| Enforced authorization lifetime | Counter keyed by UTC hour | Verified token expiry plus defensive replay window; exact approved retention not established |
+| Physical retention deadline | **UNDECIDED**; no automatic TTL evidenced | **UNDECIDED**; expiry metadata + opportunistic cleanup is not a time guarantee |
+| Memory-only erasure scope | **UNVERIFIED** whether specifically included; likely separate operational metadata but must decide explicitly | **Not presumed part of owner-memory-only erasure**; do not remove replay state by owner without security design |
+| Full account deletion/export | **NOT CERTIFIED**; must declare separate metadata policy, owner audit/export availability and deletion or exception | **NOT CERTIFIED**; no UID index; owner-specific removal may be impossible while retaining effective dedupe |
+| Security risk from purge | Loss of recent preview quota may reset rate limit | Early purge can permit previously used tokens to be reused, weakening anti-replay |
+| Proposed handling pending policy | Explicitly inventory BW-07; determine account closure behavior, bounded purge/TTL if warranted, and negative tests for quota reset and race. Do NOT automatically add to demo memory-only deletion. | Treat as a documented **candidate security retention exception**; define justified maximum hold, deterministic cleanup or compensating control, and verification that replay cannot be accepted before expiry. Do NOT delete ledger automatically. |
+| Verification required | SHA-pinned source + fake tests for quota, authorized scope and retention policy; isolated Firestore emulator where appropriate; monitor long-lived residuals | Verify Firestore replay transaction atomicity, expiry/backlog monitoring, bounded pruning, distributed races, denial on ledger outage, provider retention and legal/privacy necessity |
+| Acceptance owner | Product/privacy/legal decision + technical security sign-off **OPEN** | Product/privacy/legal decision + security sign-off **OPEN** |
+
+## 3. Decision questions before B2.3 can be approved
+
+1. **Scope:** does memory-only erasure intentionally exclude operational preview quota and security replay ledger? Distinguish it from full-account deletion/data-subject requests. Publish exact scope in product UI and policy, not an ambiguous “all data deleted” statement.
+2. **Retention clock:** select explicit physically verifiable retention deadlines/exception reasons for preview quota, consent grants/tombstones, attestation quotas, replay fingerprints, hashed billing ledgers, owner receipts, provider logs, backups/PITR. Current source and tests do **not** set an approved legal deadline.
+3. **Owner reconciliation:** design owner-addressable hashed billing index and policy-compliant reconciliation without making billing or anti-replay mutable in ways that invite double charge/reuse. Return safe and honest partial export/delete reports.
+4. **Enforcement:** verify server Admin logic and authorized deletion or retention exceptions in an isolated emulator; require negative race/replay tests, evidence of bounded cleanup and limits; complete independent PG01–PG08 signoff before enabling provider-memory egress.
+5. **Release provenance:** stage only reviewed source hashes by explicit owner approval; independently confirm Railway release SHA/feature flags, Firestore Rules, real client Auth/AppCheck and fallback behavior. Local PASS is not a deployed guarantee.
+
+## 4. Immediate evidence and next action
+
+**B2.1 first:** one read-only owner-local **exact HEAD + SHA256** inspection of the definition/export of `MEMORY_COLLECTIONS` in `server/privacy/memoryErasure.r103c2b.cjs`, using a **fixed allowlist membership report**, with no printed arbitrary path strings, no executing or importing project modules and no Firestore. Compare known memory-derived collections and private BW-07/BW-08 names, and report `UNKNOWN` if definition is dynamic. The other two modules import this file, which is absent from pinned remote GitHub code.
+
+**B2.3 next:** update the matrix's inventory coverage cell with that exact local proof; solicit explicit owner/privacy/technical approval before implementing any TTL, delete path, consent, receipt or billing change.
+
+**Current gates:** `B2.1=PARTIAL`, `BW07_COVERAGE=UNKNOWN`, `BW08_RETENTION_EXCEPTION=PROPOSED_NOT_APPROVED`, `B2.3=NOT_APPROVED`, `PG01–08=OPEN`, `CLEAN_EVAL=NOT_CERTIFIED`, **`PRIVACY_GATE=BLOCKED`**. No runtime/deployment/provider/payment action performed.
