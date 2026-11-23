@@ -817,3 +817,11 @@ For every checkpoint record: phase and subphase ID, exact dated user log and tes
 - **Backend review:** `~/reflect-r10-railway-review`, DETACHED `1c4c121e0e449f1a9360e4fb4588dcf58352e699`, **3 tracked modified + 5,060 untracked**. The latter need path-category classification; do not publish as bulk code, reset/clean, or assume deployed. Remote Railway staging is still online at original pinned SHA; no deployment in this step.
 - **Next** bounded read-only category-by-directory breakdown plus runtime-only filename list from frontend, then explicitly selected isolated clean release worktree, integration/build/one user journey. Avoid broad test replays. [Release Track and detailed notes](./REFLECT_RELEASE_TRACK_MVP_2026-11-23.md).
 - State `P0_LOCAL_INVENTORY=COMPLETE`, `P0_RUNTIME_DIFF=NOT_REVIEWED`, `P0_RELEASE_CANDIDATE=NOT_BUILT`, `PRODUCTION=NOT_ACCEPTED`, `CROSS_SESSION_AI_HISTORY=BLOCKED`.
+
+## 2026-11-23 — P0 runtime source classification accepted, build is next
+
+- Owner true terminal `REFLECT_P0_RUNTIME_SOURCE_CLASSIFICATION` → `P0_CLASSIFICATION_READY`, `FILES_CHANGED=0`, `NETWORK_CALLS=0`; both expected HEAD checks PASS.
+- R9.2 frontend HEAD `6f20f8b31f91729b569f1c4d8a0465e865385811`: 52 tracked modified + 62 untracked. Runtime change groups include Sessions 10, Memory 9, components 5, server/memory 5, SessionSchema 4, Diary 4, Goals 3, Mindspace 3, Archive 3; actual `src/App.jsx`, Goals/Recommendations/Mindspace/Journey/Composer present and modified; API and new Memory files are candidates, not build-proven.
+- R10 dirty backend HEAD `1c4c121e0e449f1a9360e4fb4588dcf58352e699`: 3 tracked modified + 5060 untracked, **4948 = local `server/node_modules`** (97.8%), **112** other untracked source/docs/test candidates. Do not import or deploy entire review workspace; no unsafe cleanup or blanket add.
+- [Detailed release overlay](./REFLECT_RELEASE_TRACK_MVP_2026-11-23.md) records categories. **Next:** guarded local `npm run typecheck` + `npm run build` against actual dirty R9.2 frontend, then address concrete compilation/runtime blockers. No repeated broad security checks before this product-building checkpoint.
+- `P0_RUNTIME_CLASSIFICATION=COMPLETE`; `P0_TYPECHECK_BUILD=NOT_RUN`; `P0_RELEASE_CANDIDATE=NOT_BUILT`; `AI_LONG_HISTORY=BLOCKED`; `PRODUCTION=NOT_DEPLOYED`. No GitHub source/Firestore/Rules/Railway/provider changes.
