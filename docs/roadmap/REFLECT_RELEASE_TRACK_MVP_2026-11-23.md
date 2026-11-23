@@ -377,3 +377,20 @@ service cloud.firestore {
 **Important security boundary remains:** deployed staging Firestore Rules (Nov 7) allow authenticated owner *read and write* across arbitrary owner namespace descendants, including memory events, projections and `memoryControl/erasure`. This is an **integrity flaw for trusted R10/production**, not repaired by Hosting-only deployment. R10 ledger is gated to emulator-only and provider cross-session history/consent Preview remains OFF; **do not enable full R10 memory or present commercial production readiness**. Browser testing should be read-only; do not send sensitive content to paid provider. No Firestore Rules/Functions/Railway/prod config were part of this deployment command.
 
 **Status:** `P0_GITHUB_SHA=d5fad3c9_VERIFIED`, `P0_GITHUB_ACTIONS=5_5_PASS`, `P0_HOSTING_STAGING_DEPLOY=CLI_SUCCESS_2026-11-24`, `P0_STAGING_BROWSER_ACCEPTANCE=PENDING`, `P0_NEW_HOSTING_CONSOLE_RELEASE_ID=NOT_VERIFIED`, `P0_POST_DEPLOY_GIT_STATUS=NOT_INSPECTED`, `P0_FIRESTORE_RULES=MEMORY_OWNER_WRITE_OVERBROAD`, `PRODUCTION=NOT_DEPLOYED`, `FULL_AI_MEMORY=BLOCKED`.
+
+## 2026-11-24 — P0 published staging Eric Sessions visual readback and post-deploy Git status
+
+**User's actual post-deploy browser screenshot:** URL bar `reflect-ai-staging.web.app/?view=sessions&utm_source=chatgpt.com` (the **real Firebase Hosting staging domain**, not `127.0.0.1`). Signed-in pre-existing **Eric** profile appears; a previously saved owner session, its message cards/hypothesis controls, topic-work indicator and message composer render. Side navigation for recommendations, goals, session graph and Mindspace is present. Screenshot contains private session text; deliberately **not** copied into repository docs/issues. This is `STAGING_AUTH_SESSION_READ=VISUALLY_PASS` after owner CLI's `Deploy complete!` at pinned release commit `d5fad3c9dc8832db2f069b43b52abdd1a724a786`. **It does NOT itself prove that the browser downloaded the new JS artifact** (an older UI may render similarly); actual deployed artifact URL/hash compare still needs a targeted HTTP check. It also does not prove fresh provider response, cross-session model memory, new Goals/Mindspace mutations, or live Rules negative tests.
+
+**User's real read-only Git result** from isolated `~/reflect-p0-frontend-release-2026-11-23` worktree:
+```text
+$ git status --short
+?? .firebase/
+$ git rev-parse HEAD
+d5fad3c9dc8832db2f069b43b52abdd1a724a786
+```
+The only displayed Git dirtiness is an **untracked `.firebase/` directory** created during the Firebase CLI Hosting deployment workflow. **No tracked source modifications** are listed. Contents not inspected, so do not delete it, blindly clean/reset, add it to Git, or assume it is only an innocuous single cache file. `qa:staging:preflight` would reject this dirty status if re-run as-is; handle the generated directory deliberately before any subsequent guarded redeploy, preferably through inspected safe ignore strategy, not an uncontrolled deletion.
+
+**Next minimal release verification:** owner can run read-only HTTP test from this isolated checkout: fetch Hosting root HTML with a no-cache request and check the expected asset path `/assets/index-C_xv9x2P.js` and remote JS bytes against the local built `dist/assets/index-C_xv9x2P.js`, without modifying local source, Firebase, Firestore, or calling an AI provider. If identical, this verifies the new bundle is actually publicly served. Then one consciously owner-authorized bounded **synthetic, nonsensitive AI request** on staging may test the existing Railway AI response, persistence and user-led follow-up. Keep R10 ledger + full cross-session history provider egress OFF and never post private diary content in GitHub. Screenshot + Firebase CLI output already justify `P0_STAGING_UI_READ=VISUAL_PASS` but NOT `P0_LIVE_AI_E2E=PASS`.
+
+**Status:** `P0_STAGING_DEPLOY=CLI_SUCCESS`, `P0_STAGING_ERIC_AUTH_SESSION_READ=VISUAL_PASS`, `P0_HOSTED_JS_EXACT_SHA=NOT_VERIFIED`, `P0_WORKTREE_HEAD=d5fad3c9`, `P0_GIT_UNTRACKED=.firebase/`, `P0_CI=5_5_PASS`, `P0_LIVE_AI_E2E=NOT_RUN`, `P0_PRODUCTION=NOT_DEPLOYED`, `R10_MEMORY_PROVIDER=BLOCKED`.
