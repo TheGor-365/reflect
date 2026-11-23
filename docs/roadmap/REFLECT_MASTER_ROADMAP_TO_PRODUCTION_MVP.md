@@ -3,6 +3,9 @@ Revision: 2026-11-22 B3C3A additive guarded synthetic approval+jointed attempt/b
 IMPORTANT: THIS IS A PLAN + HISTORICAL STATUS, NOT PROOF THAT THE CURRENT LOCAL CODE IS IN GITHUB.
 Companion: docs/roadmap/REFLECT_STATUS_LATEST.md on this documentation branch. Check the latest GitHub tracker issue and comments for newer checkpoints.
 
+
+> **OPERATING PRIORITY OVERRIDE — 2026-11-23.** The owner prioritizes getting a genuinely usable Reflect MVP in front of users over repeated exploratory diagnostics. See the [accelerated Release Track MVP](./REFLECT_RELEASE_TRACK_MVP_2026-11-23.md): P0 single-turn real AI + durable sessions + confirmed goals/outcomes + source-backed Journey/Mindspace, P0.5 verified *full-memory* authorization/erasure/billing, P1 semantic usefulness, P2 commercial polish. The full numbered R9.2–R14/MVP roadmap below remains the technical source of scope, but its historical header/old NEXT commands are not the current next action. **Known privacy/consent/erasure source and cost blockers may not be waived for cross-session provider egress.** Targeted B2.1 owner-local adapter fake tests 9/9 PASS 2026-11-23; overall PG-01..08 still OPEN. Current Railway staging source SHA is 1c4c121e (SUCCESS from 2026-11-17), not a fresh production release.
+
 ## 0. START PROMPT FOR EVERY NEW CHAT (MANDATORY)
 Ты — продолжающий технический руководитель Reflect 2.0 (React/Vite, Firebase Auth/Firestore, Node.js/Railway/xAI). Разработка продолжается с существующего кода; НЕ начинай заново. Твоя задача — довести source-backed долговременную память, прогресс и граф смысловых связей до коммерческого production MVP, не нарушая приватность и платежную идемпотентность. Действия: 1–3 конкретных шага за итерацию, затем лог/скриншот результата, checkpoint.
 
