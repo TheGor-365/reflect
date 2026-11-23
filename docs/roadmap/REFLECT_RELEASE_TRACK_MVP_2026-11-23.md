@@ -320,3 +320,36 @@ Owner attempted guarded push of local release commit `fc4c4141afae7eff10753a9485
 **Remaining immediate release gates (no re-testing finished steps):** (1) inspect currently **deployed Firestore Rules** for `reflect-ai-staging` in Firebase Console (read-only); QA fixture `tests/emulator/firestore.rules` does not equal live deployed Rules, and new client export reads 7 collections including 3 memory. Distinguish server-private erasure/budget records from owner-visible memory collections; no blind widening of live Rules. (2) ensure rollback to prior known-good Hosting version is actionable; console screenshot already shows active UI-short hash `87578d` on 2026-11-18 17:02 and preceding `dd0e62` on 2026-11-17 17:28, but full version IDs/rollback verification unconfirmed. Firebase's official Hosting release-history supports inspecting versions/rollback; NEVER click Rollback before release approval. (3) verify exact pinned SHA and perform owner-reviewed **Hosting-only staging release**; NO Firestore Rules/Functions/Railway/production changes, no private data/model egress. Firebase Hosting release REST API can list releases and version names, but no direct authorized Firebase API connector was used or version ID fetched.
 
 **State:** `P0_PR137_GITHUB_ACTIONS=5_OF_5_PASS`, `P0_REMOTE_HEAD=d5fad3c9_VERIFIED`, `P0_AUTH_FIRESTORE_EMULATOR=PASS`, `P0_VERCEL=EXTERNAL_RATE_LIMIT`, `P0_STAGING_LIVE_RULES=NOT_VERIFIED`, `P0_HOSTING_ROLLBACK_FULL_VERSION=NOT_VERIFIED`, `P0_STAGING_DEPLOY=NOT_DONE`, `PRODUCTION=NOT_DEPLOYED`, `FULL_CROSS_SESSION_MODEL_MEMORY=BLOCKED`.
+
+## 2026-11-24 — P0 actual live staging Firestore Rules screenshot verified 2026-11-24
+
+**Ground truth owner Firebase Console screenshot:** page path `/project/reflect-ai-staging/firestore/databases/-default-/security/rules`, database `(default)`, active Rules version highlighted as **2026-11-07 11:46 PM** in the console's displayed locale/timezone. Read-only viewing; **no Rules publish or data modification**. Active code (reproduced here only as policy shape, no account email or user data):
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /_reflectAiPrivate/{document=**} {
+      allow read, write: if false;
+    }
+    match /artifacts/{appNamespace}/users/{uid}/{document=**} {
+      allow read, write: if appNamespace == 'reflect-8fdc8'
+        && request.auth != null
+        && request.auth.uid == uid;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+```
+
+**Formal semantics (Firebase official Security Rules docs):** Rules v2 recursive wildcard `{document=**}` matches all descendant document paths, including all nested collections. Multiple matching `allow` statements are OR, so the terminal catch-all `if false` does **NOT** revoke earlier `if true`. This means **signed-in matching owner UID** has `read` / `write` for ALL descendant documents in `artifacts/reflect-8fdc8/users/{uid}`, including exported `memoryTopics`, `memoryEvents`, `memoryProjections` (so **owner read compatibility confirmed by rule inspection**, not a real signed live 7-collection read operation), plus `memoryControl/erasure`, nested unknown collections, create/update/delete without field-schema checks. Foreign UID and anonymous are denied by this match; `/_reflectAiPrivate/**` is explicitly denied to browsers and not under the owner namespace.
+
+**IMPORTANT SECURITY FINDING:** user-owned memory event log, projections, topic counters, and the **owner-readable trusted erasure marker** are currently client-writable in real staging. This conflicts with trust claims like “append-only server-attested evidence”, “trusted Admin-only erasure fence” and the **synthetic** QA Rules, which grant read-only owner access to `memoryTopics/events/projections`. An authenticated owner can use Firestore client APIs to forge/overwrite/delete these records under current live staging Rules; Firebase Rules do not enforce an append-only ledger by convention. Do not treat as production-ready security. This broad rule is **pre-existing (Nov 7)**; the new frontend test-only commits did not introduce it. This does NOT imply cross-UID exposure; it is an **integrity** failure / server-only boundary problem. Need separate exact path inventory and negative Rules tests for `memoryControl/erasure` before publishing stricter rules. **Never blindly publish the local `tests/emulator/firestore.rules` as production**, which only permits its explicitly listed fields/collections and might break unseen staging workflows.
+
+**Release impact, scoped:** R10 event-ledger client function `memoryLedgerEnabled()` is hard-gated to `VITE_USE_FIREBASE_EMULATORS==='true'` AND `VITE_ENABLE_REFLECT_MEMORY_LEDGER==='true'`; latest approved staging guard requires emulators false and contextPreview false. Thus **P0 Hosting-only staging visual release** with R10 memory authoring disabled remains a separate reviewable candidate, but trust-based R10 history/erasure and public/production release must NOT be enabled under these Rules. Reassess before staging Hosting publish and do not run real user memory writes or provider context send. Live 7-collection **getDocs** still requires runtime confirmation; screenshot is policy-level proof only.
+
+**Next immediate two gates:** (1) obtain **full Firebase Hosting VERSION_ID** and confirm rollback availability for the observed previous Release History **2026-11-17 17:28, short hash `dd0e62`** (active prior 2026-11-18 17:02, short hash `87578d`); read-only Console details, no Rollback click. (2) make separate staged Rules hardening design/test with explicit owner read-only memory and client-denied trusted `memoryControl`, while preserving legacy valid flows; reviewed changes remain **NOT DEPLOYED**. No premature standalone real Rules change without scoped review, emulator evidence and owner approval. Production and paid provider history EGRESS BLOCKED.
+
+**Status:** `P0_LIVE_STAGING_RULES=SCREENSHOT_INSPECTED`, `P0_OWNER_MEMORY_READ_BY_RULES=ALLOWED`, `P0_OWNER_MEMORY_WRITE_BY_RULES=ALLOWED_SECURITY_RISK`, `P0_OWNER_MEMORY_CONTROL_WRITE_BY_RULES=ALLOWED_SECURITY_RISK`, `P0_GITHUB_ACTIONS=5_5_PASS`, `P0_HOSTING_VERSION_ID=NOT_VERIFIED`, `P0_STAGING_DEPLOY=NOT_DONE`, `P0_PRODUCTION=NOT_DEPLOYED`, `R10_HISTORY_PROVIDER_EGRESS=BLOCKED`.
