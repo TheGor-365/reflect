@@ -6,6 +6,7 @@
  * inferred causal links, psychiatric scoring or invented completion dates.
  */
 import { sessionDisplayTitle } from '../Diary/diaryPresentation';
+import { isArchivedRecord } from '../Archive/archiveSelectors';
 
 export const JOURNEY_VERSION = 'reflect.journey.v1';
 export const NODE_LIMIT = 160;
@@ -34,7 +35,9 @@ function node(id, type, sessionId, label, extras = {}) {
 }
 
 /** Never treat an AI proposal as a user decision or real-world outcome. */
-export function projectJourney(sessions = [], goals = [], { maxNodes = NODE_LIMIT } = {}) {
+export function projectJourney(sessions = [], goals = [], {
+  maxNodes = NODE_LIMIT, includeArchivedRecommendations = false
+} = {}) {
   const nodes = [], edges = [], ids = new Set();
   const issues = [];
   const bounded = Number.isInteger(maxNodes) && maxNodes > 0
@@ -99,6 +102,7 @@ export function projectJourney(sessions = [], goals = [], { maxNodes = NODE_LIMI
           const proposalId = `proposal:${sessionId}:${realId || 'legacy-'+i}:${c}`;
           const decisionKey = realId ? `r-${realId}-${c}` : null;
           const decision = decisionKey && session.recommendationDecisions?.[decisionKey];
+          if (!includeArchivedRecommendations && isArchivedRecord(decision)) continue;
           const status = allowedDecisionStatuses.has(decision?.status)
             ? decision.status : 'proposed';
           add(node(proposalId, 'proposal', sessionId, candidate.title, {
@@ -118,7 +122,8 @@ export function projectJourney(sessions = [], goals = [], { maxNodes = NODE_LIMI
     const decisionMap = new Map();
     if (decisions && typeof decisions === 'object' && !Array.isArray(decisions)) {
       for (const [decisionKey, value] of Object.entries(decisions).sort()) {
-        if (!value || !allowedDecisionStatuses.has(value.status) ||
+        if (!value || (!includeArchivedRecommendations && isArchivedRecord(value)) ||
+            !allowedDecisionStatuses.has(value.status) ||
             !key(value.assistantMessageId) ||
             !Number.isInteger(value.candidateIndex) || value.candidateIndex < 0 ||
             value.candidateIndex > 1 ||

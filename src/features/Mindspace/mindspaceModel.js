@@ -4,6 +4,7 @@
  * Sessions and Goals. No AI-generated or inferred relationship is a fact.
  */
 import { sessionDisplayTitle } from '../Diary/diaryPresentation';
+import { isArchivedRecord } from '../Archive/archiveSelectors';
 import { MINDSPACE_ZONES, resolveMindZone } from './mindspaceZones';
 
 export const MINDSPACE_VERSION = 'reflect.mindspace.v1';
@@ -27,15 +28,17 @@ const time = value => {
 };
 
 export function buildMindspace(sessions=[],goals=[],{
-  maxNodes=MINDSPACE_NODE_LIMIT,includeProposals=true
+  maxNodes=MINDSPACE_NODE_LIMIT,includeProposals=true,includeArchived=false
 }={}) {
   const cap=Number.isInteger(maxNodes) && maxNodes > 0 ?
     Math.min(maxNodes,160) : MINDSPACE_NODE_LIMIT;
-  const safeSessions=(Array.isArray(sessions)?sessions:[])
-    .filter(item=>validId(item?.id))
+  const allSessions=Array.isArray(sessions)?sessions:[];
+  const allGoals=Array.isArray(goals)?goals:[];
+  const safeSessions=allSessions
+    .filter(item=>validId(item?.id) && (includeArchived || !isArchivedRecord(item)))
     .slice().sort((a,b)=>a.id.localeCompare(b.id));
-  const safeGoals=(Array.isArray(goals)?goals:[])
-    .filter(item=>validId(item?.id))
+  const safeGoals=allGoals
+    .filter(item=>validId(item?.id) && (includeArchived || !isArchivedRecord(item)))
     .slice().sort((a,b)=>a.id.localeCompare(b.id));
   const nodes=[],edges=[],used=new Set(),issues=[];
   let truncated=false;
@@ -55,6 +58,7 @@ export function buildMindspace(sessions=[],goals=[],{
       id:`session:${session.id}`,kind:'session',refId:session.id,
       label,zone:zone.id,zoneConfirmedByOwner:zone.confirmedByOwner,
       subtitle:'Сохранённая тема',author:'user',status:'saved',
+      archived:isArchivedRecord(session),
       sourceRef:{kind:'session',sessionId:session.id},
       at:time(session.createdAt)
     });
@@ -64,6 +68,7 @@ export function buildMindspace(sessions=[],goals=[],{
       id:`goal:${goal.id}`,kind:'goal',refId:goal.id,
       label:title(goal.text,'Цель без названия'),
       subtitle:'Цель пользователя',author:'user',
+      archived:isArchivedRecord(goal),
       status:goal.completed === true || goal.status === 'completed'
         ? 'completed' : goal.status === 'paused' ? 'paused' : 'active',
       sourceRef:{kind:'goal',goalId:goal.id,sessionId:validId(goal.sessionId)
@@ -91,11 +96,13 @@ export function buildMindspace(sessions=[],goals=[],{
           const proposalId=`proposal:${session.id}:${validId(msg.id)?msg.id:'legacy-'+i}:${c}`;
           const decisionKey=validId(msg.id)?`r-${msg.id}-${c}`:null;
           const decision=decisionKey&&session.recommendationDecisions?.[decisionKey];
+          if(!includeArchived && isArchivedRecord(decision)) continue;
           const status=['accepted','saved','postponed','dismissed'].includes(decision?.status)
             ?decision.status:'proposed';
           addNode({id:proposalId,kind:'proposal',refId:proposalId,
             label:title(candidate.title,'AI-предложение',90),
             subtitle:'Идея AI, не факт',author:'ai',status,
+            archived:isArchivedRecord(session) || isArchivedRecord(decision),
             sourceRef:{kind:validId(msg.id)?'turn':'session',
               sessionId:session.id,...(validId(msg.id)?{turnId:msg.id}:{})},
             at:time(msg.timestamp)});
@@ -119,7 +126,16 @@ export function buildMindspace(sessions=[],goals=[],{
       const from=`session:${session.id}`;
       const to=`${link.targetKind}:${link.targetId}`;
       if(!used.has(from)||!used.has(to)||from===to){
-        issues.push('missing-source-or-target');continue;
+        // An archived endpoint can be hidden from the active projection.
+        // Its saved semantic link has not been deleted or corrupted.
+        const archivedTarget = target => target?.id===link.targetId &&
+          isArchivedRecord(target);
+        const hiddenArchived = !includeArchived && (
+          (link.targetKind==='session' && allSessions.some(archivedTarget)) ||
+          (link.targetKind==='goal' && allGoals.some(archivedTarget))
+        );
+        if(!hiddenArchived) issues.push('missing-source-or-target');
+        continue;
       }
       addEdge({id:`semantic:${session.id}:${link.id}`,
         from,to,kind:'semantic',relation:link.relation,

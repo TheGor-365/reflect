@@ -2,6 +2,10 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import Recommendations from './Recommendations';
 
+vi.mock('../Sessions/recommendationDecisions', () => ({
+  applyRecommendationDecision: vi.fn()
+}));
+
 const structured = {
   version: 'reflect.interaction.v1', intent: 'plan', stage: 'synthesize',
   clarifyingQuestion: '', insights: [], unknowns: [], safetyFlags: [],

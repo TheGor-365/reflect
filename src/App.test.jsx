@@ -11,6 +11,7 @@ vi.mock('firebase/firestore', () => ({
   getDoc: vi.fn(),
   setDoc: vi.fn(),
   updateDoc: vi.fn(),
+  runTransaction: vi.fn(),
   arrayUnion: vi.fn(),
   Timestamp: { now: vi.fn() }
 }));
@@ -210,3 +211,27 @@ test('M7b: forged source decision cannot switch sessions or expose a goal ID', a
   fireEvent.click(screen.getByRole('button', { name: 'Test direct return' }));
   expect(screen.queryByTestId('session-intent')).not.toBeInTheDocument();
 });
+
+test.each(['session','goal'])(
+  'R9.2.4C-C direct goal return ignores archived %s while preserving source records',
+  async archivedKind => {
+    getDoc.mockResolvedValue({exists:()=>true,data:()=>({name:'Owner'})});
+    const archivedAt={seconds:1790000000};
+    const activeSession={id:'saved-session',recommendationDecisions:{
+      'r-assistant-0':{status:'accepted',goalId:'linked-goal',assistantMessageId:'assistant'}
+    }};
+    const activeGoal={id:'linked-goal',sessionId:'saved-session',
+      sourceRecommendationKey:'r-assistant-0',sourceAssistantMessageId:'assistant',
+      sourceType:'user-accepted-ai-recommendation'};
+    useFirestore.mockImplementation(kind=>({
+      data:kind==='sessions'?[{...activeSession,...(archivedKind==='session'?{archivedAt}:{})}]
+        :kind==='goals'?[{...activeGoal,...(archivedKind==='goal'?{archivedAt}:{})}]:[],
+      loading:false,error:null
+    }));
+    render(<App/>);
+    fireEvent.click(await screen.findByRole('button',{name:'Goals nav'}));
+    fireEvent.click(screen.getByRole('button',{name:'Test direct return'}));
+    expect(screen.queryByTestId('session-intent')).not.toBeInTheDocument();
+    expect(window.location.search).not.toContain('linked-goal');
+  }
+);

@@ -271,3 +271,17 @@ describe('M6a owner choice remains available but ungrounded goals are rejected i
     expect(goal).toBeNull();
   });
 });
+
+
+it('R9.2.4C rejects stale decision writes into archived source or archived recommendation', async () => {
+  session.archivedAt={seconds:42};
+  await expect(applyRecommendationDecision({...params,action:'saved'}))
+    .rejects.toThrow(/Сначала восстановите/);
+  delete session.archivedAt;
+  session.recommendationDecisions={
+    [`r-${assistantMessage.id}-0`]:{status:'postponed',archivedAt:{seconds:42}}
+  };
+  await expect(applyRecommendationDecision({...params,action:'saved'}))
+    .rejects.toThrow(/Сначала восстановите/);
+  expect(writes).toEqual([]);
+});

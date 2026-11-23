@@ -4,11 +4,17 @@ import {
 import { auth, db, appId } from '../firebase/config';
 
 // User-initiated local copy: NOT an encrypted backup or a validated restore.
-export const OWNER_EXPORT_COLLECTIONS = Object.freeze([
+// Version 1 covered only four collections. Keep the exact legacy set for
+// inspecting older local JSON without silently treating it as a complete R10 export.
+export const LEGACY_OWNER_EXPORT_COLLECTIONS = Object.freeze([
   'sessions', 'goals', 'moods', 'diaryNotes'
 ]);
+export const OWNER_EXPORT_COLLECTIONS = Object.freeze([
+  ...LEGACY_OWNER_EXPORT_COLLECTIONS,
+  'memoryTopics', 'memoryEvents', 'memoryProjections'
+]);
 export const OWNER_EXPORT_MAX_BYTES = 25 * 1024 * 1024;
-export const OWNER_EXPORT_SCHEMA_VERSION = 1;
+export const OWNER_EXPORT_SCHEMA_VERSION = 2;
 
 const isPlainObject = value => {
   if (value === null || typeof value !== 'object') return false;
@@ -74,8 +80,13 @@ function ensureOwner(uid) {
 }
 
 /**
- * Reads known owner-owned collections directly from Firebase, not cached UI
- * snapshots. Firestore security rules enforce ownership.
+ * Client-accessible, direct owner-namespace export. NOT a comprehensive
+ * account erasure/export: server-private consent, receipts, provider budgets,
+ * nested subcollections and external processor copies require a separate
+ * authenticated server-side privacy workflow.
+ *
+ * Fail closed if even one list fails; never label four old collections as
+ * covering the new R10 memory documents. No provider calls or writes.
  */
 export async function buildOwnerExport({ now = new Date() } = {}) {
   const current = ownerNow();
@@ -92,7 +103,10 @@ export async function buildOwnerExport({ now = new Date() } = {}) {
     ensureOwner(uid);
     const ids = new Set();
     collections[name] = snapshot.docs.map(document => {
-      if (typeof document.id !== 'string' || !document.id || ids.has(document.id)) {
+      if (typeof document.id !== 'string' ||
+          !document.id || document.id === '.' || document.id === '..' ||
+          document.id.includes('/') || document.id.length > 1500 ||
+          ids.has(document.id)) {
         throw new Error('Экспорт остановлен из-за недопустимого ID документа.');
       }
       ids.add(document.id);

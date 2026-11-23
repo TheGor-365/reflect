@@ -11,7 +11,10 @@ test('UX R5: explicit reply moves focus without mutating draft or submitting', (
   const { rerender } = render(<SessionComposer {...props} focusRequest={0}/>);
   const textbox = screen.getByRole('textbox', {name:'Сообщение для сеанса'});
   expect(textbox).not.toHaveFocus();
+  const scrollIntoView = vi.fn();
+  textbox.scrollIntoView = scrollIntoView;
   rerender(<SessionComposer {...props} focusRequest={1}/>);
+  expect(scrollIntoView).not.toHaveBeenCalled();
   expect(textbox).toHaveFocus();
   expect(screen.getByRole('region', {name:'Поле ввода для сеанса'}))
     .toHaveClass('reflect-session-composer--reply-focus');

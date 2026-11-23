@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { buildDashboardSnapshot } from './dashboardModel';
 import { buildRecommendationInbox } from '../Recommendations/recommendationInbox';
+import { isArchivedRecord, isArchivedRecommendation } from '../Archive/archiveSelectors';
 import SmoothDisclosure from '../../components/common/SmoothDisclosure';
 
 const dateLabel=at=>at===null?'Дата не сохранена':
@@ -28,14 +29,18 @@ export default function Dashboard({
     sessions,goals,diaryNotes,days,nowMs
   }),[sessions,goals,diaryNotes,days,nowMs]);
   const inbox=useMemo(()=>buildRecommendationInbox(sessions),[sessions]);
-  const waitingRecommendation=inbox.recommendations.find(item=>item.status==='pending');
-  const waitingClarification=inbox.clarifications[0]||null;
+  const waitingRecommendation=inbox.recommendations.find(item=>
+    item.status==='pending'&&!isArchivedRecommendation(item));
+  const waitingClarification=inbox.clarifications.find(item=>!item.sourceSessionArchived)||null;
   const recommendationProvisional=Boolean(waitingRecommendation &&
     (waitingRecommendation.reviewedCount < waitingRecommendation.hypothesisCount ||
       waitingRecommendation.challengedCount > 0 ||
       waitingRecommendation.unknowns.length > 0));
   const maxCount=Math.max(1,...snapshot.activity.map(day=>day.total));
   const hasAny=sessions.length>0||goals.length>0||diaryNotes.length>0;
+  const archivedOnly=hasAny && !diaryNotes.length &&
+    !sessions.some(item=>!isArchivedRecord(item)) &&
+    !goals.some(item=>!isArchivedRecord(item));
   const hasPeriodEvents=snapshot.eventCounts.total>0;
   return (
     <section className="reflect-dashboard" aria-label="Личный обзор Reflect">
@@ -59,6 +64,10 @@ export default function Dashboard({
           Показатели неполные; исходные записи не изменены.
         </p>
       )}
+      {archivedOnly && <p role="status" className="reflect-dashboard-note">
+        Все сеансы и цели находятся в архиве. История сохранена; для продолжения
+        восстановите нужный объект в его разделе.
+      </p>}
       {!hasAny?(
         <div className="reflect-dashboard-empty" role="status">
           <h3>Ваше пространство пока пусто</h3>

@@ -8,6 +8,7 @@ import {
   projectJourney, filterJourney, journeyFacts, journeyCoverage, layoutJourney, journeyDate
 } from './journeyModel';
 import { summarizeOwnerHypothesisRatings } from './hypothesisStatistics';
+import { isArchivedRecord } from '../Archive/archiveSelectors';
 
 const KINDS = [
   ['all','Все события'],['dialogue','Диалог'],
@@ -51,9 +52,16 @@ const GRAPH_PAD=28; // Unscaled viewport-space padding on all sides.
 
 export default function JourneyMap({
   sessions = [], goals = [], selectedSessionId = null,
-  onOpenSource
+  includeArchived = false, onOpenSource
 }) {
-  const [sessionFilter,setSessionFilter]=useState(selectedSessionId || sessions[0]?.id || '');
+  const archiveRequested = sessions.some(session => session.id === selectedSessionId &&
+    isArchivedRecord(session));
+  const historyMode = includeArchived || archiveRequested;
+  const mappedSessions = useMemo(() => historyMode ? sessions :
+    sessions.filter(session => !isArchivedRecord(session)),[sessions,historyMode]);
+  const mappedGoals = useMemo(() => historyMode ? goals :
+    goals.filter(goal => !isArchivedRecord(goal)),[goals,historyMode]);
+  const [sessionFilter,setSessionFilter]=useState(selectedSessionId || mappedSessions[0]?.id || '');
   const [period,setPeriod]=useState('all');
   const [kind,setKind]=useState('all');
   const [status,setStatus]=useState('all');
@@ -67,7 +75,9 @@ export default function JourneyMap({
   const pendingScroll=useRef(null);
   const lastRequestedSession=useRef(selectedSessionId);
   const mobileRef=useRef(mobileGraph());
-  const graph=useMemo(()=>projectJourney(sessions,goals),[sessions,goals]);
+  const graph=useMemo(()=>projectJourney(mappedSessions,mappedGoals,{
+    includeArchivedRecommendations:historyMode
+  }),[mappedSessions,mappedGoals,historyMode]);
   const visibleSessions=useMemo(()=>graph.nodes.filter(n=>n.type==='session'),[graph]);
   // Always show exactly one persisted session. Keep the user's manual choice
   // while it is valid; only fall back when that record is no longer available.
@@ -75,16 +85,16 @@ export default function JourneyMap({
     ? sessionFilter
     : visibleSessions.some(n=>n.sessionId===selectedSessionId)
       ? selectedSessionId
-      : sessions.find(s=>visibleSessions.some(n=>n.sessionId===s.id))?.id || '';
+      : mappedSessions.find(s=>visibleSessions.some(n=>n.sessionId===s.id))?.id || '';
   const projected=useMemo(()=>filterJourney(graph,{
     sessionId:activeSessionId,period,kind,status
   }),[graph,activeSessionId,period,kind,status]);
   const layout=useMemo(()=>layoutJourney(projected),[projected]);
   const facts=useMemo(()=>journeyFacts(projected,period),[projected,period]);
   const coverage=useMemo(()=>journeyCoverage(projected),[projected]);
-  const hypothesisStats=useMemo(()=>summarizeOwnerHypothesisRatings(sessions,{
+  const hypothesisStats=useMemo(()=>summarizeOwnerHypothesisRatings(mappedSessions,{
     sessionId:activeSessionId,period
-  }),[sessions,activeSessionId,period]);
+  }),[mappedSessions,activeSessionId,period]);
   const selected=projected.nodes.find(node=>node.id===selectedId) || null;
   // Respect a newly requested session, but don't erase a manual choice on
   // unrelated Firestore updates. Newly loaded sessions get a valid fallback.
@@ -96,8 +106,8 @@ export default function JourneyMap({
       preferredChanged && ids.has(selectedSessionId) ? selectedSessionId
         : ids.has(previous) ? previous
           : ids.has(selectedSessionId) ? selectedSessionId
-            : sessions.find(s=>ids.has(s.id))?.id || '');
-  },[selectedSessionId,graph,sessions,visibleSessions]);
+            : mappedSessions.find(s=>ids.has(s.id))?.id || '');
+  },[selectedSessionId,graph,mappedSessions,visibleSessions]);
   useEffect(() => {
     setSelectedId(value=>projected.nodes.some(node=>node.id===value)?value:null);
   },[projected]);
@@ -256,6 +266,8 @@ export default function JourneyMap({
           <h2><GitBranch size={24} aria-hidden="true"/> Карта пути</h2>
         </div>
       </header>
+      {mappedSessions.some(session=>session.id===activeSessionId && isArchivedRecord(session)) &&
+        <p role="status" className="reflect-journey-note">Архивная тема · карта доступна только для чтения</p>}
       <div className="reflect-journey-filters" role="group" aria-label="Фильтры карты">
         <ReflectSelect label="Тема" ariaLabel="Тема карты"
           value={activeSessionId} onChange={setAndReset(setSessionFilter)}
@@ -271,7 +283,9 @@ export default function JourneyMap({
       </div>
       {projected.nodes.length===0||!projected.nodes.some(n=>n.type!=='session') ? (
         <div className="reflect-journey-empty" role="status">
-          <strong>{sessions.length===0?'Пока нет сохранённых сеансов':'Нет событий под выбранные фильтры'}</strong>
+          <strong>{mappedSessions.length===0
+              ? (sessions.length===0?'Пока нет сохранённых сеансов':'Пока нет текущих сеансов')
+              : 'Нет событий под выбранные фильтры'}</strong>
           <p>Начните сеанс и явно сохраните его. AI-предложения без решения не становятся достижениями; старые данные не изменяются.</p>
           {(period!=='all'||kind!=='all'||status!=='all')&&(
             <button type="button" onClick={()=>{

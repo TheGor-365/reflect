@@ -333,7 +333,58 @@ async function runBrowserSuite() {
     }
     console.log("PASS: local owner schema inventory is opt-in, aggregate-only and non-mutating");
 
-    await first.getByRole("checkbox").check();
+    // R10 memory archives must remain inspection-only.
+    const recoverySummary = first.locator(".reflect-owner-recovery-summary");
+
+    await recoverySummary.getByText(/R10 архив включает память/)
+      .waitFor({ timeout: 30000 });
+
+    if (
+      await recoverySummary.getByRole("checkbox").count() !== 0 ||
+      await recoverySummary.getByRole("button", {
+        name: "Восстановить отсутствующие записи в тестовой среде"
+      }).count() !== 0
+    ) {
+      throw new Error("R10 archive unexpectedly enabled client restore");
+    }
+
+    console.log("PASS: R10 memory archive stays inspection-only");
+
+    // Legacy restore compatibility is tested using synthetic demo data.
+    const legacyCollections = [
+      "sessions", "goals", "moods", "diaryNotes"
+    ];
+
+    if (
+      ownerArchive.schemaVersion !== 2 ||
+      legacyCollections.some(
+        name => !Array.isArray(ownerArchive.collections?.[name])
+      )
+    ) {
+      throw new Error("Synthetic R10 archive has unexpected structure");
+    }
+
+    const legacyDemoArchive = {
+      ...ownerArchive,
+      schemaVersion: 1,
+      collections: Object.fromEntries(
+        legacyCollections.map(
+          name => [name, ownerArchive.collections[name]]
+        )
+      )
+    };
+
+    await first.getByLabel("Файл экспорта Reflect (JSON)")
+      .setInputFiles({
+        name: "synthetic-legacy-v1.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(JSON.stringify(legacyDemoArchive))
+      });
+
+    await recoverySummary.getByRole("checkbox")
+      .waitFor({ timeout: 30000 });
+
+    await recoverySummary.getByRole("checkbox").check();
     await first.getByLabel("Введите ВОССТАНОВИТЬ для подтверждения").fill("ВОССТАНОВИТЬ");
     first.once("dialog", dialog => dialog.accept());
     await first.getByRole("button", {

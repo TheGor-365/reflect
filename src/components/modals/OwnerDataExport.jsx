@@ -25,7 +25,7 @@ export default function OwnerDataExport({ userId }) {
   const handleExport = async () => {
     if (busyRef.current || !userId) return;
     const accepted = window.confirm(
-      'Скачать личные записи, цели, настроение, сеансы и профиль в JSON? ' +
+      'Скачать сеансы, дневник, цели, настроение, память и профиль в JSON? ' +
       'Файл НЕ зашифрован. Храните его только в защищённом месте и не ' +
       'загружайте в публичный GitHub, общие папки или сторонний ИИ.'
     );
@@ -64,13 +64,16 @@ export default function OwnerDataExport({ userId }) {
       </div>
       <p>
         Можно сохранить собственные записи дневника, цели, отметки настроения,
-        историю сеансов и профиль. Выгрузка не удаляет данные с сервера.
+        историю сеансов, память тем, события памяти и профиль. Выгрузка
+        не удаляет данные с сервера.
       </p>
       <p className="reflect-owner-export-warning">
         <ShieldAlert size={16} aria-hidden="true" />
         JSON не зашифрован. Это личная копия, но пока не проверенный формат
         автоматического восстановления. При изменении записей во время экспорта
         разные разделы могут относиться к разным моментам времени.
+        Серверные согласия, AI-квитанции и другие служебные записи в этот
+        клиентский архив не входят. R10 JSON нельзя автоматически восстановить.
       </p>
       <button type="button" onClick={handleExport} disabled={busy || !userId}
         className="reflect-auth-secondary reflect-owner-export-button">

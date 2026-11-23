@@ -3,6 +3,8 @@
  * writes and never changes a source document. Missing/unresolved timestamps stay
  * visible in an undated group rather than being assigned an invented date.
  */
+import { isArchivedRecord } from '../Archive/archiveSelectors';
+
 export type DiarySource = 'session' | 'goal' | 'mood' | 'note';
 // Recommendations are an intentionally empty filter until a verified source exists.
 export type DiaryFilter = DiarySource | 'recommendation' | 'all';
@@ -19,6 +21,8 @@ export interface DiaryTimelineEvent {
   parentSessionId: string | null;
   isPending: boolean;
   isAppend: boolean;
+  archived: boolean;
+  sourceSessionArchived: boolean;
   entryIndex: number | null;
   data: LegacyRecord;
 }
@@ -94,12 +98,13 @@ export function localCalendarKey(date: Date, timeZone?: string): string {
 
 function makeEvent(kind: DiarySource, record: LegacyRecord, id: string,
   eventKey: string, at: unknown, parentSessionId: string | null,
-  isAppend = false, entryIndex: number | null = null): DiaryTimelineEvent {
+  isAppend = false, entryIndex: number | null = null,
+  archived = false, sourceSessionArchived = false): DiaryTimelineEvent {
   const displayAt = timestampDate(at);
   return {
     id, type: kind, sourceKind: kind, sourceId: id, eventKey,
     createdAt: at, displayAt, parentSessionId, isPending: !displayAt,
-    isAppend, entryIndex, data: record
+    isAppend, archived, sourceSessionArchived, entryIndex, data: record
   };
 }
 
@@ -107,11 +112,13 @@ export function buildDiaryTimeline({
   sessions = [], goals = [], moods = [], diaryNotes = []
 }: Collections): DiaryTimelineEvent[] {
   const events: DiaryTimelineEvent[] = [];
+  const archivedSessionIds = new Set(sessions.filter(isArchivedRecord)
+    .map(session => session.id).filter((id): id is string => typeof id === 'string'));
   sessions.forEach((raw, index) => {
     const record = asRecord(raw);
     const id = sourceId(record, index, 'session');
     events.push(makeEvent('session', record, id, `session:${id}`,
-      record.createdAt, id));
+      record.createdAt, id, false, null, isArchivedRecord(record)));
     // M8a: an owner-authored return is a DISTINCT read-only Diary event.
     // Never replay the whole conversation, infer completion, or invent a date.
     const seen = new Set<string>();
@@ -135,7 +142,7 @@ export function buildDiaryTimeline({
       };
       events.push(makeEvent('session', payload, id,
         `session:${id}:return:${visitId}`, visit.recordedAtClient,
-        id, true, visitIndex));
+        id, true, visitIndex, isArchivedRecord(record)));
     });
   });
   goals.forEach((raw, index) => {
@@ -145,18 +152,20 @@ export function buildDiaryTimeline({
     const reflections = asRecords(record.reflections);
     events.push(makeEvent('goal',
       reflections.length ? { ...record, reflections: [] } : record,
-      id, `goal:${id}`, record.createdAt, parent));
+      id, `goal:${id}`, record.createdAt, parent, false, null,
+      isArchivedRecord(record), Boolean(parent && archivedSessionIds.has(parent))));
     reflections.forEach((entry, reflectionIndex) => {
       events.push(makeEvent('goal', { ...record, reflections: [entry] },
         id, `goal:${id}:reflection:${reflectionIndex}`,
-        entry.createdAt, parent, true));
+        entry.createdAt, parent, true, null, isArchivedRecord(record),
+        Boolean(parent && archivedSessionIds.has(parent))));
     });
   });
   moods.forEach((raw, index) => {
     const record = asRecord(raw);
     const id = sourceId(record, index, 'mood');
     events.push(makeEvent('mood', record, id, `mood:${id}`,
-      record.createdAt, null));
+      record.createdAt, null, false, null, isArchivedRecord(record)));
   });
   diaryNotes.forEach((raw, index) => {
     const record = asRecord(raw);
@@ -164,14 +173,15 @@ export function buildDiaryTimeline({
     const entries = asRecords(record.entries);
     if (!entries.length) {
       events.push(makeEvent('note', record, id, `note:${id}`,
-        record.createdAt, null));
+        record.createdAt, null, false, null, isArchivedRecord(record)));
     }
     entries.forEach((entry, entryIndex) => {
       // A later note entry is a dated event of its own, not a replay of the
       // entire note under the parent's original creation date.
       events.push(makeEvent('note', { ...record, entries: [entry] },
         id, `note:${id}:entry:${entryIndex}`,
-        entry.createdAt, null, entryIndex > 0, entryIndex));
+        entry.createdAt, null, entryIndex > 0, entryIndex,
+        isArchivedRecord(record)));
     });
   });
   return events.sort((a, b) => {

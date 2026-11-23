@@ -11,6 +11,7 @@ import { removeMindLink, saveMindLink, renameMindTopic, saveMindZone } from './m
 import { MINDSPACE_ZONES, mindZoneLabel } from './mindspaceZones';
 import SmoothDisclosure from '../../components/common/SmoothDisclosure';
 import ReflectContentIcon from '../../components/common/ReflectContentIcon';
+import { isArchivedRecord } from '../Archive/archiveSelectors';
 import './mindspace.css';
 
 const ICONS={session:BrainCircuit,goal:Target,proposal:Lightbulb};
@@ -28,14 +29,16 @@ function MindNode({node,selected,pendingSource,onSelect}){
   return (
     <button type="button" className={`reflect-mind-node reflect-mind-node--${node.kind}
       ${selected?'is-selected':''} ${pendingSource?'is-source':''}
-      ${node.status==='proposed'?'is-proposed':''}`}
+      ${node.status==='proposed'?'is-proposed':''}
+      ${node.archived?'is-archived':''}`}
       style={{left:node.x,top:node.y}} onClick={()=>onSelect(node)}
       aria-pressed={selected} aria-label={`${LABELS[node.kind]}: ${node.label}.
-        ${LABELS[node.status]||node.subtitle}`}>
+        ${node.archived?'Архив. ':''}${LABELS[node.status]||node.subtitle}`}>
       <span className="reflect-mind-node-orb"><Icon size={node.kind==='session'?27:22}
         strokeWidth={1.6} aria-hidden="true"/></span>
       <span className="reflect-mind-node-label">{node.label}</span>
       <span className="reflect-mind-node-metadata">
+        {node.archived?'Архив · ':''}
         {node.kind==='proposal'?'Предположение AI':LABELS[node.kind]}
       </span>
     </button>
@@ -47,6 +50,8 @@ export default function Mindspace({
   sessions=[],goals=[],userId,onOpenSource,onOpenJourney
 }){
   const [showIdeas,setShowIdeas]=useState(true);
+  const [showArchived,setShowArchived]=useState(false);
+  const hasArchived=sessions.some(isArchivedRecord)||goals.some(isArchivedRecord);
   const [showGoals,setShowGoals]=useState(true);
   const [onlyUserLinks,setOnlyUserLinks]=useState(false);
   const [mapScale,setMapScale]=useState(1);
@@ -68,12 +73,12 @@ export default function Mindspace({
   const selectedScopeRef=useRef({userId,selectedId});
   selectedScopeRef.current={userId,selectedId};
   const graph=useMemo(()=>buildMindspace(sessions,goals,{
-    includeProposals:showIdeas
-  }),[sessions,goals,showIdeas]);
+    includeProposals:showIdeas,includeArchived:showArchived
+  }),[sessions,goals,showIdeas,showArchived]);
   // Keep the filter reversible even when candidates are currently hidden.
   const availableIdeas=useMemo(()=>buildMindspace(sessions,goals,{
-    includeProposals:true
-  }).nodes.some(node=>node.kind==='proposal'),[sessions,goals]);
+    includeProposals:true,includeArchived:showArchived
+  }).nodes.some(node=>node.kind==='proposal'),[sessions,goals,showArchived]);
   const displayedGraph=useMemo(()=>filterMindspace(graph,{
     showGoals,onlyUserLinks
   }),[graph,showGoals,onlyUserLinks]);
@@ -97,6 +102,7 @@ export default function Mindspace({
     setSelectedId(null);setSourceNodeId(null);setTargetNodeId(null);
     setError('');setNotice('');setEditLinkId(null);
     setEditingTitle(false);setTitleDraft('');
+    setShowArchived(false);setBusy(false);
   },[userId]);
   useEffect(()=>{
     if(selectedId&&!allNodes.some(node=>node.id===selectedId))setSelectedId(null);
@@ -125,6 +131,11 @@ export default function Mindspace({
     if(sourceNodeId&&node.id!==sourceNodeId){
       const from=allNodes.find(value=>value.id===sourceNodeId);
       if(!from)return reset();
+      if(from.archived || node.archived){
+        reset();
+        setError('Архивные объекты доступны только для просмотра. Восстановите их перед связыванием.');
+        setSelectedId(node.id);return;
+      }
       if(node.kind==='proposal'){
         setError('Идея AI не становится смысловым фактом автоматически. Обсудите её в исходном сеансе.');
         setSelectedId(node.id);return;
@@ -135,55 +146,76 @@ export default function Mindspace({
     setError('');setNotice('');
   };
   const beginLink=()=>{
-    if(selected?.kind!=='session')return;
+    if(selected?.kind!=='session'||selected.archived)return;
     setSourceNodeId(selected.id);setTargetNodeId(null);
     setEditLinkId(null);setConfirmRemoval(false);
     setError('');setNotice('');
   };
   const onSave=async event=>{
     event.preventDefault();
-    if(busy||!source||!target||!userId)return;
+    if(busy||!source||!target||!userId||source.archived||target.archived)return;
+    const ownerAtStart=userId;
     setBusy(true);setError('');setNotice('');
     try{
       await saveMindLink({userId,sourceSessionId:source.refId,
         targetKind:target.kind,targetId:target.refId,
         relation,note});
+      if(selectedScopeRef.current.userId!==ownerAtStart)return;
       setNotice(editLinkId?'Связь изменена и подтверждена.':
         'Вы подтвердили смысловую связь. Она сохранена в вашей теме.');
       setSourceNodeId(null);setTargetNodeId(null);
       setEditLinkId(null);setConfirmRemoval(false);
     }catch(err){
-      setError(err?.message||'Не удалось сохранить связь. Текст остался на экране.');
-    }finally{setBusy(false);}
+      if(selectedScopeRef.current.userId===ownerAtStart)
+        setError(err?.message||'Не удалось сохранить связь. Текст остался на экране.');
+    }finally{
+      if(selectedScopeRef.current.userId===ownerAtStart)setBusy(false);
+    }
   };
   const onRemove=async()=>{
-    if(!confirmRemoval||busy||!source||!target)return;
+    if(!confirmRemoval||busy||!source||!target||source.archived||target.archived)return;
+    const ownerAtStart=userId;
     setBusy(true);setError('');
     try{
       await removeMindLink({userId,sourceSessionId:source.refId,
         targetKind:target.kind,targetId:target.refId});
+      if(selectedScopeRef.current.userId!==ownerAtStart)return;
       reset();setNotice('Связь удалена. Исходные темы и цели остались без изменений.');
     }catch(err){
-      setError(err?.message||'Удаление не подтверждено.');
-    }finally{setBusy(false);}
+      if(selectedScopeRef.current.userId===ownerAtStart)
+        setError(err?.message||'Удаление не подтверждено.');
+    }finally{
+      if(selectedScopeRef.current.userId===ownerAtStart)setBusy(false);
+    }
   };
   const chooseEdge=edge=>{
     const from=allNodes.find(node=>node.id===edge.from);
     const to=allNodes.find(node=>node.id===edge.to);
     if(!from||!to)return;
+    if(from.archived || to.archived){
+      reset();
+      setSelectedId(to.id);
+      setError('Архивные связи доступны только для просмотра. Исходные данные сохранены.');
+      return;
+    }
     openLink(from,to);setSelectedId(to.id);
   };
   const saveTitle=async event=>{
     event.preventDefault();
-    if(!userId||selected?.kind!=='session'||busy||!titleDraft.trim())return;
+    if(!userId||selected?.kind!=='session'||selected.archived||busy||!titleDraft.trim())return;
+    const ownerAtStart=userId;
     setBusy(true);setError('');setNotice('');
     try{
       await renameMindTopic({userId,sourceSessionId:selected.refId,title:titleDraft});
+      if(selectedScopeRef.current.userId!==ownerAtStart)return;
       setEditingTitle(false);
       setNotice('Название на карте сохранено. Исходный сеанс не переименован.');
     }catch(err){
-      setError(err?.message||'Не удалось изменить подпись темы.');
-    }finally{setBusy(false);}
+      if(selectedScopeRef.current.userId===ownerAtStart)
+        setError(err?.message||'Не удалось изменить подпись темы.');
+    }finally{
+      if(selectedScopeRef.current.userId===ownerAtStart)setBusy(false);
+    }
   };
   const center=()=>{
     const element=canvasRef.current;
@@ -203,7 +235,7 @@ export default function Mindspace({
   const zoomMap=delta=>setMapScale(prev=>
     Math.max(.55,Math.min(1.6,Math.round((prev+delta)*100)/100)));
   const onSaveZone=async()=>{
-    if(busy||!userId||selected?.kind!=='session'||!zoneDraft)return;
+    if(busy||!userId||selected?.kind!=='session'||selected.archived||!zoneDraft)return;
     setBusy(true);setError('');setNotice('');
     try{
       await saveMindZone({userId,sourceSessionId:selected.refId,zoneId:zoneDraft});
@@ -215,7 +247,9 @@ export default function Mindspace({
       if(selectedScopeRef.current.userId===userId &&
           selectedScopeRef.current.selectedId===selected.id)
         setError('Не удалось подтвердить зону. Выбранный вариант сохранён в форме.');
-    }finally{setBusy(false);}
+    }finally{
+      if(selectedScopeRef.current.userId===userId)setBusy(false);
+    }
   };
   return (
     <section className="reflect-mindspace" aria-label="Mindspace — карта смыслов">
@@ -248,6 +282,12 @@ export default function Mindspace({
           }}>
           <Target size={15} aria-hidden="true"/> Цели {showGoals?'видны':'скрыты'}
         </button>
+        {hasArchived&&(
+          <button type="button" className="reflect-mindspace-quiet"
+            aria-pressed={showArchived} onClick={()=>{
+              setShowArchived(value=>!value);reset();
+            }}>Архив: {showArchived?'показан':'скрыт'}</button>
+        )}
         {availableIdeas&&(
           <button type="button" className="reflect-mindspace-quiet"
             aria-pressed={showIdeas} onClick={()=>{
@@ -322,7 +362,11 @@ export default function Mindspace({
               'Смыслы появятся из ваших записей'}</h3>
           <p>{filteredEmpty
             ? 'Снимите фильтр «Только связанные» или покажите скрытые типы узлов.'
-            : 'Сохраните первую тему или цель. Мы не создаём психологический профиль и не придумываем связи без ваших решений.'}</p>
+            : hasArchived && !showArchived
+              ? 'Все сохранённые темы и цели находятся в архиве. Можно посмотреть их в режиме истории.'
+              : 'Сохраните первую тему или цель. Мы не создаём психологический профиль и не придумываем связи без ваших решений.'}</p>
+          {!showArchived&&hasArchived&&graph.nodes.length===0&&
+            <button type="button" onClick={()=>setShowArchived(true)}>Показать архив</button>}
           {filteredEmpty&&<button type="button" onClick={()=>{
             setOnlyUserLinks(false);setShowGoals(true);setShowIdeas(true);
           }}>Показать все узлы</button>}
@@ -402,7 +446,7 @@ export default function Mindspace({
                     ${LABELS[node.status]||node.subtitle}`}>
                   <Icon size={20} aria-hidden="true"/>
                   <span><strong>{node.label}</strong>
-                    <small>{LABELS[node.kind]} · {LABELS[node.status]||node.subtitle}</small>
+                    <small>{node.archived?'Архив · ':''}{LABELS[node.kind]} · {LABELS[node.status]||node.subtitle}</small>
                   </span><ArrowUpRight size={16} aria-hidden="true"/>
                 </button>;
               })}
@@ -435,13 +479,14 @@ export default function Mindspace({
           aria-label="Выбранный смысловой узел">
           <div className="reflect-mindspace-inspector-heading">
             <div>
-              <small>{LABELS[selected.kind]} · {LABELS[selected.status]||'Сохранено'}</small>
+              <small>{selected.archived?'Архив · ':''}{LABELS[selected.kind]} · {LABELS[selected.status]||'Сохранено'}</small>
               <h3>{selected.label}</h3>
             </div>
             <button type="button" onClick={()=>setSelectedId(null)}
               aria-label="Закрыть сведения об узле"><X size={18}/></button>
           </div>
-          {selected.kind==='session'&&(
+          {selected.archived&&<p role="status">Архивная запись доступна только для просмотра. Восстановите её в исходном разделе, чтобы изменить.</p>}
+          {selected.kind==='session'&&!selected.archived&&(
             <div className="reflect-mindspace-rename">
               {!editingTitle ? (
                 <button type="button" onClick={()=>{
@@ -467,7 +512,7 @@ export default function Mindspace({
               <small>Изменяется только название на карте, не текст сеанса.</small>
             </div>
           )}
-          {selected.kind==='session'&&(
+          {selected.kind==='session'&&!selected.archived&&(
             <div className="reflect-mindspace-zone-editor">
               <p><ReflectContentIcon kind="context" size={16}/>
                 Зона карты: <strong>{mindZoneLabel(selected.zone)}</strong>
@@ -506,7 +551,7 @@ export default function Mindspace({
             </div>
           )}
           <div className="reflect-mindspace-inspector-actions">
-            {selected.kind==='session'&&(
+            {selected.kind==='session'&&!selected.archived&&(
               <button type="button" className="reflect-mindspace-primary"
                 onClick={beginLink}><Link2 size={17}/> Связать с темой или целью</button>
             )}
@@ -518,7 +563,7 @@ export default function Mindspace({
           </div>
         </aside>
       )}
-      {source&&target&&(
+      {source&&target&&!source.archived&&!target.archived&&(
         <section className="reflect-mindspace-editor" aria-label="Подтверждение смысловой связи">
           <header>
             <span className="reflect-mindspace-editor-path">

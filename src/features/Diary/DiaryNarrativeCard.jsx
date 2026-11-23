@@ -115,9 +115,13 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote, onRenameSe
   const [renameBusy, setRenameBusy] = React.useState(false);
   const [renameError, setRenameError] = React.useState('');
   const item = entry.type === 'note' ? entry.data.entries?.[0] : null;
+  const archived = entry.archived === true;
+  const canAppend = !archived && Boolean(onAppend);
+  const canEditNote = !archived && Boolean(onEditNote);
+  const canRename = !archived && Boolean(onRenameSession);
 
   const startEditing = () => {
-    if (!item || busy) return;
+    if (!item || busy || !canEditNote) return;
     setEditDraft({ title: entryTitle(entry.data, item), text: item.text || '' });
     pendingEdit.current = null;
     setError('');
@@ -128,7 +132,7 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote, onRenameSe
 
   const submitEdit = async event => {
     event.preventDefault();
-    if (busy || !onEditNote || !item || !editDraft.text.trim()) return;
+    if (busy || !canEditNote || !item || !editDraft.text.trim()) return;
     const fingerprint = editDraft.title + '\u0000' + editDraft.text;
     if (!pendingEdit.current || pendingEdit.current.fingerprint !== fingerprint) {
       pendingEdit.current = {
@@ -159,7 +163,7 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote, onRenameSe
   const submitRename = async event => {
     event.preventDefault();
     const title = renameDraft.trim();
-    if (!title || title.length > 100 || renameBusy || !onRenameSession) return;
+    if (!title || title.length > 100 || renameBusy || !canRename) return;
     setRenameBusy(true); setRenameError('');
     try {
       await onRenameSession(entry.sourceId, title);
@@ -212,7 +216,7 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote, onRenameSe
           <div className="reflect-journal-session">
             <div className="reflect-journal-session-heading">
               <h3 className="reflect-journal-content-title">{headline}</h3>
-              {onRenameSession && (
+              {canRename && (
                 <button type="button" className="reflect-journal-inline-action"
                   title="Изменить заголовок сеанса" aria-label="Изменить заголовок сеанса"
                   onClick={() => {
@@ -221,7 +225,7 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote, onRenameSe
                   }}><Pencil size={15} aria-hidden="true"/></button>
               )}
             </div>
-            {renaming && (
+            {renaming && canRename && (
               <form className="reflect-journal-rename" onSubmit={submitRename}>
                 <label htmlFor={'rename-' + entry.sourceId}>Название размышления</label>
                 <div>
@@ -291,9 +295,9 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote, onRenameSe
                     <p className="whitespace-pre-wrap">{ref.text}</p>
                   </div>
                 ))}
-                 <button onClick={() => onAppend(entry)} className="reflect-journal-append-button">
+                 {canAppend && <button type="button" onClick={() => onAppend(entry)} className="reflect-journal-append-button">
                   {entry.data.reflections?.length > 0 ? 'Дополнить' : 'Проработать'}
-                </button>
+                </button>}
               </div>
             )}
             {entry.data.checklistFeedback && (
@@ -327,7 +331,7 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote, onRenameSe
               {typeof item?.text === 'string' ? item.text : 'Запись без текста'}
             </p>
 
-            {editing && (
+            {editing && canEditNote && (
               <form className="reflect-journal-edit" onSubmit={submitEdit} aria-label="Редактирование заметки">
                 <label>Заголовок <span>(необязательно)</span>
                   <input type="text" maxLength={240} value={editDraft.title}
@@ -376,7 +380,7 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote, onRenameSe
             <footer className="reflect-journal-note-footer">
               <div className="reflect-journal-note-actions" role="group" aria-label="Действия с записью">
                 <button type="button" title="Редактировать запись или заголовок"
-                  aria-label="Редактировать запись" disabled={!item || busy || !onEditNote}
+                  aria-label="Редактировать запись" disabled={!item || busy || !canEditNote}
                   aria-expanded={editing} onClick={() => editing ? setEditing(false) : startEditing()}>
                   <Pencil size={17} aria-hidden="true"/>
                 </button>
@@ -386,7 +390,7 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote, onRenameSe
                   <History size={17} aria-hidden="true"/>
                 </button>
                 <button type="button" title="Дополнить заметку" aria-label="Дополнить заметку"
-                  disabled={!onAppend} onClick={() => onAppend?.(entry)}>
+                  disabled={!canAppend} onClick={() => canAppend && onAppend(entry)}>
                   <Plus size={17} aria-hidden="true"/>
                 </button>
               </div>
@@ -421,6 +425,9 @@ const DiaryNarrativeCard = React.memo(({ entry, onAppend, onEditNote, onRenameSe
         </span>
         <span>{category}</span>
         {entry.isAppend && <span className="reflect-journal-kind-append">Продолжение</span>}
+        {archived && <span className="reflect-journal-kind-append" role="status">В архиве · только чтение</span>}
+        {!archived && entry.sourceSessionArchived === true &&
+          <span className="reflect-journal-kind-append" role="status">Источник в архиве</span>}
       </div>
       {renderContent()}
       {kind !== 'note' && asDate(entry.displayAt) && (

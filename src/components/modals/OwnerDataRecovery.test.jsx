@@ -106,3 +106,27 @@ test('wrong-account archive shows error and makes no attempt to restore', async 
   expect(await screen.findByRole('alert')).toHaveTextContent('другому UID');
   expect(mocks.restore).not.toHaveBeenCalled();
 });
+
+test('R10 v2 memory archive can be inspected but never offers demo restore', async () => {
+  mocks.inspect.mockReturnValueOnce({
+    ...inspection, schemaVersion: 2, canRestore: false,
+    counts: {
+      ...inspection.counts, memoryTopics: 1, memoryEvents: 1,
+      memoryProjections: 1
+    },
+    documents: [{
+      path: 'artifacts/reflect-8fdc8/users/synthetic-owner/memoryEvents/event1',
+      fields: { ownerId: 'synthetic-owner', eventId: 'event1',
+        text: 'SECRET_SYNTHETIC_PRIVATE_MEMORY' }
+    }]
+  });
+  render(<OwnerDataRecovery userId="synthetic-owner" />);
+  choose();
+  await screen.findByText('Структура архива проверена');
+  expect(screen.getByText(/Темы памяти: 1/)).toBeInTheDocument();
+  expect(screen.getByText(/Восстановление отключено/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Восстановить отсутствующие записи/ }))
+    .toBeNull();
+  expect(screen.queryByText('SECRET_SYNTHETIC_PRIVATE_MEMORY')).toBeNull();
+  expect(mocks.restore).not.toHaveBeenCalled();
+});

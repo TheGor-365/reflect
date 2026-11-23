@@ -33,6 +33,18 @@ service cloud.firestore {
       match /goals/{goalId} {
         allow get, list, create, update, delete: if ownsReflectSpace(userId);
       }
+
+      // Synthetic QA only: owner may read client-visible memory.
+      // No client writes, deletes or cross-owner access are granted.
+      match /memoryTopics/{topicId} {
+        allow get, list: if ownsReflectSpace(userId);
+      }
+      match /memoryEvents/{eventId} {
+        allow get, list: if ownsReflectSpace(userId);
+      }
+      match /memoryProjections/{projectionId} {
+        allow get, list: if ownsReflectSpace(userId);
+      }
     }
     // No rule grants access to other app IDs, user documents, arbitrary
     // collections or nested subcollections. Firestore default is deny.

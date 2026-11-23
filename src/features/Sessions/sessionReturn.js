@@ -1,5 +1,9 @@
 import { doc, runTransaction, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db, appId } from '../../firebase/config';
+import { isArchivedRecord } from '../Archive/archiveSelectors';
+import {
+  appendOwnerEvidenceInTransaction, createMemoryEventId, memoryLedgerEnabled
+} from '../Memory/memoryLedgerOperations';
 
 const idOk = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 const noteOk = value => typeof value === 'string' &&
@@ -22,6 +26,7 @@ export async function saveSessionReturn({
       !stepValid || (hasGoal && (!idOk(goalId) || !nextStep.trim()))) {
     throw new Error('Проверьте текст наблюдения, следующий шаг и выбранную цель.');
   }
+  const memoryEventId = memoryLedgerEnabled() ? createMemoryEventId() : null;
   const ref = doc(db, `artifacts/${appId}/users/${userId}/sessions`, sessionId);
   return runTransaction(db, async tx => {
     const snapshot = await tx.get(ref);
@@ -29,7 +34,10 @@ export async function saveSessionReturn({
     const source = snapshot.data();
     const existing = Array.isArray(source.returnCheckIns) ? source.returnCheckIns : [];
     const prior = existing.find(entry => entry?.id === visitId);
-    if (prior) return prior;
+    if (prior) return prior; // Idempotent replay does not mutate even after archive.
+    if (isArchivedRecord(source)) {
+      throw new Error('Сеанс в архиве. Восстановите его, чтобы добавить наблюдение.');
+    }
     if (existing.length >= 80) {
       throw new Error('Для этого сеанса достигнут лимит отдельных возвращений.');
     }
@@ -40,6 +48,9 @@ export async function saveSessionReturn({
         throw new Error('Связанная цель больше не существует. Запись не выполнена.');
       }
       const goal = goalSnapshot.data();
+      if (isArchivedRecord(goal)) {
+        throw new Error('Связанная цель в архиве. Восстановите её перед новой записью.');
+      }
       const decisions = source.recommendationDecisions;
       const decision = decisions && typeof decisions === 'object' &&
         !Array.isArray(decisions) && typeof goal.sourceRecommendationKey === 'string'
@@ -52,9 +63,19 @@ export async function saveSessionReturn({
         throw new Error('Связь цели с сохранённым решением не подтверждена.');
       }
     }
+    const recorded = memoryEventId ? await appendOwnerEvidenceInTransaction({
+      tx, database: db, appId, ownerId: userId, sessionId,
+      session: source, eventId: memoryEventId, kind: 'owner.topic.return',
+      sourceRecordId: visitId, text: note.trim(),
+      payload: { note: note.trim(),
+        ...(nextStep.trim() ? { nextStep: nextStep.trim() } : {}),
+        ...(hasGoal ? { goalId } : {}) }
+    }) : null;
     const visit = {
       id: visitId, author: 'user', type: 'return-check-in',
       text: note.trim(), recordedAtClient: Timestamp.now(),
+      ...(recorded?.eventId ? { memoryEventId: recorded.eventId } : {}),
+      ...(recorded?.suppressed ? { memorySuppressed: true } : {}),
       ...(nextStep.trim() ? { nextStep: nextStep.trim() } : {}),
       ...(hasGoal ? { goalId } : {})
     };

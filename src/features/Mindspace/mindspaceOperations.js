@@ -2,6 +2,7 @@ import { doc, runTransaction, serverTimestamp, Timestamp } from 'firebase/firest
 import { db, appId } from '../../firebase/config';
 import { RELATIONS } from './mindspaceModel';
 import { isZone } from './mindspaceZones';
+import { isArchivedRecord } from '../Archive/archiveSelectors';
 
 const idOk = v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v);
 const validNote = v=>typeof v==='string' && v.length<=400 &&
@@ -31,6 +32,9 @@ export async function saveMindLink({
     const target=await tx.get(targetRef);
     if(!source.exists()||!target.exists()){
       throw new Error('Исходная тема или цель не найдена в вашем аккаунте.');
+    }
+    if(isArchivedRecord(source.data()) || isArchivedRecord(target.data())) {
+      throw new Error('Архивная тема или цель доступна только для просмотра. Сначала восстановите объект.');
     }
     const existing=Array.isArray(source.data()?.mindLinks)?
       source.data().mindLinks:[];
@@ -66,11 +70,17 @@ export async function removeMindLink({
     throw new Error('Некорректный источник связи.');
   }
   const sourceRef=doc(db,root(userId),'sessions',sourceSessionId);
+  const targetRef=doc(db,root(userId),targetKind==='session'?'sessions':'goals',targetId);
   const id=linkId(targetKind,targetId);
   return runTransaction(db,async tx=>{
     const snapshot=await tx.get(sourceRef);
+    const target=await tx.get(targetRef);
     if(!snapshot.exists()){
       throw new Error('Исходная тема больше не существует.');
+    }
+    if(isArchivedRecord(snapshot.data()) ||
+       (target.exists() && isArchivedRecord(target.data()))) {
+      throw new Error('Архивная тема или цель доступна только для просмотра.');
     }
     const links=Array.isArray(snapshot.data()?.mindLinks)?
       snapshot.data().mindLinks:[];
@@ -99,6 +109,9 @@ export async function renameMindTopic({ userId, sourceSessionId, title }) {
   return runTransaction(db,async tx=>{
     const snapshot=await tx.get(ref);
     if (!snapshot.exists()) throw new Error('Тема больше не существует.');
+    if (isArchivedRecord(snapshot.data())) {
+      throw new Error('Архивная тема доступна только для просмотра.');
+    }
     if (snapshot.data()?.mindTitle===next) return next;
     tx.update(ref,{
       mindTitle:next,
@@ -122,6 +135,9 @@ export async function saveMindZone({ userId, sourceSessionId, zoneId }) {
   return runTransaction(db, async tx => {
     const snapshot=await tx.get(ref);
     if(!snapshot.exists()) throw new Error('Тема больше не существует.');
+    if(isArchivedRecord(snapshot.data())) {
+      throw new Error('Архивная тема доступна только для просмотра.');
+    }
     const before=snapshot.data()?.mindZone;
     if(before?.id===zoneId && before?.author==='user' &&
         before?.status==='confirmed') return before;

@@ -142,7 +142,8 @@ test('history-assisted owner turn has free status but no legacy contextless retr
 
 test('collapsed R8 recovery is discoverable without sending any provider request', () => {
   renderPanel(vi.fn());
-  expect(screen.getByText('Ответ Reflect не получен')).toBeInTheDocument();
+  expect(screen.getByText('Проверить статус ответа')).toBeInTheDocument();
+  expect(screen.queryByText('Ответ Reflect не получен')).not.toBeInTheDocument();
   expect(screen.getByText('Ваше сообщение сохранено.')).toBeInTheDocument();
   const check = screen.getByRole('button', { name: 'Проверить статус бесплатно' });
   expect(check).toHaveAttribute('aria-expanded', 'false');
@@ -162,4 +163,21 @@ test('expired entitlement explains denial without offering a billable action', a
   expect(onRetry).not.toHaveBeenCalled();
   expect(screen.queryByRole('button', { name: 'Сгенерировать ответ повторно' }))
     .not.toBeInTheDocument();
+});
+
+test('confirmed failure shows failure headline, pending and unverified do not', async () => {
+  mocks.status.mockResolvedValueOnce({
+    status: 'provider_pending', billedPossible: true, canRetry: false
+  });
+  const {unmount} = renderPanel(vi.fn());
+  fireEvent.click(screen.getByRole('button', {name:'Проверить статус бесплатно'}));
+  await waitFor(() => expect(screen.getByText('Reflect обрабатывает сообщение')).toBeInTheDocument());
+  expect(screen.queryByText('Ответ Reflect не получен')).not.toBeInTheDocument();
+  unmount();
+  mocks.status.mockResolvedValueOnce({
+    status: 'failed_after_provider', billedPossible: true, canRetry: false
+  });
+  renderPanel(vi.fn());
+  fireEvent.click(screen.getByRole('button', {name:'Проверить статус бесплатно'}));
+  await waitFor(() => expect(screen.getByText('Ответ Reflect не получен')).toBeInTheDocument());
 });

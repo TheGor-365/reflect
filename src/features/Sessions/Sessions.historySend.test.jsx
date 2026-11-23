@@ -57,7 +57,7 @@ vi.mock('./ChatMessage', () => ({
   default: ({ message }) => <p>{message.content}</p>
 }));
 vi.mock('./ReplyRecoveryPanel', () => ({
-  default: () => null
+  default: () => <span data-testid="unconfirmed-reply-panel">Receipt required</span>
 }));
 
 const base = {
@@ -215,4 +215,27 @@ test('UX R1: automatic mode save blocks history send until server readback', asy
   await waitFor(() => expect(mocks.history).toHaveBeenCalledOnce());
   expect(mocks.append.mock.calls[0][2].interactionMode).toBe('coach');
   expect(mocks.history.mock.calls[0][0]).not.toHaveProperty('interactionMode');
+});
+
+test('P0: in-flight reply renders processing only, no premature missing-answer warning', async () => {
+  let finishProvider;
+  mocks.regular.mockImplementationOnce(() => new Promise(resolve => {
+    finishProvider = resolve;
+  }));
+  const {rerender} = render(<Sessions {...base}/>);
+  fireEvent.change(screen.getByRole('textbox', {name:'Сообщение для сеанса'}),
+    {target:{value:'Вопрос для проверки ожидающего ответа'}});
+  fireEvent.click(screen.getByRole('button', {name:'Отправить сообщение'}));
+  await waitFor(() => expect(mocks.regular).toHaveBeenCalledOnce());
+  const savedTurn = mocks.append.mock.calls.find(([, , turn]) => turn?.role === 'user')?.[2];
+  expect(savedTurn).toBeDefined();
+  // Simulate Firestore subscription readback while the provider is still busy.
+  rerender(<Sessions {...base} sessions={[{
+    ...base.sessions[0], chatHistory:[...base.sessions[0].chatHistory, savedTurn]
+  }]}/>);
+  expect(screen.getByText('Сеанс обрабатывается…')).toBeInTheDocument();
+  expect(screen.queryByTestId('unconfirmed-reply-panel')).not.toBeInTheDocument();
+  finishProvider({response:'Ответ подтверждён', persistedByServer:true});
+  await waitFor(() => expect(screen.queryByText('Сеанс обрабатывается…'))
+    .not.toBeInTheDocument());
 });

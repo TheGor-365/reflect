@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import ArchiveAction from '../Archive/ArchiveAction';
+import { isArchivedRecord } from '../Archive/archiveSelectors';
 import {
   ArrowRight, BookOpen, CalendarDays, GitBranch,
   MessageCircle, PenLine, Search, Sparkles, Trash2
@@ -8,11 +10,14 @@ import { buildSessionLibrary, searchSessionLibrary } from './sessionLibrary';
 /** Saved owner-scoped threads only. No inferred session state or paid AI calls. */
 export default function SessionLibrary({
   sessions = [], activeSessionId, onSelectSession, onViewJourney, onNewSession,
-  onBackToConversation, onDeleteSession, warning
+  onBackToConversation, onDeleteSession, onSetArchived, warning
 }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
-  const items = useMemo(() => buildSessionLibrary(sessions), [sessions]);
+  const [archiveView, setArchiveView] = useState(false);
+  const items = useMemo(() => buildSessionLibrary(
+    sessions.filter(session => isArchivedRecord(session) === archiveView)
+  ), [sessions, archiveView]);
   const results = useMemo(() => searchSessionLibrary(items, query, filter), [items, query, filter]);
   return (
     <section className="reflect-session-library" aria-label="Библиотека сеансов">
@@ -36,6 +41,13 @@ export default function SessionLibrary({
       </header>
       {warning && <p className="reflect-session-navigation-warning" role="alert">{warning}</p>}
 
+      <div className="reflect-archive-view-switch" role="group" aria-label="Просмотр архива сеансов">
+        <button type="button" aria-pressed={!archiveView}
+          onClick={() => setArchiveView(false)}>Текущие сеансы</button>
+        <button type="button" aria-pressed={archiveView}
+          aria-label="Архив сеансов"
+          onClick={() => setArchiveView(true)}>Архив</button>
+      </div>
       {items.length > 0 ? (
         <>
           <div className="reflect-session-library-toolbar">
@@ -103,7 +115,12 @@ export default function SessionLibrary({
                         <GitBranch size={17} aria-hidden="true"/> Хронология
                       </button>
                     )}
-                    {onDeleteSession && (
+                    {onSetArchived && (
+                      <ArchiveAction key={`${item.id}:${archiveView}`}
+                        archived={archiveView} subject={`сеанс «${item.title}»`}
+                        onCommit={next => onSetArchived(item.id, next)}/>
+                    )}
+                    {onDeleteSession && !archiveView && (
                       <button type="button" className="reflect-session-library-delete"
                         aria-label={'Удалить сеанс: ' + item.title}
                         title="Удалить сеанс" onClick={() => onDeleteSession(item.id)}>
@@ -121,6 +138,10 @@ export default function SessionLibrary({
             </div>
           )}
         </>
+      ) : archiveView ? (
+        <div className="reflect-session-library-empty">
+          <p role="status">Архив сеансов пуст.</p>
+        </div>
       ) : (
         <div className="reflect-session-library-empty">
           <span className="reflect-session-library-empty-icon" aria-hidden="true">

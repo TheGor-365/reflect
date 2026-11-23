@@ -21,9 +21,28 @@ const KNOWN_FIELDS = Object.freeze({
   sessions: new Set([
     'title', 'chatHistory', 'recommendations', 'exercises', 'createdAt',
     'updatedAt', 'summary', 'sessionTitle'
+  ]),
+  // Field-name inventory ONLY. R10 proof semantics must be attested on the
+  // server; seeing a field here does not make its value trustworthy.
+  memoryTopics: new Set([
+    'ownerId', 'topicId', 'lastSequence', 'lastEventId', 'scopeMode',
+    'createdAt', 'updatedAt'
+  ]),
+  memoryEvents: new Set([
+    'schemaVersion', 'eventId', 'ownerId', 'topicId', 'sessionId',
+    'sequence', 'kind', 'origin', 'verification', 'source', 'text',
+    'supersedes', 'payload', 'topicScope', 'createdAt'
+  ]),
+  memoryProjections: new Set([
+    'checkpointVersion', 'ownerId', 'topicId', 'asOfSequence',
+    'asOfEventId', 'projection', 'clientComputed', 'providerUseAllowed',
+    'updatedAt', 'createdAt'
   ])
 });
-const COLLECTIONS = Object.freeze(['profiles', 'diaryNotes', 'moods', 'goals', 'sessions']);
+const COLLECTIONS = Object.freeze([
+  'profiles', 'diaryNotes', 'moods', 'goals', 'sessions',
+  'memoryTopics', 'memoryEvents', 'memoryProjections'
+]);
 const LIMIT_DOCS = 10000;
 const WARNING_BYTES = 750000;
 const DOCUMENT_BYTES = 900000;
@@ -160,14 +179,25 @@ export function auditOwnerSchema(inspection) {
     oversizedDocuments: 0, nearLimitDocuments: 0,
     noteVersions: 0, legacyEntries: 0
   });
+  // Keep the old audit payload compact (<1200 characters for one large
+  // legacy document). Memory field checks are aggregate-only and cannot
+  // certify evidence semantics; expose just document counts per new collection.
+  const collectionSummary = Object.fromEntries(COLLECTIONS.map(name => [
+    name, name.startsWith('memory') ? { documents: buckets[name].documents } : buckets[name]
+  ]));
   return {
     format: 'reflect-aggregate-schema-audit-v1',
-    collectionSummary: buckets,
+    collectionSummary,
     totals,
     // "No warnings" is NOT a production readiness assertion: a snapshot can
     // contain 0 entries for a whole collection or omit legacy data.
     reviewedCollections: COLLECTIONS.filter(name => buckets[name].documents > 0).length,
-    requiresManualReview: totals.unknownFields > 0 ||
+    // Memory data requires server validation even if its fields look valid.
+    memoryRequiresServerAttestation: ['memoryTopics', 'memoryEvents',
+      'memoryProjections'].some(name => buckets[name].documents > 0),
+    requiresManualReview: ['memoryTopics', 'memoryEvents',
+      'memoryProjections'].some(name => buckets[name].documents > 0) ||
+      totals.unknownFields > 0 ||
       totals.shapeWarnings > 0 || totals.oversizedDocuments > 0 ||
       totals.nearLimitDocuments > 0 || totals.legacyEntries > 0
   };

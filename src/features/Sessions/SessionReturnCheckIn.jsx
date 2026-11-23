@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ProtectedDraftControls from '../../components/common/ProtectedDraftControls';
 import ReflectSelect from '../../components/ReflectSelect';
 import { saveSessionReturn } from './sessionReturn';
+import { isArchivedRecord } from '../Archive/archiveSelectors';
 
 const formatDay = value => {
   try {
@@ -38,9 +39,10 @@ export default function SessionReturnCheckIn({
   }, [ownerContext]);
   // UI options are only owner-loaded, saved, explicitly accepted goals.
   // The Firestore transaction independently revalidates their provenance.
+  const archivedSession = isArchivedRecord(session);
   const decisions = session?.recommendationDecisions || {};
   const acceptedGoals = goals.filter(goal =>
-    goal?.sessionId === session?.id &&
+    !isArchivedRecord(goal) && goal?.sessionId === session?.id &&
     goal.sourceType === 'user-accepted-ai-recommendation' &&
     typeof goal.sourceRecommendationKey === 'string' &&
     decisions[goal.sourceRecommendationKey]?.status === 'accepted' &&
@@ -65,7 +67,7 @@ export default function SessionReturnCheckIn({
       entry?.author === 'user' && typeof entry?.text === 'string') : [];
   const submit = async event => {
     event.preventDefault();
-    if (!note.trim() || busyRef.current) return;
+    if (!note.trim() || busyRef.current || archivedSession) return;
     if (goalId && !chosenGoalId) {
       setError('Связанная цель недоступна. Выберите актуальную цель.');
       return;
@@ -107,7 +109,8 @@ export default function SessionReturnCheckIn({
           Это ваша отдельная запись о результате или наблюдении. Она остаётся
           в сеансе и не передаётся AI автоматически. Ничего не считается выполненным без вашей отметки.
         </p>
-        <form onSubmit={submit}>
+        {archivedSession && <p role="status">Сеанс в архиве · только просмотр ранее сохранённых наблюдений</p>}
+        {!archivedSession && <form onSubmit={submit}>
           {acceptedGoals.length > 0 && (
             <ReflectSelect
               label="Связать наблюдение с принятой целью (необязательно)"
@@ -161,7 +164,7 @@ export default function SessionReturnCheckIn({
               setNextStep(typeof draft?.nextStep === 'string' ? draft.nextStep : '');
               setGoalId(typeof draft?.goalId === 'string' ? draft.goalId : '');
             }}/>
-        </form>
+        </form>}
         {error && <p role="alert">{error}</p>}
         {notice && <p role="status">{notice}</p>}
         {entries.length > 0 && (

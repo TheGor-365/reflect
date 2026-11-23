@@ -102,6 +102,30 @@ async function main() {
     assertStatus("other UID cannot read " + collection,
       await request(name, { token: stranger.token }), 403);
   }
+
+  // R10 P0 export: exact owner-only memory reads, no client writes.
+  for (const collection of [
+    "memoryTopics", "memoryEvents", "memoryProjections"
+  ]) {
+    const prefix = root + "/" + collection;
+
+    assertStatus("owner lists own " + collection,
+      await request(prefix, { token: owner.token }), 200);
+
+    assertStatus("foreign UID cannot list " + collection,
+      await request(prefix, { token: stranger.token }), 403);
+
+    assertStatus("anonymous cannot list " + collection,
+      await request(prefix), 403);
+
+    assertStatus("owner cannot write " + collection,
+      await request(prefix + "/synthetic-denied", {
+        token: owner.token,
+        method: "PATCH",
+        body: { fields: fields() }
+      }), 403);
+  }
+
   assertStatus("owner may create own profile", await request(
     root + "/profiles/userProfile", {
       token: owner.token, method: "PATCH", body: { fields: {

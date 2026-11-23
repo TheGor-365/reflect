@@ -49,6 +49,11 @@ export default function ReplyRecoveryPanel({
   const [expanded, setExpanded] = useState(false);
   const [retried, setRetried] = useState(false);
   const [error, setError] = useState('');
+  const headline = state?.status === 'failed_before_provider' ||
+    state?.status === 'failed_after_provider' ? 'Ответ Reflect не получен' :
+    state?.status === 'persisted_reply' || state?.status === 'reply_exists' ?
+      'Ответ Reflect сохранён' : state?.status === 'provider_pending' ?
+        'Reflect обрабатывает сообщение' : 'Проверить статус ответа';
 
   const check = async () => {
     if (checking || retrying || disabled) return;
@@ -92,7 +97,7 @@ export default function ReplyRecoveryPanel({
           <AlertCircle size={16}/>
         </span>
         <div className="reflect-ai-recovery-summary">
-          <strong>Ответ Reflect не получен</strong>
+          <strong>{headline}</strong>
           <span>Ваше сообщение сохранено.</span>
         </div>
         {!retried && <button type="button" className="reflect-ai-recovery-check"

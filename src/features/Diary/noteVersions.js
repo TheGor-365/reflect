@@ -1,5 +1,6 @@
 import { doc, runTransaction, Timestamp, serverTimestamp } from 'firebase/firestore';
 import { db, appId } from '../../firebase/config';
+import { isArchivedRecord } from '../Archive/archiveSelectors';
 
 // Older diary notes got a Russian date as an automatic title. Preserve the
 // stored value but do not mistake it for an author-written heading.
@@ -124,6 +125,9 @@ export async function saveNoteRevision({
       throw new Error('Заметка отсутствует. Ничего не перезаписано.');
     }
     const original = snapshot.data();
+    if (isArchivedRecord(original)) {
+      throw new Error('Запись находится в архиве. Восстановите её перед редактированием.');
+    }
     const result = planNoteRevision(original, {
       entryIndex, title, text, expectedVersion, editId, savedAt: Timestamp.now()
     });
