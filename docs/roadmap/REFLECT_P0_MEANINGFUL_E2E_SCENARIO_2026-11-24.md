@@ -146,3 +146,5 @@ New information: real bug intermittent stale time edit not yet reproducibly diag
 **Scores/facts at S2:** owner reviews PASS, revised evidence analysis PASS (caveat: create-vs-edit conflation), tone PASS, work-event progress PASS, Diary projection PASS visual, SessionSchema graph PASS visual, new theme Mindspace PASS visual; **recommendation execution PARTIAL**, **goal/action linkage NOT TESTED**, **verified semantic edge NOT TESTED**, **AI long-term memory intentionally BLOCKED**, body map NOT TESTED. No actual production launch.
 
 **Status:** `S2_SECOND_REAL_ANSWER=VISIBLE_PASS`, `S2_2_HYPOTHESIS_REVIEWS=VISIBLE`, `S2_PROGRESS=40_OF_100`, `S2_2_CLARIFICATIONS_0_ACTIONABLE`, `S2_DIARY_SESSIONSCHEMA_MINDSPACE=VISUAL_PASS_PARTIAL`, `S3=READY_FOR_ONE_OWNER_MESSAGE`, `FULL_HISTORY_PROVIDER=BLOCKED`, `PRODUCTION=NOT_DEPLOYED`.
+
+**Tracked engineering follow-up:** [GitHub Issue #138 — split operational planning from unverified motive-keyword gate](https://github.com/TheGor-365/reflect/issues/138). Severity **P1 candidate** until S3 reproduces or disproves actionable-planning blockage; no code fix committed, no backend/Railway deploy.
