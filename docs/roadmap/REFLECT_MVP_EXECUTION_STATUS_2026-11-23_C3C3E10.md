@@ -64,3 +64,8 @@
 - Original client Rules unsafe red observed C3C1; isolated candidate v2 C3C3b 80/80 synthetic green **not deployable**; `CLEAN_EVAL=NOT_CERTIFIED`; B2.1/B2.3 and PG01–08 remain open; independent Auth/AppCheck browser and real provider/paid flows pending.
 - Backups/PITR/QA snapshots/provider copies are distinct data-retention domains; 7-collection export is **not** complete account export/erasure. Do not make unsupported legal/retention or cost guarantees.
 - Preserve historical stages and verified terminal evidence; do not repeat accepted emulators solely to achieve new-looking counts.
+
+## 6. ADDENDUM 2026-11-23 — C3C3e11 local HTTP preflight PASS, supersedes Section 4 action
+- The owner ran corrected strict HEAD/test-SHA read-only script: `C3C3E11_PREFLIGHT_METADATA_READY`, tests 0, network calls 0, sources unchanged. Route test metadata: server L85; `.listen()` loopback + port 0 L86; `fetch()` loopback + `server.address()` L88; close in finally L92. **No runtime claim**, but this clears the narrow structural harness preflight.
+- **Current action is now C3C3e12**: execute previously named route/core offline synthetic unit tests (10 + 14 literal declarations; runtime count may vary), with exact SHAs, clean environment and bounded time. Next after actual test run: classify failures and missing negative assertions; then C3C3 source owner trust, B2.1/B2.3, PG01–08, R10.4 onward. All prior Section 4 references saying C3C3e11 pending are historical/superseded.
+- Unchanged: `PRIVACY_GATE=BLOCKED`, `CLEAN_EVAL=NOT_CERTIFIED`, production/staging xAI/provider OFF; no source/Rules release authority.
