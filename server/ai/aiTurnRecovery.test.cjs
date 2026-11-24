@@ -394,3 +394,49 @@ test("R139 C3c2 default recovery remains unsigned and invalid signing configurat
   assert.throws(() => setup({ key: Buffer.alloc(16), keyId: "fixture" }),
     e => e.code === "unsafe-environment");
 });
+
+
+const guardPath = receiptPath(UID).split("/turns/")[0];
+
+test("R139 retention guard denies a new signed claim for a recreated session", async () => {
+  const { store, db } = setup(signingOptions);
+  db.docs.set(guardPath, { provenanceRevoked: true });
+  await forbid(() => store.claim(params()), "permission-denied");
+  assert.equal(db.docs.has(receiptPath(UID)), false);
+});
+
+test("R139 retention guard denies provider start after revocation", async () => {
+  const { store, db } = setup(signingOptions);
+  const attempt = await store.claim(params());
+  db.docs.set(guardPath, { provenanceRevoked: true });
+  await forbid(() => store.providerStarted(attempt), "permission-denied");
+  assert.equal(db.docs.get(receiptPath(UID)).billedPossible, false);
+  await store.finishFailed(attempt, { beforeProvider: true });
+  assert.equal(db.docs.get(receiptPath(UID)).status, "failed_before_provider");
+});
+
+test("R139 late reply cannot restore revoked provenance even after session recreation", async () => {
+  const { store, db } = setup(signingOptions);
+  const attempt = await store.claim(params());
+  await store.providerStarted(attempt);
+  db.docs.delete(sessionPath(UID));
+  db.docs.set(guardPath, { provenanceRevoked: true });
+  db.seed();
+  await forbid(() => store.persistReply(attempt, signedReply), "permission-denied");
+  assert.equal(db.docs.get(sessionPath(UID)).chatHistory.length, 1);
+  assert.equal(db.docs.get(receiptPath(UID)).provenance, undefined);
+  await store.finishFailed(attempt, { beforeProvider: false });
+  assert.equal(db.docs.get(receiptPath(UID)).billedPossible, true);
+});
+
+test("R139 malformed private guard fails closed; unsigned legacy path is unchanged", async () => {
+  const { store, db } = setup(signingOptions);
+  db.docs.set(guardPath, {});
+  await forbid(() => store.claim(params()), "permission-denied");
+  const legacy = setup();
+  legacy.db.docs.set(guardPath, { provenanceRevoked: true });
+  const attempt = await legacy.store.claim(params());
+  await legacy.store.providerStarted(attempt);
+  await legacy.store.persistReply(attempt, signedReply);
+  assert.equal(legacy.db.docs.get(receiptPath(UID)).provenance, undefined);
+});
