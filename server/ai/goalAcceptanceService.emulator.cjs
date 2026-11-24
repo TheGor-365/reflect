@@ -17,7 +17,9 @@ const provenance = { activeKeyId: "synthetic-v1",
   keys: [{ keyId: "synthetic-v1", key: Buffer.alloc(32, 23) }] };
 const recovery = createAiTurnRecovery({ db, projectId, provenance });
 const service = createGoalAcceptanceService({ db, projectId, provenance });
-test.after(async () => { await db.terminate(); await deleteApp(app); });
+const flag = db.doc("_reflectAiPrivate/reflect-8fdc8/runtimeFlags/goalAcceptance");
+test.before(async () => { await flag.set({enabled:true}); });
+test.after(async () => { await flag.delete(); await db.terminate(); await deleteApp(app); });
 
 async function fixture() {
   const uid = "fixture-" + randomUUID(), sessionId = "s1";
@@ -98,4 +100,15 @@ test("real Admin SDK abort after queued service writes rolls back all three docu
   assert.equal((await f.session.get()).data().recommendationDecisions, undefined);
   assert.equal((await f.accept()).alreadyAccepted, false);
   console.log("R139_C3C3B2_ADMIN_ACCEPTANCE_PASS");
+});
+
+test("real Admin SDK final transaction rejects disabled runtime flag", async () => {
+ const f = await fixture();
+ await flag.set({enabled:false});
+ try {
+  await assert.rejects(f.accept(), e => e.code === "unavailable");
+  assert.equal((await f.root.collection("goals").get()).size,0);
+  assert.equal((await f.guard.collection("acceptances").get()).size,0);
+ } finally { await flag.set({enabled:true}); }
+ assert.equal((await f.accept()).alreadyAccepted,false);
 });
