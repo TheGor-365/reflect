@@ -31,7 +31,7 @@ function createProvenanceRetentionWorker({db,projectId,deleteField,clock=Date.no
        !Number.isSafeInteger(a.untilMs)||a.untilMs<1) throw Error("invalid-retention-attempt");
     return a;
   }
-  async function runBatch({after = null} = {}) {
+  async function runBatch({after = null, diagnostics = false} = {}) {
     if (after !== null && (typeof after !== "string" || !HASH.test(after))) {
       throw Error("invalid-worker-cursor");
     }
@@ -40,6 +40,7 @@ function createProvenanceRetentionWorker({db,projectId,deleteField,clock=Date.no
     if (after !== null) query = query.startAfter(after);
     const page = await query.get();
     let completed=0, pending=0, failed=0;
+    const health={backoff:0,busy:0,attention:0,stale:0,invalidOrStorageFailure:0};
     for (const snapshot of page.docs) {
       try {
         target(snapshot.data(),snapshot.id);
@@ -47,16 +48,17 @@ function createProvenanceRetentionWorker({db,projectId,deleteField,clock=Date.no
         const owner=randomUUID();
         const claimed=await db.runTransaction(async tx=>{
           const snap=await tx.get(ref);
-          if(!snap.exists) return null;
+          if(!snap.exists) return {skip:"stale"};
           const row=target(snap.data(),snapshot.id);
           const t=now();
-          if(row.status!=="pending"||!eligible(row,t)) return null;
+          if(row.status!=="pending") return {skip:"stale"};
+          if(!eligible(row,t)) return {skip:"backoff"};
           const a=attempt(row);
-          if(a&&a.untilMs>t) return null;
+          if(a&&a.untilMs>t) return {skip:"busy"};
           tx.set(ref,{attempt:{owner,untilMs:t+ATTEMPT_MS}},{merge:true});
           return {uid:row.uid,sessionId:row.sessionId};
         });
-        if(!claimed){pending++;continue;}
+        if(claimed.skip){health[claimed.skip]++;pending++;continue;}
         const {uid,sessionId}=claimed;
         const retention = createProvenanceRetention({db,projectId,deleteField,clock,workerAttempt:owner});
         let ok=false, finished=false;
@@ -68,10 +70,10 @@ function createProvenanceRetentionWorker({db,projectId,deleteField,clock=Date.no
         } catch { /* Never persist raw errors. */ }
         const outcome=await db.runTransaction(async tx=>{
           const job=await tx.get(ref);
-          if(!job.exists) return "pending";
+          if(!job.exists) return "stale";
           const row=target(job.data(),snapshot.id), a=attempt(row), t=now();
           if(row.status!=="pending"||row.uid!==uid||row.sessionId!==sessionId||
-             !a||a.owner!==owner||a.untilMs<=t) return "pending";
+             !a||a.owner!==owner||a.untilMs<=t) return "stale";
           if(ok&&finished){
             const marker=await tx.get(db.doc(`_reflectAiPrivate/reflect-8fdc8/attemptOwners/${uid}/sessions/${sessionId}`));
             const state=marker.exists?marker.data():null;
@@ -82,18 +84,22 @@ function createProvenanceRetentionWorker({db,projectId,deleteField,clock=Date.no
           const patch=ok?{status:finished?"complete":"pending",retry:afterSuccess()}:
             afterFailure(row,t);
           tx.set(ref,{...patch,attempt:null},{merge:true});
-          return ok?(finished?"completed":"pending"):"failed";
+          return ok?(finished?"completed":"pending"):(patch.status==="attention"?"attention":"failed");
         });
         if(outcome==="completed") completed++;
         else if(outcome==="failed") failed++;
+        else if(outcome==="attention"){health.attention++;failed++;}
+        else if(outcome==="stale"){health.stale++;pending++;}
         else pending++;
       } catch {
         // Malformed jobs or storage faults remain visible as aggregate failures.
+        health.invalidOrStorageFailure++;
         failed++;
       }
     }
     return { scanned:page.docs.length,completed,pending,failed,
-      nextCursor:page.docs.length===LIMIT ? page.docs[page.docs.length-1].id : null };
+      nextCursor:page.docs.length===LIMIT ? page.docs[page.docs.length-1].id : null,
+      ...(diagnostics ? {health} : {}) };
   }
   return Object.freeze({runBatch});
 }
