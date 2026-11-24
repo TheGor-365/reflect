@@ -138,3 +138,69 @@ test("R139 real Admin SDK: expired attempt takeover preserves data until authori
     await Promise.all([ref.delete(),turn.delete(),event.delete(),marker.delete()]);
   }
 });
+
+test("R139 real Admin SDK: malformed full page does not block valid jobs behind it",async()=>{
+  const {randomUUID}=require("node:crypto");
+  const {FieldValue}=require("firebase-admin/firestore");
+  const {JOB_ROOT,jobId}=require("./provenanceRetention.cjs");
+  const uid="cursor-fixture-"+randomUUID(),sessionId="valid";
+  const validRef=db.doc(JOB_ROOT+"/"+jobId(uid,sessionId));
+  const marker=db.doc("_reflectAiPrivate/reflect-8fdc8/attemptOwners/"+uid+"/sessions/"+sessionId);
+  const bad=Array.from({length:10},(_,i)=>db.doc(JOB_ROOT+"/!malformed-"+i));
+  const sweep=db.doc(SWEEP_PATH);
+  const original=await sweep.get();
+  const writes=db.batch();
+  for(const ref of bad) writes.set(ref,{schemaVersion:1,uid,sessionId,status:"pending"});
+  writes.set(validRef,{schemaVersion:1,uid,sessionId,status:"pending"});
+  writes.set(marker,{provenanceRevoked:true});
+  writes.set(sweep,{schemaVersion:1,cursor:null,fence:0,leaseOwner:null,leaseUntilMs:0});
+  await writes.commit();
+  try{
+    const scheduler=createProvenanceRetentionScheduler({db,projectId:"reflect-ai-staging",deleteField:()=>FieldValue.delete()});
+    const first=await scheduler.runOnce();
+    assert.equal(first.status,"processed");
+    assert.equal(first.scanned,10);
+    assert.equal(first.failed,10);
+    assert.equal(first.health.invalidOrStorageFailure,10);
+    assert.equal((await sweep.get()).data().cursor,"!malformed-9");
+    assert.equal((await validRef.get()).data().status,"pending");
+    let done=false;
+    for(let i=0;i<30;i++){
+      assert.equal((await scheduler.runOnce()).status,"processed");
+      if((await validRef.get()).data().status==="complete"){done=true;break;}
+    }
+    assert.equal(done,true);
+    assert.ok((await Promise.all(bad.map(ref=>ref.get()))).every(s=>s.data().status==="pending"));
+    console.log("R139_C3C3C4D3A_MALFORMED_CURSOR_PASS");
+  }finally{
+    const cleanup=db.batch();
+    for(const ref of [...bad,validRef,marker]) cleanup.delete(ref);
+    if(original.exists) cleanup.set(sweep,original.data()); else cleanup.delete(sweep);
+    await cleanup.commit();
+  }
+});
+
+test("R139 real Admin SDK: attention inventory is bounded and redacted",async()=>{
+  const {randomUUID}=require("node:crypto");
+  const {JOB_ROOT}=require("./provenanceRetention.cjs");
+  const {createProvenanceRetentionInventory}=require("./provenanceRetentionInventory.cjs");
+  const prefix="inventory-fixture-"+randomUUID();
+  const refs=Array.from({length:101},(_,i)=>db.doc(JOB_ROOT+"/"+prefix+"-"+i));
+  const inventory=createProvenanceRetentionInventory({db,projectId:"reflect-ai-staging"});
+  const baseline=await inventory.readAttention();
+  assert.deepEqual(baseline,{status:"ok",attentionAtLeast:0,exact:true});
+  try{
+    await refs[0].set({status:"attention",uid:"private-fixture"});
+    assert.deepEqual(await inventory.readAttention(),{status:"ok",attentionAtLeast:1,exact:true});
+    const writes=db.batch();
+    for(const ref of refs.slice(1)) writes.set(ref,{status:"attention",uid:"private-fixture"});
+    await writes.commit();
+    assert.deepEqual(await inventory.readAttention(),{status:"ok",attentionAtLeast:100,exact:false});
+    assert.equal((await refs[0].get()).data().uid,"private-fixture");
+    console.log("R139_C3C3C4D3A_ATTENTION_INVENTORY_PASS");
+  }finally{
+    const cleanup=db.batch();
+    for(const ref of refs) cleanup.delete(ref);
+    await cleanup.commit();
+  }
+});
