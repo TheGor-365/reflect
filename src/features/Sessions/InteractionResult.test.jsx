@@ -137,3 +137,16 @@ it('M6a UI allows one deliberate goal only after all owner feedback is source-ma
   expect(confirm).toBeEnabled();
   expect(onDecision).not.toHaveBeenCalled();
 });
+
+
+it('R139 B2 explains fresh synthesis without unlocking the original or sending automatically', () => {
+  const onCompose = vi.fn();
+  const onDecision = vi.fn();
+  render(<InteractionResult interaction={{ ...base, stage: 'clarify', insights: [] }}
+    messageId="assistant-r139" isSaved onCompose={onCompose} onDecision={onDecision}/>);
+  expect(screen.getByText(/сформулировать новую рекомендацию/))
+    .toHaveTextContent('не станет доступным для создания цели автоматически');
+  expect(screen.getByRole('button', { name: 'Превратить в цель' })).toBeDisabled();
+  expect(onCompose).not.toHaveBeenCalled();
+  expect(onDecision).not.toHaveBeenCalled();
+});
