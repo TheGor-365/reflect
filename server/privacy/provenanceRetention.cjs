@@ -52,6 +52,33 @@ function createProvenanceRetention({ db, projectId, deleteField }) {
       return { scrubbed, done };
     });
   }
+  // Acceptance events are not billing records. Delete only this exact
+  // revoked session's private acceptance documents, never owner goals.
+  // Deleting the first bounded page repeatedly requires no cursor.
+  async function scrubDeletedSessionAcceptances(body, principal) {
+    if (!body || Object.getPrototypeOf(body) !== Object.prototype ||
+        Object.keys(body).length !== 1 || !valid(body.sessionId) ||
+        !valid(principal?.uid)) throw Error("invalid-retention-target");
+    const { sessionId } = body, uid = principal.uid;
+    const root = `_reflectAiPrivate/reflect-8fdc8/attemptOwners/${uid}/sessions/${sessionId}`;
+    const guard = db.doc(root);
+    return db.runTransaction(async tx => {
+      const marker = await tx.get(guard);
+      const state = marker.exists ? marker.data() : null;
+      if (state?.provenanceRevoked !== true) throw Error("revocation-required");
+      if (state.acceptanceCleanup !== undefined &&
+          (state.acceptanceCleanup === null ||
+           typeof state.acceptanceCleanup.done !== "boolean")) {
+        throw Error("invalid-retention-progress");
+      }
+      const page = await tx.get(db.collection(root + "/acceptances")
+        .orderBy("__name__").limit(MAX_BATCH));
+      for (const snapshot of page.docs) tx.delete(snapshot.ref);
+      const done = page.docs.length < MAX_BATCH;
+      tx.set(guard, { acceptanceCleanup: { done } }, { merge: true });
+      return { deleted: page.docs.length, done };
+    });
+  }
   // Prototype server deletion entry: the revocation marker and removal
   // of the session must share one transaction. No public route yet.
   async function revokeAndDeleteSession({ sessionId, confirmed }, principal) {
@@ -73,6 +100,6 @@ function createProvenanceRetention({ db, projectId, deleteField }) {
       return { revoked: true };
     });
   }
-  return Object.freeze({ scrubDeletedSession, revokeAndDeleteSession });
+  return Object.freeze({ scrubDeletedSession, scrubDeletedSessionAcceptances, revokeAndDeleteSession });
 }
 module.exports = { createProvenanceRetention };
