@@ -96,3 +96,94 @@ test("real Admin SDK privacy quota concurrent boundary and durable window reset"
    }finally{await db.terminate();await admin.deleteApp(app);}
  }
 });
+
+test("trusted deletion composition with real demo Auth and Firestore, synthetic App Check",async()=>{
+ const {getAuth}=require("firebase-admin/auth");
+ const {getAppCheck}=require("firebase-admin/app-check");
+ const {randomUUID,createHash}=require("node:crypto");
+ const {Readable}=require("node:stream");
+ const {DELETION_FLAG}=require("./provenanceRetention.cjs");
+ const {QUOTA_ROOT}=require("./provenanceRetentionDeletionRuntime.cjs");
+ const {createTrustedSessionDeletion}=require("./provenanceRetentionDeletionAuth.cjs");
+ const {PATH,ORIGIN,APP_ID}=require("./provenanceRetentionDeletionHttp.cjs");
+ const app=admin.initializeApp({projectId:"demo-reflect-r139"},"trusted-deletion");
+ const db=getFirestore(app),realAuth=getAuth(app);
+ const client=web.initializeApp({projectId:"demo-reflect-r139",apiKey:"synthetic-only"},"trusted-deletion-web");
+ const a=auth.getAuth(client);
+ auth.connectAuthEmulator(a,"http://127.0.0.1:19399",{disableWarnings:true});
+ const flag=db.doc(DELETION_FLAG);
+ let original,uid;
+ const replayRefs=[];
+ try{
+   assert.equal(realAuth.app.options.projectId,"demo-reflect-r139");
+   assert.equal(getAppCheck(app).app.options.projectId,"demo-reflect-r139");
+   assert.equal(db.projectId,"demo-reflect-r139");
+   // Explicit fixture facade: all actual I/O remains bound to demo SDKs.
+   // Production constructors still reject demo or mismatched project metadata.
+   const projectId="reflect-ai-staging",metadata={options:{projectId}};
+   const facade={projectId,doc:db.doc.bind(db),collection:db.collection.bind(db),
+     batch:db.batch.bind(db),runTransaction:db.runTransaction.bind(db)};
+   const authAdapter={app:metadata,verifyIdToken:realAuth.verifyIdToken.bind(realAuth),getUser:realAuth.getUser.bind(realAuth)};
+   const now=Date.now();
+   const syntheticAppCheck={app:metadata,async verifyToken(_token,options){
+     assert.deepEqual(options,{consume:true});
+     return {appId:APP_ID,alreadyConsumed:false,token:{exp:Math.floor(now/1000)+600}};
+   }};
+   assert.throws(()=>createTrustedSessionDeletion({db,projectId,auth:realAuth,appCheck:getAppCheck(app),
+     deleteField:()=>FieldValue.delete(),locallyEnabled:true}),/unsafe-privacy-auth-environment/);
+   const user=(await auth.signInAnonymously(a)).user;
+   uid=user.uid;
+   const idToken=await user.getIdToken();
+   const session=db.doc("artifacts/reflect-8fdc8/users/"+uid+"/sessions/s1");
+   const marker=db.doc("_reflectAiPrivate/reflect-8fdc8/attemptOwners/"+uid+"/sessions/s1");
+   const job=db.doc(JOB_ROOT+"/"+jobId(uid,"s1"));
+   original=await flag.get();
+   await session.set({chatHistory:[]});
+   await flag.set({enabled:false});
+   const listener=createTrustedSessionDeletion({db:facade,projectId,auth:authAdapter,appCheck:syntheticAppCheck,
+     deleteField:()=>FieldValue.delete(),locallyEnabled:true,clock:()=>now});
+   const fresh=()=>{
+     const token="synthetic-app-check-"+randomUUID();
+     replayRefs.push(db.doc("_reflectAiPrivate/reflect-8fdc8/appCheckReplayTokens/"+createHash("sha256").update(token).digest("hex")));
+     return token;
+   };
+   async function invoke(token,body={confirmed:true,sessionId:"s1"},bearer=idToken){
+     const req=Readable.from([JSON.stringify(body)]);
+     Object.assign(req,{url:PATH,method:"POST",headers:{origin:ORIGIN,authorization:"Bearer "+bearer,
+       "x-firebase-appcheck":token,"content-type":"application/json"}});
+     let status,output;
+     await listener(req,{writeHead(code){status=code;},end(raw){output=JSON.parse(raw);}});
+     return {status,output};
+   }
+   assert.equal((await invoke(fresh())).status,503);
+   assert.equal((await session.get()).exists,true);
+   await flag.set({enabled:true});
+   const token=fresh();
+   assert.deepEqual(await invoke(token),{status:200,output:{status:"revoked"}});
+   assert.equal((await invoke(token)).status,401);
+   assert.equal((await session.get()).exists,false);
+   assert.equal((await marker.get()).data().provenanceRevoked,true);
+   assert.equal((await job.get()).data().status,"pending");
+   assert.deepEqual(await invoke(fresh()),{status:200,output:{status:"revoked"}});
+   assert.equal((await db.doc(QUOTA_ROOT+"/"+uid).get()).data().count,2);
+   await realAuth.updateUser(uid,{disabled:true});
+   assert.equal((await invoke(fresh())).status,401);
+   console.log("R139_TRUSTED_DELETION_COMPOSITION_PASS");
+ }finally{
+   try{
+     const batch=db.batch();
+     for(const ref of replayRefs) batch.delete(ref);
+     if(uid){
+       batch.delete(db.doc("artifacts/reflect-8fdc8/users/"+uid+"/sessions/s1"));
+       batch.delete(db.doc("_reflectAiPrivate/reflect-8fdc8/attemptOwners/"+uid+"/sessions/s1"));
+       batch.delete(db.doc(JOB_ROOT+"/"+jobId(uid,"s1")));
+       batch.delete(db.doc(QUOTA_ROOT+"/"+uid));
+     }
+     if(original?.exists) batch.set(flag,original.data());else if(original) batch.delete(flag);
+     await batch.commit();
+     if(uid) await realAuth.deleteUser(uid);
+   }finally{
+     await web.deleteApp(client);await db.terminate();await admin.deleteApp(app);
+   }
+ }
+});
