@@ -2,7 +2,7 @@
 // R139 isolated scheduler primitive. No timer, route, Railway registration or live activation.
 const { randomUUID } = require("node:crypto");
 const { createProvenanceRetentionWorker, LIMIT } = require("./provenanceRetentionWorker.cjs");
-const SWEEP_PATH = "_reflectAiPrivate/reflect-8fdc8/retentionScheduler/sweep";
+const {SWEEP_PATH}=require("./provenanceRetentionSweepFence.cjs");
 const {validCursor}=require("./provenanceRetentionCursor.cjs");
 const LEASE_MS = 300000;
 const blank = () => ({schemaVersion:1,cursor:null,fence:0,leaseOwner:null,leaseUntilMs:0});
@@ -72,7 +72,7 @@ function createProvenanceRetentionScheduler({db,projectId,deleteField,clock = Da
     if (!claim) return {status:"busy"};
     let batch = null;
     try {
-      batch = await jobWorker.runBatch({after:claim.after,diagnostics:true});
+      batch = await jobWorker.runBatch({after:claim.after,diagnostics:true,sweepClaim:{owner,fence:claim.fence}});
       checkBatch(batch);
     } catch {
       // Raw provider/SDK error messages must not enter durable state or diagnostics.
