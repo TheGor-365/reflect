@@ -348,3 +348,7 @@ Draft PR #140 head `6dce5e1c23a6e76d2637e7289d5af3303d941458`: added isolated re
 
 ## R139-C3c.3c.4d.3a.3 — redacted batch health diagnostics (2026-11-25)
 Draft PR #140 head `8c022e8f775331ce5443ed73091762a0d689f7b2`. Worker opt-in diagnostics distinguish backoff, busy, newly transitioned attention, stale and invalid/storage failure (`ff8316a`); scheduler requests diagnostics, shares clock with worker and validates/whitelists counters in durable lastBatch (`19a5029`); two unit groups added (`e5436e7`, `8c022e8`). Expected 90 unit and 13 SDK tests; not verified. Prior R139 CI run 45493611293 queued at readback. Health is per batch, not total queue inventory or alerting; attention count only covers new transitions. Malformed cursor recovery, bounded attention inventory, scheduler-level fencing and simultaneous in-flight conflict coverage remain open. Next prioritize exact-head CI and fix regressions before additional implementation. No live activation, deploy, rules, secrets or provider calls.
+
+
+## R139-C3c.3c.4d.3a.3 — owner regression verified (2026-11-25)
+Owner terminal exact `8c022e8f775331ce5443ed73091762a0d689f7b2`: syntax PASS, 90/90 server tests PASS, zero failures/skips, clean detached review worktree, no push/deploy/provider calls. R139 exact-head CI run 45493799518 still queued at readback; real SDK 13-test result not confirmed. Next bounded slice: attention queue inventory with capped aggregate-only read, no IDs or text, no mutation or runtime endpoint.
