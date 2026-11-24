@@ -50,7 +50,7 @@ function fixture(count = 2, clock = Date.now) {
       return result;
     }
   };
-  return { docs, foreign, worker:createProvenanceRetentionWorker({db,clock,projectId:"reflect-ai-staging",deleteField:()=>DELETE}), service: createProvenanceRetention({
+  return { db, docs, foreign, worker:createProvenanceRetentionWorker({db,clock,projectId:"reflect-ai-staging",deleteField:()=>DELETE}), service: createProvenanceRetention({
     db, projectId: "reflect-ai-staging", deleteField: () => DELETE }) };
 }
 
@@ -255,4 +255,31 @@ test("worker successful partial page resets failure count",async()=>{
   assert.equal((await worker.runBatch()).pending,1);
   assert.deepEqual(docs.get(path).retry,{failures:0,notBeforeMs:0});
   assert.equal((await worker.runBatch()).completed,1);
+});
+
+test("worker-bound cleanup denies expired and replaced attempts before writes",async()=>{
+  let time=1000;
+  const {db,docs}=fixture();
+  const owner="a".repeat(8)+"-"+"a".repeat(4)+"-"+"a".repeat(4)+"-"+"a".repeat(4)+"-"+"a".repeat(12);
+  const replacement=owner.replace(/^a/,"b");
+  const path=JOB_ROOT+"/"+jobId("alice","s1");
+  docs.set(root,{provenanceRevoked:true});
+  const event=root+"/acceptances/a";
+  docs.set(event,{status:"accepted"});
+  const row={schemaVersion:1,uid:"alice",sessionId:"s1",status:"pending",attempt:{owner,untilMs:2000}};
+  docs.set(path,row);
+  const make=workerAttempt=>createProvenanceRetention({db,projectId:"reflect-ai-staging",
+    deleteField:()=>DELETE,clock:()=>time,workerAttempt});
+  const args=[{sessionId:"s1"},{uid:"alice"}];
+  time=2000;
+  await assert.rejects(make(owner).scrubDeletedSession(...args),/stale-retention-attempt/);
+  await assert.rejects(make(owner).scrubDeletedSessionAcceptances(...args),/stale-retention-attempt/);
+  docs.set(path,{...row,attempt:{owner:replacement,untilMs:3000}});
+  await assert.rejects(make(owner).scrubDeletedSession(...args),/stale-retention-attempt/);
+  await assert.rejects(make(owner).scrubDeletedSessionAcceptances(...args),/stale-retention-attempt/);
+  assert.ok(docs.get(root+"/turns/u000").provenance);
+  assert.ok(docs.has(event));
+  assert.equal((await make(replacement).scrubDeletedSession(...args)).done,true);
+  assert.equal((await make(replacement).scrubDeletedSessionAcceptances(...args)).done,true);
+  assert.equal(docs.has(event),false);
 });
