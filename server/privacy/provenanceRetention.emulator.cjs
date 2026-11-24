@@ -9,7 +9,7 @@ if (process.env.GCLOUD_PROJECT !== "demo-reflect-r139" ||
 const { initializeApp, deleteApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { createAiTurnRecovery } = require("../ai/aiTurnRecovery.cjs");
-const { createProvenanceRetention } = require("./provenanceRetention.cjs");
+const { createProvenanceRetention, JOB_ROOT, jobId } = require("./provenanceRetention.cjs");
 const app = initializeApp({ projectId: "demo-reflect-r139" });
 const db = getFirestore(app);
 // Logical staging policy argument; actual SDK target is strictly demo + loopback.
@@ -121,4 +121,19 @@ test("real Admin SDK acceptance cleanup preserves owner goals and accounting", a
   assert.equal((await receipt.get()).data().provenance,undefined);
   assert.equal((await receipt.get()).data().billedPossible,true);
   console.log("R139_C3C3C4C_ACCEPTANCE_CLEANUP_PASS");
+});
+
+test("real Admin SDK deletion registers one durable job under concurrent retries", async () => {
+ const uid="fixture-"+randomUUID(), sessionId="job-registration";
+ const session=db.doc(`artifacts/reflect-8fdc8/users/${uid}/sessions/${sessionId}`);
+ const guard=db.doc(`_reflectAiPrivate/reflect-8fdc8/attemptOwners/${uid}/sessions/${sessionId}`);
+ const job=db.doc(JOB_ROOT+"/"+jobId(uid,sessionId));
+ await session.set({chatHistory:[]});
+ const results=await Promise.all([retention.revokeAndDeleteSession({sessionId,confirmed:true},{uid}),
+ retention.revokeAndDeleteSession({sessionId,confirmed:true},{uid})]);
+ assert.ok(results.every(x=>x.revoked));
+ assert.equal((await session.get()).exists,false);
+ assert.equal((await guard.get()).data().provenanceRevoked,true);
+ assert.deepEqual((await job.get()).data(),{schemaVersion:1,uid,sessionId,status:"pending"});
+ console.log("R139_C3C3C4D_JOB_REGISTRATION_PASS");
 });
