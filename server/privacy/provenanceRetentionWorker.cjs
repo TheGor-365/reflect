@@ -4,7 +4,7 @@ const {randomUUID} = require("node:crypto");
 const { JOB_ROOT, jobId, createProvenanceRetention } = require("./provenanceRetention.cjs");
 const {eligible,afterFailure,afterSuccess} = require("./provenanceRetentionRetry.cjs");
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
-const HASH = /^[a-f0-9]{64}$/;
+const {validCursor}=require("./provenanceRetentionCursor.cjs");
 const valid = x => typeof x === "string" && ID.test(x);
 const LIMIT = 10;
 const ATTEMPT_MS = 300000;
@@ -32,7 +32,7 @@ function createProvenanceRetentionWorker({db,projectId,deleteField,clock=Date.no
     return a;
   }
   async function runBatch({after = null, diagnostics = false} = {}) {
-    if (after !== null && (typeof after !== "string" || !HASH.test(after))) {
+    if (!validCursor(after)) {
       throw Error("invalid-worker-cursor");
     }
     let query = db.collection(JOB_ROOT).where("status","==","pending")
