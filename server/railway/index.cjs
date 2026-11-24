@@ -236,6 +236,11 @@ function createRequestListener({
 
 function createRuntime() {
   const enabled = process.env.REFLECT_AI_ENABLED === "yes";
+  // R139 privacy lifecycle has not passed activation review. Refuse even an
+  // accidentally configured flag; no secret loading or live route yet.
+  if (process.env.REFLECT_GOAL_ACCEPTANCE_ENABLED === "yes") {
+    throw Error("R139 goal acceptance activation blocked pending privacy review");
+  }
   const outboundEnabled = process.env.REFLECT_XAI_OUTBOUND_ENABLED === "yes";
   // This is distinct from the paid Grok toggle and OFF unless explicitly approved.
   const consentEnabled = process.env.REFLECT_CONTEXT_CONSENT_API_ENABLED === "yes";
