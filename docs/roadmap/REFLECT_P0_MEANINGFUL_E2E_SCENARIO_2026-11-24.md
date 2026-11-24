@@ -352,3 +352,7 @@ Draft PR #140 head `8c022e8f775331ce5443ed73091762a0d689f7b2`. Worker opt-in dia
 
 ## R139-C3c.3c.4d.3a.3 — owner regression verified (2026-11-25)
 Owner terminal exact `8c022e8f775331ce5443ed73091762a0d689f7b2`: syntax PASS, 90/90 server tests PASS, zero failures/skips, clean detached review worktree, no push/deploy/provider calls. R139 exact-head CI run 45493799518 still queued at readback; real SDK 13-test result not confirmed. Next bounded slice: attention queue inventory with capped aggregate-only read, no IDs or text, no mutation or runtime endpoint.
+
+
+## R139-C3c.3c.4d.3a.4 — bounded attention inventory (2026-11-25)
+Draft PR #140 head `8af73588c4f12e8fe5ec5864077e1ee85e77c0ae`. Added isolated read-only attention inventory (`11c15c3`) with fixed 100-document limit, aggregate count/lower-bound flag, redacted unavailable result, no identifiers or mutation. Added two unit groups (`8af7358`), expected 92 server tests; not verified. Prior owner 90/90 baseline remains verified; prior emulator run 45493799518 queued at readback. Inventory counts status only, not schema validity; no continuous monitoring, alerts, reset or runtime route. Next exact-head verification and real SDK inventory coverage, malformed cursor and scheduler fencing. No deploy, live rules, secrets or provider calls.
