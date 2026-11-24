@@ -499,3 +499,47 @@ test("deletion composition uses private quota and atomic flag with no injected q
   assert.equal(await invoke(),503);
   assert.equal(docs.get(QUOTA_ROOT+"/alice").count,2);
 });
+
+test("trusted privacy adapters require revoked-token check, consumed App Check and shared durable replay",async()=>{
+  const {createPrivacyAuthAdapters,createTrustedSessionDeletion}=require("./provenanceRetentionDeletionAuth.cjs");
+  const projectId="reflect-ai-staging",app={options:{projectId}};
+  const records=new Map(),calls=[];
+  let result={appId:DELETION_APP,alreadyConsumed:false,token:{exp:2000}};
+  let account={uid:"alice",disabled:false,emailVerified:false};
+  let sequence=Promise.resolve();
+  const db={projectId,doc:path=>({path}),collection:()=>({where(){return this;},limit(){return this;},async get(){return {empty:true};}}),
+    batch(){throw Error("unexpected batch");},
+    runTransaction(fn){
+      const next=sequence.then(()=>fn({get:async ref=>({exists:records.has(ref.path)}),
+        create(ref,data){assert.ok(!records.has(ref.path));records.set(ref.path,data);}}));
+      sequence=next.catch(()=>{});return next;
+    }};
+  const auth={app,async verifyIdToken(token,checkRevoked){calls.push([token,checkRevoked]);return {uid:"alice",firebase:{sign_in_provider:"anonymous"}};},
+    async getUser(){return account;}};
+  const appCheck={app,async verifyToken(token,options){assert.deepEqual(options,{consume:true});return result;}};
+  const options={db,projectId,auth,appCheck,clock:()=>1000000};
+  const a=createPrivacyAuthAdapters(options);
+  assert.equal(createTrustedSessionDeletion({projectId}),null);
+  assert.throws(()=>createPrivacyAuthAdapters({...options,projectId:"production"}),/unsafe-privacy-auth-environment/);
+  assert.throws(()=>createPrivacyAuthAdapters({...options,appCheck:{...appCheck,app:{options:{projectId:"wrong"}}}}),/unsafe-privacy-auth-environment/);
+  const principal=await a.verifyAuth("synthetic-auth");
+  assert.deepEqual(calls,[["synthetic-auth",true]]);
+  assert.equal(await a.authorizeAccount(principal),true);
+  account={uid:"alice",disabled:true};
+  assert.equal(await a.authorizeAccount(principal),false);
+  account={uid:"bob",disabled:false};
+  assert.equal(await a.authorizeAccount(principal),false);
+  const token="synthetic-limited-use-token-001";
+  const concurrent=await Promise.allSettled([a.verifyAppCheck(token),createPrivacyAuthAdapters(options).verifyAppCheck(token)]);
+  assert.equal(concurrent.filter(x=>x.status==="fulfilled").length,1);
+  assert.equal(records.size,1);
+  const [key,value]=[...records][0];
+  assert.match(key,/appCheckReplayTokens\/[a-f0-9]{64}$/);
+  assert.deepEqual(Object.keys(value).sort(),["createdAt","expiresAt","schemaVersion"]);
+  assert.ok(!JSON.stringify([...records]).includes(token));
+  result={...result,appId:"wrong"};
+  await assert.rejects(a.verifyAppCheck("synthetic-limited-use-token-002"),/invalid-privacy-app-check/);
+  result={...result,appId:DELETION_APP,alreadyConsumed:true};
+  await assert.rejects(a.verifyAppCheck("synthetic-limited-use-token-003"),/invalid-privacy-app-check/);
+  assert.equal(records.size,1);
+});
