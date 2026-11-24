@@ -18,6 +18,15 @@ function checkState(state) {
   }
   return state;
 }
+const HEALTH_KEYS = ["backoff","busy","attention","stale","invalidOrStorageFailure"];
+function safeHealth(batch) {
+  if (batch.health === undefined) return {};
+  const h = batch.health;
+  if (!h || !HEALTH_KEYS.every(key => Number.isSafeInteger(h[key]) && h[key]>=0) ||
+      h.backoff+h.busy+h.stale>batch.pending ||
+      h.attention+h.invalidOrStorageFailure>batch.failed) throw Error("invalid-scheduler-health");
+  return {health:Object.fromEntries(HEALTH_KEYS.map(key=>[key,h[key]]))};
+}
 function checkBatch(batch) {
   if (!batch || !["scanned","completed","pending","failed"].every(
       key => Number.isSafeInteger(batch[key]) && batch[key] >= 0) ||
@@ -28,6 +37,7 @@ function checkBatch(batch) {
       (batch.scanned === LIMIT && batch.nextCursor === null)) {
     throw Error("invalid-scheduler-batch");
   }
+  safeHealth(batch);
 }
 function createProvenanceRetentionScheduler({db,projectId,deleteField,clock = Date.now,
   worker = null,leaseMs = LEASE_MS}) {
@@ -37,7 +47,7 @@ function createProvenanceRetentionScheduler({db,projectId,deleteField,clock = Da
       (worker && typeof worker.runBatch !== "function")) {
     throw Error("unsafe-scheduler-environment");
   }
-  const jobWorker = worker || createProvenanceRetentionWorker({db,projectId,deleteField});
+  const jobWorker = worker || createProvenanceRetentionWorker({db,projectId,deleteField,clock});
   const ref = db.doc(SWEEP_PATH);
   function now() {
     const value = clock();
@@ -62,7 +72,7 @@ function createProvenanceRetentionScheduler({db,projectId,deleteField,clock = Da
     if (!claim) return {status:"busy"};
     let batch = null;
     try {
-      batch = await jobWorker.runBatch({after:claim.after});
+      batch = await jobWorker.runBatch({after:claim.after,diagnostics:true});
       checkBatch(batch);
     } catch {
       // Raw provider/SDK error messages must not enter durable state or diagnostics.
@@ -77,13 +87,13 @@ function createProvenanceRetentionScheduler({db,projectId,deleteField,clock = Da
       tx.set(ref,{...state,cursor:batch ? batch.nextCursor : state.cursor,
         leaseOwner:null,leaseUntilMs:0,
         lastBatch:batch ? {ok:true,scanned:batch.scanned,completed:batch.completed,
-          pending:batch.pending,failed:batch.failed} : {ok:false}});
+          pending:batch.pending,failed:batch.failed,...safeHealth(batch)} : {ok:false}});
       return true;
     });
     if (!finished) return {status:"stale"};
     if (!batch) return {status:"failed"};
     return {status:"processed",scanned:batch.scanned,completed:batch.completed,
-      pending:batch.pending,failed:batch.failed};
+      pending:batch.pending,failed:batch.failed,...safeHealth(batch)};
   }
   return Object.freeze({runOnce});
 }
