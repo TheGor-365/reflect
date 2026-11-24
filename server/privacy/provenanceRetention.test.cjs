@@ -1,7 +1,7 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { createProvenanceRetention } = require("./provenanceRetention.cjs");
+const { createProvenanceRetention, JOB_ROOT, jobId } = require("./provenanceRetention.cjs");
 const DELETE = Symbol("delete-field");
 const root = "_reflectAiPrivate/reflect-8fdc8/attemptOwners/alice/sessions/s1";
 const live = "artifacts/reflect-8fdc8/users/alice/sessions/s1";
@@ -34,8 +34,8 @@ function fixture(count = 2) {
             .slice(0, r.size).map(p => ({ id: p.split("/").pop(), ref: ref(p),
               data: () => docs.get(p) })) };
         },
-        set(r, data, options) { assert.equal(options.merge, true);
-          writes.push(() => docs.set(r.path, { ...docs.get(r.path), ...data })); },
+        set(r, data, options) { assert.ok(options === undefined || options.merge === true);
+          writes.push(() => docs.set(r.path, options?.merge ? { ...docs.get(r.path), ...data } : data)); },
         delete(r) { writes.push(() => docs.delete(r.path)); },
         update(r, data) { writes.push(() => {
           assert.equal(data.provenance, DELETE);
@@ -137,4 +137,30 @@ test("acceptance cleanup denies absent revocation, forged cursor and malformed s
   await assert.rejects(clean({sessionId:"s1",cursor:"anything"}),/invalid-retention-target/);
   await assert.rejects(service.scrubDeletedSessionAcceptances({sessionId:"s1"},{uid:"bob"}),/revocation-required/);
   assert.equal(docs.has(event),true);
+});
+
+test("deletion atomically registers a private discoverable cleanup job", async () => {
+ const {docs,service}=fixture();
+ const path=JOB_ROOT+"/"+jobId("alice","s1");
+ docs.set(live,{chatHistory:[]});
+ assert.deepEqual(await service.revokeAndDeleteSession({sessionId:"s1",confirmed:true},{uid:"alice"}),{revoked:true});
+ assert.equal(docs.has(live),false);
+ assert.equal(docs.get(root).provenanceRevoked,true);
+ assert.deepEqual(docs.get(path),{schemaVersion:1,uid:"alice",sessionId:"s1",status:"pending"});
+ await service.revokeAndDeleteSession({sessionId:"s1",confirmed:true},{uid:"alice"});
+ assert.equal(docs.get(path).status,"pending");
+});
+test("deletion rejects archived, nonexistent and malformed jobs without writes", async () => {
+ const {docs,service}=fixture();
+ const path=JOB_ROOT+"/"+jobId("alice","s1");
+ const remove=()=>service.revokeAndDeleteSession({sessionId:"s1",confirmed:true},{uid:"alice"});
+ await assert.rejects(remove(),/session-not-found/);
+ docs.set(live,{archivedAt:1});
+ await assert.rejects(remove(),/archived-session-deletion-blocked/);
+ assert.equal(docs.has(path),false);
+ docs.set(live,{chatHistory:[]});
+ docs.set(path,{uid:"bob",sessionId:"s1",status:"pending",schemaVersion:1});
+ await assert.rejects(remove(),/invalid-retention-job/);
+ assert.equal(docs.has(live),true);
+ assert.equal(docs.has(root),false);
 });
