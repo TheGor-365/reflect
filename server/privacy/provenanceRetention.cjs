@@ -6,6 +6,9 @@
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
 const valid = x => typeof x === "string" && ID.test(x);
 const MAX_BATCH = 100;
+const { createHash } = require("node:crypto");
+const JOB_ROOT = "_reflectAiPrivate/reflect-8fdc8/retentionJobs";
+const jobId = (uid, sid) => createHash("sha256").update(JSON.stringify([uid,sid])).digest("hex");
 
 function createProvenanceRetention({ db, projectId, deleteField }) {
   if (projectId !== "reflect-ai-staging" || !db ||
@@ -81,25 +84,35 @@ function createProvenanceRetention({ db, projectId, deleteField }) {
   }
   // Prototype server deletion entry: the revocation marker and removal
   // of the session must share one transaction. No public route yet.
-  async function revokeAndDeleteSession({ sessionId, confirmed }, principal) {
-    if (!valid(principal?.uid) || !valid(sessionId) || confirmed !== true) {
+  async function revokeAndDeleteSession(body, principal) {
+    if (!body || Object.getPrototypeOf(body) !== Object.prototype ||
+        Object.keys(body).sort().join(",") !== "confirmed,sessionId" ||
+        !valid(principal?.uid) || !valid(body.sessionId) || body.confirmed !== true) {
       throw Error("invalid-retention-target");
     }
-    const uid = principal.uid;
+    const {sessionId} = body, uid = principal.uid;
     const session = db.doc(`artifacts/reflect-8fdc8/users/${uid}/sessions/${sessionId}`);
     const guard = db.doc(`_reflectAiPrivate/reflect-8fdc8/attemptOwners/${uid}/sessions/${sessionId}`);
+    const job = db.doc(JOB_ROOT + "/" + jobId(uid, sessionId));
     return db.runTransaction(async tx => {
-      const [live, marker] = await Promise.all([tx.get(session), tx.get(guard)]);
-      if (!live.exists) {
-        if (marker.exists && marker.data()?.provenanceRevoked === true) return { revoked: true };
-        throw Error("session-not-found");
+      const [live, marker, queued] = await Promise.all([tx.get(session), tx.get(guard), tx.get(job)]);
+      const revoked = marker.exists && marker.data()?.provenanceRevoked === true;
+      if (!live.exists && !revoked) throw Error("session-not-found");
+      if (live.exists && live.data()?.archivedAt != null) throw Error("archived-session-deletion-blocked");
+      if (queued.exists) {
+        const prior = queued.data();
+        if (!revoked || prior.uid !== uid || prior.sessionId !== sessionId ||
+            prior.schemaVersion !== 1 || !["pending","complete"].includes(prior.status)) {
+          throw Error("invalid-retention-job");
+        }
+      } else {
+        tx.set(job, {schemaVersion:1, uid, sessionId, status:"pending"});
       }
-      if (live.data()?.archivedAt != null) throw Error("archived-session-deletion-blocked");
-      tx.set(guard, { provenanceRevoked: true }, { merge: true });
-      tx.delete(session);
-      return { revoked: true };
+      if (!revoked) tx.set(guard, {provenanceRevoked:true}, {merge:true});
+      if (live.exists) tx.delete(session);
+      return {revoked:true};
     });
   }
   return Object.freeze({ scrubDeletedSession, scrubDeletedSessionAcceptances, revokeAndDeleteSession });
 }
-module.exports = { createProvenanceRetention };
+module.exports = { createProvenanceRetention, JOB_ROOT, jobId };
