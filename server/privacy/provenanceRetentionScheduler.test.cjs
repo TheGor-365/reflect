@@ -111,3 +111,35 @@ test("scheduler advances past malformed job identity as a technical cursor",asyn
   assert.deepEqual(seen,[null,"!bad-9"]);
   assert.equal(rows.get(SWEEP_PATH).cursor,null);
 });
+
+test("explicit cursor repair preserves fencing and rejects active lease or stale expected fence",async()=>{
+  const {rows,make}=fixture();
+  let time=10000;
+  const scheduler=make({runBatch:async()=>result(H1)},()=>time);
+  const state={schemaVersion:1,cursor:"../invalid",fence:7,leaseOwner:"a".repeat(36),leaseUntilMs:11000};
+  rows.set(SWEEP_PATH,state);
+  await assert.rejects(scheduler.repairCursor({confirmed:false,expectedFence:7}),/invalid-scheduler-repair-request/);
+  assert.deepEqual(await scheduler.repairCursor({confirmed:true,expectedFence:6}),{status:"conflict"});
+  assert.deepEqual(await scheduler.repairCursor({confirmed:true,expectedFence:7}),{status:"busy"});
+  assert.deepEqual(rows.get(SWEEP_PATH),state);
+  time=11000;
+  assert.deepEqual(await scheduler.repairCursor({confirmed:true,expectedFence:7}),{status:"repaired"});
+  assert.deepEqual(rows.get(SWEEP_PATH),{...state,cursor:null,fence:8,leaseOwner:null,leaseUntilMs:0,lastBatch:{ok:false}});
+  assert.deepEqual(await scheduler.repairCursor({confirmed:true,expectedFence:8}),{status:"unchanged"});
+  assert.equal((await scheduler.runOnce()).status,"processed");
+  assert.equal(rows.get(SWEEP_PATH).fence,9);
+});
+test("cursor repair refuses malformed fencing or lease and never creates missing state",async()=>{
+  const {rows,make}=fixture();
+  const scheduler=make({runBatch:async()=>result(H1)});
+  assert.deepEqual(await scheduler.repairCursor({confirmed:true,expectedFence:0}),{status:"missing"});
+  const base={schemaVersion:1,cursor:"../invalid",fence:0,leaseOwner:null,leaseUntilMs:0};
+  for(const patch of [{fence:-1},{leaseUntilMs:1},{schemaVersion:2},{leaseOwner:"invalid"},{leaseUntilMs:-1}]){
+    const state={...base,...patch};
+    rows.set(SWEEP_PATH,state);
+    await assert.rejects(scheduler.repairCursor({confirmed:true,expectedFence:0}),/invalid-scheduler-state/);
+    assert.deepEqual(rows.get(SWEEP_PATH),state);
+  }
+  rows.set(SWEEP_PATH,{...base,fence:Number.MAX_SAFE_INTEGER});
+  await assert.rejects(scheduler.repairCursor({confirmed:true,expectedFence:Number.MAX_SAFE_INTEGER}),/scheduler-fence-exhausted/);
+});
