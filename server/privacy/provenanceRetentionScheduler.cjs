@@ -3,12 +3,12 @@
 const { randomUUID } = require("node:crypto");
 const { createProvenanceRetentionWorker, LIMIT } = require("./provenanceRetentionWorker.cjs");
 const SWEEP_PATH = "_reflectAiPrivate/reflect-8fdc8/retentionScheduler/sweep";
-const HASH = /^[a-f0-9]{64}$/;
+const {validCursor}=require("./provenanceRetentionCursor.cjs");
 const LEASE_MS = 300000;
 const blank = () => ({schemaVersion:1,cursor:null,fence:0,leaseOwner:null,leaseUntilMs:0});
 function checkState(state) {
   if (!state || state.schemaVersion !== 1 ||
-      !(state.cursor === null || (typeof state.cursor === "string" && HASH.test(state.cursor))) ||
+      !validCursor(state.cursor) ||
       !Number.isSafeInteger(state.fence) || state.fence < 0 ||
       !(state.leaseOwner === null || (typeof state.leaseOwner === "string" &&
         /^[0-9a-f-]{36}$/.test(state.leaseOwner))) ||
@@ -32,7 +32,7 @@ function checkBatch(batch) {
       key => Number.isSafeInteger(batch[key]) && batch[key] >= 0) ||
       batch.scanned > LIMIT ||
       batch.completed + batch.pending + batch.failed !== batch.scanned ||
-      !(batch.nextCursor === null || (typeof batch.nextCursor === "string" && HASH.test(batch.nextCursor))) ||
+      !validCursor(batch.nextCursor) ||
       (batch.scanned < LIMIT && batch.nextCursor !== null) ||
       (batch.scanned === LIMIT && batch.nextCursor === null)) {
     throw Error("invalid-scheduler-batch");
