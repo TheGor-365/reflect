@@ -401,3 +401,49 @@ test("deletion transaction with private gate fails closed and permits idempotent
   docs.set(DELETION_FLAG,{enabled:false});
   await assert.rejects(service.revokeAndDeleteSession(...args),/session-deletion-disabled/);
 });
+
+const {createSessionDeletionListener,createSessionDeletionComposition,PATH:DELETION_PATH,ORIGIN:DELETION_ORIGIN,APP_ID:DELETION_APP}=require("./provenanceRetentionDeletionHttp.cjs");
+function deletionHttpFixture(overrides={}){
+  const calls=[];
+  const listener=createSessionDeletionListener({
+    verifyAuth:async()=>({uid:"alice"}),
+    verifyAppCheck:async()=>({appId:DELETION_APP,alreadyConsumed:false}),
+    authorizeAccount:async()=>true,rateLimit:async()=>{},
+    revoke:async(...args)=>{calls.push(args);return {revoked:true,private:"not public"};},
+    ...overrides
+  });
+  async function invoke({body={confirmed:true,sessionId:"s1"},headers={},method="POST",url=DELETION_PATH}={}){
+    const req=require("node:stream").Readable.from([JSON.stringify(body)]);
+    Object.assign(req,{method,url,headers:{origin:DELETION_ORIGIN,authorization:"Bearer "+"a".repeat(30),"x-firebase-appcheck":"b".repeat(30),"content-type":"application/json",...headers}});
+    let status,output;
+    await listener(req,{writeHead(code){status=code;},end(value){output=value?JSON.parse(value):null;}});
+    return {status,output};
+  }
+  return {invoke,calls};
+}
+test("deletion HTTP binds verified principal and rejects forged body, origin and replay",async()=>{
+  const {invoke,calls}=deletionHttpFixture();
+  assert.equal((await invoke({body:{confirmed:true,sessionId:"s1",uid:"bob"}})).status,400);
+  assert.equal((await invoke({body:{confirmed:false,sessionId:"s1"}})).status,400);
+  assert.equal((await invoke({headers:{origin:"https://foreign.invalid"}})).status,403);
+  assert.equal((await invoke({method:"OPTIONS"})).status,204);
+  assert.equal((await invoke({url:DELETION_PATH+"?x=1"})).status,404);
+  assert.equal(calls.length,0);
+  assert.deepEqual(await invoke(),{status:200,output:{status:"revoked"}});
+  assert.deepEqual(calls,[[{confirmed:true,sessionId:"s1"},{uid:"alice"}]]);
+  const replay=deletionHttpFixture({verifyAppCheck:async()=>({appId:DELETION_APP,alreadyConsumed:true})});
+  assert.equal((await replay.invoke()).status,401);
+  assert.equal(replay.calls.length,0);
+});
+test("deletion HTTP authorization, quota and errors fail closed; composition defaults off",async()=>{
+  assert.equal(createSessionDeletionComposition({projectId:"reflect-ai-staging"}),null);
+  assert.throws(()=>createSessionDeletionComposition({projectId:"production"}),/unsafe-deletion-environment/);
+  const denied=deletionHttpFixture({authorizeAccount:async()=>false});
+  assert.equal((await denied.invoke()).status,403);
+  assert.equal(denied.calls.length,0);
+  const quota=deletionHttpFixture({rateLimit:async()=>{throw Object.assign(Error("private"),{code:"resource-exhausted"});}});
+  assert.equal((await quota.invoke()).status,429);
+  assert.equal(quota.calls.length,0);
+  const failure=deletionHttpFixture({revoke:async()=>{throw Error("private fixture");}});
+  assert.deepEqual(await failure.invoke(),{status:503,output:{error:"unavailable"}});
+});
