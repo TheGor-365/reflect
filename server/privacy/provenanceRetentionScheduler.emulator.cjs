@@ -204,3 +204,54 @@ test("R139 real Admin SDK: attention inventory is bounded and redacted",async()=
     await cleanup.commit();
   }
 });
+
+test("R139 real Admin SDK: scheduler takeover fences an outstanding job attempt",async()=>{
+  const {randomUUID}=require("node:crypto");
+  const {FieldValue}=require("firebase-admin/firestore");
+  const {JOB_ROOT,jobId,createProvenanceRetention}=require("./provenanceRetention.cjs");
+  const {createProvenanceRetentionWorker}=require("./provenanceRetentionWorker.cjs");
+  const uid="sweep-fixture-"+randomUUID(),sessionId="sweep";
+  const job=db.doc(JOB_ROOT+"/"+jobId(uid,sessionId));
+  const marker=db.doc("_reflectAiPrivate/reflect-8fdc8/attemptOwners/"+uid+"/sessions/"+sessionId);
+  const turn=marker.collection("turns").doc("u1"),event=marker.collection("acceptances").doc("a1");
+  const sweep=db.doc(SWEEP_PATH),original=await sweep.get();
+  const owner=randomUUID(),attemptOwner=randomUUID(),replacement=randomUUID();
+  let time=1000;
+  const options={db,projectId:"reflect-ai-staging",deleteField:()=>FieldValue.delete(),clock:()=>time};
+  const oldClaim={owner,fence:1},newClaim={owner:replacement,fence:2};
+  const writes=db.batch();
+  writes.set(sweep,{schemaVersion:1,cursor:null,leaseOwner:owner,fence:1,leaseUntilMs:2000});
+  writes.set(job,{schemaVersion:1,uid,sessionId,status:"pending",attempt:{owner:attemptOwner,untilMs:3000}});
+  writes.set(marker,{provenanceRevoked:true});
+  writes.set(turn,{provenance:{mac:"synthetic"},billedPossible:true});
+  writes.set(event,{status:"accepted"});
+  await writes.commit();
+  try{
+    const old=createProvenanceRetention({...options,workerAttempt:attemptOwner,sweepClaim:oldClaim});
+    const args=[{sessionId},{uid}];
+    time=2000;
+    await assert.rejects(old.scrubDeletedSession(...args),/stale-retention-sweep/);
+    await sweep.set({schemaVersion:1,cursor:null,leaseOwner:replacement,fence:2,leaseUntilMs:10000});
+    await assert.rejects(old.scrubDeletedSessionAcceptances(...args),/stale-retention-sweep/);
+    const worker=createProvenanceRetentionWorker(options);
+    const stale=await worker.runBatch({sweepClaim:oldClaim,diagnostics:true});
+    assert.ok(stale.failed>=1);
+    assert.equal((await job.get()).data().attempt.owner,attemptOwner);
+    assert.ok((await turn.get()).data().provenance);
+    assert.equal((await event.get()).exists,true);
+    const busy=await worker.runBatch({sweepClaim:newClaim,diagnostics:true});
+    assert.ok(busy.health.busy>=1);
+    time=3000;
+    const recovered=await worker.runBatch({sweepClaim:newClaim,diagnostics:true});
+    assert.ok(recovered.completed>=1);
+    assert.equal((await job.get()).data().status,"complete");
+    assert.deepEqual((await turn.get()).data(),{billedPossible:true});
+    assert.equal((await event.get()).exists,false);
+    console.log("R139_C3C3C4D3A_SWEEP_TAKEOVER_PASS");
+  }finally{
+    const cleanup=db.batch();
+    for(const ref of [job,marker,turn,event]) cleanup.delete(ref);
+    if(original.exists) cleanup.set(sweep,original.data()); else cleanup.delete(sweep);
+    await cleanup.commit();
+  }
+});
