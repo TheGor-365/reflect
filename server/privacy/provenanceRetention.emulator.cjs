@@ -137,3 +137,30 @@ test("real Admin SDK deletion registers one durable job under concurrent retries
  assert.deepEqual((await job.get()).data(),{schemaVersion:1,uid,sessionId,status:"pending"});
  console.log("R139_C3C3C4D_JOB_REGISTRATION_PASS");
 });
+
+
+test("real Admin SDK worker discovers and completes revoked cleanup", async () => {
+ const {createProvenanceRetentionWorker}=require("./provenanceRetentionWorker.cjs");
+ const uid="fixture-"+randomUUID(),sessionId="worker";
+ const session=db.doc(`artifacts/reflect-8fdc8/users/${uid}/sessions/${sessionId}`);
+ const guard=db.doc(`_reflectAiPrivate/reflect-8fdc8/attemptOwners/${uid}/sessions/${sessionId}`);
+ const job=db.doc(JOB_ROOT+"/"+jobId(uid,sessionId));
+ await session.set({chatHistory:[]});
+ await guard.collection("turns").doc("u1").set({provenance:{mac:"synthetic"},billedPossible:true});
+ await guard.collection("acceptances").doc("a1").set({status:"accepted"});
+ await retention.revokeAndDeleteSession({sessionId,confirmed:true},{uid});
+ const worker=createProvenanceRetentionWorker({db,projectId,deleteField:()=>FieldValue.delete()});
+ // Earlier tests in this isolated process may also have pending jobs.
+ let after=null;
+ for(let i=0;i<10;i++){
+   const result=await worker.runBatch({after});
+   assert.equal(result.failed,0);
+   if((await job.get()).data().status==="complete") break;
+   after=result.nextCursor;
+ }
+ assert.equal((await job.get()).data().status,"complete");
+ assert.equal((await guard.collection("turns").doc("u1").get()).data().provenance,undefined);
+ assert.equal((await guard.collection("turns").doc("u1").get()).data().billedPossible,true);
+ assert.equal((await guard.collection("acceptances").get()).size,0);
+ console.log("R139_C3C3C4D2_WORKER_PASS");
+});
