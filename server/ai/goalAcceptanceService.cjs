@@ -17,10 +17,10 @@ const textOk = (x, max, optional = false) => typeof x === "string" &&
 const fail = code => { const e = Error(code); e.code = code; throw e; };
 const hash = value => createHash("sha256").update(value).digest("hex");
 
-function createGoalAcceptanceService({ db, projectId, provenance, clock = Date.now, requireRuntimeFlag = true }) {
+function createGoalAcceptanceService({ db, projectId, provenance, clock = Date.now }) {
   if (projectId !== "reflect-ai-staging" || !db ||
       typeof db.doc !== "function" || typeof db.runTransaction !== "function" ||
-      typeof clock !== "function" || typeof requireRuntimeFlag !== "boolean") fail("unsafe-environment");
+      typeof clock !== "function") fail("unsafe-environment");
   const keyring = createProvenanceKeyring(provenance);
   async function accept(body, principal) {
     if (!valid(principal?.uid) || !plain(body) ||
@@ -46,10 +46,8 @@ function createGoalAcceptanceService({ db, projectId, provenance, clock = Date.n
     const now = clock();
     if (!Number.isSafeInteger(now) || now <= 0) fail("unsafe-environment");
     return db.runTransaction(async tx => {
-      if (requireRuntimeFlag) {
-        const flag = await tx.get(db.doc("_reflectAiPrivate/reflect-8fdc8/runtimeFlags/goalAcceptance"));
-        if (!flag.exists || flag.data()?.enabled !== true) fail("unavailable");
-      }
+      const flag = await tx.get(db.doc("_reflectAiPrivate/reflect-8fdc8/runtimeFlags/goalAcceptance"));
+      if (!flag.exists || flag.data()?.enabled !== true) fail("unavailable");
       const [session, goal, guard, receipt, acceptance] = await Promise.all([
         tx.get(sessionRef), tx.get(goalRef), tx.get(guardRef),
         tx.get(receiptRef), tx.get(acceptanceRef)
