@@ -1,0 +1,18 @@
+{
+  "firestore": {
+    "rules": "firestore.r139.runtime.rules"
+  },
+  "emulators": {
+    "auth": {
+      "host": "127.0.0.1",
+      "port": 19399
+    },
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 19381
+    },
+    "ui": {
+      "enabled": false
+    }
+  }
+}
