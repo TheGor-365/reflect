@@ -329,3 +329,19 @@ test("attention inventory rejects unsafe environment and redacts read failures",
   const inventory=createProvenanceRetentionInventory({db,projectId:"reflect-ai-staging"});
   assert.deepEqual(await inventory.readAttention(),{status:"unavailable"});
 });
+
+test("worker paginates past malformed job IDs without trusting their identity",async()=>{
+  const {docs,worker}=fixture();
+  for(let i=0;i<10;i++) docs.set(JOB_ROOT+"/!bad-"+i,{status:"pending",uid:"alice",sessionId:"s1",schemaVersion:1});
+  const page=await worker.runBatch({diagnostics:true});
+  assert.equal(page.failed,10);
+  assert.equal(page.nextCursor,"!bad-9");
+  assert.equal(page.health.invalidOrStorageFailure,10);
+  assert.equal((await worker.runBatch({after:page.nextCursor})).scanned,0);
+  assert.ok(docs.get(root+"/turns/u000").provenance);
+});
+test("private cursor accepts bounded Firestore IDs, not paths or invalid UTF-8",()=>{
+  const {validCursor}=require("./provenanceRetentionCursor.cjs");
+  for(const value of [null,"!bad-9","a".repeat(1500),"é"]) assert.equal(validCursor(value),true);
+  for(const value of [undefined,"","../bad","a/b",".","..","__reserved__","a".repeat(1501),"é".repeat(751),"\ud800",123]) assert.equal(validCursor(value),false);
+});
