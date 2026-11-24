@@ -307,3 +307,25 @@ test("worker health distinguishes backoff, busy and attention without job identi
   assert.equal(exhausted.health.attention,1);
   assert.equal(docs.get(path).status,"attention");
 });
+
+const {createProvenanceRetentionInventory,INVENTORY_LIMIT}=require("./provenanceRetentionInventory.cjs");
+test("attention inventory returns bounded counts only and never writes",async()=>{
+  const {db,docs}=fixture();
+  const inventory=createProvenanceRetentionInventory({db,projectId:"reflect-ai-staging"});
+  assert.deepEqual(await inventory.readAttention(),{status:"ok",attentionAtLeast:0,exact:true});
+  for(let i=0;i<99;i++) docs.set(JOB_ROOT+"/attention-"+i,{status:"attention",uid:"private-fixture"});
+  docs.set(JOB_ROOT+"/pending",{status:"pending"});
+  const before=structuredClone(docs);
+  assert.deepEqual(await inventory.readAttention(),{status:"ok",attentionAtLeast:99,exact:true});
+  assert.deepEqual(docs,before);
+  docs.set(JOB_ROOT+"/attention-99",{status:"attention"});
+  assert.deepEqual(await inventory.readAttention(),{status:"ok",attentionAtLeast:INVENTORY_LIMIT,exact:false});
+  docs.set(JOB_ROOT+"/attention-100",{status:"attention"});
+  assert.deepEqual(await inventory.readAttention(),{status:"ok",attentionAtLeast:INVENTORY_LIMIT,exact:false});
+});
+test("attention inventory rejects unsafe environment and redacts read failures",async()=>{
+  const db={collection(){throw Error("private user data");}};
+  assert.throws(()=>createProvenanceRetentionInventory({db,projectId:"production"}),/unsafe-retention-inventory/);
+  const inventory=createProvenanceRetentionInventory({db,projectId:"reflect-ai-staging"});
+  assert.deepEqual(await inventory.readAttention(),{status:"unavailable"});
+});
