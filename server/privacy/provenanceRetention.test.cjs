@@ -36,6 +36,7 @@ function fixture(count = 2) {
         },
         set(r, data, options) { assert.equal(options.merge, true);
           writes.push(() => docs.set(r.path, { ...docs.get(r.path), ...data })); },
+        delete(r) { writes.push(() => docs.delete(r.path)); },
         update(r, data) { writes.push(() => {
           assert.equal(data.provenance, DELETE);
           const next = { ...docs.get(r.path) }; delete next.provenance; docs.set(r.path, next);
@@ -103,4 +104,37 @@ test("malformed private progress fails closed", async () => {
   docs.set(root,{provenanceRevoked:true,turnCleanup:{done:false,cursor:null}});
   await assert.rejects(service.scrubDeletedSession({sessionId:"s1"},{uid:"alice"}),/invalid-retention-progress/);
   assert.ok(docs.get(root+"/turns/u000").provenance);
+});
+
+
+test("acceptance cleanup deletes bounded pages and preserves goals, accounting and foreign events", async () => {
+  const {docs,service}=fixture();
+  docs.set(root,{provenanceRevoked:true,turnCleanup:{done:true,cursor:null}});
+  const foreign=root.replace("/alice/","/bob/")+"/acceptances/verified-other";
+  const goal="artifacts/reflect-8fdc8/users/alice/goals/verified-owner";
+  docs.set(foreign,{status:"accepted"});
+  docs.set(goal,{text:"Synthetic owner goal"});
+  for(let i=0;i<101;i++) docs.set(root+"/acceptances/verified-"+String(i).padStart(3,"0"),{status:"accepted"});
+  assert.deepEqual(await service.scrubDeletedSessionAcceptances({sessionId:"s1"},{uid:"alice"}),{deleted:100,done:false});
+  assert.deepEqual(docs.get(root).acceptanceCleanup,{done:false});
+  assert.deepEqual(await service.scrubDeletedSessionAcceptances({sessionId:"s1"},{uid:"alice"}),{deleted:1,done:true});
+  assert.deepEqual(await service.scrubDeletedSessionAcceptances({sessionId:"s1"},{uid:"alice"}),{deleted:0,done:true});
+  assert.equal([...docs.keys()].filter(p=>p.startsWith(root+"/acceptances/")).length,0);
+  assert.equal(docs.get(foreign).status,"accepted");
+  assert.equal(docs.get(goal).text,"Synthetic owner goal");
+  assert.equal(docs.get(root+"/turns/u000").billedPossible,true);
+  assert.deepEqual(docs.get(root).turnCleanup,{done:true,cursor:null});
+});
+test("acceptance cleanup denies absent revocation, forged cursor and malformed state", async () => {
+  const {docs,service}=fixture();
+  const event=root+"/acceptances/verified-owner";
+  docs.set(event,{status:"accepted"});
+  const clean=body=>service.scrubDeletedSessionAcceptances(body,{uid:"alice"});
+  await assert.rejects(clean({sessionId:"s1"}),/revocation-required/);
+  assert.equal(docs.has(root),false);
+  docs.set(root,{provenanceRevoked:true,acceptanceCleanup:{done:"yes"}});
+  await assert.rejects(clean({sessionId:"s1"}),/invalid-retention-progress/);
+  await assert.rejects(clean({sessionId:"s1",cursor:"anything"}),/invalid-retention-target/);
+  await assert.rejects(service.scrubDeletedSessionAcceptances({sessionId:"s1"},{uid:"bob"}),/revocation-required/);
+  assert.equal(docs.has(event),true);
 });
