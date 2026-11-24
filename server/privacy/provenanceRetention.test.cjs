@@ -447,3 +447,55 @@ test("deletion HTTP authorization, quota and errors fail closed; composition def
   const failure=deletionHttpFixture({revoke:async()=>{throw Error("private fixture");}});
   assert.deepEqual(await failure.invoke(),{status:503,output:{error:"unavailable"}});
 });
+
+test("privacy quota is independent, durable, bounded and rejects corrupt state",async()=>{
+  const {db,docs}=fixture();
+  const {DELETION_FLAG}=require("./provenanceRetention.cjs");
+  const {createSessionDeletionRuntime,QUOTA_ROOT,LIMIT,WINDOW_MS}=require("./provenanceRetentionDeletionRuntime.cjs");
+  let time=1000;
+  const make=()=>createSessionDeletionRuntime({db,projectId:"reflect-ai-staging",locallyEnabled:true,clock:()=>time});
+  const quota=QUOTA_ROOT+"/alice";
+  await assert.rejects(make().rateLimit("alice"),{code:"unavailable"});
+  assert.ok(!docs.has(quota));
+  docs.set(DELETION_FLAG,{enabled:true});
+  for(let i=0;i<LIMIT;i++) await make().rateLimit("alice");
+  await assert.rejects(make().rateLimit("alice"),{code:"resource-exhausted"});
+  assert.deepEqual(docs.get(quota),{schemaVersion:1,window:0,count:LIMIT});
+  assert.equal(await make().rateLimit("bob"),true);
+  time=WINDOW_MS;
+  await make().rateLimit("alice");
+  assert.deepEqual(docs.get(quota),{schemaVersion:1,window:1,count:1});
+  time=1000;
+  await assert.rejects(make().rateLimit("alice"),{code:"unavailable"});
+  await assert.rejects(make().rateLimit("../bob"),{code:"invalid-argument"});
+  assert.ok(![...docs.keys()].some(p=>p.includes("goalAcceptanceQuotas")));
+});
+test("deletion composition uses private quota and atomic flag with no injected quota bypass",async()=>{
+  const {db,docs}=fixture();
+  const {DELETION_FLAG}=require("./provenanceRetention.cjs");
+  const {QUOTA_ROOT}=require("./provenanceRetentionDeletionRuntime.cjs");
+  docs.set(live,{chatHistory:[]});
+  const listener=createSessionDeletionComposition({db,projectId:"reflect-ai-staging",
+    deleteField:()=>DELETE,locallyEnabled:true,clock:()=>1000,
+    verifyAuth:async()=>({uid:"alice"}),verifyAppCheck:async()=>({appId:DELETION_APP,alreadyConsumed:false}),
+    authorizeAccount:async()=>true});
+  const invoke=async()=>{
+    const req=require("node:stream").Readable.from(['{"confirmed":true,"sessionId":"s1"}']);
+    Object.assign(req,{method:"POST",url:DELETION_PATH,headers:{origin:DELETION_ORIGIN,
+      authorization:"Bearer "+"a".repeat(30),"x-firebase-appcheck":"b".repeat(30),"content-type":"application/json"}});
+    let status;
+    await listener(req,{writeHead(code){status=code;},end(){}});
+    return status;
+  };
+  assert.equal(await invoke(),503);
+  assert.ok(docs.has(live));
+  docs.set(DELETION_FLAG,{enabled:true});
+  assert.equal(await invoke(),200);
+  assert.equal(await invoke(),200);
+  assert.ok(!docs.has(live));
+  assert.deepEqual(docs.get(QUOTA_ROOT+"/alice"),{schemaVersion:1,window:0,count:2});
+  assert.equal(docs.get(JOB_ROOT+"/"+jobId("alice","s1")).status,"pending");
+  docs.set(DELETION_FLAG,{enabled:false});
+  assert.equal(await invoke(),503);
+  assert.equal(docs.get(QUOTA_ROOT+"/alice").count,2);
+});
