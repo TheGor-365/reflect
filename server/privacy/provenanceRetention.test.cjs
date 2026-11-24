@@ -382,3 +382,22 @@ test("scheduler-bound cleanup requires both job attempt and sweep ownership",asy
   assert.ok(docs.get(root+"/turns/u000").provenance);
   assert.ok(docs.has(root+"/acceptances/a"));
 });
+
+test("deletion transaction with private gate fails closed and permits idempotent explicit revoke",async()=>{
+  const {db,docs}=fixture();
+  const {DELETION_FLAG}=require("./provenanceRetention.cjs");
+  const service=createProvenanceRetention({db,projectId:"reflect-ai-staging",deleteField:()=>DELETE,requireDeletionFlag:true});
+  docs.set(live,{chatHistory:[]});
+  const args=[{sessionId:"s1",confirmed:true},{uid:"alice"}];
+  await assert.rejects(service.revokeAndDeleteSession(...args),/session-deletion-disabled/);
+  assert.ok(docs.has(live));
+  assert.ok(!docs.has(JOB_ROOT+"/"+jobId("alice","s1")));
+  docs.set(DELETION_FLAG,{enabled:"true"});
+  await assert.rejects(service.revokeAndDeleteSession(...args),/session-deletion-disabled/);
+  docs.set(DELETION_FLAG,{enabled:true});
+  assert.deepEqual(await service.revokeAndDeleteSession(...args),{revoked:true});
+  assert.deepEqual(await service.revokeAndDeleteSession(...args),{revoked:true});
+  assert.ok(!docs.has(live));
+  docs.set(DELETION_FLAG,{enabled:false});
+  await assert.rejects(service.revokeAndDeleteSession(...args),/session-deletion-disabled/);
+});
