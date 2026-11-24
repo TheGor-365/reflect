@@ -60,14 +60,15 @@ export function buildRecommendationInbox(sessions = []) {
       };
 
       const clarification = safeText(interaction.clarifyingQuestion);
-      // A later user turn means the earlier prompt has been responded to or
-      // superseded. Do not keep nagging from obsolete clarifications.
+      // Conversation continuation is not proof that a particular question
+      // was answered. Keep its source visible, but distinguish historical
+      // questions from fresh prompts in the notification count.
       const hasLaterUserTurn = history.slice(i + 1).some(next =>
-        next?.role === 'user' && refOk(next.id));
-      if (interaction.stage === 'clarify' && clarification && !hasLaterUserTurn) {
+        next?.role === 'user' && refOk(next.id) && safeText(next.content));
+      if (clarification) {
         clarifications.push({
           ...base, id: session.id + ':' + turn.id + ':clarify',
-          question: clarification
+          question: clarification, hasLaterUserTurn
         });
       }
 
@@ -96,6 +97,6 @@ export function buildRecommendationInbox(sessions = []) {
   clarifications.sort((a, b) => mostRecent(a, b) || a.id.localeCompare(b.id));
   const pendingCount = recommendations.filter(x =>
     x.status === 'pending' && !isArchivedRecommendation(x)).length +
-    clarifications.filter(x => !x.sourceSessionArchived).length;
+    clarifications.filter(x => !x.sourceSessionArchived && !x.hasLaterUserTurn).length;
   return { recommendations, clarifications, pendingCount };
 }
