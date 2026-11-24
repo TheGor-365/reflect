@@ -351,3 +351,63 @@ it('R139 B5 fresh synthesis lifecycle keeps old source blocked and creates only 
   expect(repeat.goalId).toBe('r139-goal');
   expect(writes).toHaveLength(beforeAccept + 2);
 });
+
+
+describe('R139 C1 reject ambiguous or mismatched source records before writes', () => {
+  const input = { ...params, action: 'goal', goalId: 'c1-goal',
+    goalTitle: 'Проверяемая цель' };
+
+  it.each([undefined, [], ['external'], ['current-message', 'external']])(
+    'rejects noncanonical source refs: %j', async refs => {
+      session.chatHistory[1].interaction.recommendationCandidates[0].sourceRefs = refs;
+      await expect(applyRecommendationDecision(input)).rejects.toThrow(/отсутствует/);
+      expect(writes).toEqual([]);
+      expect(goal).toBeNull();
+    }
+  );
+
+  it('rejects duplicate assistant IDs including a different role', async () => {
+    session.chatHistory.push({ id: assistantMessage.id, role: 'user', content: 'Повтор ID' });
+    await expect(applyRecommendationDecision(input)).rejects.toThrow(/отсутствует/);
+    expect(writes).toEqual([]);
+  });
+
+  it('rejects duplicate source user IDs', async () => {
+    session.chatHistory.push({ ...userMessage });
+    await expect(applyRecommendationDecision(input)).rejects.toThrow(/исходный текст/);
+    expect(writes).toEqual([]);
+  });
+
+  it('rejects empty owner source text', async () => {
+    session.chatHistory[0].content = '  ';
+    await expect(applyRecommendationDecision(input)).rejects.toThrow(/исходный текст/);
+    expect(writes).toEqual([]);
+  });
+
+  it.each([
+    { sourceMessageId: 'other-user-turn' },
+    { sourceAssistantMessageId: 'other-assistant' },
+    { sourceType: 'manual' }
+  ])('rejects an existing goal with mismatched provenance: %j', async mismatch => {
+    goal = { sessionId: params.sessionId,
+      sourceRecommendationKey: 'r-' + assistantMessage.id + '-0',
+      sourceMessageId: userMessage.id, sourceAssistantMessageId: assistantMessage.id,
+      sourceType: 'user-accepted-ai-recommendation', ...mismatch };
+    const original = { ...goal };
+    await expect(applyRecommendationDecision(input)).rejects.toThrow(/ID цели занят/);
+    expect(goal).toEqual(original);
+    expect(writes).toEqual([]);
+  });
+
+  it('reuses an existing goal only when every source coordinate matches', async () => {
+    goal = { sessionId: params.sessionId,
+      sourceRecommendationKey: 'r-' + assistantMessage.id + '-0',
+      sourceMessageId: userMessage.id, sourceAssistantMessageId: assistantMessage.id,
+      sourceType: 'user-accepted-ai-recommendation' };
+    const original = { ...goal };
+    const accepted = await applyRecommendationDecision(input);
+    expect(accepted.goalId).toBe(input.goalId);
+    expect(goal).toEqual(original);
+    expect(writes.map(w => w.kind)).toEqual(['update']);
+  });
+});
