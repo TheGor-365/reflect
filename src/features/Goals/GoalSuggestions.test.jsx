@@ -20,7 +20,7 @@ const sessions=[{
 test('UX R2 goal suggestions recall recommendation and saved owner source on demand', () => {
   const onOpenSession=vi.fn();
   render(<GoalSuggestions sessions={sessions} onOpenSession={onOpenSession}/>);
-  expect(screen.getByRole('heading', {name:'Можно превратить в цель'}))
+  expect(screen.getByRole('heading', {name:'Предложения Reflect'}))
     .toBeInTheDocument();
   expect(screen.getByText('Зафиксировать три функции MVP'))
     .toBeInTheDocument();
@@ -50,4 +50,67 @@ test('UX R7: goal suggestion has a single main bulb, details retain their proven
   expect(screen.getByText('Зафиксировать три функции MVP')).toBeInTheDocument();
   expect(screen.getByRole('button',{name:'Вспомнить контекст предложения'}))
     .toHaveAttribute('aria-expanded','false');
+});
+
+test('R139 mixed clarify plus recommendation never advertises direct Goal readiness', () => {
+  const onOpenSession = vi.fn();
+  const blocked = [{
+    id: 'session-blocked', title: 'Демонстрация продукта',
+    chatHistory: [
+      { id: 'owner-blocked', role: 'user', content: 'Планирую ограниченное демо' },
+      { id: 'assistant-blocked', role: 'assistant', interaction: {
+        version: 'reflect.interaction.v1',
+        stage: 'clarify',
+        clarifyingQuestion: 'Каким будет достаточный результат?',
+        unknowns: [], insights: [],
+        recommendationCandidates: [{
+          title: 'Зафиксировать границы демонстрации',
+          rationale: 'Показать только готовые функции',
+          sourceRefs: ['current-message']
+        }]
+      }}
+    ]
+  }];
+  render(<GoalSuggestions sessions={blocked} onOpenSession={onOpenSession}/>);
+  expect(screen.getByRole('heading', { name: 'Предложения Reflect' }))
+    .toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Можно превратить в цель' }))
+    .not.toBeInTheDocument();
+  expect(screen.getByText('Зафиксировать границы демонстрации')).toBeInTheDocument();
+  expect(screen.getByText(/Цель пока недоступна: Сначала ответьте на открытый уточняющий вопрос/))
+    .toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Просмотреть и подтвердить/ }))
+    .not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Открыть исходный диалог/ }));
+  expect(onOpenSession).toHaveBeenCalledExactlyOnceWith(
+    'session-blocked', 'assistant-blocked'
+  );
+});
+
+test('R139 unreviewed hypotheses are not falsely presented as an approvable Goal', () => {
+  const withUnreviewed = [{
+    ...sessions[0],
+    chatHistory: sessions[0].chatHistory.map(turn =>
+      turn.id === 'assistant-one'
+        ? { ...turn, interaction: {
+          ...turn.interaction, insights: ['Причина ещё не подтверждена']
+        } }
+        : turn)
+  }];
+  render(<GoalSuggestions sessions={withUnreviewed}/>);
+  expect(screen.getByText(/Цель пока недоступна: Сначала оцените все гипотезы/))
+    .toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Открыть исходный диалог/ }))
+    .toBeInTheDocument();
+});
+
+test('R139 a saved decision moves out of pending Goals teaser', () => {
+  const acceptedAsIdea = [{
+    ...sessions[0],
+    recommendationDecisions: {
+      'r-assistant-one-0': { status: 'saved', assistantMessageId: 'assistant-one' }
+    }
+  }];
+  const { container } = render(<GoalSuggestions sessions={acceptedAsIdea}/>);
+  expect(container).toBeEmptyDOMElement();
 });
