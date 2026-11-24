@@ -345,3 +345,40 @@ test("private cursor accepts bounded Firestore IDs, not paths or invalid UTF-8",
   for(const value of [null,"!bad-9","a".repeat(1500),"é"]) assert.equal(validCursor(value),true);
   for(const value of [undefined,"","../bad","a/b",".","..","__reserved__","a".repeat(1501),"é".repeat(751),"\ud800",123]) assert.equal(validCursor(value),false);
 });
+
+test("scheduler-bound worker denies stale sweep claims before job mutation",async()=>{
+  const {SWEEP_PATH}=require("./provenanceRetentionSweepFence.cjs");
+  const {randomUUID}=require("node:crypto");
+  let time=1000;
+  const {docs,worker,service}=fixture(2,()=>time);
+  const path=JOB_ROOT+"/"+jobId("alice","s1");
+  docs.set(live,{chatHistory:[]});
+  await service.revokeAndDeleteSession({sessionId:"s1",confirmed:true},{uid:"alice"});
+  const owner=randomUUID(), replacement=randomUUID();
+  docs.set(SWEEP_PATH,{schemaVersion:1,leaseOwner:owner,fence:1,leaseUntilMs:2000});
+  time=2000;
+  const before=structuredClone(docs.get(path));
+  assert.equal((await worker.runBatch({sweepClaim:{owner,fence:1}})).failed,1);
+  assert.deepEqual(docs.get(path),before);
+  docs.set(SWEEP_PATH,{schemaVersion:1,leaseOwner:replacement,fence:2,leaseUntilMs:3000});
+  assert.equal((await worker.runBatch({sweepClaim:{owner,fence:1}})).failed,1);
+  assert.deepEqual(docs.get(path),before);
+  assert.ok(docs.get(root+"/turns/u000").provenance);
+  assert.equal((await worker.runBatch({sweepClaim:{owner:replacement,fence:2}})).completed,1);
+});
+test("scheduler-bound cleanup requires both job attempt and sweep ownership",async()=>{
+  const {SWEEP_PATH}=require("./provenanceRetentionSweepFence.cjs");
+  const {randomUUID}=require("node:crypto");
+  const {db,docs}=fixture();
+  const owner=randomUUID(),attemptOwner=randomUUID();
+  docs.set(root,{provenanceRevoked:true});
+  docs.set(root+"/acceptances/a",{status:"accepted"});
+  docs.set(JOB_ROOT+"/"+jobId("alice","s1"),{schemaVersion:1,uid:"alice",sessionId:"s1",status:"pending",attempt:{owner:attemptOwner,untilMs:9000}});
+  docs.set(SWEEP_PATH,{schemaVersion:1,leaseOwner:randomUUID(),fence:2,leaseUntilMs:9000});
+  const service=createProvenanceRetention({db,projectId:"reflect-ai-staging",deleteField:()=>DELETE,
+    clock:()=>1000,workerAttempt:attemptOwner,sweepClaim:{owner,fence:1}});
+  await assert.rejects(service.scrubDeletedSession({sessionId:"s1"},{uid:"alice"}),/stale-retention-sweep/);
+  await assert.rejects(service.scrubDeletedSessionAcceptances({sessionId:"s1"},{uid:"alice"}),/stale-retention-sweep/);
+  assert.ok(docs.get(root+"/turns/u000").provenance);
+  assert.ok(docs.has(root+"/acceptances/a"));
+});
