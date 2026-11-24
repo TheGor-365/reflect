@@ -56,3 +56,22 @@ test('UX R2: source detail is collapsed by default and restores exact saved user
   fireEvent.click(trigger);
   expect(trigger).toHaveAttribute('aria-expanded','false');
 });
+
+
+test('R139 B4 keeps historical question visible without counting it as new', () => {
+  const onOpenSession = vi.fn();
+  const session = { id: 'r139-session', title: 'Уточнение', chatHistory: [
+    { id: 'u1', role: 'user', content: 'План запуска' },
+    { id: 'a1', role: 'assistant', interaction: {
+      ...structured, stage: 'clarify', clarifyingQuestion: 'Какой срок?',
+      recommendationCandidates: []
+    } },
+    { id: 'u2', role: 'user', content: 'Другая тема' }
+  ] };
+  render(<Recommendations sessions={[session]} onOpenSession={onOpenSession}/>);
+  expect(screen.getByText('Диалог продолжен · ответ не подтверждён')).toBeInTheDocument();
+  expect(screen.getByText('Какой срок?')).toBeInTheDocument();
+  expect(screen.getByLabelText('Статистика рекомендаций')).toHaveTextContent('0 новых уточнений');
+  fireEvent.click(screen.getByRole('button', { name: 'Ответить в сеансе' }));
+  expect(onOpenSession).toHaveBeenCalledExactlyOnceWith('r139-session', 'a1');
+});
