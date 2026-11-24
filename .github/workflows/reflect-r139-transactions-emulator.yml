@@ -1,0 +1,44 @@
+name: Reflect R139 isolated transaction emulator
+on:
+  pull_request:
+    paths:
+      - 'tests/staging/r139-transactions.emulator.test.js'
+      - 'tests/staging/firebase.r139.json'
+      - 'src/features/Sessions/recommendationDecisions.js'
+      - 'server/hosted/firestore.rules'
+      - '.github/workflows/reflect-r139-transactions-emulator.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  transactions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GCLOUD_PROJECT: demo-reflect-r139
+      REFLECT_R139_EMULATOR: '1'
+      FIREBASE_AUTH_EMULATOR_HOST: 127.0.0.1:19399
+      FIRESTORE_EMULATOR_HOST: 127.0.0.1:19381
+      VITE_FIREBASE_CONFIG: '{"apiKey":"synthetic-only","projectId":"demo-reflect-r139"}'
+      VITE_APP_ID: reflect-8fdc8
+      VITE_ENABLE_REFLECT_RAILWAY_AI: 'false'
+      VITE_ENABLE_REFLECT_CLOUD_AI: 'false'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - run: npm install --global firebase-tools@15.34.2
+      - name: Copy repository hosted rules (not live deployment)
+        run: |
+          cp server/hosted/firestore.rules tests/staging/firestore.r139.runtime.rules
+          cmp server/hosted/firestore.rules tests/staging/firestore.r139.runtime.rules
+      - name: Run isolated SDK test
+        run: |
+          unset GOOGLE_APPLICATION_CREDENTIALS FIREBASE_CONFIG
+          firebase emulators:exec --config tests/staging/firebase.r139.json --project demo-reflect-r139 --only auth,firestore "./node_modules/.bin/vitest run --environment node tests/staging/r139-transactions.emulator.test.js"
