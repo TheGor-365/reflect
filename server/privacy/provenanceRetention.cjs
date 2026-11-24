@@ -10,11 +10,33 @@ const { createHash } = require("node:crypto");
 const JOB_ROOT = "_reflectAiPrivate/reflect-8fdc8/retentionJobs";
 const jobId = (uid, sid) => createHash("sha256").update(JSON.stringify([uid,sid])).digest("hex");
 
-function createProvenanceRetention({ db, projectId, deleteField }) {
+function createProvenanceRetention({ db, projectId, deleteField, workerAttempt = null, clock = Date.now }) {
   if (projectId !== "reflect-ai-staging" || !db ||
       typeof db.doc !== "function" || typeof db.collection !== "function" ||
       typeof db.runTransaction !== "function" || typeof deleteField !== "function") {
     throw Error("unsafe-retention-environment");
+  }
+  // Server-only construction context. Direct isolated service calls retain
+  // their existing contract; the worker always supplies its attempt owner.
+  if (typeof clock !== "function" || (workerAttempt !== null &&
+      (typeof workerAttempt !== "string" || !/^[0-9a-f-]{36}$/.test(workerAttempt)))) {
+    throw Error("invalid-retention-attempt");
+  }
+  async function requireAttempt(tx, uid, sessionId) {
+    if (workerAttempt === null) return () => {};
+    const snap = await tx.get(db.doc(JOB_ROOT + "/" + jobId(uid,sessionId)));
+    const row = snap.exists ? snap.data() : null;
+    const check = () => {
+      const time = clock(), a = row?.attempt;
+      if (!Number.isSafeInteger(time) || time < 0 ||
+          row?.schemaVersion !== 1 || row.uid !== uid || row.sessionId !== sessionId ||
+          row.status !== "pending" || a?.owner !== workerAttempt ||
+          !Number.isSafeInteger(a.untilMs) || a.untilMs <= time) {
+        throw Error("stale-retention-attempt");
+      }
+    };
+    check();
+    return check;
   }
   async function scrubDeletedSession(body, principal) {
     if (!body || Object.keys(body).length !== 1 ||
@@ -26,6 +48,7 @@ function createProvenanceRetention({ db, projectId, deleteField }) {
     const privateRoot = `_reflectAiPrivate/reflect-8fdc8/attemptOwners/${uid}/sessions/${sessionId}`;
     const guard = db.doc(privateRoot);
     return db.runTransaction(async tx => {
+      const checkAttempt = await requireAttempt(tx, uid, sessionId);
       const [live, marker] = await Promise.all([tx.get(session), tx.get(guard)]);
       const state = marker.exists ? marker.data() : null;
       const revoked = state?.provenanceRevoked === true;
@@ -42,6 +65,7 @@ function createProvenanceRetention({ db, projectId, deleteField }) {
       let query = db.collection(privateRoot + "/turns").orderBy("__name__").limit(MAX_BATCH);
       if (progress) query = query.startAfter(progress.cursor);
       const page = await tx.get(query);
+      checkAttempt();
       let scrubbed = 0;
       for (const snapshot of page.docs) {
         if (Object.hasOwn(snapshot.data(), "provenance")) {
@@ -66,6 +90,7 @@ function createProvenanceRetention({ db, projectId, deleteField }) {
     const root = `_reflectAiPrivate/reflect-8fdc8/attemptOwners/${uid}/sessions/${sessionId}`;
     const guard = db.doc(root);
     return db.runTransaction(async tx => {
+      const checkAttempt = await requireAttempt(tx, uid, sessionId);
       const marker = await tx.get(guard);
       const state = marker.exists ? marker.data() : null;
       if (state?.provenanceRevoked !== true) throw Error("revocation-required");
@@ -76,6 +101,7 @@ function createProvenanceRetention({ db, projectId, deleteField }) {
       }
       const page = await tx.get(db.collection(root + "/acceptances")
         .orderBy("__name__").limit(MAX_BATCH));
+      checkAttempt();
       for (const snapshot of page.docs) tx.delete(snapshot.ref);
       const done = page.docs.length < MAX_BATCH;
       tx.set(guard, { acceptanceCleanup: { done } }, { merge: true });
