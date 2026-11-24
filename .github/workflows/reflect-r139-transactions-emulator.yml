@@ -4,6 +4,7 @@ on:
     paths:
       - 'tests/staging/r139-transactions.emulator.test.js'
       - 'tests/staging/firebase.r139.json'
+      - 'tests/staging/firestore.r139.deletion.candidate.rules'
       - 'vitest.r139.config.mjs'
       - 'src/features/Sessions/recommendationDecisions.js'
       - 'server/hosted/firestore.rules'
@@ -57,3 +58,7 @@ jobs:
           # Shared demo database and global retention queue: serialize test files.
           # Explicit Promise.all concurrency inside each scenario remains enabled.
           firebase emulators:exec --config tests/staging/firebase.r139.json --project demo-reflect-r139 --only auth,firestore "./node_modules/.bin/vitest run --config vitest.r139.config.mjs && node --test --test-concurrency=1 server/privacy/provenanceRetention.emulator.cjs server/privacy/provenanceRetentionScheduler.emulator.cjs server/ai/goalAcceptanceService.emulator.cjs"
+
+          # Fresh emulator process, candidate rules only; hosted rules remain unchanged.
+          cp tests/staging/firestore.r139.deletion.candidate.rules tests/staging/firestore.r139.runtime.rules
+          firebase emulators:exec --config tests/staging/firebase.r139.json --project demo-reflect-r139 --only auth,firestore "node --test server/privacy/provenanceRetentionDeletionRules.emulator.cjs"
