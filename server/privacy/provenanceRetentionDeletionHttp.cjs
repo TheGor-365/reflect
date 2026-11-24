@@ -6,6 +6,7 @@ const APP_ID="1:599679789981:web:d4d8743dbff0fe40af1d74";
 const ID=/^[A-Za-z0-9_-]{1,128}$/;
 const MAX_BYTES=1024;
 const {createProvenanceRetention}=require("./provenanceRetention.cjs");
+const {createSessionDeletionRuntime}=require("./provenanceRetentionDeletionRuntime.cjs");
 function respond(res,status,data,cors=false){
   res.writeHead(status,{"content-type":"application/json; charset=utf-8",
     "cache-control":"no-store, private","x-content-type-options":"nosniff",vary:"Origin",
@@ -65,11 +66,12 @@ function createSessionDeletionListener({verifyAuth,verifyAppCheck,authorizeAccou
 // Auth must check revocation; App Check must consume tokens. Authorization is
 // privacy-specific, not a paid AI entitlement. No route or secret loading.
 function createSessionDeletionComposition({db,projectId,deleteField,locallyEnabled=false,
-  verifyAuth,verifyAppCheck,authorizeAccount,rateLimit}={}){
+  verifyAuth,verifyAppCheck,authorizeAccount,clock=Date.now}={}){
   if(projectId!=="reflect-ai-staging"||typeof locallyEnabled!=="boolean") throw Error("unsafe-deletion-environment");
   if(!locallyEnabled) return null;
   const retention=createProvenanceRetention({db,projectId,deleteField,requireDeletionFlag:true});
-  return createSessionDeletionListener({verifyAuth,verifyAppCheck,authorizeAccount,rateLimit,
+  const runtime=createSessionDeletionRuntime({db,projectId,locallyEnabled,clock});
+  return createSessionDeletionListener({verifyAuth,verifyAppCheck,authorizeAccount,rateLimit:runtime.rateLimit,
     revoke:retention.revokeAndDeleteSession});
 }
 module.exports={PATH,ORIGIN,APP_ID,createSessionDeletionListener,createSessionDeletionComposition};
