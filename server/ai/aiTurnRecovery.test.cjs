@@ -440,3 +440,48 @@ test("R139 malformed private guard fails closed; unsigned legacy path is unchang
   await legacy.store.persistReply(attempt, signedReply);
   assert.equal(legacy.db.docs.get(receiptPath(UID)).provenance, undefined);
 });
+
+
+test("R139 keyring recovery signs with active key and rotated ring verifies old receipts", async () => {
+  const { createProvenanceKeyring } = require("./recommendationProvenanceKeyring.cjs");
+  const a = { keyId: "a", key: Buffer.alloc(32, 1) };
+  const b = { keyId: "b", key: Buffer.alloc(32, 2) };
+  const config = { activeKeyId: "b", keys: [a, b] };
+  const { store, db } = setup(config);
+  const attempt = await store.claim(params());
+  await store.providerStarted(attempt);
+  await store.persistReply(attempt, signedReply);
+  const receipt = db.docs.get(receiptPath(UID)).provenance;
+  const reply = db.docs.get(sessionPath(UID)).chatHistory[1];
+  const input = { projectId: "reflect-ai-staging", uid: UID, sessionId: SID,
+    sourceTurnId: USER_ID, assistantTurnId: reply.id, sourceText: TEXT,
+    assistantText: reply.content, interaction: reply.interaction };
+  const ring = createProvenanceKeyring(config);
+  assert.equal(receipt.keyId, "b");
+  assert.equal(ring.verify(input, receipt), true);
+  const old = createProvenanceKeyring({ activeKeyId: "a", keys: [a] }).sign(input);
+  assert.equal(ring.verify(input, old), true);
+  assert.equal(createProvenanceKeyring({ activeKeyId: "b", keys: [b] }).verify(input, old), false);
+});
+
+test("R139 recovery rejects ambiguous and invalid keyring options at construction", () => {
+  const a = { keyId: "a", key: Buffer.alloc(32, 1) };
+  for (const config of [
+    { activeKeyId: "missing", keys: [a] },
+    { activeKeyId: "a", keys: [a, a] },
+    { activeKeyId: "a", keys: [a], ...a },
+    { activeKeyId: "a", keys: [] }
+  ]) assert.throws(() => setup(config), e => e.code === "unsafe-environment");
+});
+
+test("R139 rotated recovery configuration still honors private revocation", async () => {
+  const { store, db } = setup({ activeKeyId: "b", keys: [
+    { keyId: "a", key: Buffer.alloc(32, 1) },
+    { keyId: "b", key: Buffer.alloc(32, 2) }
+  ] });
+  const attempt = await store.claim(params());
+  await store.providerStarted(attempt);
+  db.docs.set(guardPath, { provenanceRevoked: true });
+  await forbid(() => store.persistReply(attempt, signedReply), "permission-denied");
+  assert.equal(db.docs.get(receiptPath(UID)).provenance, undefined);
+});
