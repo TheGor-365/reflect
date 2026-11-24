@@ -9,7 +9,8 @@ const valid = x => typeof x === "string" && ID.test(x);
 const LIMIT = 10;
 const ATTEMPT_MS = 300000;
 function createProvenanceRetentionWorker({db,projectId,deleteField,clock=Date.now}) {
-  const retention = createProvenanceRetention({db,projectId,deleteField});
+  // Validate dependencies before any queue reads.
+  createProvenanceRetention({db,projectId,deleteField,clock});
   if(typeof clock!=="function") throw Error("invalid-retention-clock");
   function now(){
     const t=clock();
@@ -57,6 +58,7 @@ function createProvenanceRetentionWorker({db,projectId,deleteField,clock=Date.no
         });
         if(!claimed){pending++;continue;}
         const {uid,sessionId}=claimed;
+        const retention = createProvenanceRetention({db,projectId,deleteField,clock,workerAttempt:owner});
         let ok=false, finished=false;
         try {
           const turns=await retention.scrubDeletedSession({sessionId},{uid});
