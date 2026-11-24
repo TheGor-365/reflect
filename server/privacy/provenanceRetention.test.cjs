@@ -28,7 +28,7 @@ function fixture(count = 2) {
       const writes = [];
       const result = await work({
         async get(r) {
-          if (!("size" in r)) return { exists: docs.has(r.path) };
+          if (!("size" in r)) return { exists: docs.has(r.path), data: () => docs.get(r.path) };
           return { docs: [...docs.keys()].filter(p => p.startsWith(r.path + "/"))
             .sort().filter(p => r.cursor === null || p.split("/").pop() > r.cursor)
             .slice(0, r.size).map(p => ({ id: p.split("/").pop(), ref: ref(p),
@@ -51,8 +51,9 @@ function fixture(count = 2) {
 
 test("deleted session cleanup strips only provenance and preserves other owner and accounting", async () => {
   const { docs, foreign, service } = fixture();
+  docs.set(root, { provenanceRevoked: true });
   assert.deepEqual(await service.scrubDeletedSession({ sessionId: "s1" }, { uid: "alice" }),
-    { scrubbed: 2, nextCursor: null });
+    { scrubbed: 2, done: true });
   assert.deepEqual(docs.get(root + "/turns/u000"), { status: "persisted_reply", billedPossible: true });
   assert.equal(docs.get(foreign).provenance.mac, "foreign");
   assert.equal(docs.get(root).provenanceRevoked, true);
@@ -67,12 +68,15 @@ test("existing session including archived session cannot be scrubbed", async () 
   assert.ok(docs.get(root + "/turns/u000").provenance);
 });
 
-test("bounded cleanup resumes with cursor and preserves unrelated metadata", async () => {
+test("bounded cleanup resumes with private cursor and preserves unrelated metadata", async () => {
   const { docs, service } = fixture(101);
+  docs.set(root, { provenanceRevoked: true });
   const first = await service.scrubDeletedSession({ sessionId: "s1" }, { uid: "alice" });
-  assert.deepEqual(first, { scrubbed: 100, nextCursor: "u099" });
-  assert.deepEqual(await service.scrubDeletedSession({ sessionId: "s1", cursor: first.nextCursor }, { uid: "alice" }),
-    { scrubbed: 1, nextCursor: null });
+  assert.deepEqual(first, { scrubbed: 100, done: false });
+  assert.deepEqual(docs.get(root).turnCleanup, { done: false, cursor: "u099" });
+  docs.set(live, { chatHistory: [] }); // recreated session cannot cancel revoked cleanup
+  assert.deepEqual(await service.scrubDeletedSession({ sessionId: "s1" }, { uid: "alice" }),
+    { scrubbed: 1, done: true });
   assert.equal(docs.get(root + "/turns/u100").provenance, undefined);
 });
 
@@ -84,4 +88,19 @@ test("reject malformed identity, path and environment", async () => {
     [{ sessionId: "s1" }, { uid: "../bob" }]
   ]) await assert.rejects(service.scrubDeletedSession(body, principal), /invalid-retention-target/);
   assert.throws(() => createProvenanceRetention({ projectId: "production" }), /unsafe-retention-environment/);
+});
+
+test("cleanup cannot create arbitrary tombstones or accept caller cursor", async () => {
+  const { docs, service } = fixture();
+  await assert.rejects(service.scrubDeletedSession({sessionId:"s1"}, {uid:"alice"}), /revocation-required/);
+  assert.equal(docs.has(root),false);
+  docs.set(root,{provenanceRevoked:true});
+  await assert.rejects(service.scrubDeletedSession({sessionId:"s1",cursor:"u999"}, {uid:"alice"}), /invalid-retention-target/);
+  assert.ok(docs.get(root+"/turns/u000").provenance);
+});
+test("malformed private progress fails closed", async () => {
+  const {docs,service}=fixture();
+  docs.set(root,{provenanceRevoked:true,turnCleanup:{done:false,cursor:null}});
+  await assert.rejects(service.scrubDeletedSession({sessionId:"s1"},{uid:"alice"}),/invalid-retention-progress/);
+  assert.ok(docs.get(root+"/turns/u000").provenance);
 });
