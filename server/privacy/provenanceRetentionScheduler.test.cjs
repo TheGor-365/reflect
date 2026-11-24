@@ -30,7 +30,7 @@ const result = cursor => ({scanned:10,completed:0,pending:10,failed:0,nextCursor
 test("durable server cursor survives scheduler recreation and wraps after exhausted page", async () => {
   const {rows,make} = fixture();
   const seen=[];
-  const worker = {runBatch: async ({after}) => {seen.push(after);return result(seen.length===1 ? H1 : null);}};
+  const worker = {runBatch: async ({after}) => {seen.push(after);return seen.length===1 ? result(H1) : {scanned:0,completed:0,pending:0,failed:0,nextCursor:null};}};
   const first=make(worker);
   assert.equal((await first.runOnce()).status,"processed");
   assert.equal(rows.get(SWEEP_PATH).cursor,H1);
