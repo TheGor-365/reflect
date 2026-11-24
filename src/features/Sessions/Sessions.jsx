@@ -845,7 +845,10 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
                 focused={Boolean(activeSession && msg.id && msg.id === focusTurnId)}
                 onPlayAudio={handlePlayAudio} isSpeaking={isSpeaking}
                 onCompose={text => {
-                  if (text) setUserInput(text);
+                  if (isLoading || sendLock.current || noteSave.status === 'saving' ||
+                      isArchivedRecord(activeSession)) return;
+                  if (text) setUserInput(previous => previous.trim()
+                    ? previous + '\n\n' + text : text);
                   setSendError('');
                   setComposerFocusRequest(n => n + 1);
                 }}
