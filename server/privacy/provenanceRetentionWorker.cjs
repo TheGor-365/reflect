@@ -6,6 +6,7 @@ const {eligible,afterFailure,afterSuccess} = require("./provenanceRetentionRetry
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
 const {validCursor}=require("./provenanceRetentionCursor.cjs");
 const valid = x => typeof x === "string" && ID.test(x);
+const {validateSweepClaim,requireSweep}=require("./provenanceRetentionSweepFence.cjs");
 const LIMIT = 10;
 const ATTEMPT_MS = 300000;
 function createProvenanceRetentionWorker({db,projectId,deleteField,clock=Date.now}) {
@@ -31,7 +32,8 @@ function createProvenanceRetentionWorker({db,projectId,deleteField,clock=Date.no
        !Number.isSafeInteger(a.untilMs)||a.untilMs<1) throw Error("invalid-retention-attempt");
     return a;
   }
-  async function runBatch({after = null, diagnostics = false} = {}) {
+  async function runBatch({after = null, diagnostics = false,sweepClaim = null} = {}) {
+    const sweep=sweepClaim===null?null:validateSweepClaim(sweepClaim);
     if (!validCursor(after)) {
       throw Error("invalid-worker-cursor");
     }
@@ -47,6 +49,7 @@ function createProvenanceRetentionWorker({db,projectId,deleteField,clock=Date.no
         const ref=db.doc(JOB_ROOT+"/"+snapshot.id);
         const owner=randomUUID();
         const claimed=await db.runTransaction(async tx=>{
+          const checkSweep=await requireSweep(tx,db,sweep,clock);
           const snap=await tx.get(ref);
           if(!snap.exists) return {skip:"stale"};
           const row=target(snap.data(),snapshot.id);
@@ -55,12 +58,13 @@ function createProvenanceRetentionWorker({db,projectId,deleteField,clock=Date.no
           if(!eligible(row,t)) return {skip:"backoff"};
           const a=attempt(row);
           if(a&&a.untilMs>t) return {skip:"busy"};
+          checkSweep();
           tx.set(ref,{attempt:{owner,untilMs:t+ATTEMPT_MS}},{merge:true});
           return {uid:row.uid,sessionId:row.sessionId};
         });
         if(claimed.skip){health[claimed.skip]++;pending++;continue;}
         const {uid,sessionId}=claimed;
-        const retention = createProvenanceRetention({db,projectId,deleteField,clock,workerAttempt:owner});
+        const retention = createProvenanceRetention({db,projectId,deleteField,clock,workerAttempt:owner,sweepClaim:sweep});
         let ok=false, finished=false;
         try {
           const turns=await retention.scrubDeletedSession({sessionId},{uid});
@@ -69,6 +73,7 @@ function createProvenanceRetentionWorker({db,projectId,deleteField,clock=Date.no
           ok=true;
         } catch { /* Never persist raw errors. */ }
         const outcome=await db.runTransaction(async tx=>{
+          const checkSweep=await requireSweep(tx,db,sweep,clock);
           const job=await tx.get(ref);
           if(!job.exists) return "stale";
           const row=target(job.data(),snapshot.id), a=attempt(row), t=now();
@@ -83,6 +88,7 @@ function createProvenanceRetentionWorker({db,projectId,deleteField,clock=Date.no
           }
           const patch=ok?{status:finished?"complete":"pending",retry:afterSuccess()}:
             afterFailure(row,t);
+          checkSweep();
           tx.set(ref,{...patch,attempt:null},{merge:true});
           return ok?(finished?"completed":"pending"):(patch.status==="attention"?"attention":"failed");
         });
