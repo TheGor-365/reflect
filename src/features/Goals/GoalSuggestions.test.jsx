@@ -9,6 +9,8 @@ const sessions=[{
     {id:'assistant-one',role:'assistant',interaction:{
       version:'reflect.interaction.v2',stage:'synthesize',
       clarifyingQuestion:'',unknowns:[],insights:[],
+      evidenceSummary:{completeCount:1,confirmedSlots:['situation'],
+        missingSlots:['constraints'],disputedSlots:[]},
       recommendationCandidates:[{
         title:'Зафиксировать три функции MVP',
         rationale:'Ограниченный срок требует малого объёма',
@@ -113,4 +115,15 @@ test('R139 a saved decision moves out of pending Goals teaser', () => {
   }];
   const { container } = render(<GoalSuggestions sessions={acceptedAsIdea}/>);
   expect(container).toBeEmptyDOMElement();
+});
+
+test('R139 v2 missing or disputed evidence remains blocked in Goals', () => {
+  for (const evidenceSummary of [undefined, { disputedSlots: ['situation'] }]) {
+    const blocked = [{ ...sessions[0], chatHistory: sessions[0].chatHistory.map(turn =>
+      turn.id === 'assistant-one' ? { ...turn, interaction: { ...turn.interaction, evidenceSummary } } : turn) }];
+    const { unmount } = render(<GoalSuggestions sessions={blocked}/>);
+    expect(screen.queryByRole('button', { name: /Просмотреть и подтвердить/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Открыть исходный диалог/ })).toBeInTheDocument();
+    unmount();
+  }
 });
