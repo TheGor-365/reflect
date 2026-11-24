@@ -10,7 +10,7 @@
 const { PolicyError } = require("./policy.cjs");
 const { modePolicy } = require("./interactionModes.cjs");
 const { evidenceSnapshot } = require("./ownerEvidenceV2.cjs");
-const { attest } = require("./recommendationProvenance.cjs");
+const { createProvenanceKeyring } = require("./recommendationProvenanceKeyring.cjs");
 const PROJECT = "reflect-ai-staging";
 const NAMESPACE = "reflect-8fdc8";
 const REQUEST = /^[A-Za-z0-9_-]{12,80}$/;
@@ -164,12 +164,25 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now, provenance = nu
     fail("unsafe-environment");
   }
   // Explicit server-only dependency injection; no environment activation yet.
-  if (provenance !== null && (!plain(provenance) ||
-      !Buffer.isBuffer(provenance.key) || provenance.key.length !== 32 ||
-      !valid(RESOURCE, provenance.keyId))) fail("unsafe-environment");
-  const signing = provenance === null ? null : {
-    key: Buffer.from(provenance.key), keyId: provenance.keyId
-  };
+  let signing = null;
+  if (provenance !== null) {
+    try {
+      if (!plain(provenance)) throw Error("invalid-keyring");
+      const fields = Object.keys(provenance).sort().join(",");
+      if (fields === "key,keyId") {
+        // Compatibility for existing opt-in fixtures and server callers.
+        signing = createProvenanceKeyring({
+          activeKeyId: provenance.keyId, keys: [provenance]
+        });
+      } else if (fields === "activeKeyId,keys") {
+        signing = createProvenanceKeyring(provenance);
+      } else {
+        throw Error("invalid-keyring");
+      }
+    } catch {
+      fail("unsafe-environment");
+    }
+  }
   const claimedMessages = new WeakMap();
   const refs = target => ({ session: db.doc(sessionPath(target)),
     receipt: db.doc(receiptPath(target)),
@@ -288,13 +301,12 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now, provenance = nu
              reply.interaction?.version === "reflect.interaction.v2"
           ? { interaction: reply.interaction } : {})
       };
-      const provenanceReceipt = signing && assistantTurn.interaction ? {
-        ...attest({ projectId, uid: target.uid, sessionId: target.sessionId,
+      const provenanceReceipt = signing && assistantTurn.interaction
+        ? signing.sign({ projectId, uid: target.uid, sessionId: target.sessionId,
           sourceTurnId: target.sourceTurnId, assistantTurnId: answerId,
           sourceText, assistantText: assistantTurn.content,
-          interaction: assistantTurn.interaction }, signing.key),
-        keyId: signing.keyId
-      } : null;
+          interaction: assistantTurn.interaction })
+        : null;
       // Both writes commit together. Concurrent arrayUnion writes to session
       // cause a transaction retry rather than erasing a second browser's turn.
       tx.update(session, { chatHistory: [...history, assistantTurn],
