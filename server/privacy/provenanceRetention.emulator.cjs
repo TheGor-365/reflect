@@ -49,7 +49,7 @@ test("R139 real Admin SDK: concurrent reply and atomic deletion cannot resurrect
   assert.equal((await guard.get()).data().provenanceRevoked, true);
   assert.deepEqual(await retention.revokeAndDeleteSession({ sessionId, confirmed: true }, { uid }), { revoked: true });
   const result = await retention.scrubDeletedSession({ sessionId }, { uid });
-  assert.equal(result.nextCursor, null);
+  assert.equal(result.done, true);
   const retained = (await receipt.get()).data();
   assert.equal(retained.provenance, undefined);
   assert.equal(retained.billedPossible, true);
@@ -59,4 +59,30 @@ test("R139 real Admin SDK: concurrent reply and atomic deletion cannot resurrect
     message, retryConfirmed: false }), e => e.code === "permission-denied");
   assert.equal((await receipt.get()).data().provenance, undefined);
   console.log("R139_C3C2C2B_ADMIN_EMULATOR_PASS");
+});
+
+test("real Admin SDK durable cleanup resumes across instances and concurrent workers", async () => {
+  const uid = "fixture-" + randomUUID(), sessionId = "pagination";
+  const session = db.doc(`artifacts/reflect-8fdc8/users/${uid}/sessions/${sessionId}`);
+  const guard = db.doc(`_reflectAiPrivate/reflect-8fdc8/attemptOwners/${uid}/sessions/${sessionId}`);
+  await session.set({chatHistory:[]});
+  const batch = db.batch();
+  for(let i=0;i<101;i++) batch.set(guard.collection("turns").doc("u"+String(i).padStart(3,"0")),
+    {provenance:{mac:"synthetic"},billedPossible:true});
+  await batch.commit();
+  await retention.revokeAndDeleteSession({sessionId,confirmed:true},{uid});
+  const first = await retention.scrubDeletedSession({sessionId},{uid});
+  assert.deepEqual(first,{scrubbed:100,done:false});
+  assert.deepEqual((await guard.get()).data().turnCleanup,{cursor:"u099",done:false});
+  await session.set({chatHistory:[]});
+  const other = createProvenanceRetention({db,projectId,deleteField:()=>FieldValue.delete()});
+  const results = await Promise.all([retention.scrubDeletedSession({sessionId},{uid}),
+    other.scrubDeletedSession({sessionId},{uid})]);
+  assert.equal(results.reduce((sum,x)=>sum+x.scrubbed,0),1);
+  assert.ok(results.every(x=>x.done));
+  const rows = await guard.collection("turns").get();
+  assert.equal(rows.size,101);
+  assert.ok(rows.docs.every(d=>d.data().provenance===undefined && d.data().billedPossible===true));
+  assert.deepEqual((await guard.get()).data().turnCleanup,{cursor:null,done:true});
+  console.log("R139_C3C3C4B_DURABLE_RETENTION_PASS");
 });
