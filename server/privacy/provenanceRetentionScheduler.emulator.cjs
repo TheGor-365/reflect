@@ -68,3 +68,30 @@ test("R139 real Admin SDK: pending queue progresses across bounded cursor pages"
   assert.ok(calls<30);
   console.log("R139_C3C3C4D3A_QUEUE_PAGINATION_PASS");
 });
+
+test("R139 real Admin SDK: concurrent job attempts count one failure and retain backoff",async()=>{
+  const {randomUUID}=require("node:crypto");
+  const {FieldValue}=require("firebase-admin/firestore");
+  const {JOB_ROOT,jobId}=require("./provenanceRetention.cjs");
+  const {createProvenanceRetentionWorker}=require("./provenanceRetentionWorker.cjs");
+  const uid="retry-fixture-"+randomUUID(),sessionId="retry";
+  const ref=db.doc(JOB_ROOT+"/"+jobId(uid,sessionId));
+  const marker=db.doc("_reflectAiPrivate/reflect-8fdc8/attemptOwners/"+uid+"/sessions/"+sessionId);
+  let time=1000;
+  await ref.set({schemaVersion:1,uid,sessionId,status:"pending"});
+  await marker.set({provenanceRevoked:true,turnCleanup:{done:false,cursor:null}});
+  const make=()=>createProvenanceRetentionWorker({db,projectId:"reflect-ai-staging",
+    deleteField:()=>FieldValue.delete(),clock:()=>time});
+  try{
+    const results=await Promise.all([make().runBatch(),make().runBatch()]);
+    assert.equal(results.reduce((n,r)=>n+r.failed,0),1);
+    assert.deepEqual((await ref.get()).data().retry,{failures:1,notBeforeMs:61000});
+    assert.equal((await make().runBatch()).failed,0);
+    await marker.set({provenanceRevoked:true});
+    time=61000;
+    assert.equal((await make().runBatch()).completed,1);
+    assert.equal((await ref.get()).data().status,"complete");
+    assert.deepEqual((await ref.get()).data().retry,{failures:0,notBeforeMs:0});
+    console.log("R139_C3C3C4D3A_RETRY_EMULATOR_PASS");
+  }finally{await ref.delete();await marker.delete();}
+});
