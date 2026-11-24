@@ -102,7 +102,7 @@ function createProvenanceRetention({ db, projectId, deleteField }) {
       if (queued.exists) {
         const prior = queued.data();
         if (!revoked || prior.uid !== uid || prior.sessionId !== sessionId ||
-            prior.schemaVersion !== 1 || !["pending","complete"].includes(prior.status)) {
+            prior.schemaVersion !== 1 || !["pending","complete","attention"].includes(prior.status)) {
           throw Error("invalid-retention-job");
         }
       } else {
