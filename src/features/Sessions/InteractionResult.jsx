@@ -244,6 +244,12 @@ export default function InteractionResult({
               Цель пока недоступна: {goalGate.reason}
               Сохранить идею или отложить её можно независимо.
             </p>}
+            {oldRecommendationWithOpenHypotheses && status !== 'accepted' && (
+              <p>Уточните вопрос и неизвестные обстоятельства в новом сообщении,
+                исправьте неподтверждённые предпосылки и попросите Reflect
+                сформулировать новую рекомендацию. Исходное предложение
+                не станет доступным для создания цели автоматически.</p>
+            )}
             <div className="reflect-interaction-actions">
               {onCompose && <button type="button"
                 onClick={() => onCompose('Хочу обсудить предложение «' + item.title + '»: ')}>
