@@ -4,6 +4,7 @@ on:
     paths:
       - 'tests/staging/r139-transactions.emulator.test.js'
       - 'tests/staging/firebase.r139.json'
+      - 'vitest.r139.config.mjs'
       - 'src/features/Sessions/recommendationDecisions.js'
       - 'server/hosted/firestore.rules'
       - '.github/workflows/reflect-r139-transactions-emulator.yml'
@@ -41,4 +42,4 @@ jobs:
       - name: Run isolated SDK test
         run: |
           unset GOOGLE_APPLICATION_CREDENTIALS FIREBASE_CONFIG
-          firebase emulators:exec --config tests/staging/firebase.r139.json --project demo-reflect-r139 --only auth,firestore "./node_modules/.bin/vitest run --environment node tests/staging/r139-transactions.emulator.test.js"
+          firebase emulators:exec --config tests/staging/firebase.r139.json --project demo-reflect-r139 --only auth,firestore "./node_modules/.bin/vitest run --config vitest.r139.config.mjs"
