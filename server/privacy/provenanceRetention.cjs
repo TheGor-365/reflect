@@ -8,10 +8,11 @@ const ID = /^[A-Za-z0-9_-]{1,128}$/;
 const valid = x => typeof x === "string" && ID.test(x);
 const MAX_BATCH = 100;
 const { createHash } = require("node:crypto");
+const DELETION_FLAG = "_reflectAiPrivate/reflect-8fdc8/runtimeFlags/sessionDeletion";
 const JOB_ROOT = "_reflectAiPrivate/reflect-8fdc8/retentionJobs";
 const jobId = (uid, sid) => createHash("sha256").update(JSON.stringify([uid,sid])).digest("hex");
 
-function createProvenanceRetention({ db, projectId, deleteField, workerAttempt = null, clock = Date.now, sweepClaim = null }) {
+function createProvenanceRetention({ db, projectId, deleteField, workerAttempt = null, clock = Date.now, sweepClaim = null, requireDeletionFlag = false }) {
   if (projectId !== "reflect-ai-staging" || !db ||
       typeof db.doc !== "function" || typeof db.collection !== "function" ||
       typeof db.runTransaction !== "function" || typeof deleteField !== "function") {
@@ -23,6 +24,7 @@ function createProvenanceRetention({ db, projectId, deleteField, workerAttempt =
       (typeof workerAttempt !== "string" || !/^[0-9a-f-]{36}$/.test(workerAttempt)))) {
     throw Error("invalid-retention-attempt");
   }
+  if(typeof requireDeletionFlag!=="boolean") throw Error("invalid-deletion-flag");
   const sweep=sweepClaim===null?null:validateSweepClaim(sweepClaim);
   if(sweep&&workerAttempt===null) throw Error("invalid-sweep-claim");
   async function requireAttempt(tx, uid, sessionId) {
@@ -126,6 +128,10 @@ function createProvenanceRetention({ db, projectId, deleteField, workerAttempt =
     const guard = db.doc(`_reflectAiPrivate/reflect-8fdc8/attemptOwners/${uid}/sessions/${sessionId}`);
     const job = db.doc(JOB_ROOT + "/" + jobId(uid, sessionId));
     return db.runTransaction(async tx => {
+      if(requireDeletionFlag){
+        const flag=await tx.get(db.doc(DELETION_FLAG));
+        if(!flag.exists||flag.data()?.enabled!==true) throw Error("session-deletion-disabled");
+      }
       const [live, marker, queued] = await Promise.all([tx.get(session), tx.get(guard), tx.get(job)]);
       const revoked = marker.exists && marker.data()?.provenanceRevoked === true;
       if (!live.exists && !revoked) throw Error("session-not-found");
@@ -146,4 +152,4 @@ function createProvenanceRetention({ db, projectId, deleteField, workerAttempt =
   }
   return Object.freeze({ scrubDeletedSession, scrubDeletedSessionAcceptances, revokeAndDeleteSession });
 }
-module.exports = { createProvenanceRetention, JOB_ROOT, jobId };
+module.exports = { createProvenanceRetention, JOB_ROOT, jobId, DELETION_FLAG };
