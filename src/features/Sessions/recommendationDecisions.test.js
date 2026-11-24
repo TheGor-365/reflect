@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { doc, runTransaction } from 'firebase/firestore';
 import { applyRecommendationDecision } from './recommendationDecisions';
+import { saveHypothesisReview } from './hypothesisReviews';
+import { buildRecommendationInbox } from '../Recommendations/recommendationInbox';
 
 vi.mock('../../firebase/config', () => ({ db: {}, appId: 'reflect-8fdc8' }));
 vi.mock('firebase/firestore', () => ({
@@ -284,4 +286,68 @@ it('R9.2.4C rejects stale decision writes into archived source or archived recom
   await expect(applyRecommendationDecision({...params,action:'saved'}))
     .rejects.toThrow(/Сначала восстановите/);
   expect(writes).toEqual([]);
+});
+
+
+it('R139 B5 fresh synthesis lifecycle keeps old source blocked and creates only the explicitly confirmed new goal', async () => {
+  session.id = params.sessionId;
+  const original = session.chatHistory[1];
+  original.interaction.stage = 'clarify';
+  original.interaction.clarifyingQuestion = 'Какой результат достаточен?';
+  original.interaction.unknowns = ['Критерий результата'];
+  const oldKey = 'r-' + original.id + '-0';
+  const originalSnapshot = JSON.stringify(original);
+  const goalInput = { ...params, action: 'goal', goalId: 'r139-goal',
+    goalTitle: 'Проверить прототип' };
+  await applyRecommendationDecision({ ...params, action: 'saved' });
+  const oldDecision = session.recommendationDecisions[oldKey];
+  await expect(applyRecommendationDecision(goalInput)).rejects.toThrow(/открытый уточняющий/);
+  expect(goal).toBeNull();
+
+  const clarification = { id: 'user-r139-followup', role: 'user',
+    content: 'Достаточно одного документированного отзыва после показа.' };
+  session.chatHistory.push(clarification);
+  await expect(applyRecommendationDecision(goalInput)).rejects.toThrow(/открытый уточняющий/);
+  const fresh = {
+    id: 'assistant-r139-fresh', role: 'assistant',
+    interaction: {
+      version: 'reflect.interaction.v2', stage: 'synthesize',
+      clarifyingQuestion: '', unknowns: [], insights: ['Один отзыв достаточен'],
+      evidenceSummary: { completeCount: 4,
+        confirmedSlots: ['situation', 'desiredResult', 'circumstances', 'constraints'],
+        missingSlots: [], disputedSlots: [] },
+      recommendationCandidates: [{ title: 'Зафиксировать один отзыв',
+        rationale: 'Пользователь уточнил критерий.', sourceRefs: ['current-message'] }]
+    }
+  };
+  session.chatHistory.push(fresh);
+  const freshInput = { ...goalInput, assistantMessageId: fresh.id };
+  const beforeReview = writes.length;
+  await expect(applyRecommendationDecision(freshInput)).rejects.toThrow(/оцените все гипотезы/);
+  expect(writes).toHaveLength(beforeReview);
+  expect(goal).toBeNull();
+  const reviewInput = { userId: params.userId, sessionId: params.sessionId,
+    assistantMessageId: fresh.id, hypothesisIndex: 0 };
+  await saveHypothesisReview({ ...reviewInput, grade: 0, comment: 'Нужно уточнить' });
+  await expect(applyRecommendationDecision(freshInput)).rejects.toThrow(/не подтвердили/);
+  expect(goal).toBeNull();
+  await saveHypothesisReview({ ...reviewInput, grade: 3, comment: 'Критерий верен' });
+  expect(goal).toBeNull();
+  await expect(applyRecommendationDecision(goalInput)).rejects.toThrow(/открытый уточняющий/);
+  const beforeAccept = writes.length;
+  const accepted = await applyRecommendationDecision(freshInput);
+  expect(writes.slice(beforeAccept).map(w => w.kind)).toEqual(['set', 'update']);
+  expect(accepted).toMatchObject({ status: 'accepted', sourceMessageId: clarification.id,
+    assistantMessageId: fresh.id, goalId: 'r139-goal' });
+  expect(goal).toMatchObject({ sessionId: params.sessionId,
+    sourceMessageId: clarification.id, sourceAssistantMessageId: fresh.id,
+    sourceRecommendationKey: 'r-' + fresh.id + '-0', completed: false });
+  expect(session.recommendationDecisions[oldKey]).toEqual(oldDecision);
+  expect(JSON.stringify(session.chatHistory[1])).toBe(originalSnapshot);
+  const inbox = buildRecommendationInbox([session]);
+  expect(inbox.recommendations.map(item => item.status)).toEqual(['saved', 'accepted']);
+  expect(inbox.clarifications).toMatchObject([{ assistantMessageId: original.id, hasLaterUserTurn: true }]);
+  const repeat = await applyRecommendationDecision({ ...freshInput, goalId: 'duplicate-goal' });
+  expect(repeat.goalId).toBe('r139-goal');
+  expect(writes).toHaveLength(beforeAccept + 2);
 });
