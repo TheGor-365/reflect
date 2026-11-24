@@ -172,7 +172,17 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now, provenance = nu
   };
   const claimedMessages = new WeakMap();
   const refs = target => ({ session: db.doc(sessionPath(target)),
-    receipt: db.doc(receiptPath(target)) });
+    receipt: db.doc(receiptPath(target)),
+    guard: db.doc(receiptPath(target).split("/turns/")[0]) });
+  // Only opt-in signing consults the private tombstone. Legacy paths remain
+  // unchanged. Read inside the same transaction as the protected write.
+  async function requireUnrevoked(tx, guard) {
+    if (!signing) return;
+    const snap = await tx.get(guard);
+    if (snap.exists && snap.data()?.provenanceRevoked !== false) {
+      fail("permission-denied");
+    }
+  }
 
   async function claim({ uid, sessionId, sourceTurnId, requestId, message, retryConfirmed,
     collectEvidence = false }) {
@@ -184,8 +194,9 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now, provenance = nu
     if (!first && !retryConfirmed) fail("permission-denied");
     const nowMs = clock();
     if (!nowOk(nowMs)) fail("unavailable");
-    const { session, receipt } = refs(target);
+    const { session, receipt, guard } = refs(target);
     return db.runTransaction(async tx => {
+      await requireUnrevoked(tx, guard);
       const [stored, prior] = await Promise.all([tx.get(session), tx.get(receipt)]);
       const { hasReply, history, index, data } = checkSession(stored, target, message);
       // Server reads the exact committed user turn in an owner-scoped
@@ -224,8 +235,9 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now, provenance = nu
   async function providerStarted(attempt) {
     const target = validateTurnTarget(attempt);
     const nowMs = clock();
-    const { receipt } = refs(target);
+    const { receipt, guard } = refs(target);
     await db.runTransaction(async tx => {
+      await requireUnrevoked(tx, guard);
       const snap = await tx.get(receipt);
       const data = snap.exists && snap.data();
       if (!data || data.requestId !== attempt.requestId ||
@@ -255,11 +267,12 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now, provenance = nu
     const target = validateTurnTarget(attempt);
     if (!reply || typeof reply.text !== "string" || !reply.text.trim() ||
         reply.text.length > 2400) fail("invalid-provider-response");
-    const nowMs = clock(), { session, receipt } = refs(target);
+    const nowMs = clock(), { session, receipt, guard } = refs(target);
     const answerId = "assistant-" + attempt.requestId;
     const sourceText = signing ? claimedMessages.get(attempt) : undefined;
     if (signing && typeof sourceText !== "string") fail("permission-denied");
     await db.runTransaction(async tx => {
+      await requireUnrevoked(tx, guard);
       const [stored, snap] = await Promise.all([tx.get(session), tx.get(receipt)]);
       const { history, hasReply } = checkSession(stored, target, sourceText);
       const data = snap.exists && snap.data();
