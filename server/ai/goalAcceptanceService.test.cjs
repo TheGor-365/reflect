@@ -19,7 +19,7 @@ function fixture() {
   const privateRoot = "_reflectAiPrivate/reflect-8fdc8/attemptOwners/" + uid + "/sessions/" + sessionId;
   const sessionPath = root + "/sessions/" + sessionId;
   const receiptPath = privateRoot + "/turns/" + sourceTurnId;
-  const docs = new Map([[sessionPath, { chatHistory: [source, answer] }],
+  const docs = new Map([["_reflectAiPrivate/reflect-8fdc8/runtimeFlags/goalAcceptance", { enabled: true }], [sessionPath, { chatHistory: [source, answer] }],
     [receiptPath, { uid, sessionId, sourceTurnId, assistantTurnId, requestId,
       status: "persisted_reply", provenance: createProvenanceKeyring(provenance).sign({
         projectId, uid, sessionId, sourceTurnId, assistantTurnId, sourceText: source.content,
@@ -111,4 +111,17 @@ test("client-created accepted decision is never upgraded to verified event", asy
   };
   await denied(() => f.accept(), "acceptance-conflict");
   assert.equal(f.acceptances().length, 0);
+});
+
+ test("final acceptance transaction independently requires enabled private flag", async () => {
+  const f = fixture(), flag = "_reflectAiPrivate/reflect-8fdc8/runtimeFlags/goalAcceptance";
+  for (const value of [undefined, {enabled:false}, {enabled:"true"}]) {
+    if (value === undefined) f.docs.delete(flag); else f.docs.set(flag,value);
+    await denied(()=>f.accept(),"unavailable");
+    assert.equal(f.goals().length,0); assert.equal(f.acceptances().length,0);
+  }
+  f.docs.set(flag,{enabled:true});
+  assert.equal((await f.accept()).alreadyAccepted,false);
+  f.docs.set(flag,{enabled:false});
+  await denied(()=>f.accept(),"unavailable");
 });
