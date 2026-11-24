@@ -9,6 +9,7 @@ on:
       - 'server/hosted/firestore.rules'
       - 'server/ai/aiTurnRecovery.cjs'
       - 'server/ai/recommendationProvenance*.cjs'
+      - 'server/ai/goalAcceptance*.cjs'
       - 'server/privacy/provenanceRetention*.cjs'
       - '.github/workflows/reflect-r139-transactions-emulator.yml'
   workflow_dispatch:
@@ -50,4 +51,4 @@ jobs:
           npm install --prefix "$deps" --no-save --package-lock=false --ignore-scripts --no-audit --no-fund firebase-admin@13.4.0
           export NODE_PATH="$deps/node_modules"
           node -e 'if(require("firebase-admin/app").SDK_VERSION !== "13.4.0") throw Error("SDK version mismatch")'
-          firebase emulators:exec --config tests/staging/firebase.r139.json --project demo-reflect-r139 --only auth,firestore "./node_modules/.bin/vitest run --config vitest.r139.config.mjs && node --test server/privacy/provenanceRetention.emulator.cjs"
+          firebase emulators:exec --config tests/staging/firebase.r139.json --project demo-reflect-r139 --only auth,firestore "./node_modules/.bin/vitest run --config vitest.r139.config.mjs && node --test server/privacy/provenanceRetention.emulator.cjs server/ai/goalAcceptanceService.emulator.cjs"
