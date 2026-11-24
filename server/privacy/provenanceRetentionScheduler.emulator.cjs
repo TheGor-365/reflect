@@ -95,3 +95,46 @@ test("R139 real Admin SDK: concurrent job attempts count one failure and retain 
     console.log("R139_C3C3C4D3A_RETRY_EMULATOR_PASS");
   }finally{await ref.delete();await marker.delete();}
 });
+
+test("R139 real Admin SDK: expired attempt takeover preserves data until authorized cleanup",async()=>{
+  const {randomUUID}=require("node:crypto");
+  const {FieldValue}=require("firebase-admin/firestore");
+  const {JOB_ROOT,jobId,createProvenanceRetention}=require("./provenanceRetention.cjs");
+  const {createProvenanceRetentionWorker}=require("./provenanceRetentionWorker.cjs");
+  const uid="takeover-fixture-"+randomUUID(),sessionId="takeover";
+  const owner=randomUUID();
+  const ref=db.doc(JOB_ROOT+"/"+jobId(uid,sessionId));
+  const marker=db.doc("_reflectAiPrivate/reflect-8fdc8/attemptOwners/"+uid+"/sessions/"+sessionId);
+  const turn=marker.collection("turns").doc("u1");
+  const event=marker.collection("acceptances").doc("a1");
+  let time=1000;
+  const options={db,projectId:"reflect-ai-staging",deleteField:()=>FieldValue.delete(),clock:()=>time};
+  const old=createProvenanceRetention({...options,workerAttempt:owner});
+  const args=[{sessionId},{uid}];
+  await ref.set({schemaVersion:1,uid,sessionId,status:"pending",attempt:{owner,untilMs:2000}});
+  await marker.set({provenanceRevoked:true});
+  await turn.set({provenance:{mac:"synthetic"},billedPossible:true});
+  await event.set({status:"accepted"});
+  try{
+    const worker=createProvenanceRetentionWorker(options);
+    const busy=await worker.runBatch();
+    assert.equal(busy.completed,0);
+    assert.equal((await ref.get()).data().attempt.owner,owner);
+    time=2000;
+    await assert.rejects(old.scrubDeletedSession(...args),/stale-retention-attempt/);
+    await assert.rejects(old.scrubDeletedSessionAcceptances(...args),/stale-retention-attempt/);
+    assert.ok((await turn.get()).data().provenance);
+    assert.equal((await event.get()).exists,true);
+    const takeover=await worker.runBatch();
+    assert.equal(takeover.completed,1);
+    assert.equal((await ref.get()).data().status,"complete");
+    assert.equal((await ref.get()).data().attempt,null);
+    assert.deepEqual((await turn.get()).data(),{billedPossible:true});
+    assert.equal((await event.get()).exists,false);
+    await assert.rejects(old.scrubDeletedSession(...args),/stale-retention-attempt/);
+    await assert.rejects(old.scrubDeletedSessionAcceptances(...args),/stale-retention-attempt/);
+    console.log("R139_C3C3C4D3A_ATTEMPT_TAKEOVER_PASS");
+  }finally{
+    await Promise.all([ref.delete(),turn.delete(),event.delete(),marker.delete()]);
+  }
+});
