@@ -95,6 +95,25 @@ function createProvenanceRetentionScheduler({db,projectId,deleteField,clock = Da
     return {status:"processed",scanned:batch.scanned,completed:batch.completed,
       pending:batch.pending,failed:batch.failed,...safeHealth(batch)};
   }
-  return Object.freeze({runOnce});
+  // Explicit server-side maintenance only. Never invoked by runOnce.
+  async function repairCursor({confirmed,expectedFence} = {}) {
+    if(confirmed!==true || !Number.isSafeInteger(expectedFence) || expectedFence<0)
+      throw Error("invalid-scheduler-repair-request");
+    return db.runTransaction(async tx=>{
+      const snapshot=await tx.get(ref);
+      if(!snapshot.exists) return {status:"missing"};
+      const state=snapshot.data();
+      // Only the cursor may be malformed. Lease and fence must remain trustworthy.
+      checkState({...state,cursor:null});
+      if(state.fence!==expectedFence) return {status:"conflict"};
+      if(state.leaseOwner!==null && state.leaseUntilMs>now()) return {status:"busy"};
+      if(validCursor(state.cursor)) return {status:"unchanged"};
+      if(state.fence===Number.MAX_SAFE_INTEGER) throw Error("scheduler-fence-exhausted");
+      tx.set(ref,{...state,cursor:null,fence:state.fence+1,leaseOwner:null,leaseUntilMs:0,
+        lastBatch:{ok:false}});
+      return {status:"repaired"};
+    });
+  }
+  return Object.freeze({runOnce,repairCursor});
 }
 module.exports = {createProvenanceRetentionScheduler,SWEEP_PATH,LEASE_MS};
