@@ -40,7 +40,7 @@ jobs:
       - run: npm ci
       - run: npm install --global firebase-tools@15.34.2
       - name: R139 server regression
-        run: node --test server/ai/recommendationProvenance.test.cjs server/ai/recommendationProvenanceKeyring.test.cjs server/ai/aiTurnRecovery.test.cjs server/privacy/provenanceRetention.test.cjs server/ai/goalAcceptanceSource.test.cjs server/ai/goalAcceptanceService.test.cjs server/ai/goalAcceptanceHttp.test.cjs server/ai/goalAcceptanceRuntime.test.cjs
+        run: node --test server/ai/recommendationProvenance.test.cjs server/ai/recommendationProvenanceKeyring.test.cjs server/ai/aiTurnRecovery.test.cjs server/privacy/provenanceRetention.test.cjs server/ai/goalAcceptanceSource.test.cjs server/ai/goalAcceptanceService.test.cjs server/ai/goalAcceptanceHttp.test.cjs server/ai/goalAcceptanceRuntime.test.cjs server/ai/goalAcceptanceComposition.test.cjs
       - name: Copy repository hosted rules (not live deployment)
         run: |
           cp server/hosted/firestore.rules tests/staging/firestore.r139.runtime.rules
