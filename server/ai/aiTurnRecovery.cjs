@@ -10,6 +10,7 @@
 const { PolicyError } = require("./policy.cjs");
 const { modePolicy } = require("./interactionModes.cjs");
 const { evidenceSnapshot } = require("./ownerEvidenceV2.cjs");
+const { attest } = require("./recommendationProvenance.cjs");
 const PROJECT = "reflect-ai-staging";
 const NAMESPACE = "reflect-8fdc8";
 const REQUEST = /^[A-Za-z0-9_-]{12,80}$/;
@@ -80,7 +81,7 @@ function sourceEvidence(data, sourceTurnId, expectedMessage) {
   if (!Array.isArray(history) || history.length > 1000) fail("invalid-session-history");
   const index = history.findIndex(t => t?.role === "user" && t?.id === sourceTurnId);
   if (index === -1 ||
-      history.slice(index + 1).some(t => t?.id === sourceTurnId) ||
+      history.filter(t => t?.id === sourceTurnId).length !== 1 ||
       (data.ownerUid && data.ownerUid !== undefined && typeof data.ownerUid !== "string")) {
     fail("permission-denied");
   }
@@ -157,11 +158,19 @@ function validateStatusBody(body) {
   return body;
 }
 
-function createAiTurnRecovery({ db, projectId, clock = Date.now }) {
+function createAiTurnRecovery({ db, projectId, clock = Date.now, provenance = null }) {
   if (projectId !== PROJECT || !db || typeof db.doc !== "function" ||
       typeof db.runTransaction !== "function" || typeof clock !== "function") {
     fail("unsafe-environment");
   }
+  // Explicit server-only dependency injection; no environment activation yet.
+  if (provenance !== null && (!plain(provenance) ||
+      !Buffer.isBuffer(provenance.key) || provenance.key.length !== 32 ||
+      !valid(RESOURCE, provenance.keyId))) fail("unsafe-environment");
+  const signing = provenance === null ? null : {
+    key: Buffer.from(provenance.key), keyId: provenance.keyId
+  };
+  const claimedMessages = new WeakMap();
   const refs = target => ({ session: db.doc(sessionPath(target)),
     receipt: db.doc(receiptPath(target)) });
 
@@ -202,11 +211,13 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now }) {
         leaseUntilMs: nowMs + LEASE_MS, updatedAt: new Date(nowMs),
         createdAt: previous?.createdAt ?? new Date(nowMs), assistantTurnId: null
       });
-      return Object.freeze({
+      const attempt = Object.freeze({
         ...target, requestId,
         ...(turnMode === undefined ? {} : { interactionMode: turnMode }),
         ...(collectEvidence ? { evidenceSnapshot: evidenceSnapshot(data) } : {})
       });
+      if (signing) claimedMessages.set(attempt, message);
+      return attempt;
     });
   }
 
@@ -246,9 +257,11 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now }) {
         reply.text.length > 2400) fail("invalid-provider-response");
     const nowMs = clock(), { session, receipt } = refs(target);
     const answerId = "assistant-" + attempt.requestId;
+    const sourceText = signing ? claimedMessages.get(attempt) : undefined;
+    if (signing && typeof sourceText !== "string") fail("permission-denied");
     await db.runTransaction(async tx => {
       const [stored, snap] = await Promise.all([tx.get(session), tx.get(receipt)]);
-      const { history, hasReply } = checkSession(stored, target);
+      const { history, hasReply } = checkSession(stored, target, sourceText);
       const data = snap.exists && snap.data();
       if (!data || data.requestId !== attempt.requestId ||
           data.status !== "provider_pending") fail("already-exists");
@@ -262,13 +275,21 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now }) {
              reply.interaction?.version === "reflect.interaction.v2"
           ? { interaction: reply.interaction } : {})
       };
+      const provenanceReceipt = signing && assistantTurn.interaction ? {
+        ...attest({ projectId, uid: target.uid, sessionId: target.sessionId,
+          sourceTurnId: target.sourceTurnId, assistantTurnId: answerId,
+          sourceText, assistantText: assistantTurn.content,
+          interaction: assistantTurn.interaction }, signing.key),
+        keyId: signing.keyId
+      } : null;
       // Both writes commit together. Concurrent arrayUnion writes to session
       // cause a transaction retry rather than erasing a second browser's turn.
       tx.update(session, { chatHistory: [...history, assistantTurn],
         updatedAt: new Date(nowMs) });
       tx.update(receipt, {
         status: "persisted_reply", billedPossible: true,
-        assistantTurnId: answerId, errorCode: null, updatedAt: new Date(nowMs)
+        assistantTurnId: answerId, errorCode: null, updatedAt: new Date(nowMs),
+        ...(provenanceReceipt ? { provenance: provenanceReceipt } : {})
       });
     });
     return answerId;
