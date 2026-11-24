@@ -96,3 +96,18 @@ test("scheduler persists only validated aggregate health and discards private ex
   assert.deepEqual(await make({runBatch:async()=>bad}).runOnce(),{status:"failed"});
   assert.deepEqual(rows.get(SWEEP_PATH).lastBatch,{ok:false});
 });
+
+test("scheduler advances past malformed job identity as a technical cursor",async()=>{
+  const {rows,make}=fixture();
+  const seen=[];
+  const worker={runBatch:async({after})=>{
+    seen.push(after);
+    return after===null?{scanned:10,completed:0,pending:0,failed:10,nextCursor:"!bad-9"}:
+      {scanned:0,completed:0,pending:0,failed:0,nextCursor:null};
+  }};
+  assert.equal((await make(worker).runOnce()).status,"processed");
+  assert.equal(rows.get(SWEEP_PATH).cursor,"!bad-9");
+  assert.equal((await make(worker).runOnce()).status,"processed");
+  assert.deepEqual(seen,[null,"!bad-9"]);
+  assert.equal(rows.get(SWEEP_PATH).cursor,null);
+});
