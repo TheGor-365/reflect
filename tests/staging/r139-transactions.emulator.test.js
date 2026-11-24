@@ -109,6 +109,23 @@ test.skipIf(!enabled)('R139 C2 real SDK concurrency, rollback, owner isolation',
       .rejects.toMatchObject({ code: 'permission-denied' });
     console.log('R139_C3_OWNER_MUTABILITY_LIMIT_REPRODUCED');
 
+    // The private acceptance event, runtime switch and quota must remain
+    // inaccessible even to the owner. These are Rules checks, not Admin Auth.
+    for (const path of [
+      ['_reflectAiPrivate', 'reflect-8fdc8', 'attemptOwners', alice.uid,
+        'sessions', 'c3-mutable', 'acceptances', 'verified-fixture'],
+      ['_reflectAiPrivate', 'reflect-8fdc8', 'runtimeFlags', 'goalAcceptance'],
+      ['_reflectAiPrivate', 'reflect-8fdc8', 'goalAcceptanceQuotas', alice.uid]
+    ]) {
+      for (const client of [alice, bob]) {
+        const privateRef = doc(client.db, ...path);
+        await expect(getDoc(privateRef)).rejects.toMatchObject({ code: 'permission-denied' });
+        await expect(setDoc(privateRef, { enabled: true }))
+          .rejects.toMatchObject({ code: 'permission-denied' });
+      }
+    }
+    console.log('R139_C3C3C2_PRIVATE_RULES_PASS');
+
   } finally {
     scope.db = null;
     await Promise.all(clients.map(async ({app, db}) => {
