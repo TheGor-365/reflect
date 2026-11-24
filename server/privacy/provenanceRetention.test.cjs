@@ -192,3 +192,30 @@ test("worker rejects forged jobs without preventing valid jobs in same page", as
  assert.equal(result.failed,1);assert.equal(result.completed,1);
  await assert.rejects(worker.runBatch({after:"../bad"}),/invalid-worker-cursor/);
 });
+
+const retryPolicy = require("./provenanceRetentionRetry.cjs");
+test("retention retry policy bounds consecutive failures and delays", () => {
+  let row = {status:"pending"}, now = 1000;
+  for (const delay of [60000,120000,240000,480000]) {
+    assert.equal(retryPolicy.eligible(row,now),true);
+    row = retryPolicy.afterFailure(row,now);
+    assert.equal(row.status,"pending");
+    assert.equal(row.retry.notBeforeMs,now+delay);
+    assert.equal(retryPolicy.eligible(row,now+delay-1),false);
+    assert.throws(()=>retryPolicy.afterFailure(row,now),/not-eligible/);
+    now += delay;
+  }
+  row = retryPolicy.afterFailure(row,now);
+  assert.deepEqual(row,{status:"attention",retry:{failures:5,notBeforeMs:0}});
+  assert.equal(retryPolicy.eligible(row,now+1000000),false);
+  assert.deepEqual(retryPolicy.afterSuccess(),{failures:0,notBeforeMs:0});
+});
+test("retention retry policy fails closed on malformed state and clock", () => {
+  for (const retry of [null,{failures:-1,notBeforeMs:0},{failures:6,notBeforeMs:0},
+    {failures:1,notBeforeMs:0},{failures:0,notBeforeMs:1},{failures:5,notBeforeMs:1},
+    {failures:1,notBeforeMs:NaN}]) {
+    assert.throws(()=>retryPolicy.eligible({retry},1000),/invalid-retention-retry/);
+  }
+  assert.throws(()=>retryPolicy.eligible({},-1),/invalid-retention-clock/);
+  assert.throws(()=>retryPolicy.afterFailure({},Number.MAX_SAFE_INTEGER),/invalid-retention-clock/);
+});
