@@ -283,3 +283,27 @@ test("worker-bound cleanup denies expired and replaced attempts before writes",a
   assert.equal((await make(replacement).scrubDeletedSessionAcceptances(...args)).done,true);
   assert.equal(docs.has(event),false);
 });
+
+test("worker health distinguishes backoff, busy and attention without job identifiers",async()=>{
+  let time=1000;
+  const {docs,worker,service}=fixture(2,()=>time);
+  const path=JOB_ROOT+"/"+jobId("alice","s1");
+  docs.set(live,{chatHistory:[]});
+  await service.revokeAndDeleteSession({sessionId:"s1",confirmed:true},{uid:"alice"});
+  docs.set(root,{provenanceRevoked:true,turnCleanup:{done:false,cursor:null}});
+  docs.set(path,{...docs.get(path),attempt:{owner:"a".repeat(36),untilMs:2000}});
+  assert.equal((await worker.runBatch({diagnostics:true})).health.busy,1);
+  time=2000;
+  assert.equal((await worker.runBatch({diagnostics:true})).failed,1);
+  const deferred=await worker.runBatch({diagnostics:true});
+  assert.equal(deferred.health.backoff,1);
+  assert.ok(!JSON.stringify(deferred.health).includes("alice"));
+  for(const delay of [60000,120000,240000]){
+    time+=delay;
+    assert.equal((await worker.runBatch({diagnostics:true})).failed,1);
+  }
+  time+=480000;
+  const exhausted=await worker.runBatch({diagnostics:true});
+  assert.equal(exhausted.health.attention,1);
+  assert.equal(docs.get(path).status,"attention");
+});
