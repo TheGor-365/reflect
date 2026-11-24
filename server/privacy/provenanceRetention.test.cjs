@@ -7,7 +7,7 @@ const DELETE = Symbol("delete-field");
 const root = "_reflectAiPrivate/reflect-8fdc8/attemptOwners/alice/sessions/s1";
 const live = "artifacts/reflect-8fdc8/users/alice/sessions/s1";
 
-function fixture(count = 2) {
+function fixture(count = 2, clock = Date.now) {
   const docs = new Map();
   for (let i = 0; i < count; i++) {
     docs.set(root + "/turns/u" + String(i).padStart(3, "0"),
@@ -50,7 +50,7 @@ function fixture(count = 2) {
       return result;
     }
   };
-  return { docs, foreign, worker:createProvenanceRetentionWorker({db,projectId:"reflect-ai-staging",deleteField:()=>DELETE}), service: createProvenanceRetention({
+  return { docs, foreign, worker:createProvenanceRetentionWorker({db,clock,projectId:"reflect-ai-staging",deleteField:()=>DELETE}), service: createProvenanceRetention({
     db, projectId: "reflect-ai-staging", deleteField: () => DELETE }) };
 }
 
@@ -218,4 +218,41 @@ test("retention retry policy fails closed on malformed state and clock", () => {
   }
   assert.throws(()=>retryPolicy.eligible({},-1),/invalid-retention-clock/);
   assert.throws(()=>retryPolicy.afterFailure({},Number.MAX_SAFE_INTEGER),/invalid-retention-clock/);
+});
+
+test("worker persists backoff, stops at attention, and deletion reentry cannot reset it", async()=>{
+  let time=1000;
+  const {docs,worker,service}=fixture(2,()=>time);
+  const path=JOB_ROOT+"/"+jobId("alice","s1");
+  docs.set(live,{chatHistory:[]});
+  await service.revokeAndDeleteSession({sessionId:"s1",confirmed:true},{uid:"alice"});
+  docs.set(root,{provenanceRevoked:true,turnCleanup:{done:false,cursor:null}});
+  for(const delay of [60000,120000,240000,480000]){
+    assert.equal((await worker.runBatch()).failed,1);
+    assert.equal(docs.get(path).retry.notBeforeMs,time+delay);
+    assert.equal(docs.get(path).attempt,null);
+    assert.equal((await worker.runBatch()).pending,1);
+    time+=delay;
+  }
+  assert.equal((await worker.runBatch()).failed,1);
+  assert.equal(docs.get(path).status,"attention");
+  assert.deepEqual(docs.get(path).retry,{failures:5,notBeforeMs:0});
+  assert.equal((await worker.runBatch()).scanned,0);
+  await service.revokeAndDeleteSession({sessionId:"s1",confirmed:true},{uid:"alice"});
+  assert.equal(docs.get(path).status,"attention");
+  assert.ok(docs.get(root+"/turns/u000").provenance);
+});
+test("worker successful partial page resets failure count",async()=>{
+  let time=1000;
+  const {docs,worker,service}=fixture(101,()=>time);
+  const path=JOB_ROOT+"/"+jobId("alice","s1");
+  docs.set(live,{chatHistory:[]});
+  await service.revokeAndDeleteSession({sessionId:"s1",confirmed:true},{uid:"alice"});
+  docs.set(root,{provenanceRevoked:true,turnCleanup:{done:false,cursor:null}});
+  assert.equal((await worker.runBatch()).failed,1);
+  docs.set(root,{provenanceRevoked:true});
+  time+=60000;
+  assert.equal((await worker.runBatch()).pending,1);
+  assert.deepEqual(docs.get(path).retry,{failures:0,notBeforeMs:0});
+  assert.equal((await worker.runBatch()).completed,1);
 });
