@@ -4,6 +4,7 @@ import ReflectContentIcon from '../../components/common/ReflectContentIcon';
 import SmoothDisclosure from '../../components/common/SmoothDisclosure';
 import { buildRecommendationInbox } from '../Recommendations/recommendationInbox';
 import { buildDeepGoalDrafts } from './automaticGoalDrafts';
+import { recommendationGoalGate } from '../Sessions/recommendationGoalGate';
 import { isArchivedRecord, isArchivedRecommendation } from '../Archive/archiveSelectors';
 
 /**
@@ -21,17 +22,30 @@ export default function GoalSuggestions({ sessions = [], onOpenSession }) {
     buildDeepGoalDrafts(currentSessions, currentRecommendations),
     [currentSessions, currentRecommendations]);
   const preparedIds = new Set(automaticDrafts.map(item => item.id));
-  if (!candidates.length) return null;
+  const candidateItems = candidates.map(item => {
+    const session = currentSessions.find(candidate => candidate.id === item.sessionId);
+    const assistant = session?.chatHistory?.find(turn =>
+      turn?.role === 'assistant' && turn.id === item.assistantMessageId);
+    return {
+      ...item,
+      gate: recommendationGoalGate({
+        interaction: assistant?.interaction,
+        assistantMessageId: item.assistantMessageId,
+        reviews: session?.hypothesisReviews
+      })
+    };
+  });
+  if (!candidateItems.length) return null;
   return (
     <section className="reflect-goal-suggestions"
       aria-labelledby="reflect-goal-suggestions-title">
       <header>
         <ReflectContentIcon kind="recommendation" size={19}/>
-        <h3 id="reflect-goal-suggestions-title">Можно превратить в цель</h3>
-        <span className="reflect-goal-suggestions-count">{candidates.length}</span>
+        <h3 id="reflect-goal-suggestions-title">Предложения Reflect</h3>
+        <span className="reflect-goal-suggestions-count">{candidateItems.length}</span>
       </header>
       <ol>
-        {candidates.map(item => (
+        {candidateItems.map(item => (
           <li key={item.id}>
             <div className="reflect-goal-suggestion-main">
               <div>
@@ -40,6 +54,11 @@ export default function GoalSuggestions({ sessions = [], onOpenSession }) {
                 {preparedIds.has(item.id) && (
                   <small className="reflect-auto-goal-draft">
                     Черновик подготовлен автоматически · нужен ваш выбор
+                  </small>
+                )}
+                {!item.gate.allowed && (
+                  <small className="reflect-auto-goal-draft" role="status">
+                    Цель пока недоступна: {item.gate.reason}
                   </small>
                 )}
               </div>
@@ -59,7 +78,9 @@ export default function GoalSuggestions({ sessions = [], onOpenSession }) {
             <button type="button"
               onClick={() => onOpenSession?.(item.sessionId, item.assistantMessageId)}>
               <ReflectContentIcon kind="session" size={15}/>
-              Просмотреть и подтвердить
+              {item.gate.allowed
+                ? 'Просмотреть и подтвердить'
+                : 'Открыть исходный диалог'}
               <ArrowUpRight size={15} aria-hidden="true"/>
             </button>
           </li>
