@@ -2,6 +2,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { createProvenanceRetention, JOB_ROOT, jobId } = require("./provenanceRetention.cjs");
+const { createProvenanceRetentionWorker } = require("./provenanceRetentionWorker.cjs");
 const DELETE = Symbol("delete-field");
 const root = "_reflectAiPrivate/reflect-8fdc8/attemptOwners/alice/sessions/s1";
 const live = "artifacts/reflect-8fdc8/users/alice/sessions/s1";
@@ -19,6 +20,8 @@ function fixture(count = 2) {
     doc: ref,
     collection(path) {
       const q = { path, cursor: null, size: 100,
+        where(field, op, value) { this.filter = [field,op,value]; return this; },
+        async get() { return {docs:[...docs.keys()].filter(p=>p.startsWith(path+"/") && (!this.filter || docs.get(p)[this.filter[0]]===this.filter[2])).sort().filter(p=>this.cursor===null || p.split("/").pop()>this.cursor).slice(0,this.size).map(p=>({id:p.split("/").pop(),data:()=>docs.get(p)}))}; },
         orderBy(field) { assert.equal(field, "__name__"); return this; },
         limit(size) { this.size = size; return this; },
         startAfter(cursor) { this.cursor = cursor; return this; } };
@@ -38,6 +41,7 @@ function fixture(count = 2) {
           writes.push(() => docs.set(r.path, options?.merge ? { ...docs.get(r.path), ...data } : data)); },
         delete(r) { writes.push(() => docs.delete(r.path)); },
         update(r, data) { writes.push(() => {
+          if (data.status === "complete") { docs.set(r.path,{...docs.get(r.path),...data}); return; }
           assert.equal(data.provenance, DELETE);
           const next = { ...docs.get(r.path) }; delete next.provenance; docs.set(r.path, next);
         }); }
@@ -46,7 +50,7 @@ function fixture(count = 2) {
       return result;
     }
   };
-  return { docs, foreign, service: createProvenanceRetention({
+  return { docs, foreign, worker:createProvenanceRetentionWorker({db,projectId:"reflect-ai-staging",deleteField:()=>DELETE}), service: createProvenanceRetention({
     db, projectId: "reflect-ai-staging", deleteField: () => DELETE }) };
 }
 
@@ -163,4 +167,28 @@ test("deletion rejects archived, nonexistent and malformed jobs without writes",
  await assert.rejects(remove(),/invalid-retention-job/);
  assert.equal(docs.has(live),true);
  assert.equal(docs.has(root),false);
+});
+
+test("worker resumes both cleanup streams and completes only after both finish", async () => {
+ const {docs,service,worker}=fixture(101);
+ docs.set(live,{chatHistory:[]});
+ docs.set(root+"/acceptances/a",{status:"accepted"});
+ await service.revokeAndDeleteSession({sessionId:"s1",confirmed:true},{uid:"alice"});
+ const path=JOB_ROOT+"/"+jobId("alice","s1");
+ assert.deepEqual(await worker.runBatch(),{scanned:1,completed:0,pending:1,failed:0,nextCursor:null});
+ assert.equal(docs.get(path).status,"pending");
+ assert.deepEqual(await worker.runBatch(),{scanned:1,completed:1,pending:0,failed:0,nextCursor:null});
+ assert.equal(docs.get(path).status,"complete");
+ assert.equal(docs.get(root+"/turns/u100").provenance,undefined);
+ assert.equal(docs.has(root+"/acceptances/a"),false);
+ assert.equal((await worker.runBatch()).scanned,0);
+});
+test("worker rejects forged jobs without preventing valid jobs in same page", async () => {
+ const {docs,service,worker}=fixture();
+ docs.set(live,{chatHistory:[]});
+ await service.revokeAndDeleteSession({sessionId:"s1",confirmed:true},{uid:"alice"});
+ docs.set(JOB_ROOT+"/"+"0".repeat(64),{schemaVersion:1,uid:"bob",sessionId:"s1",status:"pending"});
+ const result=await worker.runBatch();
+ assert.equal(result.failed,1);assert.equal(result.completed,1);
+ await assert.rejects(worker.runBatch({after:"../bad"}),/invalid-worker-cursor/);
 });
