@@ -86,3 +86,39 @@ test("real Admin SDK durable cleanup resumes across instances and concurrent wor
   assert.deepEqual((await guard.get()).data().turnCleanup,{cursor:null,done:true});
   console.log("R139_C3C3C4B_DURABLE_RETENTION_PASS");
 });
+
+
+test("real Admin SDK acceptance cleanup preserves owner goals and accounting", async () => {
+  const uid = "fixture-" + randomUUID(), sessionId = "acceptance-cleanup";
+  const root = db.doc("artifacts/reflect-8fdc8/users/" + uid);
+  const session = root.collection("sessions").doc(sessionId);
+  const goal = root.collection("goals").doc("verified-fixture");
+  const guard = db.doc(`_reflectAiPrivate/reflect-8fdc8/attemptOwners/${uid}/sessions/${sessionId}`);
+  const receipt = guard.collection("turns").doc("u1");
+  const foreign = db.doc(`_reflectAiPrivate/reflect-8fdc8/attemptOwners/foreign-${uid}/sessions/${sessionId}/acceptances/verified-fixture`);
+  const batch = db.batch();
+  batch.set(session,{chatHistory:[]});
+  batch.set(goal,{text:"Synthetic goal"});
+  batch.set(receipt,{billedPossible:true,status:"persisted_reply",provenance:{mac:"synthetic"}});
+  batch.set(foreign,{status:"accepted"});
+  for(let i=0;i<101;i++) batch.set(guard.collection("acceptances").doc("verified-"+String(i).padStart(3,"0")),{status:"accepted"});
+  await batch.commit();
+  await assert.rejects(retention.scrubDeletedSessionAcceptances({sessionId},{uid}),/revocation-required/);
+  await retention.revokeAndDeleteSession({sessionId,confirmed:true},{uid});
+  const first = await retention.scrubDeletedSessionAcceptances({sessionId},{uid});
+  assert.deepEqual(first,{deleted:100,done:false});
+  const other = createProvenanceRetention({db,projectId,deleteField:()=>FieldValue.delete()});
+  const results = await Promise.all([retention.scrubDeletedSessionAcceptances({sessionId},{uid}),
+    other.scrubDeletedSessionAcceptances({sessionId},{uid})]);
+  assert.equal(results.reduce((n,x)=>n+x.deleted,0),1);
+  assert.ok(results.every(x=>x.done));
+  assert.equal((await guard.collection("acceptances").get()).size,0);
+  assert.equal((await goal.get()).data().text,"Synthetic goal");
+  assert.equal((await foreign.get()).exists,true);
+  assert.equal((await receipt.get()).data().billedPossible,true);
+  assert.equal((await guard.get()).data().provenanceRevoked,true);
+  await retention.scrubDeletedSession({sessionId},{uid});
+  assert.equal((await receipt.get()).data().provenance,undefined);
+  assert.equal((await receipt.get()).data().billedPossible,true);
+  console.log("R139_C3C3C4C_ACCEPTANCE_CLEANUP_PASS");
+});
