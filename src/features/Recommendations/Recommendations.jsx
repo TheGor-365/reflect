@@ -201,6 +201,7 @@ export default function Recommendations({
   const decided = shown.filter(item => item.status !== 'pending');
   const archivedCount = inbox.recommendations.filter(isArchivedRecommendation).length;
   const activeClarifications = inbox.clarifications.filter(item => !item.sourceSessionArchived);
+  const freshClarifications = activeClarifications.filter(item => !item.hasLaterUserTurn);
   return (
     <section className="reflect-recommendation-inbox" aria-label="Рекомендации Reflect">
       <header className="reflect-inbox-header">
@@ -209,7 +210,7 @@ export default function Recommendations({
         </div>
         <div className="reflect-inbox-counters" aria-label="Статистика рекомендаций">
           <span><strong>{pending.length}</strong> ожидают решения</span>
-          <span><strong>{activeClarifications.length}</strong> уточнений</span>
+          <span><strong>{freshClarifications.length}</strong> новых уточнений</span>
         </div>
       </header>
       <div className="reflect-archive-view-switch" role="group" aria-label="Просмотр архива рекомендаций">
@@ -223,7 +224,8 @@ export default function Recommendations({
         iconKind="information" className="reflect-inbox-guidance">
         <p>Здесь отображаются предложения и уточнения из сохранённых сеансов.
           Предложения не становятся фактами или целями без вашего решения.</p>
-        <p>Сначала идут предложения без решения, затем более свежие.
+        <p>Новые уточнения учитываются в счётчике. После продолжения диалога вопрос остаётся видимым, но ответ не считается подтверждённым.
+          Сначала идут предложения без решения, затем более свежие.
           Это сортировка, а не оценка важности темы.</p>
       </SmoothDisclosure>
       {!pending.length && !decided.length &&
@@ -239,13 +241,13 @@ export default function Recommendations({
           {!archiveView && activeClarifications.length > 0 && (
             <section className="reflect-inbox-group" aria-labelledby="reflect-inbox-clarify">
               <h3 id="reflect-inbox-clarify"><MessageCircleQuestion size={20} aria-hidden="true" />
-                Уточнить</h3>
+                Уточнения</h3>
               <ol className="reflect-inbox-list">
                 {activeClarifications.map(item => (
                   <li key={item.id} className="reflect-inbox-card reflect-inbox-card--clarify">
                     <span className="reflect-inbox-state">
                       <MessageCircleQuestion size={16} aria-hidden="true"/>
-                      Нужно уточнение
+                      {item.hasLaterUserTurn ? 'Диалог продолжен · ответ не подтверждён' : 'Нужно уточнение'}
                     </span>
                     <p className="reflect-inbox-question">{item.question}</p>
                     <SourceContext item={item}/>
