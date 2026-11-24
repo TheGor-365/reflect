@@ -82,3 +82,17 @@ test("unknown project and invalid duration are rejected before any scheduling", 
   assert.throws(()=>createProvenanceRetentionScheduler({db,projectId:"production",worker:{runBatch(){}}}),/unsafe-scheduler-environment/);
   assert.throws(()=>createProvenanceRetentionScheduler({db,projectId:"reflect-ai-staging",leaseMs:1,worker:{runBatch(){}}}),/unsafe-scheduler-environment/);
 });
+
+test("scheduler persists only validated aggregate health and discards private extras",async()=>{
+  const {rows,make}=fixture();
+  const health={backoff:1,busy:1,attention:1,stale:0,invalidOrStorageFailure:0,raw:"private fixture"};
+  const batch={scanned:3,completed:0,pending:2,failed:1,nextCursor:null,health};
+  const out=await make({runBatch:async args=>{assert.equal(args.diagnostics,true);return batch;}}).runOnce();
+  const expected={backoff:1,busy:1,attention:1,stale:0,invalidOrStorageFailure:0};
+  assert.deepEqual(out.health,expected);
+  assert.deepEqual(rows.get(SWEEP_PATH).lastBatch.health,expected);
+  assert.ok(!JSON.stringify(rows.get(SWEEP_PATH)).includes("private fixture"));
+  const bad={...batch,health:{...health,busy:3}};
+  assert.deepEqual(await make({runBatch:async()=>bad}).runOnce(),{status:"failed"});
+  assert.deepEqual(rows.get(SWEEP_PATH).lastBatch,{ok:false});
+});
