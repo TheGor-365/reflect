@@ -208,3 +208,7 @@ Owner terminal exact f2fd7198cefdc30fbf3d12618dc31962d54236df: 102/102 tests, 17
 
 ## R139-C2 local preflight — 2026-11-24
 Owner terminal confirmed clean detached HEAD 382750e7dbb783dd0b5518329c1bbbbc1337726d, Node 22.23.4, npm 10.9.9, OpenJDK 21.0.12.1, Firebase CLI 15.34.2, all three C2 files present, loopback ports 19399/19381 free. R139_C2_PREFLIGHT_COMPLETE; no push/deploy/provider calls. Dedicated CI run 45302126821 queued at readback; PR #140 still draft at exact head. Next: execute isolated demo emulator test using repository hosted rules, then verify concurrency, cross-owner denial and rollback. C2 execution not yet verified; C3 and D remain open.
+
+
+## R139-C2 discovery correction — 2026-11-24
+Local exact 382750e7 launched Auth and Firestore on isolated demo project successfully, then Vitest exited 1: existing include src/**/*.test.{js,jsx,ts,tsx} excluded tests/staging/r139-transactions.emulator.test.js. No transaction assertions executed; emulator shut down. Dedicated vitest.r139.config.mjs added (da9f16c), CI explicitly selects it (9c5eaeb51b9b0511bb17d828e12b714426a742b8). Ordinary test discovery unchanged. Next: rerun exact-head isolated emulator; no deployment or live rules changes. C2 remains unverified.
