@@ -39,6 +39,27 @@ function createProvenanceRetention({ db, projectId, deleteField }) {
         ? page.docs[page.docs.length - 1].id : null };
     });
   }
-  return Object.freeze({ scrubDeletedSession });
+  // Prototype server deletion entry: the revocation marker and removal
+  // of the session must share one transaction. No public route yet.
+  async function revokeAndDeleteSession({ sessionId, confirmed }, principal) {
+    if (!valid(principal?.uid) || !valid(sessionId) || confirmed !== true) {
+      throw Error("invalid-retention-target");
+    }
+    const uid = principal.uid;
+    const session = db.doc(`artifacts/reflect-8fdc8/users/${uid}/sessions/${sessionId}`);
+    const guard = db.doc(`_reflectAiPrivate/reflect-8fdc8/attemptOwners/${uid}/sessions/${sessionId}`);
+    return db.runTransaction(async tx => {
+      const [live, marker] = await Promise.all([tx.get(session), tx.get(guard)]);
+      if (!live.exists) {
+        if (marker.exists && marker.data()?.provenanceRevoked === true) return { revoked: true };
+        throw Error("session-not-found");
+      }
+      if (live.data()?.archivedAt != null) throw Error("archived-session-deletion-blocked");
+      tx.set(guard, { provenanceRevoked: true }, { merge: true });
+      tx.delete(session);
+      return { revoked: true };
+    });
+  }
+  return Object.freeze({ scrubDeletedSession, revokeAndDeleteSession });
 }
 module.exports = { createProvenanceRetention };
