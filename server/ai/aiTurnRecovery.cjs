@@ -173,7 +173,7 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now, provenance = nu
   const claimedMessages = new WeakMap();
   const refs = target => ({ session: db.doc(sessionPath(target)),
     receipt: db.doc(receiptPath(target)),
-    guard: db.doc(receiptPath(target).split("/turns/")[0]) });
+    guard: db.doc(`_reflectAiPrivate/${NAMESPACE}/attemptOwners/${target.uid}/sessions/${target.sessionId}`) });
   // Only opt-in signing consults the private tombstone. Legacy paths remain
   // unchanged. Read inside the same transaction as the protected write.
   async function requireUnrevoked(tx, guard) {
