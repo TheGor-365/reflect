@@ -56,3 +56,43 @@ test("candidate rules block direct session delete and revoked ID reuse; preserve
    await db.terminate();await admin.deleteApp(app);
  }
 });
+
+test("real Admin SDK privacy quota concurrent boundary and durable window reset",async()=>{
+ const {randomUUID}=require("node:crypto");
+ const {DELETION_FLAG}=require("./provenanceRetention.cjs");
+ const {createSessionDeletionRuntime,QUOTA_ROOT,LIMIT,WINDOW_MS}=require("./provenanceRetentionDeletionRuntime.cjs");
+ const app=admin.initializeApp({projectId:"demo-reflect-r139"},"privacy-quota");
+ const db=getFirestore(app),uid="quota-"+randomUUID(),other="quota-"+randomUUID();
+ const flag=db.doc(DELETION_FLAG),ref=db.doc(QUOTA_ROOT+"/"+uid),foreign=db.doc(QUOTA_ROOT+"/"+other);
+ let time=1000;
+ const make=()=>createSessionDeletionRuntime({db,projectId:"reflect-ai-staging",locallyEnabled:true,clock:()=>time});
+ let original;
+ try{
+   original=await flag.get();
+   await flag.set({enabled:false});
+   await assert.rejects(make().rateLimit(uid),{code:"unavailable"});
+   assert.equal((await ref.get()).exists,false);
+   await flag.set({enabled:true});
+   await ref.set({schemaVersion:1,window:0,count:LIMIT-1});
+   const outcomes=await Promise.allSettled([make().rateLimit(uid),make().rateLimit(uid)]);
+   assert.equal(outcomes.filter(r=>r.status==="fulfilled"&&r.value===true).length,1);
+   assert.equal(outcomes.filter(r=>r.status==="rejected"&&r.reason.code==="resource-exhausted").length,1);
+   assert.deepEqual((await ref.get()).data(),{schemaVersion:1,window:0,count:LIMIT});
+   assert.equal(await make().rateLimit(other),true);
+   assert.deepEqual((await foreign.get()).data(),{schemaVersion:1,window:0,count:1});
+   time=WINDOW_MS;
+   assert.equal(await make().rateLimit(uid),true);
+   assert.deepEqual((await ref.get()).data(),{schemaVersion:1,window:1,count:1});
+   await flag.set({enabled:false});
+   await assert.rejects(make().rateLimit(uid),{code:"unavailable"});
+   assert.deepEqual((await ref.get()).data(),{schemaVersion:1,window:1,count:1});
+   console.log("R139_PRIVACY_QUOTA_CONCURRENCY_PASS");
+ }finally{
+   try{
+     const cleanup=db.batch();
+     cleanup.delete(ref);cleanup.delete(foreign);
+     if(original?.exists) cleanup.set(flag,original.data());else if(original) cleanup.delete(flag);
+     await cleanup.commit();
+   }finally{await db.terminate();await admin.deleteApp(app);}
+ }
+});
