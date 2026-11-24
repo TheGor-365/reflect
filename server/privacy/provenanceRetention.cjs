@@ -13,21 +13,32 @@ function createProvenanceRetention({ db, projectId, deleteField }) {
       typeof db.runTransaction !== "function" || typeof deleteField !== "function") {
     throw Error("unsafe-retention-environment");
   }
-  async function scrubDeletedSession({ sessionId, cursor = null }, principal) {
-    if (!valid(principal?.uid) || !valid(sessionId) ||
-        (cursor !== null && !valid(cursor))) throw Error("invalid-retention-target");
-    const uid = principal.uid;
+  async function scrubDeletedSession(body, principal) {
+    if (!body || Object.keys(body).length !== 1 ||
+        !valid(principal?.uid) || !valid(body.sessionId)) {
+      throw Error("invalid-retention-target");
+    }
+    const { sessionId } = body, uid = principal.uid;
     const session = db.doc(`artifacts/reflect-8fdc8/users/${uid}/sessions/${sessionId}`);
     const privateRoot = `_reflectAiPrivate/reflect-8fdc8/attemptOwners/${uid}/sessions/${sessionId}`;
     const guard = db.doc(privateRoot);
-    let query = db.collection(privateRoot + "/turns").orderBy("__name__").limit(MAX_BATCH);
-    if (cursor !== null) query = query.startAfter(cursor);
     return db.runTransaction(async tx => {
-      const [live, page] = await Promise.all([tx.get(session), tx.get(query)]);
-      if (live.exists) throw Error("session-still-exists");
-      // A durable private marker is required for future signing/acceptance
-      // integration. Until those consumers check it, activation stays blocked.
-      tx.set(guard, { provenanceRevoked: true }, { merge: true });
+      const [live, marker] = await Promise.all([tx.get(session), tx.get(guard)]);
+      const state = marker.exists ? marker.data() : null;
+      const revoked = state?.provenanceRevoked === true;
+      if (live.exists && !revoked) throw Error("session-still-exists");
+      // Only the server deletion transaction may initiate a cleanup job.
+      if (!revoked) throw Error("revocation-required");
+      const progress = state.turnCleanup;
+      if (progress !== undefined && (!progress ||
+          typeof progress.done !== "boolean" ||
+          (progress.done ? progress.cursor !== null : !valid(progress.cursor)))) {
+        throw Error("invalid-retention-progress");
+      }
+      if (progress?.done) return { scrubbed: 0, done: true };
+      let query = db.collection(privateRoot + "/turns").orderBy("__name__").limit(MAX_BATCH);
+      if (progress) query = query.startAfter(progress.cursor);
+      const page = await tx.get(query);
       let scrubbed = 0;
       for (const snapshot of page.docs) {
         if (Object.hasOwn(snapshot.data(), "provenance")) {
@@ -35,8 +46,10 @@ function createProvenanceRetention({ db, projectId, deleteField }) {
           scrubbed++;
         }
       }
-      return { scrubbed, nextCursor: page.docs.length === MAX_BATCH
-        ? page.docs[page.docs.length - 1].id : null };
+      const done = page.docs.length < MAX_BATCH;
+      tx.set(guard, { turnCleanup: { done,
+        cursor: done ? null : page.docs[page.docs.length - 1].id } }, { merge: true });
+      return { scrubbed, done };
     });
   }
   // Prototype server deletion entry: the revocation marker and removal
