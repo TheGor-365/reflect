@@ -3,6 +3,7 @@
 // C3c.2c prototype. No runtime route, scheduler or live activation.
 // Caller must provide an authenticated server principal and an explicit
 // Firestore FieldValue.delete() factory. Never delete accounting receipts.
+const {validateSweepClaim,requireSweep}=require("./provenanceRetentionSweepFence.cjs");
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
 const valid = x => typeof x === "string" && ID.test(x);
 const MAX_BATCH = 100;
@@ -10,7 +11,7 @@ const { createHash } = require("node:crypto");
 const JOB_ROOT = "_reflectAiPrivate/reflect-8fdc8/retentionJobs";
 const jobId = (uid, sid) => createHash("sha256").update(JSON.stringify([uid,sid])).digest("hex");
 
-function createProvenanceRetention({ db, projectId, deleteField, workerAttempt = null, clock = Date.now }) {
+function createProvenanceRetention({ db, projectId, deleteField, workerAttempt = null, clock = Date.now, sweepClaim = null }) {
   if (projectId !== "reflect-ai-staging" || !db ||
       typeof db.doc !== "function" || typeof db.collection !== "function" ||
       typeof db.runTransaction !== "function" || typeof deleteField !== "function") {
@@ -22,11 +23,15 @@ function createProvenanceRetention({ db, projectId, deleteField, workerAttempt =
       (typeof workerAttempt !== "string" || !/^[0-9a-f-]{36}$/.test(workerAttempt)))) {
     throw Error("invalid-retention-attempt");
   }
+  const sweep=sweepClaim===null?null:validateSweepClaim(sweepClaim);
+  if(sweep&&workerAttempt===null) throw Error("invalid-sweep-claim");
   async function requireAttempt(tx, uid, sessionId) {
-    if (workerAttempt === null) return () => {};
+    const checkSweep=await requireSweep(tx,db,sweep,clock);
+    if (workerAttempt === null) return checkSweep;
     const snap = await tx.get(db.doc(JOB_ROOT + "/" + jobId(uid,sessionId)));
     const row = snap.exists ? snap.data() : null;
     const check = () => {
+      checkSweep();
       const time = clock(), a = row?.attempt;
       if (!Number.isSafeInteger(time) || time < 0 ||
           row?.schemaVersion !== 1 || row.uid !== uid || row.sessionId !== sessionId ||
