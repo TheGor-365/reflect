@@ -87,6 +87,28 @@ test.skipIf(!enabled)('R139 C2 real SDK concurrency, rollback, owner isolation',
     expect((await getDoc(rollback)).exists()).toBe(false);
     expect((await getDocs(collection(alice.db, root, 'goals'))).size).toBe(1);
     console.log('R139_C2_EMULATOR_PASS');
+
+    // C3 characterization, NOT a desired security property. Current hosted
+    // rules allow the owner to edit the transcript and bypass the UI gate.
+    // Use a separate synthetic session, never the C2 verified source.
+    const mutable = doc(alice.db, root, 'sessions', 'c3-mutable');
+    const blocked = structuredClone(fixture);
+    blocked.chatHistory[1].interaction.stage = 'clarify';
+    blocked.chatHistory[1].interaction.clarifyingQuestion = 'Какой критерий?';
+    await setDoc(mutable, blocked);
+    const c3Input = { ...input, sessionId: 'c3-mutable', goalId: 'c3-goal' };
+    await expect(applyRecommendationDecision(c3Input)).rejects.toThrow(/открытый уточняющий/);
+    expect((await getDoc(doc(alice.db, root, 'goals', 'c3-goal'))).exists()).toBe(false);
+    await setDoc(mutable, fixture);
+    expect((await applyRecommendationDecision(c3Input)).status).toBe('accepted');
+    // Private receipts remain inaccessible even to the same authenticated UID.
+    const privateReceipt = doc(alice.db, '_reflectAiPrivate', 'reflect-8fdc8',
+      'attemptOwners', alice.uid, 'sessions', 'c3-mutable', 'turns', 'u1');
+    await expect(getDoc(privateReceipt)).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(setDoc(privateReceipt, { status: 'persisted_reply' }))
+      .rejects.toMatchObject({ code: 'permission-denied' });
+    console.log('R139_C3_OWNER_MUTABILITY_LIMIT_REPRODUCED');
+
   } finally {
     scope.db = null;
     await Promise.all(clients.map(async ({app, db}) => {
