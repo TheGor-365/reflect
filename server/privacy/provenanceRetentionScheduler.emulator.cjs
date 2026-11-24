@@ -255,3 +255,33 @@ test("R139 real Admin SDK: scheduler takeover fences an outstanding job attempt"
     await cleanup.commit();
   }
 });
+
+test("R139 real Admin SDK: explicit cursor repair preserves fence and active lease",async()=>{
+  const {randomUUID}=require("node:crypto");
+  const sweep=db.doc(SWEEP_PATH), original=await sweep.get();
+  let time=1000;
+  const state={schemaVersion:1,cursor:"../invalid",fence:7,leaseOwner:randomUUID(),leaseUntilMs:2000};
+  const scheduler=make({runBatch:async({after})=>{
+    assert.equal(after,null);
+    return {scanned:0,completed:0,pending:0,failed:0,nextCursor:null};
+  }},()=>time);
+  try{
+    await sweep.set(state);
+    await assert.rejects(scheduler.runOnce(),/invalid-scheduler-state/);
+    assert.deepEqual(await scheduler.repairCursor({confirmed:true,expectedFence:6}),{status:"conflict"});
+    assert.deepEqual(await scheduler.repairCursor({confirmed:true,expectedFence:7}),{status:"busy"});
+    assert.deepEqual((await sweep.get()).data(),state);
+    time=2000;
+    const results=await Promise.all([
+      scheduler.repairCursor({confirmed:true,expectedFence:7}),
+      scheduler.repairCursor({confirmed:true,expectedFence:7})
+    ]);
+    assert.deepEqual(results.map(r=>r.status).sort(),["conflict","repaired"]);
+    assert.deepEqual((await sweep.get()).data(),{...state,cursor:null,fence:8,leaseOwner:null,leaseUntilMs:0,lastBatch:{ok:false}});
+    assert.equal((await scheduler.runOnce()).status,"processed");
+    assert.equal((await sweep.get()).data().fence,9);
+    console.log("R139_C3C3C4D3A_CURSOR_REPAIR_PASS");
+  }finally{
+    if(original.exists) await sweep.set(original.data()); else await sweep.delete();
+  }
+});
