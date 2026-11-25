@@ -76,7 +76,10 @@ test("default off is lazy even with unsafe env and unavailable SDK; no provider 
 test("rejects wrong project, missing or malformed service account before SDK loading", async () => {
   let loads = 0;
   const loadSdk = () => { loads++; throw Error("MUST_NOT_LOAD"); };
+  const cyclic = { ...credential };
+  cyclic.self = cyclic;
   for (const invalid of [
+    { credential: cyclic },
     { projectId: "other-project" }, { credential: undefined },
     { credential: { ...credential, project_id: "other-project" } },
     { credential: { ...credential, type: "authorized_user" } },
