@@ -625,7 +625,7 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
     return true;
   };
   // Delete never starts during a pending AI call, unsaved paid reply or draft.
-  // A failing Firestore write leaves both the dialog and the saved thread intact.
+  // A failed response does not prove that a remote deletion did not commit.
   const requestSessionDeletion = id => {
     const target = sessions.find(item => item.id === id);
     if (!target || isArchivedRecord(target) || isDeleting) return;
@@ -663,7 +663,7 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
       setNavigationWarning('');
     } catch {
       if (ownerRef.current === owner) {
-        setDeleteError('Не удалось удалить сеанс. Данные остались сохранёнными. Проверьте соединение и повторите.');
+        setDeleteError('Не удалось подтвердить результат удаления. Проверьте список сеансов. Если сеанс ещё доступен, повторите удаление вручную.');
       }
     } finally {
       if (ownerRef.current === owner) setIsDeleting(false);
