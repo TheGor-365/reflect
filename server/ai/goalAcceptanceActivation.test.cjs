@@ -29,3 +29,30 @@ test("default-off Railway runtime has no acceptance route", async () => {
     for (const [k,v] of Object.entries(saved)) process.env[k]=v;
   }
 });
+
+test("session deletion activation is blocked before credentials or provider initialization",()=>{
+ const saved=process.env.REFLECT_SESSION_DELETION_ENABLED;
+ try{
+   process.env.REFLECT_SESSION_DELETION_ENABLED="yes";
+   assert.throws(()=>createRuntime(),/session deletion activation blocked pending privacy review/);
+ }finally{
+   if(saved===undefined) delete process.env.REFLECT_SESSION_DELETION_ENABLED;
+   else process.env.REFLECT_SESSION_DELETION_ENABLED=saved;
+ }
+});
+test("isolated privacy dispatch is exact and independent of AI routing",async()=>{
+ const {createRuntimeDispatcher,createPrivacyDeletionRoute}=require("../railway/index.cjs");
+ assert.equal(createPrivacyDeletionRoute({projectId:"reflect-ai-staging"}),null);
+ assert.throws(()=>createPrivacyDeletionRoute({projectId:"wrong"}),/unsafe-privacy-auth-environment/);
+ const calls=[];
+ const dispatch=createRuntimeDispatcher({
+   aiRoute:(req)=>calls.push(["ai",req.url]),
+   deletionRoute:(req)=>calls.push(["privacy",req.url])
+ });
+ await dispatch({url:"/v1/privacy/session-deletion"},{});
+ await dispatch({url:"/v1/privacy/session-deletion?extra=1"},{});
+ await dispatch({url:"/v1/ai/reply"},{});
+ assert.deepEqual(calls,[["privacy","/v1/privacy/session-deletion"],
+   ["ai","/v1/privacy/session-deletion?extra=1"],["ai","/v1/ai/reply"]]);
+ assert.throws(()=>createRuntimeDispatcher({aiRoute(){},deletionRoute:true}),/invalid runtime routes/);
+});
