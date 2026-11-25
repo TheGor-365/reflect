@@ -625,7 +625,7 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
     return true;
   };
   // Delete never starts during a pending AI call, unsaved paid reply or draft.
-  // A failing Firestore write leaves both the dialog and the saved thread intact.
+  // A failed response does not prove that a remote deletion did not commit.
   const requestSessionDeletion = id => {
     const target = sessions.find(item => item.id === id);
     if (!target || isArchivedRecord(target) || isDeleting) return;
@@ -661,9 +661,22 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
       }
       setDeleteTarget(null);
       setNavigationWarning('');
-    } catch {
+    } catch (error) {
       if (ownerRef.current === owner) {
-        setDeleteError('Не удалось удалить сеанс. Данные остались сохранёнными. Проверьте соединение и повторите.');
+        const rejected = {
+          'invalid-argument': 'Запрос удаления отклонён. Проверьте выбранный сеанс.',
+          'unauthenticated': 'Запрос отклонён. Проверьте вход в аккаунт.',
+          'permission-denied': 'Нет разрешения на удаление сеанса.',
+          'session-not-found': 'Сеанс не найден. Проверьте список сеансов.',
+          'archived-session': 'Сеанс в архиве. Сначала восстановите его.',
+          'resource-exhausted': 'Лимит запросов удаления исчерпан. Повторите позже.'
+        };
+        const message = error?.outcome === 'not-sent'
+          ? 'Запрос удаления не отправлен. Проверьте соединение и вход в аккаунт.'
+          : error?.outcome === 'rejected' && Object.hasOwn(rejected, error.code)
+            ? rejected[error.code]
+            : 'Не удалось подтвердить результат удаления. Проверьте список сеансов. Если сеанс ещё доступен, повторите удаление вручную.';
+        setDeleteError(message);
       }
     } finally {
       if (ownerRef.current === owner) setIsDeleting(false);
@@ -845,7 +858,10 @@ const Sessions = ({ sessions = [], goals = [], profile, userId, currentSessionId
                 focused={Boolean(activeSession && msg.id && msg.id === focusTurnId)}
                 onPlayAudio={handlePlayAudio} isSpeaking={isSpeaking}
                 onCompose={text => {
-                  if (text) setUserInput(text);
+                  if (isLoading || sendLock.current || noteSave.status === 'saving' ||
+                      isArchivedRecord(activeSession)) return;
+                  if (text) setUserInput(previous => previous.trim()
+                    ? previous + '\n\n' + text : text);
                   setSendError('');
                   setComposerFocusRequest(n => n + 1);
                 }}

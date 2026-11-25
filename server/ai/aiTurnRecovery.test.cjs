@@ -53,11 +53,11 @@ class MemoryDb {
     return next;
   }
 }
-const setup = () => {
+const setup = (provenance = null) => {
   let time = Date.parse("2026-11-13T13:00:00Z");
   const db = new MemoryDb(); db.seed();
   const store = createAiTurnRecovery({
-    db, projectId: "reflect-ai-staging", clock: () => time
+    db, projectId: "reflect-ai-staging", clock: () => time, provenance
   });
   return { store, db, tick: ms => { time += ms; } };
 };
@@ -332,4 +332,156 @@ test("M5b V2: legacy owner claim has zero new private reads and no evidence payl
   const attempt=await store.claim(params());
   assert.equal(attempt.evidenceSnapshot,undefined);
   assert.equal(attempt.requestId,ID1);
+});
+
+
+const signingKey = Buffer.alloc(32, 19); // synthetic only
+const signingOptions = { key: signingKey, keyId: "fixture-key-v1" };
+const signedReply = {
+  text: "Проверяемый ответ",
+  interaction: { version: "reflect.interaction.v1", stage: "synthesize",
+    clarifyingQuestion: "", unknowns: [], insights: [],
+    recommendationCandidates: [{ title: "Проверить", rationale: "Есть задача",
+      sourceRefs: ["current-message"] }] }
+};
+
+test("R139 C3c2 opt-in recovery atomically binds the saved reply to exact claimed input", async () => {
+  const { verify } = require("./recommendationProvenance.cjs");
+  const { store, db } = setup(signingOptions);
+  const attempt = await store.claim(params());
+  assert.equal(JSON.stringify(attempt).includes(TEXT), false);
+  await store.providerStarted(attempt);
+  await store.persistReply(attempt, signedReply);
+  const receipt = db.docs.get(receiptPath(UID));
+  const reply = db.docs.get(sessionPath(UID)).chatHistory[1];
+  assert.equal(receipt.provenance.keyId, signingOptions.keyId);
+  assert.equal(verify({ projectId: "reflect-ai-staging", uid: UID, sessionId: SID,
+    sourceTurnId: USER_ID, assistantTurnId: reply.id, sourceText: TEXT,
+    assistantText: reply.content, interaction: reply.interaction },
+    receipt.provenance, signingKey), true);
+  assert(!JSON.stringify(receipt).includes(TEXT));
+  assert(!JSON.stringify(receipt).includes(signedReply.text));
+  const status = await store.status({ uid: UID, sessionId: SID, sourceTurnId: USER_ID });
+  assert.equal(status.provenance, undefined);
+});
+
+test("R139 C3c2 source changed during provider request cannot receive attested reply", async () => {
+  const { store, db } = setup(signingOptions);
+  const attempt = await store.claim(params());
+  await store.providerStarted(attempt);
+  db.docs.get(sessionPath(UID)).chatHistory[0].content = "Изменённый текст";
+  await forbid(() => store.persistReply(attempt, signedReply), "permission-denied");
+  assert.equal(db.docs.get(sessionPath(UID)).chatHistory.length, 1);
+  assert.equal(db.docs.get(receiptPath(UID)).provenance, undefined);
+});
+
+test("R139 C3c2 copied attempt and duplicate source IDs fail closed", async () => {
+  const { store, db } = setup(signingOptions);
+  const attempt = await store.claim(params());
+  await store.providerStarted(attempt);
+  await forbid(() => store.persistReply({ ...attempt }, signedReply), "permission-denied");
+  db.docs.get(sessionPath(UID)).chatHistory.unshift({ id: USER_ID, role: "assistant", content: "Дубликат" });
+  await forbid(() => store.persistReply(attempt, signedReply), "permission-denied");
+  assert.equal(db.docs.get(receiptPath(UID)).provenance, undefined);
+});
+
+test("R139 C3c2 default recovery remains unsigned and invalid signing configuration fails", async () => {
+  const { store, db } = setup();
+  const attempt = await store.claim(params());
+  await store.providerStarted(attempt);
+  await store.persistReply(attempt, signedReply);
+  assert.equal(db.docs.get(receiptPath(UID)).provenance, undefined);
+  assert.throws(() => setup({ key: Buffer.alloc(16), keyId: "fixture" }),
+    e => e.code === "unsafe-environment");
+});
+
+
+const guardPath = receiptPath(UID).split("/turns/")[0];
+
+test("R139 retention guard denies a new signed claim for a recreated session", async () => {
+  const { store, db } = setup(signingOptions);
+  db.docs.set(guardPath, { provenanceRevoked: true });
+  await forbid(() => store.claim(params()), "permission-denied");
+  assert.equal(db.docs.has(receiptPath(UID)), false);
+});
+
+test("R139 retention guard denies provider start after revocation", async () => {
+  const { store, db } = setup(signingOptions);
+  const attempt = await store.claim(params());
+  db.docs.set(guardPath, { provenanceRevoked: true });
+  await forbid(() => store.providerStarted(attempt), "permission-denied");
+  assert.equal(db.docs.get(receiptPath(UID)).billedPossible, false);
+  await store.finishFailed(attempt, { beforeProvider: true });
+  assert.equal(db.docs.get(receiptPath(UID)).status, "failed_before_provider");
+});
+
+test("R139 late reply cannot restore revoked provenance even after session recreation", async () => {
+  const { store, db } = setup(signingOptions);
+  const attempt = await store.claim(params());
+  await store.providerStarted(attempt);
+  db.docs.delete(sessionPath(UID));
+  db.docs.set(guardPath, { provenanceRevoked: true });
+  db.seed();
+  await forbid(() => store.persistReply(attempt, signedReply), "permission-denied");
+  assert.equal(db.docs.get(sessionPath(UID)).chatHistory.length, 1);
+  assert.equal(db.docs.get(receiptPath(UID)).provenance, undefined);
+  await store.finishFailed(attempt, { beforeProvider: false });
+  assert.equal(db.docs.get(receiptPath(UID)).billedPossible, true);
+});
+
+test("R139 malformed private guard fails closed; unsigned legacy path is unchanged", async () => {
+  const { store, db } = setup(signingOptions);
+  db.docs.set(guardPath, {});
+  await forbid(() => store.claim(params()), "permission-denied");
+  const legacy = setup();
+  legacy.db.docs.set(guardPath, { provenanceRevoked: true });
+  const attempt = await legacy.store.claim(params());
+  await legacy.store.providerStarted(attempt);
+  await legacy.store.persistReply(attempt, signedReply);
+  assert.equal(legacy.db.docs.get(receiptPath(UID)).provenance, undefined);
+});
+
+
+test("R139 keyring recovery signs with active key and rotated ring verifies old receipts", async () => {
+  const { createProvenanceKeyring } = require("./recommendationProvenanceKeyring.cjs");
+  const a = { keyId: "a", key: Buffer.alloc(32, 1) };
+  const b = { keyId: "b", key: Buffer.alloc(32, 2) };
+  const config = { activeKeyId: "b", keys: [a, b] };
+  const { store, db } = setup(config);
+  const attempt = await store.claim(params());
+  await store.providerStarted(attempt);
+  await store.persistReply(attempt, signedReply);
+  const receipt = db.docs.get(receiptPath(UID)).provenance;
+  const reply = db.docs.get(sessionPath(UID)).chatHistory[1];
+  const input = { projectId: "reflect-ai-staging", uid: UID, sessionId: SID,
+    sourceTurnId: USER_ID, assistantTurnId: reply.id, sourceText: TEXT,
+    assistantText: reply.content, interaction: reply.interaction };
+  const ring = createProvenanceKeyring(config);
+  assert.equal(receipt.keyId, "b");
+  assert.equal(ring.verify(input, receipt), true);
+  const old = createProvenanceKeyring({ activeKeyId: "a", keys: [a] }).sign(input);
+  assert.equal(ring.verify(input, old), true);
+  assert.equal(createProvenanceKeyring({ activeKeyId: "b", keys: [b] }).verify(input, old), false);
+});
+
+test("R139 recovery rejects ambiguous and invalid keyring options at construction", () => {
+  const a = { keyId: "a", key: Buffer.alloc(32, 1) };
+  for (const config of [
+    { activeKeyId: "missing", keys: [a] },
+    { activeKeyId: "a", keys: [a, a] },
+    { activeKeyId: "a", keys: [a], ...a },
+    { activeKeyId: "a", keys: [] }
+  ]) assert.throws(() => setup(config), e => e.code === "unsafe-environment");
+});
+
+test("R139 rotated recovery configuration still honors private revocation", async () => {
+  const { store, db } = setup({ activeKeyId: "b", keys: [
+    { keyId: "a", key: Buffer.alloc(32, 1) },
+    { keyId: "b", key: Buffer.alloc(32, 2) }
+  ] });
+  const attempt = await store.claim(params());
+  await store.providerStarted(attempt);
+  db.docs.set(guardPath, { provenanceRevoked: true });
+  await forbid(() => store.persistReply(attempt, signedReply), "permission-denied");
+  assert.equal(db.docs.get(receiptPath(UID)).provenance, undefined);
 });

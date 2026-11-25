@@ -10,6 +10,7 @@
 const { PolicyError } = require("./policy.cjs");
 const { modePolicy } = require("./interactionModes.cjs");
 const { evidenceSnapshot } = require("./ownerEvidenceV2.cjs");
+const { createProvenanceKeyring } = require("./recommendationProvenanceKeyring.cjs");
 const PROJECT = "reflect-ai-staging";
 const NAMESPACE = "reflect-8fdc8";
 const REQUEST = /^[A-Za-z0-9_-]{12,80}$/;
@@ -80,7 +81,7 @@ function sourceEvidence(data, sourceTurnId, expectedMessage) {
   if (!Array.isArray(history) || history.length > 1000) fail("invalid-session-history");
   const index = history.findIndex(t => t?.role === "user" && t?.id === sourceTurnId);
   if (index === -1 ||
-      history.slice(index + 1).some(t => t?.id === sourceTurnId) ||
+      history.filter(t => t?.id === sourceTurnId).length !== 1 ||
       (data.ownerUid && data.ownerUid !== undefined && typeof data.ownerUid !== "string")) {
     fail("permission-denied");
   }
@@ -157,13 +158,44 @@ function validateStatusBody(body) {
   return body;
 }
 
-function createAiTurnRecovery({ db, projectId, clock = Date.now }) {
+function createAiTurnRecovery({ db, projectId, clock = Date.now, provenance = null }) {
   if (projectId !== PROJECT || !db || typeof db.doc !== "function" ||
       typeof db.runTransaction !== "function" || typeof clock !== "function") {
     fail("unsafe-environment");
   }
+  // Explicit server-only dependency injection; no environment activation yet.
+  let signing = null;
+  if (provenance !== null) {
+    try {
+      if (!plain(provenance)) throw Error("invalid-keyring");
+      const fields = Object.keys(provenance).sort().join(",");
+      if (fields === "key,keyId") {
+        // Compatibility for existing opt-in fixtures and server callers.
+        signing = createProvenanceKeyring({
+          activeKeyId: provenance.keyId, keys: [provenance]
+        });
+      } else if (fields === "activeKeyId,keys") {
+        signing = createProvenanceKeyring(provenance);
+      } else {
+        throw Error("invalid-keyring");
+      }
+    } catch {
+      fail("unsafe-environment");
+    }
+  }
+  const claimedMessages = new WeakMap();
   const refs = target => ({ session: db.doc(sessionPath(target)),
-    receipt: db.doc(receiptPath(target)) });
+    receipt: db.doc(receiptPath(target)),
+    guard: db.doc(`_reflectAiPrivate/${NAMESPACE}/attemptOwners/${target.uid}/sessions/${target.sessionId}`) });
+  // Only opt-in signing consults the private tombstone. Legacy paths remain
+  // unchanged. Read inside the same transaction as the protected write.
+  async function requireUnrevoked(tx, guard) {
+    if (!signing) return;
+    const snap = await tx.get(guard);
+    if (snap.exists && snap.data()?.provenanceRevoked !== false) {
+      fail("permission-denied");
+    }
+  }
 
   async function claim({ uid, sessionId, sourceTurnId, requestId, message, retryConfirmed,
     collectEvidence = false }) {
@@ -175,8 +207,9 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now }) {
     if (!first && !retryConfirmed) fail("permission-denied");
     const nowMs = clock();
     if (!nowOk(nowMs)) fail("unavailable");
-    const { session, receipt } = refs(target);
+    const { session, receipt, guard } = refs(target);
     return db.runTransaction(async tx => {
+      await requireUnrevoked(tx, guard);
       const [stored, prior] = await Promise.all([tx.get(session), tx.get(receipt)]);
       const { hasReply, history, index, data } = checkSession(stored, target, message);
       // Server reads the exact committed user turn in an owner-scoped
@@ -202,19 +235,22 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now }) {
         leaseUntilMs: nowMs + LEASE_MS, updatedAt: new Date(nowMs),
         createdAt: previous?.createdAt ?? new Date(nowMs), assistantTurnId: null
       });
-      return Object.freeze({
+      const attempt = Object.freeze({
         ...target, requestId,
         ...(turnMode === undefined ? {} : { interactionMode: turnMode }),
         ...(collectEvidence ? { evidenceSnapshot: evidenceSnapshot(data) } : {})
       });
+      if (signing) claimedMessages.set(attempt, message);
+      return attempt;
     });
   }
 
   async function providerStarted(attempt) {
     const target = validateTurnTarget(attempt);
     const nowMs = clock();
-    const { receipt } = refs(target);
+    const { receipt, guard } = refs(target);
     await db.runTransaction(async tx => {
+      await requireUnrevoked(tx, guard);
       const snap = await tx.get(receipt);
       const data = snap.exists && snap.data();
       if (!data || data.requestId !== attempt.requestId ||
@@ -244,11 +280,14 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now }) {
     const target = validateTurnTarget(attempt);
     if (!reply || typeof reply.text !== "string" || !reply.text.trim() ||
         reply.text.length > 2400) fail("invalid-provider-response");
-    const nowMs = clock(), { session, receipt } = refs(target);
+    const nowMs = clock(), { session, receipt, guard } = refs(target);
     const answerId = "assistant-" + attempt.requestId;
+    const sourceText = signing ? claimedMessages.get(attempt) : undefined;
+    if (signing && typeof sourceText !== "string") fail("permission-denied");
     await db.runTransaction(async tx => {
+      await requireUnrevoked(tx, guard);
       const [stored, snap] = await Promise.all([tx.get(session), tx.get(receipt)]);
-      const { history, hasReply } = checkSession(stored, target);
+      const { history, hasReply } = checkSession(stored, target, sourceText);
       const data = snap.exists && snap.data();
       if (!data || data.requestId !== attempt.requestId ||
           data.status !== "provider_pending") fail("already-exists");
@@ -262,13 +301,20 @@ function createAiTurnRecovery({ db, projectId, clock = Date.now }) {
              reply.interaction?.version === "reflect.interaction.v2"
           ? { interaction: reply.interaction } : {})
       };
+      const provenanceReceipt = signing && assistantTurn.interaction
+        ? signing.sign({ projectId, uid: target.uid, sessionId: target.sessionId,
+          sourceTurnId: target.sourceTurnId, assistantTurnId: answerId,
+          sourceText, assistantText: assistantTurn.content,
+          interaction: assistantTurn.interaction })
+        : null;
       // Both writes commit together. Concurrent arrayUnion writes to session
       // cause a transaction retry rather than erasing a second browser's turn.
       tx.update(session, { chatHistory: [...history, assistantTurn],
         updatedAt: new Date(nowMs) });
       tx.update(receipt, {
         status: "persisted_reply", billedPossible: true,
-        assistantTurnId: answerId, errorCode: null, updatedAt: new Date(nowMs)
+        assistantTurnId: answerId, errorCode: null, updatedAt: new Date(nowMs),
+        ...(provenanceReceipt ? { provenance: provenanceReceipt } : {})
       });
     });
     return answerId;

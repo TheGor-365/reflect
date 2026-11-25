@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import Recommendations from './Recommendations';
 import { applyRecommendationDecision } from '../Sessions/recommendationDecisions';
 
@@ -113,4 +113,48 @@ test('R9.2.2 blocks goal generation without a valid owner or ID allocator', () =
   render(<Recommendations sessions={makeSessions()} />);
   expect(screen.getByRole('button', {name: 'Превратить в цель'})).toBeDisabled();
   expect(applyRecommendationDecision).not.toHaveBeenCalled();
+});
+
+
+test('R139 B5 old and new proposals remain independent through review and explicit goal confirmation', async () => {
+  const sessions = makeSessions({
+    ...baseInteraction, stage: 'clarify',
+    clarifyingQuestion: 'Какой результат достаточен?', unknowns: ['Критерий']
+  }, { 'r-assistant-a-0': { status: 'saved' } });
+  const session = sessions[0];
+  session.chatHistory.push(
+    { id: 'user-fresh', role: 'user', content: 'Достаточно одного письменного отзыва' },
+    { id: 'assistant-fresh', role: 'assistant', interaction: {
+      ...baseInteraction, version: 'reflect.interaction.v2',
+      insights: ['Один отзыв достаточен'],
+      evidenceSummary: { completeCount: 4,
+        confirmedSlots: ['situation', 'desiredResult', 'circumstances', 'constraints'],
+        missingSlots: [], disputedSlots: [] },
+      recommendationCandidates: [{ title: 'Зафиксировать один отзыв',
+        rationale: 'Владелец уточнил критерий.', sourceRefs: ['current-message'] }]
+    } }
+  );
+  vi.mocked(applyRecommendationDecision).mockResolvedValue({ status: 'accepted', goalId: 'goal-local-1' });
+  const { rerender } = render(<Recommendations sessions={sessions} {...props}/>);
+  const card = title => within(screen.getByRole('heading', { name: title }).closest('li'));
+  const oldCard = () => card('Проверить MVP с клиентом');
+  const newCard = () => card('Зафиксировать один отзыв');
+  expect(oldCard().getByRole('button', { name: 'Превратить в цель' })).toBeDisabled();
+  expect(newCard().getByRole('button', { name: 'Превратить в цель' })).toBeDisabled();
+  const reviewed = { ...session, hypothesisReviews: {
+    'h-assistant-fresh-0': { assistantMessageId: 'assistant-fresh', hypothesisIndex: 0, grade: 3 }
+  } };
+  rerender(<Recommendations sessions={[reviewed]} {...props}/>);
+  expect(oldCard().getByRole('button', { name: 'Превратить в цель' })).toBeDisabled();
+  fireEvent.click(newCard().getByRole('button', { name: 'Превратить в цель' }));
+  expect(applyRecommendationDecision).not.toHaveBeenCalled();
+  fillGoal();
+  fireEvent.click(newCard().getByRole('button', { name: 'Подтвердить создание цели' }));
+  await waitFor(() => expect(applyRecommendationDecision).toHaveBeenCalledTimes(1));
+  expect(applyRecommendationDecision).toHaveBeenCalledWith(expect.objectContaining({
+    userId: 'owner-a', sessionId: 'session-a', assistantMessageId: 'assistant-fresh',
+    candidateIndex: 0, action: 'goal', goalId: 'goal-local-1'
+  }));
+  await waitFor(() => expect(screen.getByText(/Цель подтверждена и связана/)).toBeInTheDocument());
+  expect(oldCard().getByRole('button', { name: 'Превратить в цель' })).toBeDisabled();
 });

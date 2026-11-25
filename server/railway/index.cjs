@@ -234,8 +234,26 @@ function createRequestListener({
   };
 }
 
+// Isolated wiring candidate: only explicit trusted dependencies can exercise
+// the privacy route in tests. Environment activation remains hard-blocked.
+function createPrivacyDeletionRoute({ db, auth, appCheck, deleteField,
+  projectId, locallyEnabled = false } = {}) {
+  const { createTrustedSessionDeletion } = require("../privacy/provenanceRetentionDeletionAuth.cjs");
+  return createTrustedSessionDeletion({
+    db, auth, appCheck, deleteField, projectId, locallyEnabled
+  });
+}
+
 function createRuntime() {
   const enabled = process.env.REFLECT_AI_ENABLED === "yes";
+  // R139 privacy lifecycle has not passed activation review. Refuse even an
+  // accidentally configured flag; no secret loading or live route yet.
+  if (process.env.REFLECT_GOAL_ACCEPTANCE_ENABLED === "yes") {
+    throw Error("R139 goal acceptance activation blocked pending privacy review");
+  }
+  if (process.env.REFLECT_SESSION_DELETION_ENABLED === "yes") {
+    throw Error("R139 session deletion activation blocked pending privacy review");
+  }
   const outboundEnabled = process.env.REFLECT_XAI_OUTBOUND_ENABLED === "yes";
   // This is distinct from the paid Grok toggle and OFF unless explicitly approved.
   const consentEnabled = process.env.REFLECT_CONTEXT_CONSENT_API_ENABLED === "yes";
@@ -413,7 +431,22 @@ function createRuntime() {
     attemptRecoveryEnabled, handleAttemptStatus,
     contextReplyEnabled, handleContextReply
   });
+  return createRuntimeDispatcher({ aiRoute, consentRoute, previewRoute, memoryPreviewRoute });
+}
+
+// No environment or credential access in the dispatcher. Privacy route
+// composition can be verified without enabling AI or loading provider secrets.
+function createRuntimeDispatcher({ aiRoute, consentRoute = null, previewRoute = null,
+  memoryPreviewRoute = null, deletionRoute = null }) {
+  if (typeof aiRoute !== "function" ||
+      ![consentRoute, previewRoute, memoryPreviewRoute, deletionRoute].every(
+        route => route === null || typeof route === "function")) {
+    throw Error("invalid runtime routes");
+  }
   return (req, res) => {
+    if (deletionRoute && req.url === "/v1/privacy/session-deletion") {
+      return deletionRoute(req, res);
+    }
     // Exact route match; no wildcard routes, query strings, or fallthrough.
     if (consentRoute && req.url === "/v1/privacy/context-consent") {
       return consentRoute(req, res);
@@ -440,4 +473,4 @@ if (require.main === module) {
     process.stdout.write("Reflect Stage04H staging API listening; no request bodies logged.\n");
   });
 }
-module.exports = { createRequestListener, createRuntime, STAGE_ORIGIN };
+module.exports = { createRequestListener, createRuntime, createRuntimeDispatcher, createPrivacyDeletionRoute, STAGE_ORIGIN };

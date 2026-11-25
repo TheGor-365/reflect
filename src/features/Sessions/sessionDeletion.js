@@ -12,6 +12,12 @@ export async function deleteOwnerSession(ownerId, sessionId) {
       !validId(sessionId)) {
     throw new Error('invalid-session-deletion');
   }
+  // Load the transport only when explicitly requested. Never fall back
+  // after secure selection, including a misconfigured or unavailable route.
+  if (import.meta.env.VITE_ENABLE_REFLECT_SESSION_DELETION === 'true') {
+    const { deleteSessionSecurely } = await import('../../api/sessionDeletionService');
+    return deleteSessionSecurely(ownerId, sessionId);
+  }
   const sessionRef = doc(db, 'artifacts', appId, 'users', ownerId,
     'sessions', sessionId);
   // The authoritative archivedAt check and deletion share a single transaction.

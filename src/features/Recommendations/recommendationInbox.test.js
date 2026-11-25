@@ -62,7 +62,7 @@ describe('M1 source-backed recommendations inbox', () => {
     expect(result.recommendations[1].goalId).toBe('goal-1');
   });
 
-  it('marks a single outstanding clarification and clears the badge after user follows up', () => {
+  it('retains earlier question as unconfirmed after unrelated user follow-up', () => {
     const session = {
       id: 'session-3', title: 'Разбор проблемы',
       chatHistory: [
@@ -76,8 +76,12 @@ describe('M1 source-backed recommendations inbox', () => {
       pendingCount: 1,
       clarifications: [{ question: 'Какой срок важен?', sourceMessageId: 'user-3' }]
     });
-    session.chatHistory.push({ id: 'user-4', role: 'user', content: 'Десять дней' });
-    expect(buildRecommendationInbox([session]).pendingCount).toBe(0);
+    session.chatHistory.push({ id: 'user-4', role: 'user', content: 'Другая тема' });
+    expect(buildRecommendationInbox([session])).toMatchObject({
+      pendingCount: 0,
+      clarifications: [{ assistantMessageId: 'assistant-3',
+        question: 'Какой срок важен?', hasLaterUserTurn: true }]
+    });
   });
 
   it('rejects a forged suggestion without current-message source or owner-authored turn', () => {
@@ -117,4 +121,24 @@ it('UX R2: owner v2 recommendation is indexed with exact first-party source exce
     .toBe('Хочу закончить первый релиз без лишнего функционала');
   expect(result.recommendations[0].sessionTitle).toBe('Новая тема');
   expect(result.recommendations[0].status).toBe('pending');
+});
+
+
+it('R139 B4 retains a question even in synthesis and ignores empty or assistant follow-ups', () => {
+  const session = { id: 'session-r139', chatHistory: [
+    { id: 'u1', role: 'user', content: 'План' },
+    { id: 'a1', role: 'assistant', interaction: make({
+      stage: 'synthesize', clarifyingQuestion: 'Какой срок?',
+      recommendationCandidates: []
+    }) },
+    { id: 'a2', role: 'assistant', content: 'Ещё текст' },
+    { id: 'u2', role: 'user', content: '   ' }
+  ] };
+  expect(buildRecommendationInbox([session])).toMatchObject({
+    pendingCount: 1, clarifications: [{ assistantMessageId: 'a1', hasLaterUserTurn: false }]
+  });
+  session.chatHistory.push({ id: 'u3', role: 'user', content: 'Три дня' });
+  expect(buildRecommendationInbox([session])).toMatchObject({
+    pendingCount: 0, clarifications: [{ assistantMessageId: 'a1', hasLaterUserTurn: true }]
+  });
 });

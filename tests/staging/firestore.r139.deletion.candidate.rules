@@ -1,0 +1,37 @@
+// R139 deletion boundary candidate. Emulator only; never deploy directly.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function own(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+    function notRevoked(uid, sid) {
+      let guard = /databases/$(database)/documents/_reflectAiPrivate/reflect-8fdc8/attemptOwners/$(uid)/sessions/$(sid);
+      return !exists(guard) || get(guard).data.get('provenanceRevoked', false) == false;
+    }
+    match /_reflectAiPrivate/{document=**} {
+      allow read, write: if false;
+    }
+    match /artifacts/reflect-8fdc8/users/{uid} {
+      allow read, write: if own(uid);
+      // The collection discriminator prevents an overlapping recursive allow
+      // from authorizing a direct session delete.
+      match /{kind}/{document=**} {
+        allow read, write: if kind != 'sessions' && own(uid);
+      }
+      match /sessions/{sid} {
+        allow read: if own(uid);
+        allow create, update: if own(uid) && notRevoked(uid, sid);
+        allow delete: if false;
+      }
+      // Session descendants require separate inventory before permitting writes.
+      match /sessions/{sid}/{child}/{document=**} {
+        allow read: if own(uid);
+        allow write: if false;
+      }
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

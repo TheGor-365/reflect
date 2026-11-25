@@ -33,7 +33,7 @@ export async function applyRecommendationDecision({
   goalId, goalTitle, goalPurpose = '', goalStep = '',
   goalDueDay = '', goalCriteria = ''
 }) {
-  if (!db || !idOk(userId) || !idOk(sessionId) ||
+  if (!db || !idOk(appId) || !idOk(userId) || !idOk(sessionId) ||
       !['goal', ...STATUSES].includes(action)) {
     throw new Error('Нет безопасного контекста для сохранения решения.');
   }
@@ -64,7 +64,9 @@ export async function applyRecommendationDecision({
     const assistant = history[assistantIndex];
     const candidate = isSupportedInteraction(assistant?.interaction)
       ? assistant.interaction.recommendationCandidates?.[candidateIndex] : null;
-    if (assistantIndex < 1 || !candidate ||
+    if (assistantIndex < 1 || history.filter(turn => turn?.id === assistantMessageId).length !== 1 ||
+        !candidate || !Array.isArray(candidate.sourceRefs) ||
+        candidate.sourceRefs.length !== 1 || candidate.sourceRefs[0] !== 'current-message' ||
         !textOk(candidate.title, 120) || !textOk(candidate.rationale, 350)) {
       throw new Error('Эта рекомендация отсутствует в сохранённом ответе Reflect.');
     }
@@ -72,7 +74,10 @@ export async function applyRecommendationDecision({
     // saved history, never to an inferred/third-party memory.
     const preceding = history.slice(0, assistantIndex).reverse().find(message =>
       message?.role === 'user' && idOk(message.id));
-    if (!preceding) throw new Error('Не найден исходный текст сеанса.');
+    if (!preceding || typeof preceding.content !== 'string' || !preceding.content.trim() ||
+        history.filter(turn => turn?.id === preceding.id).length !== 1) {
+      throw new Error('Не найден однозначный исходный текст сеанса.');
+    }
     const existing = session.recommendationDecisions &&
       typeof session.recommendationDecisions === 'object' &&
       !Array.isArray(session.recommendationDecisions)
@@ -111,7 +116,10 @@ export async function applyRecommendationDecision({
       if (goalSnapshot.exists()) {
         const previousGoal = goalSnapshot.data();
         if (previousGoal.sessionId !== sessionId ||
-            previousGoal.sourceRecommendationKey !== key) {
+            previousGoal.sourceRecommendationKey !== key ||
+            previousGoal.sourceMessageId !== preceding.id ||
+            previousGoal.sourceAssistantMessageId !== assistantMessageId ||
+            previousGoal.sourceType !== 'user-accepted-ai-recommendation') {
           throw new Error('ID цели занят другой записью. Повторная запись отменена.');
         }
       } else {

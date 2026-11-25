@@ -1,0 +1,34 @@
+name: Reflect R139 privacy Firebase SDK isolated unit gate
+
+on:
+  push:
+    branches:
+      - fix/reflect-goal-suggestion-eligibility-r139-2026-11-24
+    paths:
+      - server/railway/privacyFirebaseSdk.cjs
+      - server/railway/privacyFirebaseSdk.test.cjs
+      - .github/workflows/reflect-r139-privacy-sdk-unit.yml
+  pull_request:
+    paths:
+      - server/railway/privacyFirebaseSdk.cjs
+      - server/railway/privacyFirebaseSdk.test.cjs
+      - .github/workflows/reflect-r139-privacy-sdk-unit.yml
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-sdk-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate syntax with no dependencies
+        run: |
+          node --check server/railway/privacyFirebaseSdk.cjs
+          node --check server/railway/privacyFirebaseSdk.test.cjs
+      - name: Run isolated tests without credentials, network or provider
+        run: node --test server/railway/privacyFirebaseSdk.test.cjs

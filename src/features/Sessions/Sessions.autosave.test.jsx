@@ -91,3 +91,36 @@ test('a failed assistant write is recoverable without an extra billable request'
   expect(mocks.ai).toHaveBeenCalledOnce();
   expect(mocks.append.mock.calls[0][2].id).toEqual(mocks.append.mock.calls[1][2].id);
 });
+
+
+test('R139 B3 prepares a new clarification without replacing typed draft or sending', () => {
+  const session = {
+    id: 'session-r139', title: 'Тест уточнения',
+    chatHistory: [
+      { id: 'user-r139', role: 'user', content: 'Планирую показать прототип' },
+      { id: 'assistant-r139', role: 'assistant', content: 'Нужно уточнение',
+        interaction: {
+          version: 'reflect.interaction.v1', stage: 'clarify',
+          clarifyingQuestion: 'Какой срок допустим?', unknowns: ['Срок'],
+          insights: [], recommendationCandidates: [{
+            title: 'Проверить прототип', rationale: 'Проверка результата',
+            sourceRefs: ['current-message']
+          }]
+        }
+      }
+    ]
+  };
+  render(<Sessions sessions={[session]} profile={{ name: 'Eric' }}
+    userId="synthetic-eric" currentSessionId={session.id}
+    setCurrentSessionId={vi.fn()} onStartNewSession={vi.fn()}/>);
+  const composer = screen.getByRole('textbox', { name: 'Сообщение для сеанса' });
+  fireEvent.change(composer, { target: { value: 'Мой существующий черновик' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Подготовить уточнение' }));
+  expect(composer.value).toMatch(/^Мой существующий черновик\n\n/);
+  expect(composer.value).toContain('Проверить прототип');
+  expect(composer.value).toContain('Какой срок допустим?');
+  expect(composer.value).toContain('предложи новую рекомендацию');
+  expect(mocks.ai).not.toHaveBeenCalled();
+  expect(mocks.create).not.toHaveBeenCalled();
+  expect(mocks.append).not.toHaveBeenCalled();
+});

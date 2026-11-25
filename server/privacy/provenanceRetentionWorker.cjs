@@ -1,0 +1,112 @@
+"use strict";
+// Isolated worker: no timer, public endpoint or live runtime registration.
+const {randomUUID} = require("node:crypto");
+const { JOB_ROOT, jobId, createProvenanceRetention } = require("./provenanceRetention.cjs");
+const {eligible,afterFailure,afterSuccess} = require("./provenanceRetentionRetry.cjs");
+const ID = /^[A-Za-z0-9_-]{1,128}$/;
+const {validCursor}=require("./provenanceRetentionCursor.cjs");
+const valid = x => typeof x === "string" && ID.test(x);
+const {validateSweepClaim,requireSweep}=require("./provenanceRetentionSweepFence.cjs");
+const LIMIT = 10;
+const ATTEMPT_MS = 300000;
+function createProvenanceRetentionWorker({db,projectId,deleteField,clock=Date.now}) {
+  // Validate dependencies before any queue reads.
+  createProvenanceRetention({db,projectId,deleteField,clock});
+  if(typeof clock!=="function") throw Error("invalid-retention-clock");
+  function now(){
+    const t=clock();
+    if(!Number.isSafeInteger(t)||t<0||t>Number.MAX_SAFE_INTEGER-ATTEMPT_MS)
+      throw Error("invalid-retention-clock");
+    return t;
+  }
+  function target(row,id) {
+    if (!row || row.schemaVersion !== 1 || !valid(row.uid) ||
+        !valid(row.sessionId) || id !== jobId(row.uid,row.sessionId))
+      throw Error("invalid-retention-job");
+    return row;
+  }
+  function attempt(row){
+    if(!Object.hasOwn(row,"attempt")||row.attempt===null) return null;
+    const a=row.attempt;
+    if(!a||typeof a.owner!=="string"||!/^[0-9a-f-]{36}$/.test(a.owner)||
+       !Number.isSafeInteger(a.untilMs)||a.untilMs<1) throw Error("invalid-retention-attempt");
+    return a;
+  }
+  async function runBatch({after = null, diagnostics = false,sweepClaim = null} = {}) {
+    const sweep=sweepClaim===null?null:validateSweepClaim(sweepClaim);
+    if (!validCursor(after)) {
+      throw Error("invalid-worker-cursor");
+    }
+    let query = db.collection(JOB_ROOT).where("status","==","pending")
+      .orderBy("__name__").limit(LIMIT);
+    if (after !== null) query = query.startAfter(after);
+    const page = await query.get();
+    let completed=0, pending=0, failed=0;
+    const health={backoff:0,busy:0,attention:0,stale:0,invalidOrStorageFailure:0};
+    for (const snapshot of page.docs) {
+      try {
+        target(snapshot.data(),snapshot.id);
+        const ref=db.doc(JOB_ROOT+"/"+snapshot.id);
+        const owner=randomUUID();
+        const claimed=await db.runTransaction(async tx=>{
+          const checkSweep=await requireSweep(tx,db,sweep,clock);
+          const snap=await tx.get(ref);
+          if(!snap.exists) return {skip:"stale"};
+          const row=target(snap.data(),snapshot.id);
+          const t=now();
+          if(row.status!=="pending") return {skip:"stale"};
+          if(!eligible(row,t)) return {skip:"backoff"};
+          const a=attempt(row);
+          if(a&&a.untilMs>t) return {skip:"busy"};
+          checkSweep();
+          tx.set(ref,{attempt:{owner,untilMs:t+ATTEMPT_MS}},{merge:true});
+          return {uid:row.uid,sessionId:row.sessionId};
+        });
+        if(claimed.skip){health[claimed.skip]++;pending++;continue;}
+        const {uid,sessionId}=claimed;
+        const retention = createProvenanceRetention({db,projectId,deleteField,clock,workerAttempt:owner,sweepClaim:sweep});
+        let ok=false, finished=false;
+        try {
+          const turns=await retention.scrubDeletedSession({sessionId},{uid});
+          const events=await retention.scrubDeletedSessionAcceptances({sessionId},{uid});
+          finished=turns.done&&events.done;
+          ok=true;
+        } catch { /* Never persist raw errors. */ }
+        const outcome=await db.runTransaction(async tx=>{
+          const checkSweep=await requireSweep(tx,db,sweep,clock);
+          const job=await tx.get(ref);
+          if(!job.exists) return "stale";
+          const row=target(job.data(),snapshot.id), a=attempt(row), t=now();
+          if(row.status!=="pending"||row.uid!==uid||row.sessionId!==sessionId||
+             !a||a.owner!==owner||a.untilMs<=t) return "stale";
+          if(ok&&finished){
+            const marker=await tx.get(db.doc(`_reflectAiPrivate/reflect-8fdc8/attemptOwners/${uid}/sessions/${sessionId}`));
+            const state=marker.exists?marker.data():null;
+            if(state?.provenanceRevoked!==true||state.turnCleanup?.done!==true||
+               state.turnCleanup?.cursor!==null||state.acceptanceCleanup?.done!==true)
+              throw Error("invalid-retention-progress");
+          }
+          const patch=ok?{status:finished?"complete":"pending",retry:afterSuccess()}:
+            afterFailure(row,t);
+          checkSweep();
+          tx.set(ref,{...patch,attempt:null},{merge:true});
+          return ok?(finished?"completed":"pending"):(patch.status==="attention"?"attention":"failed");
+        });
+        if(outcome==="completed") completed++;
+        else if(outcome==="failed") failed++;
+        else if(outcome==="attention"){health.attention++;failed++;}
+        else if(outcome==="stale"){health.stale++;pending++;}
+        else pending++;
+      } catch {
+        // Malformed jobs or storage faults remain visible as aggregate failures.
+        health.invalidOrStorageFailure++;
+        failed++;
+      }
+    }
+    return { scanned:page.docs.length,completed,pending,failed,
+      nextCursor:page.docs.length===LIMIT ? page.docs[page.docs.length-1].id : null,
+      ...(diagnostics ? {health} : {}) };
+  }
+  return Object.freeze({runBatch});
+}
+module.exports = {createProvenanceRetentionWorker,LIMIT,ATTEMPT_MS};

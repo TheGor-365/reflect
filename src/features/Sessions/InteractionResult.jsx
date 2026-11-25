@@ -244,11 +244,29 @@ export default function InteractionResult({
               Цель пока недоступна: {goalGate.reason}
               Сохранить идею или отложить её можно независимо.
             </p>}
+            {oldRecommendationWithOpenHypotheses && status !== 'accepted' && (
+              <p>Уточните вопрос и неизвестные обстоятельства в новом сообщении,
+                исправьте неподтверждённые предпосылки и попросите Reflect
+                сформулировать новую рекомендацию. Исходное предложение
+                не станет доступным для создания цели автоматически.</p>
+            )}
             <div className="reflect-interaction-actions">
               {onCompose && <button type="button"
                 onClick={() => onCompose('Хочу обсудить предложение «' + item.title + '»: ')}>
                 <MessageCircle size={15} aria-hidden="true"/> Обсудить
               </button>}
+              {onCompose && isSaved && oldRecommendationWithOpenHypotheses &&
+                status !== 'accepted' && status !== 'dismissed' && (
+                <button type="button" onClick={() => onCompose([
+                  'Хочу уточнить предложение Reflect «' + item.title + '».',
+                  ...(question.trim() ? ['Вопрос Reflect: «' + question + '».'] : []),
+                  'Планирую уточнить условия и проверяемый результат.',
+                  'Мой ответ и исправления: ',
+                  'На основании моих уточнений предложи новую рекомендацию, если данных достаточно; иначе обозначь неизвестное.'
+                ].join('\n'))}>
+                  <MessageSquareReply size={15} aria-hidden="true"/> Подготовить уточнение
+                </button>
+              )}
               {onDecision && !isSaved && <small>Для решения сначала нужно сохранить сеанс.</small>}
               {onDecision && isSaved && (
                 <>
