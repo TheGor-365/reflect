@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const { createGoalAcceptanceService } = require("./goalAcceptanceService.cjs");
 const { createProvenanceKeyring } = require("./recommendationProvenanceKeyring.cjs");
 
-function fixture() {
+function fixture(accountFenceEnabled = false) {
   const projectId = "reflect-ai-staging", uid = "alice", sessionId = "s1";
   const requestId = "request-fixture-0001", sourceTurnId = "user-" + requestId;
   const assistantTurnId = "assistant-" + requestId;
@@ -26,7 +26,7 @@ function fixture() {
         assistantText: answer.content, interaction: answer.interaction
       }) }]]);
   let tail = Promise.resolve();
-  const db = { doc: path => ({ path }), runTransaction(work) {
+  const db = { projectId, doc: path => ({ path }), runTransaction(work) {
     const execute = async () => {
       const writes = [];
       const result = await work({
@@ -40,7 +40,7 @@ function fixture() {
     };
     const next = tail.then(execute); tail = next.catch(() => {}); return next;
   } };
-  const service = createGoalAcceptanceService({ db, projectId, provenance });
+  const service = createGoalAcceptanceService({ db, projectId, provenance, accountFenceEnabled });
   const body = { sessionId, sourceTurnId, assistantTurnId, candidateIndex: 0, confirmed: true,
     goalTitle: "Owner goal", goalPurpose: "", goalStep: "Owner step", goalCriteria: "Owner criteria" };
   const accept = (patch = {}, principal = { uid }) => service.accept({ ...body, ...patch }, principal);
@@ -124,4 +124,18 @@ test("client-created accepted decision is never upgraded to verified event", asy
   assert.equal((await f.accept()).alreadyAccepted,false);
   f.docs.set(flag,{enabled:false});
   await denied(()=>f.accept(),"unavailable");
+});
+
+test("enabled account fence blocks goal acceptance and repeat without mutation",async()=>{
+ const f=fixture(true),marker="_reflectAiPrivate/reflect-8fdc8/accountRevocations/alice";
+ f.docs.set(marker,{});
+ const before=structuredClone(f.docs);
+ await assert.rejects(f.accept(),/account-revoked/);
+ assert.deepEqual(f.docs,before);
+ f.docs.delete(marker);
+ await f.accept();
+ f.docs.set(marker,{});
+ const after=structuredClone(f.docs);
+ await assert.rejects(f.accept(),/account-revoked/);
+ assert.deepEqual(f.docs,after);
 });
