@@ -79,8 +79,15 @@ async function initializePrivacyFirebaseClients({
     const auth = sdk.auth.getAuth(app);
     const appCheck = sdk.appCheck.getAppCheck(app);
     const db = sdk.firestore.getFirestore(app);
+    // The Node Firestore projectId getter can throw until the client is
+    // initialized. Binding via getFirestore(app) and the explicitly pinned
+    // Admin App is mandatory; inspect exposed metadata only when available.
+    let dbProjectId = null;
+    try { dbProjectId = db?.projectId ?? null; }
+    catch { /* uninitialized Firestore client; no network/ADC fallback */ }
     if (auth?.app !== app || appCheck?.app !== app ||
-        db?.projectId !== PROJECT || typeof db.doc !== "function" ||
+        (dbProjectId !== null && dbProjectId !== PROJECT) ||
+        typeof db?.doc !== "function" ||
         typeof db.collection !== "function" ||
         typeof db.runTransaction !== "function" ||
         typeof db.batch !== "function") {
