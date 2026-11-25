@@ -54,3 +54,60 @@ test("redacts initialization and cleanup failures",async()=>{
   await assert.rejects(createPrivacyDispatcherCandidate({...config(),initializeClients:async()=>{throw Error("synthetic secret");}}),{message:"privacy-dispatcher-unavailable"});
   await assert.rejects(createPrivacyDispatcherCandidate({...config(),initializeClients:async()=>({db:{projectId:"foreign"},dispose:async()=>{throw Error("synthetic cleanup secret");}})}),{message:"privacy-dispatcher-unavailable"});
 });
+
+function response() {
+  return {status:null,body:null,writeHead(status){this.status=status;},end(body){this.body=body;}};
+}
+function syntheticClients(dispose=async()=>{}) {
+  const unexpected=()=>{throw Error("unexpected external IO");};
+  const app={options:{projectId}};
+  return {
+    db:{projectId,doc:unexpected,collection:unexpected,batch:unexpected,runTransaction:unexpected},
+    auth:{app,verifyIdToken:unexpected,getUser:unexpected},
+    appCheck:{app,verifyToken:unexpected},deleteField:unexpected,dispose
+  };
+}
+
+test("composes trusted route, preflight and unauthenticated rejection without AI or SDK IO",async()=>{
+  let aiCalls=0,disposals=0;
+  const runtime=await createPrivacyDispatcherCandidate({...config(),
+    initializeClients:async()=>syntheticClients(async()=>{disposals++;}),
+    aiRoute:(_req,res)=>{aiCalls++;res.writeHead(404);res.end("fallback");}
+  });
+  try {
+    const path="/v1/privacy/session-deletion";
+    for(const [method,origin,status] of [["OPTIONS",ORIGIN,204],["POST",ORIGIN,401],["POST","https://example.invalid",403],["GET",ORIGIN,404]]){
+      const res=response();
+      await runtime.dispatch({method,url:path,headers:{origin}},res);
+      assert.equal(res.status,status);
+    }
+    assert.equal(aiCalls,0);
+    for(const url of [path+"?x=1",path+"/","/v1/ai/reply"]){
+      const res=response();
+      await runtime.dispatch({method:"POST",url,headers:{origin:ORIGIN}},res);
+      assert.equal(res.status,404);
+      assert.equal(res.body,"fallback");
+    }
+    assert.equal(aiCalls,3);
+  } finally {await runtime.dispose();}
+  await runtime.dispose();
+  assert.equal(disposals,1);
+  const res=response();
+  await runtime.dispatch({method:"OPTIONS",url:"/v1/privacy/session-deletion",headers:{origin:ORIGIN}},res);
+  assert.equal(res.status,503);
+  assert.equal(aiCalls,3);
+});
+
+test("successful composition disposal failure stays redacted and permanently closed",async()=>{
+  let attempts=0;
+  const runtime=await createPrivacyDispatcherCandidate({...config(),
+    initializeClients:async()=>syntheticClients(async()=>{attempts++;throw Error("synthetic secret");})
+  });
+  await assert.rejects(runtime.dispose(),{message:"privacy-dispatcher-unavailable"});
+  await runtime.dispose();
+  assert.equal(attempts,1);
+  const res=response();
+  await runtime.dispatch({method:"POST",url:"/v1/privacy/session-deletion",headers:{origin:ORIGIN}},res);
+  assert.equal(res.status,503);
+  assert.deepEqual(JSON.parse(res.body),{error:"unavailable"});
+});
