@@ -45,3 +45,21 @@ test("freshness is rechecked after asynchronous authorization",async()=>{
  const gate=make({clock:()=>time,authorizeAccount:async()=>{time+=301000;return true;}});
  await assert.rejects(gate.authorize(input),/account-deletion-reauthentication-required/);
 });
+
+const guest={uid:"alice",auth_time:now/1000-86400,iat:now/1000,firebase:{sign_in_provider:"anonymous"}};
+test("explicit guest policy permits current anonymous identity with recently issued token",async()=>{
+ const gate=make({verifyAuth:async()=>guest,authorizeGuest:async p=>{assert.deepEqual(p,{uid:"alice",authTime:guest.auth_time});return true;}});
+ assert.deepEqual(await gate.authorize(input),{uid:"alice"});
+});
+test("guest rejects stale missing future or inconsistent token issuance",async()=>{
+ for(const iat of [now/1000-301,undefined,now/1000+1,guest.auth_time-1])
+  await assert.rejects(make({verifyAuth:async()=>({...guest,iat}),authorizeGuest:async()=>true}).authorize(input),/account-deletion-reauthentication-required/);
+});
+test("guest policy denial or failure is redacted",async()=>{
+ for(const authorizeGuest of [async()=>false,async()=>{throw Error("private user");}])
+  await assert.rejects(make({verifyAuth:async()=>guest,authorizeGuest}).authorize(input),{message:"account-deletion-permission-denied"});
+});
+test("guest token issuance freshness rechecked after policy lookup",async()=>{
+ let time=now;
+ await assert.rejects(make({clock:()=>time,verifyAuth:async()=>guest,authorizeGuest:async()=>{time+=301000;return true;}}).authorize(input),/account-deletion-reauthentication-required/);
+});
