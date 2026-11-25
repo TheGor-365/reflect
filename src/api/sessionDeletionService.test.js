@@ -75,3 +75,34 @@ describe('secure session deletion', () => {
     expect(state.transaction).not.toHaveBeenCalled();
   });
 });
+
+describe('typed deletion outcomes', () => {
+  it.each([[400,'invalid-argument'],[401,'unauthenticated'],[403,'permission-denied'],
+    [404,'session-not-found'],[409,'archived-session'],[429,'resource-exhausted']])
+  ('classifies exact refusal %s', async (status, code) => {
+    fetchMock.mockResolvedValue({ status, json: async () => ({ error: code }) });
+    const { deleteSessionSecurely } = await import('./sessionDeletionService');
+    await expect(deleteSessionSecurely('alice','s1')).rejects.toMatchObject({ outcome:'rejected', code });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(state.transaction).not.toHaveBeenCalled();
+  });
+  it.each([[503,{error:'unavailable'}],[404,{error:'not-found'}],
+    [409,{error:'archived-session',extra:true}],[200,{status:'revoked',extra:true}]])
+  ('treats noncanonical or ambiguous response %s as unknown', async (status, data) => {
+    fetchMock.mockResolvedValue({ status, json: async () => data });
+    const { deleteSessionSecurely } = await import('./sessionDeletionService');
+    await expect(deleteSessionSecurely('alice','s1')).rejects.toMatchObject({outcome:'unknown'});
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it('does not trust forged dependency outcomes; distinguishes preflight and network failure', async () => {
+    const { deleteSessionSecurely } = await import('./sessionDeletionService');
+    const forged = Object.assign(Error('private'), {outcome:'rejected',code:'archived-session'});
+    state.token.mockRejectedValueOnce(forged);
+    await expect(deleteSessionSecurely('alice','s1')).rejects.toMatchObject({outcome:'not-sent'});
+    expect(fetchMock).not.toHaveBeenCalled();
+    fetchMock.mockRejectedValueOnce(forged);
+    await expect(deleteSessionSecurely('alice','s1')).rejects.toMatchObject({outcome:'unknown'});
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(state.transaction).not.toHaveBeenCalled();
+  });
+});
