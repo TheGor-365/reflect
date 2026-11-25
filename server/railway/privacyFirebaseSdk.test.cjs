@@ -47,10 +47,14 @@ function fakeSdk(options = {}) {
     firestore: {
       getFirestore: () => {
         if (options.firestoreThrows) throw Error("LEAK_SDK_FIRESTORE_SECRET");
-        return {
+        const db = {
           projectId: options.foreignDb ? "other-project" : PROJECT,
           doc() {}, collection() {}, runTransaction() {}, batch() {}
         };
+        if (options.lazyDb) Object.defineProperty(db, "projectId", {
+          get() { throw Error("FIRESTORE_NOT_READY_YET"); }
+        });
+        return db;
       },
       FieldValue: { delete: () => { calls.fields++; return { marker: "delete" }; } }
     }
@@ -160,6 +164,17 @@ test("rejects cross-app Auth/AppCheck and foreign Firestore; cleans up only own 
     })), /^Error: privacy-sdk-unavailable$/);
     assert.deepEqual(calls.deleted, [app]);
   }
+});
+
+test("accepts an app-bound uninitialized Firestore client without eager IO", async () => {
+  const { sdk, calls, app } = fakeSdk({ lazyDb: true });
+  const clients = await initializePrivacyFirebaseClients(args({
+    loadSdk: () => sdk
+  }));
+  assert.equal(clients.auth.app, app);
+  assert.equal(calls.created, 1);
+  await clients.dispose();
+  assert.deepEqual(calls.deleted, [app]);
 });
 
 test("redacts SDK client failures and cleans up partially created app", async () => {
