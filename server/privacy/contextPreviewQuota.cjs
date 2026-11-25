@@ -1,4 +1,5 @@
 "use strict";
+const {createAccountRevocationFence}=require("./accountRevocationFence.cjs");
 
 /**
  * AI-01K: server-private, durable per-owner preview rate limiter.
@@ -14,13 +15,14 @@ const fail = code => { throw new PolicyError(code); };
 const plain = x => x && typeof x === "object" && !Array.isArray(x) &&
   Object.getPrototypeOf(x) === Object.prototype;
 
-function createPreviewQuota({ db, projectId, clock = Date.now }) {
+function createPreviewQuota({ db, projectId, clock = Date.now, accountFenceEnabled = false }) {
   if (!db || typeof db.doc !== "function" ||
       typeof db.runTransaction !== "function" ||
       projectId !== PROJECT_ID || typeof clock !== "function") {
     fail("unsafe-environment");
   }
 
+  const accountFence=createAccountRevocationFence({db,projectId,locallyEnabled:accountFenceEnabled});
   return Object.freeze({
     async consume(uid) {
       if (typeof uid !== "string" || !UID.test(uid)) fail("unauthenticated");
@@ -33,6 +35,7 @@ function createPreviewQuota({ db, projectId, clock = Date.now }) {
         `_reflectAiPrivate/${NAMESPACE}/contextPreviewQuotas/${uid}`
       );
       return db.runTransaction(async tx => {
+      if(accountFence) await accountFence.requireActive(tx,uid);
         const snap = await tx.get(ref);
         const prev = snap.exists ? snap.data() : null;
         if (snap.exists &&
