@@ -45,10 +45,12 @@ async function initializePrivacyFirebaseClients({
 } = {}) {
   if (typeof locallyEnabled !== "boolean") throw Error("privacy-sdk-unavailable");
   if (!locallyEnabled) return null;
-  if (projectId !== PROJECT || !validateEnvironment(env) ||
-      !validateCredential(credential) || typeof loadSdk !== "function") {
-    throw Error("privacy-sdk-unavailable");
-  }
+  let validated = false;
+  try {
+    validated = projectId === PROJECT && validateEnvironment(env) &&
+      validateCredential(credential) && typeof loadSdk === "function";
+  } catch { /* Malformed/cyclic credential or hostile environment: fail closed. */ }
+  if (!validated) throw Error("privacy-sdk-unavailable");
 
   let app = null;
   let sdk = null;
